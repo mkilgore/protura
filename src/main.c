@@ -6,24 +6,25 @@
  * Free Software Foundation.
  */
 
-#include <arch/types.h>
-#include <term.h>
+#include <protura/types.h>
+#include <protura/debug.h>
+
+#include <drivers/term.h>
 
 int cmain(uint32_t magic, uint32_t addr)
 {
-    int i;
-    volatile int c;
+    int i = 250;
+    void *p =(void *)0xDEADBEEF;
+    char *s = "Test2";
+
     term_init();
 
-    term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
-    for (i = 0; ; i++) {
-        term_print("Tes");
-        term_setcurcolor(term_make_color(i % 8, T_BLACK));
-        for (c = 0; c < 100000; c++) {
-            ;
-        }
-    }
+    kprintf("Hello! :D\n");
+
+    kprintf("Test int: %d\n ptr: %p\n str: %s\n", i, p, s);
 
     while (1);
+
+    return 0;
 }
 

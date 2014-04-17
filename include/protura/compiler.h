@@ -31,6 +31,7 @@
 
 #define __packed __attribute__((packed))
 
+#define __printf(str, args)  __attribute__((format(printf, str, args)))
 
 
 #endif

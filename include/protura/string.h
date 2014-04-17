@@ -5,10 +5,10 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_STRING_H
-#define INCLUDE_STRING_H
+#ifndef INCLUDE_PROTURA_STRING_H
+#define INCLUDE_PROTURA_STRING_H
 
-#include <arch/types.h>
+#include <protura/types.h>
 #include <arch/string.h>
 
 #ifndef _STRING_ARCH_MEMCMP

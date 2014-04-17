@@ -1,3 +1,3 @@
 
-OBJS_y += $(objtree)/term.o $(objtree)/main.o $(objtree)/string.o
+OBJS_y += $(objtree)/main.o $(objtree)/string.o $(objtree)/debug.o
 

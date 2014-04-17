@@ -6,31 +6,29 @@ PATCH     := 0
 VERSION_N := $(VERSION).$(SUBLEVEL).$(PATCH)
 
 ARCH   := x86
+BITS   := 32
 
 TARGET := i586-elf-
 
 # Compiler settings
 CC      := $(TARGET)gcc
-CPP     := $(TARGET)cpp
+CPP     := $(TARGET)gcc -E
 LD      := $(TARGET)ld
-
-ifeq ($(ARCH),x86)
-AS := nasm
-else
-AS := $(TARGET)gas
-endif
+AS      := $(TARGET)gas
 
 CPPFLAGS := -DPROTURA_VERSION=$(VERSION)              \
-		   -DPROTURA_SUBLEVEL=$(SUBLEVEL)             \
-		   -DPROTURA_PATCH=$(PATCH)                   \
-		   -DPROTURA_VERSION_N="$(VERSION_N)"         \
-		   -DPROTURA_ARCH="$(ARCH)"
+            -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
+            -DPROTURA_PATCH=$(PATCH)                  \
+            -DPROTURA_VERSION_N="$(VERSION_N)"        \
+            -DPROTURA_ARCH="$(ARCH)"                  \
+			-DBITS=$(BITS)                            \
+            -I'./include' -I'./arch/$(ARCH)/include'
 
-CFLAGS  := -Wall -I'./include' -O2 -std=gnu99         \
-		   -I'./arch/$(ARCH)/include'                 \
-		   -ffreestanding -fno-strict-aliasing
+CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding        \
+           -fno-strict-aliasing -nostdlib
 
 LDFLAGS := -ffreestanding -nostdlib -T ./arch/$(ARCH)/linker.ld
+ASFLAGS := -DASM -Wall -O2 -ffreestanding -nostdlib
 
 # Configuration -- Uncomment lines to enable option
 # Or specify on the commandline
@@ -70,7 +68,7 @@ endif
 
 include $(srctree)/config.mk
 
-make_name = $(subst /,_,$1)
+make_name = $(subst /,_,$(basename $(objtree)/$1))
 
 # Traverse into tree
 define subdir_inc
@@ -103,15 +101,9 @@ ifdef $$(_tmp)
 	CLEAN_LIST += $$($$(_tmp))
 
 $(1): $$($$(subst /,_,$$(basename $(1)))_y)
-	@echo " LD      $$@ $$($$(subst /,_,$$(basename $(1)))_y)"
+	@echo " LD      $$@"
 	$$(Q)$$(LD) -r -o $$@ $$($$(subst /,_,$$(basename $(1)))_y)
 
-endif
-
-_s := $$(suffix $(1))
-
-ifeq ("$$(_s)",".S")
-	CLEAN_LIST += $$(basename $(1)).s
 endif
 
 endef
@@ -138,21 +130,17 @@ $(objtree)/$(EXE): $(OBJS_y)
 	@echo " CCLD    $@"
 	$(Q)$(CC) $(LDFLAGS) $(OBJS_y) -o $@
 
-$(objtree)/%.s: $(srctree)/%.S
-	@echo " CPP     $@"
-	$(Q)$(CPP) $(CPPFLAGS) -DASM -o $@ $<
-
 $(objtree)/%.o: $(srctree)/%.c
 	@echo " CC      $@"
-	$(Q)$(CC) $(CFLAGS) $(CFLAGS_$(make_name $@)) -c $< -o $@
+	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$(make_name $@)) -c $< -o $@
 
-$(objtree)/%.o: $(srctree)/%.s
-	@echo " AS      $@"
-	$(Q)$(AS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
+$(objtree)/%.o: $(objtree)/%.S
+	@echo " CC      $@"
+	$(Q)$(CC) $(CPPFLAGS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
 
 qemu-test: $(objtree)/$(EXE)
 	@echo " Testing with QEMU."
-	$(Q)qemu-system-i386 -kernel $(objtree)/$(EXE)
+	$(Q)qemu-system-i386 -monitor stdio -kernel $(objtree)/$(EXE)
 
 .PHONY: $(PHONY)
 

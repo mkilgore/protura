@@ -5,34 +5,37 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-.set ALIGN,    1<<0             # align loaded modules on page boundaries
-.set MEMINFO,  1<<1             # provide memory map
-.set FLAGS,    ALIGN | MEMINFO  # this is the Multiboot 'flag' field
-.set MAGIC,    0x1BADB002       # 'magic number' lets bootloader find the header
-.set CHECKSUM, -(MAGIC + FLAGS) # checksum of above, to prove we are multiboot
+
+#include <protura/multiboot.h>
 
 .section .multiboot
 .align 4
-.long MAGIC
-.long FLAGS
-.long CHECKSUM
+.long MULTIBOOT_HEADER_MAGIC
+.long MULTIBOOT_PROTURA_FLAGS
+.long MULTIBOOT_PROTURA_CHECKSUM
 
-.set KSTACKSIZE, 8192
+.section .bootstrap_stack, "aw", @nobits
+.align 4
+stack_botton:
+.skip 16384
+stack_top:
 
 .section .text
 .global _start
 .type _start, @function
+.extern cmain
 _start:
-    
-    movl $(stack + KSTACKSIZE), %esp
+
+    cli
+    movl $stack_top, %esp
 
     push %ebx
     push %eax
 
     call cmain
-    
-loop: hlt
-    jmp loop
 
-    .comm stack, KSTACKSIZE
+    cli
+    hlt
+.loop:
+    jmp .loop
 

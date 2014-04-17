@@ -8,7 +8,9 @@
 #ifndef INCLUDE_TERM_H
 #define INCLUDE_TERM_H
 
-#include <arch/types.h>
+#include <stdarg.h>
+
+#include <protura/types.h>
 #include <protura/compiler.h>
 
 #define TERM_ROWS 25
@@ -40,15 +42,20 @@ struct term_char {
 void term_init(void);
 
 void term_put_term_char(struct term_char);
+
 void term_putchar(char);
-void term_print(const char *);
+
+void term_printf(const char *, ...) __printf(1, 2);
+void term_printfv(const char *, va_list);
 
 void term_put_term_char_at(int row, int col, struct term_char);
 void term_put_char_at(int row, int col, char);
 void term_print_at(int row, int col, const char *);
 
-void term_setcurxy(int r, int c);
+void term_setcur(int r, int c);
 void term_setcurcolor(uint8_t color);
+void term_clear(void);
+void term_clear_color(uint8_t color);
 
 void term_scroll(int);
 
