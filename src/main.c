@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 
 #include <drivers/term.h>
+#include <arch/gdt.h>
 
 int cmain(uint32_t magic, uint32_t addr)
 {
@@ -18,6 +19,7 @@ int cmain(uint32_t magic, uint32_t addr)
     char *s = "Test2";
 
     term_init();
+    init_gdt();
 
     kprintf("Hello! :D\n");
 

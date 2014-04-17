@@ -135,7 +135,7 @@ $(objtree)/%.o: $(srctree)/%.c
 	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$(make_name $@)) -c $< -o $@
 
 $(objtree)/%.o: $(objtree)/%.S
-	@echo " CC      $@"
+	@echo " CCAS    $@"
 	$(Q)$(CC) $(CPPFLAGS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
 
 qemu-test: $(objtree)/$(EXE)
