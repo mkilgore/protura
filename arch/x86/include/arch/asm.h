@@ -30,4 +30,19 @@ __always_inline uint16_t inw(uint16_t port)
     return ret;
 }
 
+__always_inline void hlt(void)
+{
+    asm volatile("hlt");
+}
+
+__always_inline void cli(void)
+{
+    asm volatile("cli");
+}
+
+__always_inline void sti(void)
+{
+    asm volatile("sti");
+}
+
 #endif

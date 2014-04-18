@@ -16,7 +16,7 @@ CPP     := $(TARGET)gcc -E
 LD      := $(TARGET)ld
 AS      := $(TARGET)gas
 
-CPPFLAGS := -DPROTURA_VERSION=$(VERSION)              \
+CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
             -DPROTURA_PATCH=$(PATCH)                  \
             -DPROTURA_VERSION_N="$(VERSION_N)"        \
@@ -34,7 +34,7 @@ ASFLAGS := -DASM -Wall -O2 -ffreestanding -nostdlib
 # Or specify on the commandline
 
 # Enable debugging
-# PORTURA_DEBUG := y
+PORTURA_DEBUG := y
 
 # Show all commands executed by the Makefile
 # V := y
@@ -63,7 +63,10 @@ else
 endif
 
 ifdef PROTURA_DEBUG
-	CFLAGS += -DPROTURA_DEBUG -g
+	CPPFLAGS += -DPROTURA_DEBUG
+	CFLAGS += -g
+	ASFLAGS += -g
+	LDFLAGS += -g
 endif
 
 include $(srctree)/config.mk
@@ -140,7 +143,7 @@ $(objtree)/%.o: $(objtree)/%.S
 
 qemu-test: $(objtree)/$(EXE)
 	@echo " Testing with QEMU."
-	$(Q)qemu-system-i386 -monitor stdio -kernel $(objtree)/$(EXE)
+	$(Q)qemu-system-i386 -d int,cpu_reset -s -S -kernel $(objtree)/$(EXE)
 
 .PHONY: $(PHONY)
 

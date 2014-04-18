@@ -40,15 +40,21 @@ struct gdt_entry {
     uint8_t  base_high;
 } __packed;
 
+#define GDT_ENTRY(base, limit, acs, gran) { \
+        .limit_low   = ((limit) & 0xFFFF), \
+        .base_low    = ((base) & 0xFFFF),  \
+        .base_middle = (((base) >> 16) & 0xFF), \
+        .base_high   = (((base) >> 24) & 0xFF), \
+        .access      = (acs), \
+        .granularity = (gran) \
+    }
+
 struct gdt_ptr {
     uint16_t limit;
-    uint16_t base;
+    uint32_t base;
 } __packed;
 
-
-void init_gdt(void);
-
-void gdt_flush(uint32_t);
+void gdt_init(void);
 
 #endif /* ASM */
 

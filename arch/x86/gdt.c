@@ -9,34 +9,23 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 
+#include "gdt_flush.h"
 #include <arch/gdt.h>
 
-static struct gdt_entry gdt_entries[5];
-static struct gdt_ptr   gdt_ptr;
+static struct gdt_ptr gdt_ptr;
 
-static void gdt_set_gate(uint32_t num, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran)
+static struct gdt_entry gdt_entries[5] = {
+    GDT_ENTRY(0, 0, 0, 0),
+    GDT_ENTRY(0, 0xFFFFFFFF, 0x9A, 0xCF),
+    GDT_ENTRY(0, 0xFFFFFFFF, 0x92, 0xCF),
+    GDT_ENTRY(0, 0xFFFFFFFF, 0xFA, 0xCF),
+    GDT_ENTRY(0, 0xFFFFFFFF, 0xF2, 0xCF)
+};
+
+void gdt_init(void)
 {
-    struct gdt_entry *ent = gdt_entries + num;
-
-    ent->base_low = base & 0xFFFF;
-    ent->base_middle = (base >> 16) & 0xFF;
-    ent->base_high = (base >> 24) & 0xFF;
-
-    ent->limit_low = limit & 0xFFFF;
-    ent->granularity |= gran & 0xF0;
-    ent->access = access;
-}
-
-void init_gdt(void)
-{
-    gdt_ptr.limit = (sizeof(struct gdt_entry) * 5) - 1;
+    gdt_ptr.limit = (sizeof(gdt_entries));
     gdt_ptr.base  = (uint32_t)&gdt_entries;
-
-    gdt_set_gate(0, 0, 0, 0, 0);
-    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
-    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
-    gdt_set_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);
-    gdt_set_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
 
     gdt_flush((uint32_t)&gdt_ptr);
 }

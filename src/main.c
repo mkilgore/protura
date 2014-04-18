@@ -9,8 +9,8 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 
-#include <drivers/term.h>
-#include <arch/gdt.h>
+#include <arch/init.h>
+
 
 int cmain(uint32_t magic, uint32_t addr)
 {
@@ -18,14 +18,14 @@ int cmain(uint32_t magic, uint32_t addr)
     void *p =(void *)0xDEADBEEF;
     char *s = "Test2";
 
-    term_init();
-    init_gdt();
+    arch_init();
 
     kprintf("Hello! :D\n");
 
     kprintf("Test int: %d\n ptr: %p\n str: %s\n", i, p, s);
 
-    while (1);
+    asm volatile("int $0x3");
+    asm volatile("int $0x4");
 
     return 0;
 }

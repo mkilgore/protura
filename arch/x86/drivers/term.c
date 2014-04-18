@@ -152,15 +152,13 @@ void term_putptr(const void *p)
 {
     uint32_t val = (uint32_t)p;
     uint8_t digit;
-    char buf[2 * sizeof(p) + 1], *ebuf = buf + 2 * sizeof(p) + 1;
+    int i;
+    char buf[11], *ebuf = buf + 11;
 
     *--ebuf = '\0';
 
-    if (val == 0)
-        *--ebuf = '0';
-
-    while (val > 0) {
-        digit  = val % 16;
+    for (i = 0; i < 8; i++) {
+        digit = val % 16;
         val = val >> 4;
         *--ebuf = inttohex[digit];
     }

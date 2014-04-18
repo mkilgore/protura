@@ -13,9 +13,9 @@
 gdt_flush:
     movl 4(%esp), %eax
     lgdt (%eax)
-    
-    ljmp $0x08, $.flush
-.flush:
+
+    ljmp $_KERNEL_CS, $1f
+1:
 
     movw $_KERNEL_DS, %ax
     movw %ax, %ds
@@ -23,6 +23,7 @@ gdt_flush:
     movw %ax, %fs
     movw %ax, %gs
     movw %ax, %ss
+
     ret
 
 
