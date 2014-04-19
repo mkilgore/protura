@@ -53,9 +53,6 @@
 /* This flag indicates the use of the address fields in the header. */
 #define MULTIBOOT_AOUT_KLUDGE                   0x00010000
 
-#define MULTIBOOT_PROTURA_FLAGS  (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO)
-
-#define MULTIBOOT_PROTURA_CHECKSUM -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_PROTURA_FLAGS)
 
 /* Flags to be set in the 'flags' member of the multiboot info structure. */
 
@@ -92,6 +89,13 @@
 
 /* Is there video information? */
 #define MULTIBOOT_INFO_VIDEO_INFO               0x00000800
+
+
+#define MULTIBOOT_PROTURA_FLAGS  (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO \
+                                  | MULTIBOOT_MEMORY_INFO)
+
+#define MULTIBOOT_PROTURA_CHECKSUM -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_PROTURA_FLAGS)
+
 
 #ifndef ASM
 
@@ -154,7 +158,7 @@ struct multiboot_info
   uint32_t boot_device;
 
   /* Kernel command line */
-  uint32_t cmdline;
+  const char *cmdline;
 
   /* Boot-Module list */
   uint32_t mods_count;
@@ -209,7 +213,7 @@ struct multiboot_mod_list
   uint32_t mod_end;
 
   /* Module command line */
-  uint32_t cmdline;
+  const char *cmdline;
 
   /* padding to take it to 16 bytes (must be zero) */
   uint32_t pad;

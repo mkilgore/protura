@@ -123,8 +123,6 @@ static void term_putstr(const char *s)
 {
     for (; *s; s++)
         term_putchar(*s);
-
-    term_updatecur();
 }
 
 static char inttohex[] = { "0123456789ABCDEF" };
@@ -148,7 +146,7 @@ static void term_putint(int i)
 }
 
 #if BITS == 32
-void term_putptr(const void *p)
+static void term_putptr(const void *p)
 {
     uint32_t val = (uint32_t)p;
     uint8_t digit;

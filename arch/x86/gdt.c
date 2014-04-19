@@ -24,7 +24,7 @@ static struct gdt_entry gdt_entries[5] = {
 
 void gdt_init(void)
 {
-    gdt_ptr.limit = (sizeof(gdt_entries));
+    gdt_ptr.limit = (sizeof(gdt_entries)) - 1;
     gdt_ptr.base  = (uint32_t)&gdt_entries;
 
     gdt_flush((uint32_t)&gdt_ptr);

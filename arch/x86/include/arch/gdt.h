@@ -58,9 +58,14 @@ void gdt_init(void);
 
 #endif /* ASM */
 
-#define _KERNEL_CS 0x08
-#define _KERNEL_DS 0x10
-#define _USER_CS   0x18
-#define _USER_DS   0x20
+#define _KERNEL_CS_N 1
+#define _KERNEL_DS_N 2
+#define _USER_CS_N   3
+#define _USER_DS_N   4
+
+#define _KERNEL_CS (_KERNEL_CS_N << 3)
+#define _KERNEL_DS (_KERNEL_DS_N << 3)
+#define _USER_CS   (_USER_CS_N << 3)
+#define _USER_DS   (_USER_DS_N << 3)
 
 #endif

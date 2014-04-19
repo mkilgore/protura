@@ -34,6 +34,8 @@ _start:
 
     call cmain
 
+    addl $0x8, %esp
+
     cli
     hlt
 .loop:

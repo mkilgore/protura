@@ -5,6 +5,13 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_INTERNAL_ARCH_IDT_TABLE_H
+#define INCLUDE_INTERNAL_ARCH_IDT_TABLE_H
 
-#include <keyboard.h>
+#include <protura/types.h>
 
+void idt_flush(uint32_t);
+
+extern void (*irq_hands[256])(void);
+
+#endif

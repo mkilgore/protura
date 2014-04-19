@@ -8,11 +8,12 @@
 
 #include <protura/types.h>
 #include <protura/debug.h>
+#include <protura/multiboot.h>
 
 #include <arch/init.h>
 
 
-int cmain(uint32_t magic, uint32_t addr)
+int cmain(uint32_t magic, struct multiboot_info *addr)
 {
     int i = 250;
     void *p =(void *)0xDEADBEEF;
@@ -24,8 +25,12 @@ int cmain(uint32_t magic, uint32_t addr)
 
     kprintf("Test int: %d\n ptr: %p\n str: %s\n", i, p, s);
 
+    kprintf("CMD Args: %s\n", addr->cmdline);
+
+    asm volatile("sti":::"memory");
+
     asm volatile("int $0x3");
-    asm volatile("int $0x4");
+    asm volatile("int $0x10");
 
     return 0;
 }

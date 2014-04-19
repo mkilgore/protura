@@ -15,6 +15,7 @@ CC      := $(TARGET)gcc
 CPP     := $(TARGET)gcc -E
 LD      := $(TARGET)ld
 AS      := $(TARGET)gas
+PERL    := perl
 
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
@@ -27,7 +28,7 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding        \
            -fno-strict-aliasing -nostdlib
 
-LDFLAGS := -ffreestanding -nostdlib -T ./arch/$(ARCH)/linker.ld
+LDFLAGS := -nostdlib -ffreestanding
 ASFLAGS := -DASM -Wall -O2 -ffreestanding -nostdlib
 
 # Configuration -- Uncomment lines to enable option
@@ -39,6 +40,7 @@ PORTURA_DEBUG := y
 # Show all commands executed by the Makefile
 # V := y
 
+# Location of source. Currently, the current directory is the only option
 srctree := .
 
 # Define 'output_dir' if you want everything to be built in an outside
@@ -46,13 +48,23 @@ srctree := .
 ifdef output_dir
 	objtree := $(output_dir)
 else
+	output_dir := .
 	objtree := .
 endif
 
-PHONY += all install clean dist qemu-test
+EXE_OBJ := $(objtree)/$(EXE).o
 
-MAKEFLAGS += -rR --no-print-directory
+# This is our default target - The default is the first target in the file so
+# we need to define this fairly high-up.
+all: real-all
 
+PHONY += all install clean dist qemu-test real-all
+
+# This variable defines any extra targets that should be build by 'all'
+EXTRA_TARGETS :=
+
+# List of object files to compile into the final .o file (Before boot targets
+# are compiled)
 OBJS_y :=
 
 # Set configuration options
@@ -79,39 +91,70 @@ objtree := $$(objtree)/$(1)
 srctree := $$(srctree)/$(1)
 
 pfix := $$(subst /,_,$$(objtree))_
+DIRINC_y :=
 
 _tmp := $$(shell mkdir -p $$(objtree))
 include $$(srctree)/Makefile
+
+$$(foreach subdir,$$(DIRINC_y),$$(eval $$(call subdir_inc,$$(subdir))))
 
 srctree := $$(patsubst %/$(1),%,$$(srctree))
 objtree := $$(patsubst %/$(1),%,$$(objtree))
 pfix := $$(subst /,_,$$(objtree))_
 endef
 
+# Predefine this variable. It contains a list of extra files to clean. Ex.
+CLEAN_LIST :=
+
 $(eval $(call subdir_inc,src))
 $(eval $(call subdir_inc,arch/$(ARCH)))
 
-all: $(objtree)/$(EXE)
+# This is a list of targets to create bootable images from
+# Ex. For x86, there is a multiboot compliant image, also a full realmode image
+# that can boot from a floppy.
+BOOT_TARGETS :=
 
-# Predefine this variable. It contains a list of extra files to clean. Ex.
-CLEAN_LIST :=
+$(eval $(call subdir_inc,arch/$(ARCH)/boot))
+
+_tmp := $(shell mkdir -p $(objtree)/imgs)
 
 define compile_file
 
 _tmp := $$(subst /,_,$$(basename $(1)))_y
-ifdef $$(_tmp)
+ifdef $(_tmp)
 
-	CLEAN_LIST += $$($$(_tmp))
+CLEAN_LIST += $$($(_tmp))
 
-$(1): $$($$(subst /,_,$$(basename $(1)))_y)
+$(1): $$($(_tmp))
 	@echo " LD      $$@"
-	$$(Q)$$(LD) -r -o $$@ $$($$(subst /,_,$$(basename $(1)))_y)
+	$$(Q)$$(LD) -r -o $$@ $$($(_tmp))
 
 endif
 
 endef
 
 $(foreach file,$(OBJS_y),$(eval $(call compile_file,$(file))))
+
+
+REAL_BOOT_TARGETS :=
+
+define create_boot_target
+
+_expand := $$(objtree)/imgs/$$(EXE)_$$(ARCH)_$(1)
+REAL_BOOT_TARGETS += $$(_expand)
+
+CLEAN_LIST += $$(OBJS_$(1))
+
+$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1))
+	@echo " CCLD    $$@"
+	$$(Q)$$(CC) $$(LDFLAGS) $$(LDFLAGS_$(1)) -o $$@ $$< $$(OBJS_$(1))
+
+endef
+
+$(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
+
+# Actual entry
+real-all: $(REAL_BOOT_TARGETS)
 
 dist: clean
 	$(Q)mkdir -p $(EXE)-$(VERSION_N)
@@ -126,24 +169,21 @@ clean:
 	$(Q)rm -f $(OBJS_y)
 	@echo " RM      $(CLEAN_LIST)"
 	$(Q)rm -f $(CLEAN_LIST)
-	@echo " RM      $(EXE)"
-	$(Q)rm -f $(EXE)
+	@echo " RM      $(EXE_OBJ)"
+	$(Q)rm -f $(EXE_OBJ)
 
-$(objtree)/$(EXE): $(OBJS_y)
-	@echo " CCLD    $@"
-	$(Q)$(CC) $(LDFLAGS) $(OBJS_y) -o $@
+$(EXE_OBJ): $(OBJS_y)
+	@echo " LD      $@"
+	$(Q)$(LD) -r $(OBJS_y) -o $@
 
 $(objtree)/%.o: $(srctree)/%.c
 	@echo " CC      $@"
 	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$(make_name $@)) -c $< -o $@
 
-$(objtree)/%.o: $(objtree)/%.S
+$(objtree)/%.o: $(srctree)/%.S
 	@echo " CCAS    $@"
 	$(Q)$(CC) $(CPPFLAGS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
 
-qemu-test: $(objtree)/$(EXE)
-	@echo " Testing with QEMU."
-	$(Q)qemu-system-i386 -d int,cpu_reset -s -S -kernel $(objtree)/$(EXE)
 
 .PHONY: $(PHONY)
 
