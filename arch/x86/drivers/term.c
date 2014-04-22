@@ -145,7 +145,7 @@ static void term_putint(int i)
     term_putstr(ebuf);
 }
 
-#if BITS == 32
+#if PROTURA_BITS == 32
 static void term_putptr(const void *p)
 {
     uint32_t val = (uint32_t)p;

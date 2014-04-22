@@ -1,3 +1,3 @@
 
-OBJS_y += $(objtree)/init.o
+OBJS_y += init.o
 

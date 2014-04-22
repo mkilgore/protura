@@ -15,14 +15,14 @@ CC      := $(TARGET)gcc
 CPP     := $(TARGET)gcc -E
 LD      := $(TARGET)ld
 AS      := $(TARGET)gas
-PERL    := perl
+PERL    := perl -w
 
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
             -DPROTURA_PATCH=$(PATCH)                  \
             -DPROTURA_VERSION_N="$(VERSION_N)"        \
             -DPROTURA_ARCH="$(ARCH)"                  \
-			-DBITS=$(BITS)                            \
+            -DPROTURA_BITS=$(BITS)                    \
             -I'./include' -I'./arch/$(ARCH)/include'
 
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding        \
@@ -52,6 +52,15 @@ else
 	objtree := .
 endif
 
+# Define 'conf' if you want to use a conf file other then
+# $(objtree)/protura.conf
+ifdef conf
+	CONFIG_FILE := $(conf)
+else
+	CONFIG_FILE := $(objtree)/protura.conf
+	conf := $(CONFIG_FILE)
+endif
+
 EXE_OBJ := $(objtree)/$(EXE).o
 
 # This is our default target - The default is the first target in the file so
@@ -63,9 +72,11 @@ PHONY += all install clean dist qemu-test real-all
 # This variable defines any extra targets that should be build by 'all'
 EXTRA_TARGETS :=
 
-# List of object files to compile into the final .o file (Before boot targets
-# are compiled)
-OBJS_y :=
+# This is the internal list of objects to compile into the file .o
+REAL_OBJS_y :=
+
+# Predefine this variable. It contains a list of extra files to clean. Ex.
+CLEAN_LIST :=
 
 # Set configuration options
 ifdef V
@@ -81,7 +92,26 @@ ifdef PROTURA_DEBUG
 	LDFLAGS += -g
 endif
 
-include $(srctree)/config.mk
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(wildcard $(CONFIG_FILE)),$(CONFIG_FILE))
+$(error Configuration file $(objtree)/protura.conf does not exist. Please create this file before running make or specify different config file via conf variable on commandline)
+endif
+endif
+
+# We don't generate the config.mk if we're just going to delete it anyway
+ifneq ($(MAKECMDGOALS),clean)
+_tmp := $(shell mkdir -p $(objtree)/include/config)
+# Note - Including a file that doesn't exist provokes make to check for a rule
+# This line actually runs the $(objtree)/config.mk rule and generates config.mk
+# before including it and continuing.
+-include $(objtree)/config.mk
+endif
+
+CLEAN_LIST += $(objtree)/config.mk $(objtree)/include/config/autoconf.h
+
+# This includes everything in the 'include' folder of the $(objtree)
+# This is so that the code can reference generated include files
+CPPFLAGS += -I'$(objtree)/include/'
 
 make_name = $(subst /,_,$(basename $(objtree)/$1))
 
@@ -92,9 +122,14 @@ srctree := $$(srctree)/$(1)
 
 pfix := $$(subst /,_,$$(objtree))_
 DIRINC_y :=
+OBJS_y :=
+CLEAN_LIST_y :=
 
 _tmp := $$(shell mkdir -p $$(objtree))
 include $$(srctree)/Makefile
+
+REAL_OBJS_y += $$(patsubst %,$$(objtree)/%,$$(OBJS_y))
+CLEAN_LIST += $$(patsubst %,$$(objtree)/%,$$(CLEAN_LIST_y))
 
 $$(foreach subdir,$$(DIRINC_y),$$(eval $$(call subdir_inc,$$(subdir))))
 
@@ -103,9 +138,9 @@ objtree := $$(patsubst %/$(1),%,$$(objtree))
 pfix := $$(subst /,_,$$(objtree))_
 endef
 
-# Predefine this variable. It contains a list of extra files to clean. Ex.
-CLEAN_LIST :=
 
+# Include the base directories for source files - That is, the generic 'src'
+# directory as well as the 'arch/$(ARCH)' directory
 $(eval $(call subdir_inc,src))
 $(eval $(call subdir_inc,arch/$(ARCH)))
 
@@ -123,19 +158,19 @@ _tmp := $(shell mkdir -p $(objtree)/imgs)
 define compile_file
 
 _tmp := $$(subst /,_,$$(basename $(1)))_y
-ifdef $(_tmp)
+ifdef $$(_tmp)
 
-CLEAN_LIST += $$($(_tmp))
+CLEAN_LIST += $$($$(_tmp))
 
 $(1): $$($(_tmp))
 	@echo " LD      $$@"
-	$$(Q)$$(LD) -r -o $$@ $$($(_tmp))
+	$$(Q)$$(LD) -r -o $$@ $$($$(_tmp))
 
 endif
 
 endef
 
-$(foreach file,$(OBJS_y),$(eval $(call compile_file,$(file))))
+$(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
 
 
 REAL_BOOT_TARGETS :=
@@ -156,7 +191,17 @@ endef
 $(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
 
 # Actual entry
-real-all: $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
+real-all: configure $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
+
+configure: $(objtree)/config.mk $(objtree)/include/config/autoconf.h
+
+$(objtree)/config.mk: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
+	@echo " PERL    $@"
+	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl make < $< > $@
+
+$(objtree)/include/config/autoconf.h: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
+	@echo " PERL    $@"
+	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl cpp < $< > $@
 
 dist: clean
 	$(Q)mkdir -p $(EXE)-$(VERSION_N)
@@ -167,16 +212,16 @@ dist: clean
 	@echo " Created $(EXE)-$(VERSION_N).tar.gz"
 
 clean:
-	$(Q)for file in $(OBJS_y) $(CLEAN_LIST) $(EXE_OBJ); do \
+	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ); do \
 		echo " RM      $$file"; \
 		rm -f $$file; \
 	done
 	@echo " RM      $(objtree)/imgs"
 	$(Q)rm -fr $(objtree)/imgs
 
-$(EXE_OBJ): $(OBJS_y)
+$(EXE_OBJ): $(REAL_OBJS_y)
 	@echo " LD      $@"
-	$(Q)$(LD) -r $(OBJS_y) -o $@
+	$(Q)$(LD) -r $(REAL_OBJS_y) -o $@
 
 $(objtree)/%.o: $(srctree)/%.c
 	@echo " CC      $@"
@@ -185,6 +230,10 @@ $(objtree)/%.o: $(srctree)/%.c
 $(objtree)/%.o: $(srctree)/%.S
 	@echo " CCAS    $@"
 	$(Q)$(CC) $(CPPFLAGS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
+
+$(objtree)/%.ld: $(srctree)/%.ldS
+	@echo " CPP     $@"
+	$(Q)$(CPP) -P $(CPPFLAGS) -o $@ -x c $<
 
 
 .PHONY: $(PHONY)

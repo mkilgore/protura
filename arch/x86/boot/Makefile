@@ -1,8 +1,8 @@
 
 # This target is for creating a multiboot compliant kernel
 BOOT_TARGETS += multiboot
-LDFLAGS_multiboot := -T $(srctree)/link_multiboot.ld
-OBJS_multiboot := $(objtree)/boot_multiboot.o
+LDFLAGS_multiboot := -T $(objtree)/link_multiboot.ld
+OBJS_multiboot := $(objtree)/boot_multiboot.o $(objtree)/link_multiboot.ld
 
 qemu-test-multiboot: $(imgs_pfix)multiboot
 	@echo " Testing multiboot with QEMU."
