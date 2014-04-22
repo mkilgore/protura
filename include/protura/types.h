@@ -9,5 +9,6 @@
 #define INCLUDE_PROTURA_TYPES_H
 
 #include <arch/types.h>
+#include <protura/stddef.h>
 
 #endif

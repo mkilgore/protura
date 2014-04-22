@@ -12,7 +12,7 @@ print ".globl irq_handler\n";
 for (my $i = 0; $i < 256; $i++) {
     print ".globl irq$i\n";
     print "irq$i:\n";
-    if (!($i == 8 || ($i >= 10 && $i <= 14) || $i == 17)) {
+    if (!($i == 8 || ($i >= 10 && $i <= 14))) {
         print "  pushl \$0\n";
     }
     print "  pushl \$$i\n";

@@ -66,7 +66,8 @@ void idt_flush(uint32_t);
 
 void idt_init(void);
 
-void isr_handler(struct idt_frame *);
+void irq_global_handler(struct idt_frame *);
+void irq_register_callback(uint8_t irqno, void (*callback)(struct idt_frame *));
 
 #endif
 

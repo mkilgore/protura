@@ -114,6 +114,8 @@ $(eval $(call subdir_inc,arch/$(ARCH)))
 # that can boot from a floppy.
 BOOT_TARGETS :=
 
+imgs_pfix := $(objtree)/imgs/$(EXE)_$(ARCH)_
+
 $(eval $(call subdir_inc,arch/$(ARCH)/boot))
 
 _tmp := $(shell mkdir -p $(objtree)/imgs)
@@ -154,7 +156,7 @@ endef
 $(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
 
 # Actual entry
-real-all: $(REAL_BOOT_TARGETS)
+real-all: $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
 
 dist: clean
 	$(Q)mkdir -p $(EXE)-$(VERSION_N)
@@ -165,12 +167,12 @@ dist: clean
 	@echo " Created $(EXE)-$(VERSION_N).tar.gz"
 
 clean:
-	@echo " RM      $(OBJS_y)"
-	$(Q)rm -f $(OBJS_y)
-	@echo " RM      $(CLEAN_LIST)"
-	$(Q)rm -f $(CLEAN_LIST)
-	@echo " RM      $(EXE_OBJ)"
-	$(Q)rm -f $(EXE_OBJ)
+	$(Q)for file in $(OBJS_y) $(CLEAN_LIST) $(EXE_OBJ); do \
+		echo " RM      $$file"; \
+		rm -f $$file; \
+	done
+	@echo " RM      $(objtree)/imgs"
+	$(Q)rm -fr $(objtree)/imgs
 
 $(EXE_OBJ): $(OBJS_y)
 	@echo " LD      $@"

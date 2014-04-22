@@ -15,22 +15,14 @@
 
 int cmain(uint32_t magic, struct multiboot_info *addr)
 {
-    int i = 250;
-    void *p =(void *)0xDEADBEEF;
-    char *s = "Test2";
 
     arch_init();
 
-    kprintf("Hello! :D\n");
-
-    kprintf("Test int: %d\n ptr: %p\n str: %s\n", i, p, s);
-
-    kprintf("CMD Args: %s\n", addr->cmdline);
+    kprintf("Booting Protura...\n");
 
     asm volatile("sti":::"memory");
 
-    asm volatile("int $0x3");
-    asm volatile("int $0x10");
+    while (1);
 
     return 0;
 }

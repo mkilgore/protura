@@ -5,17 +5,9 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_PROTURA_STDDEF_H
+#define INCLUDE_PROTURA_STDDEF_H
 
-#include <drivers/term.h>
+#define NULL ((void *)0)
 
-#include <arch/gdt.h>
-#include <arch/idt.h>
-#include <arch/init.h>
-
-void arch_init(void)
-{
-    term_init();
-    gdt_init();
-    idt_init();
-}
-
+#endif
