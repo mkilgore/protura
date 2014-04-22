@@ -5,7 +5,7 @@ OBJS_y += irq_handler.o
 OBJS_y += idt.o
 OBJS_y += irq_array.o
 
-$(objtree)/irq_array.S: $(objtree)/irq_array_gen.pl
+$(objtree)/irq_array.S: $(srctree)/irq_array_gen.pl
 	@echo " PERL    $@"
 	$(Q)$(PERL) $< > $@
 
