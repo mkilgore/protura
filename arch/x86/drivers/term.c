@@ -12,6 +12,10 @@
 #include <protura/compiler.h>
 #include <drivers/term.h>
 
+#include <arch/string.h>
+
+#define memmove __builtin_memmove
+
 #include <arch/asm.h>
 
 #define TERM_MEMLOC ((void *)0xB8000)
@@ -60,7 +64,7 @@ void term_clear(void)
 
 void term_init(void)
 {
-    memset(&glob_term, 0, sizeof(struct term_info));
+    __builtin_memset(&glob_term, 0, sizeof(struct term_info));
 
     glob_term.cur_col = 0x07;
 
@@ -83,11 +87,11 @@ void term_setcur(int row, int col)
 
 void term_scroll(int lines)
 {
-    memmove(glob_term.buf,
+    __builtin_memmove(glob_term.buf,
             glob_term.buf[lines],
             TERM_COLS * sizeof(struct term_char) * (TERM_ROWS - lines));
 
-    memset(glob_term.buf + TERM_ROWS - lines,
+    __builtin_memset(glob_term.buf + TERM_ROWS - lines,
             0,
             TERM_COLS * sizeof(struct term_char) * lines);
 }

@@ -7,6 +7,8 @@
  */
 
 #include <drivers/term.h>
+#include <protura/kmain.h>
+#include <protura/multiboot.h>
 
 #include <arch/gdt.h>
 #include <arch/idt.h>
@@ -14,12 +16,22 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 
-void arch_init(void)
+void cmain(uint32_t magic, struct multiboot_info *info)
 {
+    /*
+    struct multiboot_memmap *mmap = (struct multiboot_memmap *)info->mmap_addr;
+    
+    while ((char *)mmap < info->mmap_addr + info->mmap_length) {
+        
+        mmap = (struct multiboot_memmap *) ((uint32_t)mmap + mmap->size + sizeof(uint32_t));
+    } */
+
     term_init();
     gdt_init();
     idt_init();
     pic8259_init();
     pic8259_timer_init(50);
+
+    kmain();
 }
 

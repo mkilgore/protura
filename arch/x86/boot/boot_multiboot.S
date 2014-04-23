@@ -32,6 +32,8 @@ _start:
     push %ebx
     push %eax
 
+    movl $stack_top, %esp
+
     call cmain
 
     addl $0x8, %esp

@@ -10,17 +10,9 @@
 #include <protura/debug.h>
 #include <protura/multiboot.h>
 
-#include <arch/init.h>
-
-
-int cmain(uint32_t magic, struct multiboot_info *addr)
+int kmain(void)
 {
-
-    arch_init();
-
     kprintf("Booting Protura...\n");
-
-    asm volatile("sti":::"memory");
 
     while (1);
 

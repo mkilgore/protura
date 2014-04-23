@@ -14,7 +14,7 @@
 void kprintf(const char *s, ...) __printf(1, 2);
 void kprintfv(const char *s, va_list);
 
-void panicv(const char *s, va_list);
 void panic(const char *s, ...) __printf(1, 2);
+void panicv(const char *s, va_list);
 
 #endif

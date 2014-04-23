@@ -145,6 +145,13 @@ struct multiboot_elf_section_header_table
   uint32_t shndx;
 } __packed;
 
+struct multiboot_memmap {
+    uint32_t size;
+    uint64_t base_addr;
+    uint64_t length;
+    uint32_t type;
+} __packed;
+
 struct multiboot_info
 {
   /* Multiboot info version number */

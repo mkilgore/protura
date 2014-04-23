@@ -5,12 +5,9 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_ARCH_INIT_H
-#define INCLUDE_ARCH_INIT_H
+#ifndef INCLUDE_PROTURA_KMAIN_H
+#define INCLUDE_PROTURA_KMAIN_H
 
-#include <protura/types.h>
-#include <protura/multiboot.h>
-
-void cmain(uint32_t magic, struct multiboot_info *info);
+void kmain(void);
 
 #endif

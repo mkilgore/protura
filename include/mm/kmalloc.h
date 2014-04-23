@@ -8,10 +8,14 @@
 #ifndef INCLUDE_MM_KMALLOC_H
 #define INCLUDE_MM_KMALLOC_H
 
+#include <protura/types.h>
+
 #define KMEM_ATOMIC 1
 #define KMEM_DMA    2
 
-void  kmalloc_init(void *start, void *end);
+void  kmalloc_add_free_mem(void *start, size_t length);
+
+void *kmalloc_get_page(void);
 void *kmalloc(size_t size, int flags);
 void  kfree(void *p);
 

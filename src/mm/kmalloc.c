@@ -11,3 +11,8 @@
 #include <mm/memlayout.h>
 #include <mm/kmalloc.h>
 
+void kmalloc_add_free_mem(void *end, size_t length)
+{
+
+}
+

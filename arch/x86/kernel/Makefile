@@ -1,4 +1,5 @@
 
+OBJS_y += string.o
 OBJS_y += gdt.o
 OBJS_y += gdt_flush.o
 OBJS_y += irq_handler.o

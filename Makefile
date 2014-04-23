@@ -26,7 +26,7 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -I'./include' -I'./arch/$(ARCH)/include'
 
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding        \
-           -fno-strict-aliasing -nostdlib
+           -fno-strict-aliasing -nostdlib -fbuiltin
 
 LDFLAGS := -nostdlib -ffreestanding
 ASFLAGS := -DASM -Wall -O2 -ffreestanding -nostdlib
