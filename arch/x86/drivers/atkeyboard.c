@@ -7,13 +7,12 @@
  */
 
 #include <protura/types.h>
-#include <protura/multiboot.h>
 
-#include <arch/paging.h>
+#include <arch/asm.h>
+#include <arch/drivers/atkeyboard.h>
 
-void paging_init(void *kernel_end, struct multiboot_info *info)
+void atkeyboard_init(void)
 {
-    return ;
-}
 
+}
 

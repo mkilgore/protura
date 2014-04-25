@@ -5,15 +5,9 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_ARCH_DRIVERS_ATKEYBOARD_H
+#define INCLUDE_ARCH_DRIVERS_ATKEYBOARD_H
 
-#include <protura/types.h>
-#include <protura/multiboot.h>
+void atkeyboard_init(void);
 
-#include <arch/paging.h>
-
-void paging_init(void *kernel_end, struct multiboot_info *info)
-{
-    return ;
-}
-
-
+#endif

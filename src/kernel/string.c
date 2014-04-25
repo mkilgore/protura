@@ -55,12 +55,13 @@ void *memmove(void *p1, const void *p2, size_t len)
 #endif
 
 #ifndef _STRING_ARCH_MEMSET
-void memset(void *p1, int val, size_t len)
+void *memset(void *p1, int val, size_t len)
 {
     unsigned char *s1 = p1;
     unsigned char *end = s1 + len + 1;
     for (; s1 != end; s1++)
         *s1 = val;
+    return p1;
 }
 #endif
 

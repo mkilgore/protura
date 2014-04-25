@@ -11,6 +11,6 @@
 #include <protura/types.h>
 #include <protura/multiboot.h>
 
-void cmain(uint32_t magic, struct multiboot_info *info);
+void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_info *info);
 
 #endif

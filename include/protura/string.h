@@ -21,7 +21,7 @@ void  *memcpy(void *restrict, const void *restrict, size_t);
 void  *memmove(void *, const void *, size_t);
 #endif
 #ifndef _STRING_ARCH_MEMSET
-void   memset(void *, int, size_t);
+void  *memset(void *, int, size_t);
 #endif
 
 #ifndef _STRING_ARCH_STRCPY

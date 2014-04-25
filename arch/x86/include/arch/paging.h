@@ -9,7 +9,8 @@
 #define INCLUDE_ARCH_PAGING_H
 
 #include <protura/types.h>
+#include <protura/multiboot.h>
 
-
+void paging_init(void *kernel_end, struct multiboot_info *info);
 
 #endif

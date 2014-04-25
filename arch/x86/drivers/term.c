@@ -64,7 +64,7 @@ void term_clear(void)
 
 void term_init(void)
 {
-    __builtin_memset(&glob_term, 0, sizeof(struct term_info));
+    memset(&glob_term, 0, sizeof(struct term_info));
 
     glob_term.cur_col = 0x07;
 

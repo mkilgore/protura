@@ -233,7 +233,7 @@ $(objtree)/%.o: $(srctree)/%.S
 
 $(objtree)/%.ld: $(srctree)/%.ldS
 	@echo " CPP     $@"
-	$(Q)$(CPP) -P $(CPPFLAGS) -o $@ -x c $<
+	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
 
 .PHONY: $(PHONY)

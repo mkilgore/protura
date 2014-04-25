@@ -1,30 +1,33 @@
 
-ENTRY(_start)
+#include <mm/memlayout.h>
+
+ENTRY(start)
 
 SECTIONS
 {
-	. = 1M;
+    . = KMEM_LINK;
+    
+    .multiboot ALIGN(8) : AT(ADDR(.multiboot) - KMEM_KBASE) {
+        *(.multiboot)
+    }
 
-	.text BLOCK(4K) : ALIGN(4K) {
-		*(.multiboot)
-		*(.text)
-	}
+    .text : AT(ADDR(.text) - KMEM_KBASE) {
+        *(.text)
+        *(.rodata)
+    }
 
-	/* Read-only data. */
-	.rodata BLOCK(4K) : ALIGN(4K) {
-		*(.rodata)
-	}
+    /* Read-write data (initialized) */
+    .data ALIGN(4K) : AT(ADDR(.data) - KMEM_KBASE) {
+        *(.data)
+    }
 
-	/* Read-write data (initialized) */
-	.data BLOCK(4K) : ALIGN(4K) {
-		*(.data)
-	}
-
-	/* Read-write data (uninitialized) and stack */
-	.bss BLOCK(4K) : ALIGN(4K) {
-		*(COMMON)
-		*(.bss)
+    /* Read-write data (uninitialized) and stack */
+    .bss : AT(ADDR(.bss) - KMEM_KBASE) {
+        *(COMMON)
+        *(.bss)
         *(.bootstrap_stack)
-	}
+    }
+
+    kern_end = .;
 }
 
