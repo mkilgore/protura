@@ -6,5 +6,5 @@ OBJS_multiboot := $(objtree)/boot_multiboot.o $(objtree)/link_multiboot.ld
 
 qemu-test-multiboot: $(imgs_pfix)multiboot
 	@echo " Testing multiboot with QEMU."
-	$(Q)qemu-system-i386 -s -S -d int,cpu_reset -kernel $(imgs_pfix)multiboot
+	$(Q)qemu-system-i386 -curses  -s -S -d int,cpu_reset -kernel $(imgs_pfix)multiboot
 

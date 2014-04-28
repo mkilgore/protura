@@ -11,14 +11,13 @@
 #include <protura/stdarg.h>
 #include <protura/compiler.h>
 #include <drivers/term.h>
+#include <mm/memlayout.h>
 
 #include <arch/string.h>
 
-#define memmove __builtin_memmove
-
 #include <arch/asm.h>
 
-#define TERM_MEMLOC ((void *)0xB8000)
+#define TERM_MEMLOC ((void *)(0xB8000 + KMEM_KBASE))
 
 struct term_info {
     struct term_char (*buf)[TERM_COLS];
@@ -105,6 +104,9 @@ void term_putchar(char ch)
         c = 0;
         r++;
         break;
+    case '\t':
+        c += (c % 8);
+        break;
     default:
         glob_term.buf[r][c].chr = ch;
         glob_term.buf[r][c].color = glob_term.cur_col;
@@ -135,6 +137,7 @@ static void term_putint(int i)
 {
     char buf[3 * sizeof(i)], *ebuf = buf + 3 * sizeof(i);
     int digit;
+    int orig = i;
 
     *--ebuf = '\0';
 
@@ -146,13 +149,40 @@ static void term_putint(int i)
         i = i / 10;
         *--ebuf = inttohex[digit];
     }
+
+    if (orig < 0)
+        *--ebuf = '-';
+
     term_putstr(ebuf);
 }
 
-#if PROTURA_BITS == 32
-static void term_putptr(const void *p)
+static void term_putint64(uint64_t i)
 {
-    uint32_t val = (uint32_t)p;
+    char buf[3 * sizeof(i)], *ebuf = buf + 3 * sizeof(i);
+    int digit;
+    int orig = i;
+
+    *--ebuf = '\0';
+
+    if (i == 0)
+        *--ebuf = '0';
+
+    while (i > 0) {
+        digit = i % 10;
+        i = i / 10;
+        *--ebuf = inttohex[digit];
+    }
+
+    if (orig < 0)
+        *--ebuf = '-';
+
+    term_putstr(ebuf);
+
+}
+
+static void term_putptr32(uint32_t p)
+{
+    uint32_t val = p;
     uint8_t digit;
     int i;
     char buf[11], *ebuf = buf + 11;
@@ -169,34 +199,92 @@ static void term_putptr(const void *p)
     *--ebuf = '0';
     term_putstr(ebuf);
 }
+
+static void term_putptr64(uint64_t p)
+{
+    uint64_t val = p;
+    uint8_t digit;
+    int i;
+    char buf[22], *ebuf = buf + 22;
+
+    *--ebuf = '\0';
+
+    for (i = 0; i < 16; i++) {
+        digit = val % 16;
+        val = val >> 4;
+        *--ebuf = inttohex[digit];
+    }
+
+    *--ebuf = 'x';
+    *--ebuf = '0';
+    term_putstr(ebuf);
+}
+
+#if PROTURA_BITS == 32
+# define term_putptr(p) term_putptr32(p)
+#else
+# define term_putptr(p) term_putptr64(p)
 #endif
+
+static const char *handle_percent(const char *s, va_list *args)
+{
+    enum {
+        CLEAN,
+        LONG,
+        LONG_LONG
+    } state = CLEAN;
+
+    for (; *s; s++) {
+        switch(*s) {
+        case 'c':
+            term_putchar((char)va_arg(*args, int));
+            return s;
+        case 'd':
+            if (state == LONG_LONG)
+                term_putint64(va_arg(*args, uint64_t));
+            else
+                term_putint(va_arg(*args, int));
+            return s;
+        case 'x':
+        case 'X':
+        case 'p':
+            if (state == LONG_LONG)
+                term_putptr64(va_arg(*args, uint64_t));
+            else
+                term_putptr(va_arg(*args, uintptr_t));
+            return s;
+        case 's':
+            term_putstr(va_arg(*args, const char *));
+            return s;
+        case 'l':
+            switch(state) {
+            case CLEAN:
+                state = LONG;
+                break;
+            case LONG:
+                state = LONG_LONG;
+                break;
+            default:
+                break;
+            }
+            break;
+        }
+
+    }
+
+    return --s;
+}
 
 void term_printfv(const char *s, va_list args)
 {
+
     for (; *s; s++) {
         if (*s != '%') {
             term_putchar(*s);
             continue ;
         }
 
-        s++;
-        if (*s == '\0')
-            break ;
-
-        switch(*s) {
-        case 'c':
-            term_putchar((char)va_arg(args, int));
-            break;
-        case 'd':
-            term_putint(va_arg(args, int));
-            break;
-        case 'p':
-            term_putptr(va_arg(args, void *));
-            break;
-        case 's':
-            term_putstr(va_arg(args, const char *));
-            break;
-        }
+        s = handle_percent(s + 1, &args);
     }
 
     term_updatecur();

@@ -33,6 +33,8 @@
 
 #define __printf(str, args)  __attribute__((format(printf, str, args)))
 
+#define __align(size) __attribute__((__aligned__(size)))
+
 
 #endif
 

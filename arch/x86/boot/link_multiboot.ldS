@@ -6,23 +6,19 @@ ENTRY(start)
 SECTIONS
 {
     . = KMEM_LINK;
-    
-    .multiboot ALIGN(8) : AT(ADDR(.multiboot) - KMEM_KBASE) {
-        *(.multiboot)
-    }
 
-    .text : AT(ADDR(.text) - KMEM_KBASE) {
+    .text : AT(V2P_WO(ADDR(.text))) {
         *(.text)
         *(.rodata)
     }
 
     /* Read-write data (initialized) */
-    .data ALIGN(4K) : AT(ADDR(.data) - KMEM_KBASE) {
+    .data ALIGN(4K) : AT(V2P_WO(ADDR(.data))) {
         *(.data)
     }
 
     /* Read-write data (uninitialized) and stack */
-    .bss : AT(ADDR(.bss) - KMEM_KBASE) {
+    .bss : AT(V2P_WO(ADDR(.bss))) {
         *(COMMON)
         *(.bss)
         *(.bootstrap_stack)

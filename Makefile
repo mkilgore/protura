@@ -8,7 +8,7 @@ VERSION_N := $(VERSION).$(SUBLEVEL).$(PATCH)
 ARCH   := x86
 BITS   := 32
 
-TARGET := i586-elf-
+TARGET := i686-elf-
 
 # Compiler settings
 CC      := $(TARGET)gcc
@@ -28,7 +28,7 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding        \
            -fno-strict-aliasing -nostdlib -fbuiltin
 
-LDFLAGS := -nostdlib -ffreestanding
+LDFLAGS := -nostdlib -ffreestanding -lgcc
 ASFLAGS := -DASM -Wall -O2 -ffreestanding -nostdlib
 
 # Configuration -- Uncomment lines to enable option
@@ -184,7 +184,7 @@ CLEAN_LIST += $$(OBJS_$(1))
 
 $$(_expand): $$(EXE_OBJ) $$(OBJS_$(1))
 	@echo " CCLD    $$@"
-	$$(Q)$$(CC) $$(LDFLAGS) $$(LDFLAGS_$(1)) -o $$@ $$< $$(OBJS_$(1))
+	$$(Q)$$(CC) -o $$@ $$(OBJS_$(1)) $$< $$(LDFLAGS) $$(LDFLAGS_$(1)) 
 
 endef
 

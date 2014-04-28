@@ -7,9 +7,10 @@
  */
 
 #include <protura/multiboot.h>
+#include <arch/paging.h>
 #include <mm/memlayout.h>
 
-.section .multiboot
+.section .text
 multiboot:
 .align 4
 .long MULTIBOOT_HEADER_MAGIC
@@ -24,33 +25,30 @@ stack_botton:
 stack_top:
 
 .section .data
+
 .align 0x1000
+initial_pgdir2:
+.fill 1024, 4, 0
 
-# For identify map of 0M to end of kernel (Map of 1M stays)
+# These store the location of our identity map of MB0
+# as well as the high-mem map for the kernel
+.set pg0dir, initial_pgdir2
+.set pg1dir, initial_pgdir2 + KMEM_KPAGE * 4
+
+
+# This creates a table mapping from MB0 to MB4
+.align 0x1000
 pg0:
-x = 0
-.rept 0x400
-.long x | 0x1 | 0x2
-x = x + 1
+.long 0 # This is zero so *(NULL) always fails
+
+.set x, 1
+.rept 1023
+.long ((x << 12) | PTE_PRESENT | PTE_WRITABLE)
+.set x, x + 1
 .endr
 
-# For map of kernel to proper KMEM_KBASE location
-pg1: 
-x = 0
-.rept 0x400
-.long (x + KMEM_KPAGE) | 0x1 | 0x2
-x = x + 1
-.endr
 
-pd: # Initial page directory
-#pg0loc: .long 0x1 | 0x2
-.long 0x83
-.skip (KMEM_KPAGE - 1) * 4
-#pg1loc: .long 0x1 | 0x2
-.long 0x83
-.skip (1024 - KMEM_KPAGE - 1) * 4
-
-start = _start - KMEM_KBASE
+start = V2P_WO(_start)
 
 .section .text
 .global start
@@ -59,16 +57,23 @@ start = _start - KMEM_KBASE
 .extern kern_end
 
 _start:
-    movl $stack_top - KMEM_KBASE, %esp
+    movl $V2P_WO(stack_top), %esp
 
     push %ebx
     push %eax
 
-    movl %cr4, %eax
-    orl $0x10, %eax
-    movl %eax, %cr4
+    # Take the address of pg0, store it in %eax
+    # And set the present and writable bits on it
+    # in preperation for using it as a page-directory entry
+    movl $V2P_WO(pg0), %eax
+    orl $(PTE_PRESENT | PTE_WRITABLE), %eax
 
-    movl $(pd - KMEM_KBASE), %eax
+    # Put that page table pointer into both of the page directory
+    # entries we care about
+    movl %eax, V2P_WO(pg0dir)
+    movl %eax, V2P_WO(pg1dir)
+
+    movl $V2P_WO(initial_pgdir2), %eax
     movl %eax, %cr3
 
     movl %cr0, %eax
@@ -76,9 +81,10 @@ _start:
     movl %eax, %cr0
 
     jmpl $0x8, $higher_half
-
 higher_half:
 
+    # At this point, the kernel is executing in the 'higher-half'
+    # with the code being run at KMEM_KBASE
     addl $KMEM_KBASE, %esp
 
     push $kern_end

@@ -1,3 +1,4 @@
 *.o
 imgs/*
 config.mk
+debug_start.sh

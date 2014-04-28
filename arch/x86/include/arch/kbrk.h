@@ -5,18 +5,15 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_ARCH_KBRK_H
+#define INCLUDE_ARCH_KBRK_H
 
 #include <protura/types.h>
-#include <protura/debug.h>
-#include <drivers/term.h>
 
-int kmain(void)
-{
-    term_setcurcolor(term_make_color(T_WHITE, T_BLUE));
-    kprintf("Kernel booted!\n");
+void kbrk_init(void *kernel_start, void *kernel_end);
 
-    while (1);
+void *kbrk(size_t size, size_t align);
 
-    return 0;
-}
+void get_kernel_addrs(void **kernel_start, void **kernel_end);
 
+#endif

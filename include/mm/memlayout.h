@@ -9,32 +9,15 @@
 #define INCLUDE_MM_MEMLAYOUT_H
 
 #define KMEM_EXTMEM   0x00100000
-#define KMEM_PHYSTOP  0x0E000000
-#define KMEM_KBASE    0x80000000
+#define KMEM_KBASE    0xC0000000
 #define KMEM_DEVSPACE 0xFE000000
 
 #define KMEM_LINK (KMEM_KBASE + KMEM_EXTMEM)
 
 #define KMEM_KPAGE  (KMEM_KBASE >> 22)
 
-#ifndef ASM
-
-#include <protura/compiler.h>
-
-static __always_inline uintptr_t v2p(void *a)
-{
-    return ((uintptr_t) (a)) - KMEM_KBASE;
-}
-
-static __always_inline void *p2v(uintptr_t a)
-{
-    return (void *) ((a) - KMEM_KBASE);
-}
-
-#endif /* ASM */
-
-#define V2P(x) (((uintptr_t) (a)) - KMEM_KBASE)
-#define P2V(x) ((void *)((uintptr_t) (a) + KMEM_KBASE))
+#define V2P(x) (((uintptr_t) (x)) - KMEM_KBASE)
+#define P2V(x) ((void *)((uintptr_t) (x) + KMEM_KBASE))
 
 #define V2P_WO(x) ((x) - KMEM_KBASE)
 #define P2V_WO(x) ((x) + KMEM_KBASE)

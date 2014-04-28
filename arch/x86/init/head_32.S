@@ -6,14 +6,9 @@
  * Free Software Foundation.
  */
 
-#include <protura/types.h>
-#include <protura/multiboot.h>
+#include <mm/memlayout.h>
 
-#include <arch/paging.h>
-
-void paging_init(void *kernel_end, struct multiboot_info *info)
-{
-    return ;
-}
-
-
+.globl entry_32
+entry_32:
+.hang:
+    jmp $.hang

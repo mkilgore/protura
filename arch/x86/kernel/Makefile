@@ -1,7 +1,6 @@
 
 OBJS_y += gdt.o
 OBJS_y += gdt_flush.o
-OBJS_y += paging.o
 OBJS_y += irq_handler.o
 OBJS_y += idt.o
 OBJS_y += irq_array.o
