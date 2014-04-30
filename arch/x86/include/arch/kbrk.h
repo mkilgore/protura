@@ -14,6 +14,6 @@ void kbrk_init(void *kernel_start, void *kernel_end);
 
 void *kbrk(size_t size, size_t align);
 
-void get_kernel_addrs(void **kernel_start, void **kernel_end);
+void get_kernel_addrs(uintptr_t *kernel_start, uintptr_t *kernel_end);
 
 #endif

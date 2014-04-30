@@ -15,115 +15,138 @@
 #include <arch/kbrk.h>
 #include <arch/paging.h>
 
-struct page_entry {
-    struct page_entry *next;
+struct allocator {
     uintptr_t phys_start;
     uint32_t pages;
     uint8_t bitmap[];
 };
 
-static struct {
-    struct page_entry *first;
-} allocator;
-
 /* A zeroed page_directory we can use for our initial table */
-__align(0x1000)
-struct page_table_ptr kernel_dir[1024] = {
+__align(0x1000) static struct page_table kernel_dir[1024] = {
     { .entry = 0 }
 };
 
-void page_directory_init(void)
-{
+__align(0x1000) static struct page kernel_pgt[1024] = {
+    { .entry = 0 }
+};
 
+__align(0x1000) static struct page kernel_low_mem_pgt[KMEM_KTABLES][1024] = {
+    { { .entry = 0 } }
+};
+
+static struct allocator *low_mem_alloc;
+static struct allocator *high_mem_alloc;
+
+void page_directory_init(uintptr_t kern_end)
+{
+    uintptr_t cur_page, last_page = (uintptr_t)V2P(PG_ALIGN(kern_end)) >> 12, cur_table;
+    int table;
+    kernel_dir[KMEM_KPAGE].entry = (uintptr_t)V2P(kernel_pgt) | PDE_PRESENT | PDE_WRITABLE;
+
+    for (table = 0; table < KMEM_KTABLES; table++) {
+        kernel_dir[KMEM_KPAGE + table + 1].entry = (uintptr_t)V2P(kernel_low_mem_pgt[table]) | PDE_PRESENT | PDE_WRITABLE;
+        kprintf("Mapped %x to %x\n", KMEM_KPAGE + table + 1, V2P(kernel_low_mem_pgt[table]));
+    }
+
+    for (cur_page = 0; cur_page < last_page; cur_page++)
+        kernel_pgt[cur_page].entry = cur_page << 12 | PTE_PRESENT | PTE_WRITABLE;
+
+    for (cur_table = 0; cur_table < KMEM_KTABLES; cur_table++)
+        for (cur_page = 0 ;cur_page < 1024; cur_page++) {
+            kernel_low_mem_pgt[cur_table][cur_page].entry = ((cur_table << 22) + (cur_page << 12)) | PTE_PRESENT | PTE_WRITABLE;
+            if (cur_page << 12 == 0x00133000) {
+                kprintf("Mapped page %x, cur_page: %d\n", cur_page << 12, cur_page);
+            }
+        }
+
+    set_current_page_directory((uintptr_t)V2P(kernel_dir));
 }
 
-void paging_init(struct multiboot_info *info)
+void paging_init(uintptr_t kernel_end, uintptr_t last_physical_address)
 {
-    struct multiboot_memmap *mmap = (struct multiboot_memmap *)info->mmap_addr;
-    struct page_entry *ent;
-    size_t size;
-    uint64_t addr;
+    uintptr_t k_end, k_start;
+    size_t low_size, high_size;
 
-    for (; (uint32_t)mmap < info->mmap_addr + info->mmap_length
-         ; mmap = (struct multiboot_memmap *) ((uint32_t)mmap + mmap->size + sizeof(uint32_t))) {
-        kprintf("mmap: %llx to %llx, type: %d\n", mmap->base_addr,
-                mmap->base_addr + mmap->length, mmap->type);
+    low_size = ((KMEM_LOW_SIZE >> 12) >> 3) + 1;
+    high_size = (((last_physical_address - V2P(kernel_end)) >> 12) >> 3) + 1;
 
-        /* A type of non-one means it's not usable memory - just ignore it */
-        if (mmap->type != 1)
-            continue;
+    low_mem_alloc = kbrk(sizeof(struct allocator) + low_size, alignof(struct allocator));
+    high_mem_alloc = kbrk(sizeof(struct allocator) + high_size, alignof(struct allocator));
 
-        /* A small hack - We skip the map for the first MB since we map it separate */
-        if (mmap->base_addr == 0)
-            continue;
+    get_kernel_addrs(&k_start, &k_end);
 
-        addr = PG_ALIGN(mmap->base_addr);
+    k_start = PG_ALIGN(k_start);
+    k_end = PG_ALIGN(k_end);
 
-        mmap->length -= addr - mmap->base_addr;
-        mmap->length &= 0xFFFFF000; /* Page align length */
-        mmap->base_addr = addr;
+    low_mem_alloc->pages = KMEM_LOW_SIZE >> 12;
+    high_mem_alloc->pages = (last_physical_address - V2P(k_end) - KMEM_LOW_SIZE) >> 12;
 
-        size = sizeof(struct page_entry) + ((mmap->length >> 12) >> 3) + 1;
+    low_mem_alloc->phys_start = V2P(k_end);
+    high_mem_alloc->phys_start = V2P(k_end) + KMEM_LOW_SIZE;
 
-        ent = kbrk(size, alignof(struct page_entry));
+    memset(low_mem_alloc->bitmap, 0, low_size);
+    memset(high_mem_alloc->bitmap, 0, high_size);
 
-        ent->next = allocator.first;
-        ent->phys_start = mmap->base_addr;
-        ent->pages = mmap->length >> 12;
+    page_directory_init(k_end);
 
-        allocator.first = ent;
-
-        memset(ent->bitmap, 0, ent->pages >> 3);
-    }
     return ;
 }
 
-uintptr_t get_page(void)
+static uintptr_t get_page(struct allocator *alloc)
 {
-    struct page_entry *ent = allocator.first;
     uint8_t mask;
-    uint32_t cur_byte, max = ent->pages >> 3;
+    uint32_t cur_byte, max = alloc->pages >> 3;
     uint32_t page_n = 0;
 
-    for (; ent != NULL; ent = ent->next) {
-        for (cur_byte = 0; cur_byte < max; cur_byte++) {
-            for (mask = 0; mask != 8; mask++) {
-                if ((ent->bitmap[cur_byte] & (1 << mask)) == 0) {
-                    page_n = (cur_byte << 3) + mask;
-                    ent->bitmap[cur_byte] |= (1 << mask);
+    for (cur_byte = 0; cur_byte < max; cur_byte++) {
+        for (mask = 0; mask != 8; mask++) {
+            if ((alloc->bitmap[cur_byte] & (1 << mask)) == 0) {
+                page_n = (cur_byte << 3) + mask;
+                alloc->bitmap[cur_byte] |= (1 << mask);
 
-                    goto eloop;
-                }
+                goto eloop;
             }
         }
     }
 
 eloop:
 
-    if (ent == NULL)
-        return 0;
-
-    return ent->phys_start + (page_n << 12);
+    return alloc->phys_start + (page_n << 12);
 }
 
-void free_page(uintptr_t p)
+static void free_page(struct allocator *alloc, uintptr_t p)
 {
-    struct page_entry *ent = allocator.first;
     uint8_t mask;
     uint32_t byte;
     uintptr_t offset;
 
-    for (; ent != NULL; ent = ent->next)
-        if (ent->phys_start <= p && (ent->phys_start + (ent->pages << 12)) >= p)
-            break;
+    if (alloc->phys_start > p || (alloc->phys_start + (alloc->pages << 12)) < p)
+        return;
 
-    if (ent == NULL)
-        return ;
-
-    offset = p - ent->phys_start;
+    offset = p - alloc->phys_start;
     byte = offset >> 15;
     mask = (offset >> 12) & 0x7;
 
-    ent->bitmap[byte] &= ~(1 << mask);
+    alloc->bitmap[byte] &= ~(1 << mask);
+}
+
+uintptr_t low_get_page(void)
+{
+    return get_page(low_mem_alloc);
+}
+
+void low_free_page(uintptr_t p)
+{
+    free_page(low_mem_alloc, p);
+}
+
+uintptr_t high_get_page(void)
+{
+    return get_page(high_mem_alloc);
+}
+
+void high_free_page(uintptr_t p)
+{
+    free_page(high_mem_alloc, p);
 }
 

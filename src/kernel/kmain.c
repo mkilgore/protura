@@ -13,7 +13,7 @@
 int kmain(void)
 {
     term_setcurcolor(term_make_color(T_WHITE, T_BLUE));
-    kprintf("Kernel booted!\n");
+    kprintf("\nKernel booted!\n");
 
     while (1);
 

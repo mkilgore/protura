@@ -22,6 +22,16 @@
 
 #define CR4_PSE 0x00000010
 
+#define PDE_PRESENT        0x001
+#define PDE_WRITABLE       0x002
+#define PDE_USER           0x004
+#define PDE_WRITE_THROUGH  0x008
+#define PDE_CACHE_DISABLE  0x010
+#define PDE_ACCESSED       0x020
+#define PDE_PAGE_SIZE      0x080
+#define PDE_GLOBAL         0x100
+#define PDE_RESERVED       0x040
+
 #define PTE_PRESENT        0x001
 #define PTE_WRITABLE       0x002
 #define PTE_USER           0x004
@@ -29,8 +39,8 @@
 #define PTE_CACHE_DISABLE  0x010
 #define PTE_ACCESSED       0x020
 #define PTE_DIRTY          0x040
-#define PTE_PAGE_SIZE      0x080
-#define PTE_RESERVED       0x180
+#define PTE_GLOBAL         0x100
+#define PTE_RESERVED       0x080
 
 #define ALIGN(v, a) ((typeof(v))(((uintptr_t)(v) + (a) - 1) & ~(a - 1)))
 #define PG_ALIGN(v) ALIGN(v, 0x1000)
@@ -41,7 +51,7 @@
 #include <protura/types.h>
 #include <protura/multiboot.h>
 
-struct page_table_ptr {
+struct page_table {
     union {
         uint32_t entry;
         struct {
@@ -60,7 +70,7 @@ struct page_table_ptr {
     };
 };
 
-struct page_desc {
+struct page {
     union {
         uint32_t entry;
         struct {
@@ -110,12 +120,19 @@ static __always_inline void flush_tlb_single(uintptr_t addr)
     asm volatile("invlpg (%0)"::"r" (addr): "memory");
 }
 
-void paging_init(struct multiboot_info *info);
+void paging_init(uintptr_t kern_end, uintptr_t phys_end);
 
 void paging_map_phys_to_virt(uintptr_t virt_start, uintptr_t phys_start, size_t page_count);
 
-uintptr_t get_page(void);
-void      free_page(uintptr_t p);
+/* Low memory indicates the first 16M after the kernel is loaded This is mainly
+ * for allcating pages who's physical addresses need to be known
+ */
+uintptr_t low_get_page(void);
+void      low_free_page(uintptr_t p);
+
+/* High memory is everything else */
+uintptr_t high_get_page(void);
+void      high_free_page(uintptr_t p);
 
 #endif
 
