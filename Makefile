@@ -173,6 +173,11 @@ endef
 $(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
 
 
+-include $(REAL_OBJS_y:.o=.d)
+
+CLEAN_LIST += $(REAL_OBJS_y:.o=.d)
+
+
 REAL_BOOT_TARGETS :=
 
 define create_boot_target
@@ -234,6 +239,18 @@ $(objtree)/%.o: $(srctree)/%.S
 $(objtree)/%.ld: $(srctree)/%.ldS
 	@echo " CPP     $@"
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
+
+$(objtree)/%.d: $(srctree)/%.ldS
+	@echo " CCDEP   $@"
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
+
+$(objtree)/%.d: $(srctree)/%.c
+	@echo " CCDEP   $@"
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
+
+$(objtree)/%.d: $(srctree)/%.S
+	@echo " CCDEP   $@"
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 
 .PHONY: $(PHONY)
