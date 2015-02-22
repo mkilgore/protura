@@ -73,12 +73,21 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     for (int i = 0; i < 20; i++) {
         uintptr_t p = low_get_page();
-        kprintf("%x %x\t", p, P2V(p));
+        kprintf("%x %x\t", p, (uintptr_t)P2V(p));
         *(int *) (P2V(p)) = 2;
         kprintf("Test: %d\n", *(int *)(P2V(p)));
         if (i % 3 == 0)
             low_free_page(p);
     }
+
+    uintptr_t p = high_get_page();
+    kprintf("High page: %p\n", (void *)p);
+
+    paging_map_phys_to_virt(0x10000000, p, 1);
+
+    kprintf("Contents of first 4 bytes: %x\n", *(int *)(0x10000000));
+    *(int *)(0x10000000) = 2;
+    kprintf("Contents of first 4 bytes: %x\n", *(int *)(0x10000000));
 
     kmain();
 }

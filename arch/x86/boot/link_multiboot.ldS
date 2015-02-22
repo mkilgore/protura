@@ -15,6 +15,7 @@ SECTIONS
     /* Read-write data (initialized) */
     .data ALIGN(4K) : AT(V2P_WO(ADDR(.data))) {
         *(.data)
+        *(.debug*)
     }
 
     /* Read-write data (uninitialized) and stack */

@@ -11,7 +11,9 @@
 #include <protura/string.h>
 #include <protura/debug.h>
 #include <mm/memlayout.h>
+#include <drivers/term.h>
 
+#include <arch/idt.h>
 #include <arch/kbrk.h>
 #include <arch/paging.h>
 
@@ -37,27 +39,30 @@ __align(0x1000) static struct page kernel_low_mem_pgt[KMEM_KTABLES][1024] = {
 static struct allocator *low_mem_alloc;
 static struct allocator *high_mem_alloc;
 
-void page_directory_init(uintptr_t kern_end)
+static void page_fault_handler(struct idt_frame *frame)
+{
+    uintptr_t p;
+    asm volatile("movl %%cr2, %0": "=r" (p));
+    term_setcurcolor(term_make_color(T_BLACK, T_RED));
+    term_printf(" PAGE FAULT!!! ADDR: %p\n", (void *)p);
+    while (1);
+}
+
+static void page_directory_init(uintptr_t kern_end)
 {
     uintptr_t cur_page, last_page = (uintptr_t)V2P(PG_ALIGN(kern_end)) >> 12, cur_table;
     int table;
     kernel_dir[KMEM_KPAGE].entry = (uintptr_t)V2P(kernel_pgt) | PDE_PRESENT | PDE_WRITABLE;
 
-    for (table = 0; table < KMEM_KTABLES; table++) {
+    for (table = 0; table < KMEM_KTABLES; table++)
         kernel_dir[KMEM_KPAGE + table + 1].entry = (uintptr_t)V2P(kernel_low_mem_pgt[table]) | PDE_PRESENT | PDE_WRITABLE;
-        kprintf("Mapped %x to %x\n", KMEM_KPAGE + table + 1, V2P(kernel_low_mem_pgt[table]));
-    }
 
     for (cur_page = 0; cur_page < last_page; cur_page++)
         kernel_pgt[cur_page].entry = cur_page << 12 | PTE_PRESENT | PTE_WRITABLE;
 
     for (cur_table = 0; cur_table < KMEM_KTABLES; cur_table++)
-        for (cur_page = 0 ;cur_page < 1024; cur_page++) {
+        for (cur_page = 0 ;cur_page < 1024; cur_page++)
             kernel_low_mem_pgt[cur_table][cur_page].entry = ((cur_table << 22) + (cur_page << 12)) | PTE_PRESENT | PTE_WRITABLE;
-            if (cur_page << 12 == 0x00133000) {
-                kprintf("Mapped page %x, cur_page: %d\n", cur_page << 12, cur_page);
-            }
-        }
 
     set_current_page_directory((uintptr_t)V2P(kernel_dir));
 }
@@ -76,7 +81,7 @@ void paging_init(uintptr_t kernel_end, uintptr_t last_physical_address)
     get_kernel_addrs(&k_start, &k_end);
 
     k_start = PG_ALIGN(k_start);
-    k_end = PG_ALIGN(k_end);
+    k_end = ALIGN(k_end, 0x00400000);
 
     low_mem_alloc->pages = KMEM_LOW_SIZE >> 12;
     high_mem_alloc->pages = (last_physical_address - V2P(k_end) - KMEM_LOW_SIZE) >> 12;
@@ -89,7 +94,48 @@ void paging_init(uintptr_t kernel_end, uintptr_t last_physical_address)
 
     page_directory_init(k_end);
 
+    irq_register_callback(14, page_fault_handler);
+
     return ;
+}
+
+void paging_map_phys_to_virt(uintptr_t virt_start, uintptr_t phys_start, size_t page_count)
+{
+    uintptr_t page_dir;
+    struct page_table *cur_dir;
+    int32_t table_off, page_off;
+    struct page *cur_page_table;
+
+    kprintf("Grabbing current dir\n");
+
+    page_dir = get_current_page_directory();
+    cur_dir = P2V(page_dir);
+
+    kprintf("Virt: %p\n", cur_dir);
+    kprintf("Virtual address: %p\n", (void *)virt_start);
+
+    table_off = virt_start >> 22;
+    page_off = virt_start >> 12 & 0x3FF;
+
+    for (; page_count != 0; page_count--,
+                            page_off = (page_off == 0x3FF) ? (table_off++, 0) : page_off + 1,
+                            phys_start += 0x1000) {
+        kprintf("Tab off: %x, pg off %x\n", table_off, page_off);
+        if (cur_dir[table_off].entry == 0) {
+            uintptr_t new_page = low_get_page();
+            cur_dir[table_off].entry = new_page | PDE_PRESENT | PDE_WRITABLE;
+            flush_tlb_single((uintptr_t)(V2P(cur_dir) + table_off));
+            kprintf("Grabbed new page at %x\n", new_page);
+        }
+
+        kprintf("Accessing table %x\n", (uintptr_t)P2V(cur_dir[table_off].entry & 0xFFFFF000));
+        cur_page_table = (struct page *)P2V(cur_dir[table_off].entry & 0xFFFFF000);
+
+        kprintf("Setting entry %p\n", (void *)(phys_start | PTE_PRESENT | PTE_WRITABLE));
+        cur_page_table[page_off].entry = phys_start | PTE_PRESENT | PTE_WRITABLE;
+
+        flush_tlb_single((uintptr_t)(V2P(cur_page_table) + page_off));
+    }
 }
 
 static uintptr_t get_page(struct allocator *alloc)

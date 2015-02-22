@@ -8,6 +8,8 @@
 #ifndef INCLUDE_ARCH_TYPES_H
 #define INCLUDE_ARCH_TYPES_H
 
+#include <protura/compiler.h>
+
 typedef unsigned char uint8_t;
 typedef signed char int8_t;
 
@@ -25,6 +27,21 @@ typedef int32_t ssize_t;
 
 typedef uint32_t uintptr_t;
 typedef int32_t   intptr_t;
+
+/* General purpose int size */
+typedef unsigned int pint __attribute__((__mode__(__word__)));
+
+struct virtual_addr { void *a; } __packed;
+typedef struct virtual_addr va_t;
+
+struct physical_addr { uintptr_t p; } __packed;
+typedef struct physical_addr pa_t;
+
+#define va_val(va) ((void *)(va))
+#define pa_val(pa) ((uintptr_t)(pa))
+
+#define v_to_p(va) (pa_t)(V2P((uintptr_t)(va)))
+#define p_to_v(pa) (va_t)(P2V((uintptr_t)(pa)))
 
 #endif
 

@@ -8,14 +8,15 @@ VERSION_N := $(VERSION).$(SUBLEVEL).$(PATCH)
 ARCH   := x86
 BITS   := 32
 
-TARGET := i686-elf-
+# TARGET := i686-elf-
+TARGET :=
 
 # Compiler settings
 CC      := $(TARGET)gcc
 CPP     := $(TARGET)gcc -E
 LD      := $(TARGET)ld
 AS      := $(TARGET)gas
-PERL    := perl -w
+PERL    := perl -w -Mdiagnostics
 
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
@@ -28,14 +29,14 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding        \
            -fno-strict-aliasing -nostdlib -fbuiltin
 
-LDFLAGS := -nostdlib -ffreestanding -lgcc
-ASFLAGS := -DASM -Wall -O2 -ffreestanding -nostdlib
+LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc
+ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
 
 # Configuration -- Uncomment lines to enable option
 # Or specify on the commandline
 
 # Enable debugging
-PORTURA_DEBUG := y
+PROTURA_DEBUG := y
 
 # Show all commands executed by the Makefile
 # V := y
@@ -173,7 +174,9 @@ endef
 $(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
 
 
+ifneq ($(MAKECMDGOALS),clean)
 -include $(REAL_OBJS_y:.o=.d)
+endif
 
 CLEAN_LIST += $(REAL_OBJS_y:.o=.d)
 
@@ -241,15 +244,12 @@ $(objtree)/%.ld: $(srctree)/%.ldS
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
 $(objtree)/%.d: $(srctree)/%.ldS
-	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
 
 $(objtree)/%.d: $(srctree)/%.c
-	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 $(objtree)/%.d: $(srctree)/%.S
-	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 

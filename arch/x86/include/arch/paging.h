@@ -8,6 +8,7 @@
 #ifndef INCLUDE_ARCH_PAGING_H
 #define INCLUDE_ARCH_PAGING_H
 
+
 #define CR0_PE 0x00000001
 #define CR0_MP 0x00000002
 #define CR0_EM 0x00000004
@@ -50,6 +51,8 @@
 
 #include <protura/types.h>
 #include <protura/multiboot.h>
+
+#include <protura/stddef.h>
 
 struct page_table {
     union {
@@ -106,7 +109,7 @@ static __always_inline void paging_enable(void)
 static __always_inline uintptr_t get_current_page_directory(void)
 {
     uintptr_t pdir;
-    asm volatile("movl %%cr3, %0": "=a" (pdir));
+    asm volatile("movl %%cr3, %0": "=r" (pdir));
     return pdir;
 }
 
