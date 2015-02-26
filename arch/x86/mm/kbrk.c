@@ -27,9 +27,9 @@ void *kbrk(size_t size, size_t align)
     return obrk;
 }
 
-void get_kernel_addrs(uintptr_t *kernel_start, uintptr_t *kernel_end)
+void get_kernel_addrs(va_t *kernel_start, va_t *kernel_end)
 {
-    *kernel_start = (uintptr_t)kern_start;
-    *kernel_end = (uintptr_t)kern_end;
+    *kernel_start = (void *)kern_start;
+    *kernel_end = (void *)kern_end;
 }
 

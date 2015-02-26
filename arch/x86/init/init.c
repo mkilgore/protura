@@ -16,6 +16,7 @@
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include <arch/init.h>
+#include <arch/drivers/com1_debug.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 #include <arch/kbrk.h>
@@ -31,6 +32,8 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 {
     struct multiboot_memmap *mmap = (struct multiboot_memmap *)P2V(((struct multiboot_info*)P2V(info))->mmap_addr);
     uintptr_t high_addr = 0;
+
+    com1_init();
 
     /* This reports the space between the end of the kernel
      * and the end of the mapped memory as free */
@@ -57,7 +60,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
 
     term_init();
-    paging_init((uintptr_t)kern_end, high_addr);
+    paging_init(kern_end, high_addr);
 
     gdt_init();
     idt_init();
@@ -71,6 +74,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     kprintf("Contents: %s\n", (char *)P2V(((struct multiboot_info *)P2V(info))->cmdline));
 
+    /*
     for (int i = 0; i < 20; i++) {
         uintptr_t p = low_get_page();
         kprintf("%x %x\t", p, (uintptr_t)P2V(p));
@@ -78,16 +82,23 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
         kprintf("Test: %d\n", *(int *)(P2V(p)));
         if (i % 3 == 0)
             low_free_page(p);
-    }
+    } */
 
     uintptr_t p = high_get_page();
+    va_t virt = (void *)0x0F000200;
     kprintf("High page: %p\n", (void *)p);
+    kprintf("virt page: %p\n", virt);
 
-    paging_map_phys_to_virt(0x10000000, p, 1);
+    kprintf("Mapping %p to %p\n", (void *)virt, (void *)p);
+    paging_map_phys_to_virt(virt, p);
+    kprintf("Mapped!\n");
 
-    kprintf("Contents of first 4 bytes: %x\n", *(int *)(0x10000000));
-    *(int *)(0x10000000) = 2;
-    kprintf("Contents of first 4 bytes: %x\n", *(int *)(0x10000000));
+    kprintf("Get phys: %x\n", paging_get_phys(virt));
+    kprintf("Get phys: %x\n", paging_get_phys((va_t)p));
+
+    kprintf("Contents of first 4 bytes: %x\n", *(int *)(virt));
+    *(int *)(virt) = 2;
+    kprintf("Contents of first 4 bytes: %x\n", *(int *)(virt));
 
     kmain();
 }

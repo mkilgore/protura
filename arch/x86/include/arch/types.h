@@ -31,11 +31,18 @@ typedef int32_t   intptr_t;
 /* General purpose int size */
 typedef unsigned int pint __attribute__((__mode__(__word__)));
 
+/*
 struct virtual_addr { void *a; } __packed;
 typedef struct virtual_addr va_t;
 
 struct physical_addr { uintptr_t p; } __packed;
-typedef struct physical_addr pa_t;
+typedef struct physical_addr pa_t; */
+
+typedef void *    va_t;
+typedef uintptr_t pa_t;
+
+#define va_make(va) ((va_t)(va))
+#define pa_make(pa) ((pa_t)(pa))
 
 #define va_val(va) ((void *)(va))
 #define pa_val(pa) ((uintptr_t)(pa))

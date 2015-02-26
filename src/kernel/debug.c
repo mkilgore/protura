@@ -9,10 +9,14 @@
 #include <protura/stdarg.h>
 #include <protura/debug.h>
 #include <drivers/term.h>
+#include <config/autoconf.h>
+#include <protura/skprintf.h>
+
+#include <arch/debug.h>
 
 void kprintfv(const char *fmt, va_list lst)
 {
-    term_printfv(fmt, lst);
+    arch_printfv(fmt, lst);
 }
 
 void kprintf(const char *fmt, ...)

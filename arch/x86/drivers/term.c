@@ -10,6 +10,8 @@
 #include <protura/string.h>
 #include <protura/stdarg.h>
 #include <protura/compiler.h>
+#include <config/autoconf.h>
+#include <protura/basic_printf.h>
 #include <drivers/term.h>
 #include <mm/memlayout.h>
 
@@ -95,7 +97,7 @@ void term_scroll(int lines)
             TERM_COLS * sizeof(struct term_char) * lines);
 }
 
-void term_putchar(char ch)
+static void term_putchar_nocur(char ch)
 {
     uint8_t r = glob_term.cur_r;
     uint8_t c = glob_term.cur_c;
@@ -125,171 +127,37 @@ void term_putchar(char ch)
     glob_term.cur_r = r;
 }
 
-static void term_putstr(const char *s)
+void term_putchar(char ch)
+{
+    term_putchar_nocur(ch);
+    term_updatecur();
+}
+
+void term_putstr(const char *s)
 {
     for (; *s; s++)
-        term_putchar(*s);
-}
-
-static char inttohex[] = { "0123456789ABCDEF" };
-
-static void term_putint(int i)
-{
-    char buf[3 * sizeof(i)], *ebuf = buf + 3 * sizeof(i);
-    int digit;
-    int orig = i;
-
-    *--ebuf = '\0';
-
-    if (i == 0)
-        *--ebuf = '0';
-
-    while (i > 0) {
-        digit = i % 10;
-        i = i / 10;
-        *--ebuf = inttohex[digit];
-    }
-
-    if (orig < 0)
-        *--ebuf = '-';
-
-    term_putstr(ebuf);
-}
-
-static void term_putint64(uint64_t i)
-{
-    char buf[3 * sizeof(i)], *ebuf = buf + 3 * sizeof(i);
-    int digit;
-    int orig = i;
-
-    *--ebuf = '\0';
-
-    if (i == 0)
-        *--ebuf = '0';
-
-    while (i > 0) {
-        digit = i % 10;
-        i = i / 10;
-        *--ebuf = inttohex[digit];
-    }
-
-    if (orig < 0)
-        *--ebuf = '-';
-
-    term_putstr(ebuf);
-
-}
-
-static void term_putptr32(uint32_t p)
-{
-    uint32_t val = p;
-    uint8_t digit;
-    int i;
-    char buf[11], *ebuf = buf + 11;
-
-    *--ebuf = '\0';
-
-    for (i = 0; i < 8; i++) {
-        digit = val % 16;
-        val = val >> 4;
-        *--ebuf = inttohex[digit];
-    }
-
-    *--ebuf = 'x';
-    *--ebuf = '0';
-    term_putstr(ebuf);
-}
-
-static void term_putptr64(uint64_t p)
-{
-    uint64_t val = p;
-    uint8_t digit;
-    int i;
-    char buf[22], *ebuf = buf + 22;
-
-    *--ebuf = '\0';
-
-    for (i = 0; i < 16; i++) {
-        digit = val % 16;
-        val = val >> 4;
-        *--ebuf = inttohex[digit];
-    }
-
-    *--ebuf = 'x';
-    *--ebuf = '0';
-    term_putstr(ebuf);
-}
-
-#if PROTURA_BITS == 32
-# define term_putptr(p) term_putptr32(p)
-#else
-# define term_putptr(p) term_putptr64(p)
-#endif
-
-static const char *handle_percent(const char *s, va_list *args)
-{
-    enum {
-        CLEAN,
-        LONG,
-        LONG_LONG
-    } state = CLEAN;
-
-    for (; *s; s++) {
-        switch(*s) {
-        case 'c':
-            term_putchar((char)va_arg(*args, int));
-            return s;
-        case 'd':
-            if (state == LONG_LONG)
-                term_putint64(va_arg(*args, uint64_t));
-            else
-                term_putint(va_arg(*args, int));
-            return s;
-        case 'x':
-        case 'X':
-        case 'p':
-            if (state == LONG_LONG)
-                term_putptr64(va_arg(*args, uint64_t));
-            else
-                term_putptr(va_arg(*args, uintptr_t));
-            return s;
-        case 's':
-            term_putstr(va_arg(*args, const char *));
-            return s;
-        case 'l':
-            switch(state) {
-            case CLEAN:
-                state = LONG;
-                break;
-            case LONG:
-                state = LONG_LONG;
-                break;
-            default:
-                break;
-            }
-            break;
-        }
-
-    }
-
-    return --s;
-}
-
-void term_printfv(const char *s, va_list args)
-{
-
-    for (; *s; s++) {
-        if (*s != '%') {
-            term_putchar(*s);
-            continue ;
-        }
-
-        s = handle_percent(s + 1, &args);
-    }
+        term_putchar_nocur(*s);
 
     term_updatecur();
+}
 
-    return ;
+static void term_printf_putchar(struct printf_backbone *b, char ch)
+{
+    term_putchar(ch);
+}
+
+static void term_printf_putstr(struct printf_backbone *b, const char *s)
+{
+    term_putstr(s);
+}
+
+void term_printfv(const char *s, va_list lst)
+{
+    struct printf_backbone backbone = {
+        .putchar = term_printf_putchar,
+        .putstr  = term_printf_putstr,
+    };
+    basic_printfv(&backbone, s, lst);
 }
 
 void term_printf(const char *s, ...)

@@ -46,6 +46,19 @@
 #define ALIGN(v, a) ((typeof(v))(((uintptr_t)(v) + (a) - 1) & ~(a - 1)))
 #define PG_ALIGN(v) ALIGN(v, 0x1000)
 
+#define PAGING_DIR_INDEX_MASK 0x3FF
+#define PAGING_TABLE_INDEX_MASK 0x3FF
+
+#define PAGING_DIR_INDEX(val) (((val) >> 22) & PAGING_DIR_INDEX_MASK)
+#define PAGING_TABLE_INDEX(val) (((val) >> 12) & PAGING_TABLE_INDEX_MASK)
+
+#define PAGING_MAKE_DIR_INDEX(val) ((val) << 22)
+#define PAGING_MAKE_TABLE_INDEX(val) ((val) << 12)
+
+#define PAGING_FRAME_MASK 0xFFFFF000
+#define PAGING_ATTRS_MASK 0x00000FFF
+
+#define PAGING_FRAME(entry) ((entry) & PAGING_FRAME_MASK)
 
 #ifndef ASM
 
@@ -54,7 +67,7 @@
 
 #include <protura/stddef.h>
 
-struct page_table {
+struct page_directory_entry {
     union {
         uint32_t entry;
         struct {
@@ -73,7 +86,7 @@ struct page_table {
     };
 };
 
-struct page {
+struct page_table_entry {
     union {
         uint32_t entry;
         struct {
@@ -92,6 +105,15 @@ struct page {
     };
 };
 
+struct page_directory {
+    struct page_directory_entry table[1024];
+};
+
+struct page_table {
+    struct page_table_entry table[1024];
+};
+
+
 static __always_inline void paging_disable(void)
 {
     asm volatile("movl %%cr0, %%eax;"
@@ -106,36 +128,40 @@ static __always_inline void paging_enable(void)
                  "movl %%eax, %%cr0":: "n" (CR0_PG): "memory", "eax");
 }
 
-static __always_inline uintptr_t get_current_page_directory(void)
+static __always_inline pa_t get_current_page_directory(void)
 {
     uintptr_t pdir;
     asm volatile("movl %%cr3, %0": "=r" (pdir));
     return pdir;
 }
 
-static __always_inline void set_current_page_directory(uintptr_t page_directory)
+static __always_inline void set_current_page_directory(pa_t page_directory)
 {
-    asm volatile("movl %0, %%cr3":: "r" (page_directory):"memory");
+    asm volatile("movl %0, %%eax\n"
+                 "movl %%eax, %%cr3":: "r" (page_directory):"eax", "memory");
 }
 
-static __always_inline void flush_tlb_single(uintptr_t addr)
+static __always_inline void flush_tlb_single(pa_t addr)
 {
     asm volatile("invlpg (%0)"::"r" (addr): "memory");
 }
 
-void paging_init(uintptr_t kern_end, uintptr_t phys_end);
+void paging_init(va_t kern_end, pa_t phys_end);
 
-void paging_map_phys_to_virt(uintptr_t virt_start, uintptr_t phys_start, size_t page_count);
+void paging_map_phys_to_virt(va_t virt_start, pa_t phys);
+void paging_map_phys_to_virt_multiple(va_t virt, pa_t phys_start, size_t page_count);
+uintptr_t paging_get_phys(va_t virtaddr);
+void paging_dump_directory(void);
 
 /* Low memory indicates the first 16M after the kernel is loaded This is mainly
  * for allcating pages who's physical addresses need to be known
  */
-uintptr_t low_get_page(void);
-void      low_free_page(uintptr_t p);
+pa_t      low_get_page(void);
+void      low_free_page(pa_t p);
 
 /* High memory is everything else */
-uintptr_t high_get_page(void);
-void      high_free_page(uintptr_t p);
+pa_t      high_get_page(void);
+void      high_free_page(pa_t p);
 
 #endif
 

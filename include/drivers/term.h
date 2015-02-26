@@ -44,6 +44,7 @@ void term_init(void);
 void term_put_term_char(struct term_char);
 
 void term_putchar(char);
+void term_putstr(const char *);
 
 void term_printf(const char *, ...) __printf(1, 2);
 void term_printfv(const char *, va_list);
