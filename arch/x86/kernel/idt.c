@@ -63,7 +63,7 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
         if (!irq_handlers[k])
             continue;
 
-        (print) (" %s(%02d) - %d\n", idt_ids[k].name, k, atomic32_get(&idt_ids[k].count) + k);
+        (print) (" %s(%02d) - %d\n", idt_ids[k].name, k, atomic32_get(&idt_ids[k].count));
     }
 }
 
