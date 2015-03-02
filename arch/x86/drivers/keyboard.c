@@ -69,8 +69,6 @@ static void keyboard_interrupt_handler(struct idt_frame *frame)
 
     scancode = inb(KEY_READ_BUF_PORT);
 
-    kprintf("In keyboard handler: %d - %x\n", scancode, scancode);
-
     if (scancode == KEY_CAPS_LOCK) {
         keyboard.led_status ^= LED_CAPS_LOCK;
         set_leds();
