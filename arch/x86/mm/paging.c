@@ -44,7 +44,7 @@ static void page_fault_handler(struct idt_frame *frame)
     uintptr_t p;
     asm volatile("movl %%cr2, %0": "=r" (p));
     term_setcurcolor(term_make_color(T_BLACK, T_RED));
-    term_printf(" PAGE FAULT!!! ADDR: %p, ERR: %x\n", (void *)p, frame->err);
+    term_printf(" PAGE FAULT!!! AT: %p, ADDR: %p, ERR: %x\n", (void *)frame->eip, (void *)p, frame->err);
     term_printf(" PAGE DIR INDEX: %x, PAGE TABLE INDEX: %x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
 
     while (1);
@@ -97,7 +97,7 @@ void paging_init(va_t kernel_end, pa_t last_physical_address)
     memset(low_mem_alloc->bitmap, 0, low_size);
     memset(high_mem_alloc->bitmap, 0, high_size);
 
-    irq_register_callback(14, page_fault_handler);
+    irq_register_callback(14, page_fault_handler, "Page fault handler");
 
     page_directory_init(k_end);
 
@@ -157,6 +157,28 @@ void paging_map_phys_to_virt_multiple(va_t virt, pa_t phys_start, size_t page_co
         paging_map_phys_to_virt((va_t)(virt_ptr), phys_start);
 
     return ;
+}
+
+void paging_unmap_virt(va_t virt)
+{
+    uintptr_t virt_val = (uintptr_t)virt;
+    int32_t table_off, page_off;
+    struct page_directory *cur_dir;
+    struct page_table *cur_page_table;
+
+    table_off = PAGING_DIR_INDEX(virt_val);
+    page_off = PAGING_TABLE_INDEX(virt_val);
+
+    cur_dir = P2V(get_current_page_directory());
+
+    cur_page_table = (struct page_table *)P2V(PAGING_FRAME(cur_dir->table[table_off].entry));
+
+    /* Turn off present bit */
+    cur_page_table->table[page_off].entry &= ~PTE_PRESENT;
+
+    kprintf("Cur page: %x\n", cur_page_table->table[page_off].entry);
+
+    flush_tlb_single(virt);
 }
 
 uintptr_t paging_get_phys(va_t virt)

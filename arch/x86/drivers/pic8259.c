@@ -14,8 +14,10 @@ static uint16_t irqmask = 0xFFFF & ~(1<<PIC8259_IRQ_SLAVE);
 
 static void pic_set_mask(void)
 {
+    cli();
     outb(PIC8259_IO_PIC1 + 1, irqmask);
     outb(PIC8259_IO_PIC2 + 1, irqmask >> 8);
+    sti();
 }
 
 void pic8259_enable_irq(int irq)

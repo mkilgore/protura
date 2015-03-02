@@ -20,8 +20,8 @@
 #define PIC8259_TIMER_RATEGEN 0x04
 #define PIC8259_TIMER_16BIT   0x30
 
-#define PIC8259_TIMER_IRQ     0x00
+#define PIC8259_TIMER_IRQ     0x00 + 0x20
 
-void pic8259_timer_init(uint32_t freq);
+void pic8259_timer_init(void);
 
 #endif

@@ -14,29 +14,49 @@
 
 typedef struct {
     int32_t counter;
-} atomic_int32_t;
+} atomic32_t;
 
 typedef struct {
     int64_t counter;
-} atomic_int64_t;
+} atomic64_t;
 
-#define ATOMIC_INIT(i) { (i) }
+#define ATOMIC32_INIT(i) { (i) }
+#define ATOMIC64_INIT(i) { (i) }
 
-static inline int32_t atomic_int32_read(const atomic_int32_t *v)
+static __always_inline int32_t atomic32_get(const atomic32_t *v)
 {
     return (*(volatile int32_t *)&(v)->counter);
 }
 
-static inline void atomic_int32_set(atomic_int32_t *v, int32_t i)
+static __always_inline void atomic32_set(atomic32_t *v, int32_t i)
 {
     v->counter = i;
 }
 
-static inline void atomic_int32_add(int32_t i, atomic_int32_t *v)
+static __always_inline void atomic32_add(atomic32_t *v, int32_t i)
 {
     asm volatile(LOCK_PREFIX "addl %1, %0"
             : "+m" (v->counter)
             : "ir" (i));
+}
+
+static __always_inline void atomic32_sub(atomic32_t *v, int32_t i)
+{
+    asm volatile(LOCK_PREFIX "subl %1, %0"
+            : "+m" (v->counter)
+            : "ir" (i));
+}
+
+static __always_inline void atomic32_inc(atomic32_t *v)
+{
+    asm volatile(LOCK_PREFIX "incl %0"
+            : "+m" (v->counter));
+}
+
+static __always_inline void atomic32_dec(atomic32_t *v)
+{
+    asm volatile(LOCK_PREFIX "decl %0"
+            : "+m" (v->counter));
 }
 
 #endif

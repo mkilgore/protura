@@ -15,6 +15,8 @@
 
 #define PIC8259_IRQ0 0x20
 
+#define PIC8259_EOI 0x20
+
 void pic8259_enable_irq(int irq);
 
 void pic8259_init(void);

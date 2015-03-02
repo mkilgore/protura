@@ -18,4 +18,7 @@
         const typeof(((type *)0)->member) *__mptr = (ptr); \
         (type *)((char *)__mptr - offsetof(type, member)); })
 
+#define TP2(x, y) x ## y
+#define TP(x, y) TP2(x, y)
+
 #endif

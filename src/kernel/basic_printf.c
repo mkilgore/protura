@@ -10,10 +10,13 @@
 #include <protura/types.h>
 #include <protura/basic_printf.h>
 
-static char inttohex[] = { "0123456789ABCDEF" };
+static char inttohex[][16] = { "0123456789abcdef", "0123456789ABCDEF" };
 
 static void basic_printf_add_str(struct printf_backbone *backbone, const char *s)
 {
+    if (!s)
+        s = "(null)";
+
     if (backbone->putstr) {
         backbone->putstr(backbone, s);
         return ;
@@ -38,7 +41,7 @@ static void basic_printf_putint(struct printf_backbone *backbone, int i)
     while (i > 0) {
         digit = i % 10;
         i = i / 10;
-        *--ebuf = inttohex[digit];
+        *--ebuf = inttohex[0][digit];
     }
 
     if (orig < 0)
@@ -61,7 +64,7 @@ static void basic_printf_putint64(struct printf_backbone *backbone, uint64_t i)
     while (i > 0) {
         digit = i % 10;
         i = i / 10;
-        *--ebuf = inttohex[digit];
+        *--ebuf = inttohex[0][digit];
     }
 
     if (orig < 0)
@@ -70,7 +73,7 @@ static void basic_printf_putint64(struct printf_backbone *backbone, uint64_t i)
     basic_printf_add_str(backbone, ebuf);
 }
 
-static void basic_printf_putptr32(struct printf_backbone *backbone, uint32_t p)
+static void basic_printf_putptr32(struct printf_backbone *backbone, uint32_t p, int caps)
 {
     uint32_t val = p;
     uint8_t digit;
@@ -82,7 +85,7 @@ static void basic_printf_putptr32(struct printf_backbone *backbone, uint32_t p)
     for (i = 0; i < 8; i++) {
         digit = val % 16;
         val = val >> 4;
-        *--ebuf = inttohex[digit];
+        *--ebuf = inttohex[caps][digit];
     }
 
     *--ebuf = 'x';
@@ -90,7 +93,7 @@ static void basic_printf_putptr32(struct printf_backbone *backbone, uint32_t p)
     basic_printf_add_str(backbone, ebuf);
 }
 
-static void basic_printf_putptr64(struct printf_backbone *backbone, uint64_t p)
+static void basic_printf_putptr64(struct printf_backbone *backbone, uint64_t p, int caps)
 {
     uint64_t val = p;
     uint8_t digit;
@@ -102,7 +105,7 @@ static void basic_printf_putptr64(struct printf_backbone *backbone, uint64_t p)
     for (i = 0; i < 16; i++) {
         digit = val % 16;
         val = val >> 4;
-        *--ebuf = inttohex[digit];
+        *--ebuf = inttohex[caps][digit];
     }
 
     *--ebuf = 'x';
@@ -111,13 +114,14 @@ static void basic_printf_putptr64(struct printf_backbone *backbone, uint64_t p)
 }
 
 #if PROTURA_BITS == 32
-# define basic_printf_putptr(c, p) basic_printf_putptr32(c, p)
+# define basic_printf_putptr(c, p, ca) basic_printf_putptr32(c, p, ca)
 #else
-# define basic_printf_putptr(c, p) basic_printf_putptr64(c, p)
+# define basic_printf_putptr(c, p, ca) basic_printf_putptr64(c, p, ca)
 #endif
 
 static const char *handle_percent(struct printf_backbone *backbone, const char *s, va_list *args)
 {
+    int caps = 0;
     enum {
         CLEAN,
         LONG,
@@ -129,23 +133,30 @@ static const char *handle_percent(struct printf_backbone *backbone, const char *
         case 'c':
             backbone->putchar(backbone, (char)va_arg(*args, int));
             return s;
+
         case 'd':
             if (state == LONG_LONG)
                 basic_printf_putint64(backbone, va_arg(*args, uint64_t));
             else
                 basic_printf_putint(backbone, va_arg(*args, int));
             return s;
-        case 'x':
+
         case 'X':
+        case 'P':
+            caps = 1;
+            /* Fall through */
+        case 'x':
         case 'p':
             if (state == LONG_LONG)
-                basic_printf_putptr64(backbone, va_arg(*args, uint64_t));
+                basic_printf_putptr64(backbone, va_arg(*args, uint64_t), caps);
             else
-                basic_printf_putptr(backbone, va_arg(*args, uintptr_t));
+                basic_printf_putptr(backbone, va_arg(*args, uintptr_t), caps);
             return s;
+
         case 's':
             basic_printf_add_str(backbone, va_arg(*args, const char *));
             return s;
+
         case 'l':
             switch(state) {
             case CLEAN:

@@ -11,6 +11,8 @@
 #include <protura/types.h>
 #include <protura/multiboot.h>
 
+extern int kernel_is_booting;
+
 void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_info *info);
 
 #endif

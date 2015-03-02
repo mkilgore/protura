@@ -47,4 +47,15 @@ static __always_inline void sti(void)
     asm volatile("sti");
 }
 
+static __always_inline uint32_t xchg(volatile uint32_t *addr, uint32_t val)
+{
+    uint32_t result;
+
+    asm volatile(LOCK_PREFIX" xchgl %0, %1\n":
+                 "+m" (*addr), "=a" (result) :
+                 "1" (val) :
+                 "cc");
+    return result;
+}
+
 #endif

@@ -141,7 +141,7 @@ static __always_inline void set_current_page_directory(pa_t page_directory)
                  "movl %%eax, %%cr3":: "r" (page_directory):"eax", "memory");
 }
 
-static __always_inline void flush_tlb_single(pa_t addr)
+static __always_inline void flush_tlb_single(va_t addr)
 {
     asm volatile("invlpg (%0)"::"r" (addr): "memory");
 }
@@ -150,6 +150,9 @@ void paging_init(va_t kern_end, pa_t phys_end);
 
 void paging_map_phys_to_virt(va_t virt_start, pa_t phys);
 void paging_map_phys_to_virt_multiple(va_t virt, pa_t phys_start, size_t page_count);
+
+void paging_unmap_virt(va_t virt);
+
 uintptr_t paging_get_phys(va_t virtaddr);
 void paging_dump_directory(void);
 

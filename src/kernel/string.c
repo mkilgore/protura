@@ -7,6 +7,7 @@
  */
 
 #include <protura/string.h>
+#include <protura/debug.h>
 
 #ifndef _STRING_ARCH_MEMCMP
 int memcmp(const void *p1, const void *p2, size_t siz)

@@ -12,6 +12,7 @@
 #include <protura/debug.h>
 #include <mm/memlayout.h>
 
+#include <arch/asm.h>
 #include <drivers/term.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
@@ -19,9 +20,23 @@
 #include <arch/drivers/com1_debug.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
+#include <arch/drivers/keyboard.h>
 #include <arch/kbrk.h>
 #include <arch/paging.h>
 
+int kernel_is_booting = 1;
+
+struct sys_init {
+    const char *name;
+    void (*init) (void);
+};
+
+struct sys_init systems[] = {
+    { "pic8259_timer", pic8259_timer_init },
+    { "keyboard", keyboard_init },
+
+    { NULL, NULL }
+};
 
 /* Note: kern_start and kern_end are virtual addresses
  *
@@ -30,15 +45,18 @@
 
 void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_info *info)
 {
+    struct sys_init *sys;
     struct multiboot_memmap *mmap = (struct multiboot_memmap *)P2V(((struct multiboot_info*)P2V(info))->mmap_addr);
     uintptr_t high_addr = 0;
 
     com1_init();
+    term_init();
+
+    kprintf("Kernel booting...\n");
 
     /* This reports the space between the end of the kernel
      * and the end of the mapped memory as free */
     kbrk_init(kern_start, kern_end);
-
 
     for (; (uint32_t)mmap < info->mmap_addr + info->mmap_length
          ; mmap = (struct multiboot_memmap *) ((uint32_t)mmap + mmap->size + sizeof(uint32_t))) {
@@ -58,47 +76,29 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
         break;
     }
 
-
-    term_init();
     paging_init(kern_end, high_addr);
 
     gdt_init();
     idt_init();
-    pic8259_init();
-    pic8259_timer_init(50);
 
     kprintf("Kernel Start: %p\nKernel End: %p\n", kern_start, kern_end);
     kprintf("Magic value: %x\nInfo Ptr: %p\n", magic, info);
 
     kprintf("Cmdline: %p\n", P2V(((struct multiboot_info *)P2V(info))->cmdline));
-
     kprintf("Contents: %s\n", (char *)P2V(((struct multiboot_info *)P2V(info))->cmdline));
 
-    /*
-    for (int i = 0; i < 20; i++) {
-        uintptr_t p = low_get_page();
-        kprintf("%x %x\t", p, (uintptr_t)P2V(p));
-        *(int *) (P2V(p)) = 2;
-        kprintf("Test: %d\n", *(int *)(P2V(p)));
-        if (i % 3 == 0)
-            low_free_page(p);
-    } */
+    kprintf("Initalizing the 8259 PIC\n");
+    pic8259_init();
 
-    uintptr_t p = high_get_page();
-    va_t virt = (void *)0x0F000200;
-    kprintf("High page: %p\n", (void *)p);
-    kprintf("virt page: %p\n", virt);
+    kprintf("Enabling interrupts!\n");
+    sti();
 
-    kprintf("Mapping %p to %p\n", (void *)virt, (void *)p);
-    paging_map_phys_to_virt(virt, p);
-    kprintf("Mapped!\n");
+    for (sys = systems; sys->name; sys++) {
+        kprintf("Starting: %s\n", sys->name);
+        (sys->init) ();
+    }
 
-    kprintf("Get phys: %x\n", paging_get_phys(virt));
-    kprintf("Get phys: %x\n", paging_get_phys((va_t)p));
-
-    kprintf("Contents of first 4 bytes: %x\n", *(int *)(virt));
-    *(int *)(virt) = 2;
-    kprintf("Contents of first 4 bytes: %x\n", *(int *)(virt));
+    kernel_is_booting = 0;
 
     kmain();
 }
