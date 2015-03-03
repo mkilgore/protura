@@ -1,4 +1,9 @@
 
-OBJS_y += term.o pic8259.o pic8259_timer.o com1_debug.o keyboard.o scancode.o
-OBJS_y += kprintf.o
+objs-y += term.o
+objs-y += pic8259.o
+objs-y += pic8259_timer.o
+objs-y += com1_debug.o
+objs-y += keyboard.o
+objs-y += scancode.o
+objs-y += kprintf.o
 

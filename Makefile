@@ -122,17 +122,17 @@ objtree := $$(objtree)/$(1)
 srctree := $$(srctree)/$(1)
 
 pfix := $$(subst /,_,$$(objtree))_
-DIRINC_y :=
-OBJS_y :=
-CLEAN_LIST_y :=
+subdir-y :=
+objs-y :=
+clean-list-y :=
 
 _tmp := $$(shell mkdir -p $$(objtree))
 include $$(srctree)/Makefile
 
-REAL_OBJS_y += $$(patsubst %,$$(objtree)/%,$$(OBJS_y))
-CLEAN_LIST += $$(patsubst %,$$(objtree)/%,$$(CLEAN_LIST_y))
+REAL_OBJS_y += $$(patsubst %,$$(objtree)/%,$$(objs-y))
+CLEAN_LIST += $$(patsubst %,$$(objtree)/%,$$(clean-list-y))
 
-$$(foreach subdir,$$(DIRINC_y),$$(eval $$(call subdir_inc,$$(subdir))))
+$$(foreach subdir,$$(subdir-y),$$(eval $$(call subdir_inc,$$(subdir))))
 
 srctree := $$(patsubst %/$(1),%,$$(srctree))
 objtree := $$(patsubst %/$(1),%,$$(objtree))
@@ -252,6 +252,26 @@ $(objtree)/%.d: $(srctree)/%.c
 $(objtree)/%.d: $(srctree)/%.S
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
+$(objtree)/%.o: $(objtree)/%.c
+	@echo " CC      $@"
+	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$(make_name $@)) -c $< -o $@
+
+$(objtree)/%.o: $(objtree)/%.S
+	@echo " CCAS    $@"
+	$(Q)$(CC) $(CPPFLAGS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
+
+$(objtree)/%.ld: $(objtree)/%.ldS
+	@echo " CPP     $@"
+	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
+
+$(objtree)/%.d: $(objtree)/%.ldS
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
+
+$(objtree)/%.d: $(objtree)/%.c
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
+
+$(objtree)/%.d: $(objtree)/%.S
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 .PHONY: $(PHONY)
 

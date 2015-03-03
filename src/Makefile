@@ -1,4 +1,4 @@
 
-DIRINC_y += kernel
-DIRINC_y += mm
+subdir-y += kernel
+subdir-y += mm
 

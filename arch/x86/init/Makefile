@@ -1,3 +1,3 @@
 
-OBJS_y += init.o
+objs-y += init.o
 

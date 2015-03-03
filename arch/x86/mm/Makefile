@@ -1,4 +1,4 @@
 
-OBJS_y += paging.o
-OBJS_y += kbrk.o
+objs-y += paging.o
+objs-y += kbrk.o
 
