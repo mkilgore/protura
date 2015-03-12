@@ -1,4 +1,5 @@
 
 objs-y += paging.o
-objs-y += kbrk.o
+objs-y += pmalloc.o
+objs-y += bootmem.o
 

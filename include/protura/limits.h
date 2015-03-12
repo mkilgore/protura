@@ -1,0 +1,6 @@
+#ifndef INCLUDE_PROTURA_LIMITS_H
+#define INCLUDE_PROTURA_LIMITS_H
+
+#define CHAR_BIT 8
+
+#endif

@@ -5,11 +5,12 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_ARCH_KBRK_H
-#define INCLUDE_ARCH_KBRK_H
+#ifndef INCLUDE_PROTURA_ALLOC_H
+#define INCLUDE_PROTURA_ALLOC_H
 
-#include <protura/types.h>
-
-void kmalloc_init(void);
+struct allocator {
+    uintptr_t addr_start;
+    uint32_t pages;
+};
 
 #endif

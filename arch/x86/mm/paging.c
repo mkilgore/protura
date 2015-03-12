@@ -15,29 +15,14 @@
 
 #include <arch/asm.h>
 #include <arch/idt.h>
-#include <arch/kbrk.h>
+#include <arch/alloc.h>
+#include <arch/bootmem.h>
+#include <arch/pmalloc.h>
 #include <arch/paging.h>
-
-struct allocator {
-    pa_t phys_start;
-    uint32_t pages;
-    uint8_t bitmap[];
-};
 
 __align(0x1000) static struct page_directory kernel_dir = {
     { { .entry = 0 } }
 };
-
-__align(0x1000) static struct page_table kernel_pgt = {
-    { { .entry = 0 } }
-};
-
-__align(0x1000) static struct page_table kernel_low_mem_pgt[KMEM_KTABLES] = {
-    { { { .entry = 0 } } }
-};
-
-static struct allocator *low_mem_alloc;
-static struct allocator *high_mem_alloc;
 
 static void page_fault_handler(struct idt_frame *frame)
 {
@@ -52,74 +37,89 @@ static void page_fault_handler(struct idt_frame *frame)
 
 static void page_directory_init(va_t kern_end)
 {
-    pa_t cur_page, last_page = v_to_p(PG_ALIGN(kern_end)) >> 12, cur_table;
+#if 0
+    pa_t cur_page, cur_table;
     int table;
+
     kernel_dir.table[KMEM_KPAGE].entry = v_to_p(&kernel_pgt) | PDE_PRESENT | PDE_WRITABLE;
 
+    /* First we setup the page directory entries for the low_mem_pgt */
     for (table = 0; table < KMEM_KTABLES; table++)
         kernel_dir.table[KMEM_KPAGE + table + 1].entry = v_to_p(kernel_low_mem_pgt + table) | PDE_PRESENT | PDE_WRITABLE;
 
-    for (cur_page = 0; cur_page < last_page; cur_page++)
+    /* Map the kernel's page-table - We map the entire table since bootmem needs the memory */
+    for (cur_page = 0; cur_page < 1024; cur_page++)
         kernel_pgt.table[cur_page].entry = PAGING_MAKE_TABLE_INDEX(cur_page) | PTE_PRESENT | PTE_WRITABLE;
 
+    /* Map the low-mem page-tables */
     for (cur_table = 0; cur_table < KMEM_KTABLES; cur_table++) {
         for (cur_page = 0; cur_page < 1024; cur_page++) {
-            pa_t addr = ((PAGING_MAKE_DIR_INDEX(cur_table + 1)) + PAGING_MAKE_TABLE_INDEX(cur_page)) + last_page;
+            /* Add 1 to the cur_table so we skip over the kernel's page-table,
+             * which starts at 0MB, and start at the table *after* the
+             * kernel's. */
+            pa_t addr = ((PAGING_MAKE_DIR_INDEX(cur_table + 1)) + PAGING_MAKE_TABLE_INDEX(cur_page));
             kernel_low_mem_pgt[cur_table].table[cur_page].entry = addr | PTE_PRESENT | PTE_WRITABLE;
         }
     }
+#endif
+}
 
-    set_current_page_directory(v_to_p(&kernel_dir));
+/* To make our lives easier, we allocate and setup empty page_tables for all of
+ * the kernel memory. The reason for this is that every task is going to get
+ * it's own page-directory. If we setup the entries in the page-directory now,
+ * then we don't have to worry about adding new ones later when we have
+ * multiple page-directory's that would need to be updated with the new
+ * page-directory-entry.
+ */
+static void setup_extra_page_tables(void)
+{
+    int cur_table, cur_page;
+    pa_t new_page;
+    struct page_directory *page_dir = &kernel_dir;
+    struct page_table *page_tbl;
+    int table_start = KMEM_KPAGE;
+
+    /* We start at the last table from low-memory */
+    for (cur_table = table_start; cur_table < 0x3FF; cur_table++) {
+        new_page = bootmem_alloc_page();
+
+        page_tbl = (struct page_table *)P2V(new_page);
+        for (cur_page = 0; cur_page < 1024; cur_page++)
+            page_tbl->table[cur_page].entry = (PAGING_MAKE_DIR_INDEX(cur_table - table_start) + PAGING_MAKE_TABLE_INDEX(cur_page)) | PTE_PRESENT | PTE_WRITABLE;
+
+        page_dir->table[cur_table].entry = new_page | PDE_PRESENT | PDE_WRITABLE;
+    }
 }
 
 void paging_init(va_t kernel_end, pa_t last_physical_address)
 {
-    va_t k_end, k_start;
-    size_t low_size, high_size;
-
-    low_size = ((KMEM_LOW_SIZE >> 12) >> 3) + 1;
-    high_size = (((last_physical_address - v_to_p(kernel_end)) >> 12) >> 3) + 1;
-
-    low_mem_alloc = kbrk(sizeof(struct allocator) + low_size, alignof(struct allocator));
-    high_mem_alloc = kbrk(sizeof(struct allocator) + high_size, alignof(struct allocator));
-
-    get_kernel_addrs(&k_start, &k_end);
-
-    k_start = PG_ALIGN(k_start);
-    k_end = ALIGN(k_end, 0x00400000);
-
-    low_mem_alloc->pages = KMEM_LOW_SIZE >> 12;
-    high_mem_alloc->pages = (last_physical_address - v_to_p(k_end) - KMEM_LOW_SIZE) >> 12;
-
-    low_mem_alloc->phys_start = v_to_p(k_end);
-    high_mem_alloc->phys_start = v_to_p(k_end) + KMEM_LOW_SIZE;
-
-    memset(low_mem_alloc->bitmap, 0, low_size);
-    memset(high_mem_alloc->bitmap, 0, high_size);
-
     irq_register_callback(14, page_fault_handler, "Page fault handler");
 
-    page_directory_init(k_end);
+    kprintf("Setting-up initial kernel page-directory\n");
+
+    page_directory_init(kernel_end);
+    setup_extra_page_tables();
+
+    set_current_page_directory(v_to_p(&kernel_dir));
 
     return ;
 }
 
-void paging_dump_directory(void)
+void paging_dump_directory(pa_t page_dir)
 {
-    uintptr_t page_dir;
     struct page_directory *cur_dir;
     int32_t table_off, page_off;
     struct page_table *cur_page_table;
 
-    page_dir = get_current_page_directory();
     cur_dir = P2V(page_dir);
 
     for (table_off = 0; table_off != 1024; table_off++) {
-        kprintf("Dir %d: %x\n", table_off, cur_dir->table[table_off].entry);
         if (cur_dir->table[table_off].entry & PDE_PRESENT) {
+            kprintf("Dir %d: %x\n", table_off, cur_dir->table[table_off].entry);
             cur_page_table = (struct page_table *)P2V(cur_dir->table[table_off].entry & ~0x3FF);
             for (page_off = 0; page_off != 1024; page_off++)
-                kprintf("  Page: %d: %x\n", page_off, cur_page_table->table[page_off].entry);
+                if (cur_page_table->table[page_off].entry & PTE_PRESENT)
+                    kprintf("  Page: %d: %x\n", page_off, cur_page_table->table[page_off].entry);
         }
     }
 }
@@ -139,7 +139,7 @@ void paging_map_phys_to_virt(va_t virt, pa_t phys)
     page_off = PAGING_TABLE_INDEX(virt_start);
 
     if (!(cur_dir->table[table_off].entry & PDE_PRESENT)) {
-        uintptr_t new_page = low_get_page();
+        uintptr_t new_page = (0);
         memset((void *)P2V(new_page), 0, sizeof(struct page_table));
 
         cur_dir->table[table_off].entry = new_page | PDE_PRESENT | PDE_WRITABLE;
@@ -202,63 +202,5 @@ uintptr_t paging_get_phys(va_t virt)
         return 0;
 
     return cur_page_table->table[page_off].entry & 0xFFFFF000;
-}
-
-static uintptr_t get_page(struct allocator *alloc)
-{
-    uint8_t mask;
-    uint32_t cur_byte, max = alloc->pages >> 3;
-    uint32_t page_n = 0;
-
-    for (cur_byte = 0; cur_byte < max; cur_byte++) {
-        for (mask = 0; mask != 8; mask++) {
-            if ((alloc->bitmap[cur_byte] & (1 << mask)) == 0) {
-                page_n = (cur_byte << 3) + mask;
-                alloc->bitmap[cur_byte] |= (1 << mask);
-
-                goto eloop;
-            }
-        }
-    }
-
-eloop:
-
-    return alloc->phys_start + (page_n << 12);
-}
-
-static void free_page(struct allocator *alloc, uintptr_t p)
-{
-    uint8_t mask;
-    uint32_t byte;
-    uintptr_t offset;
-
-    if (alloc->phys_start > p || (alloc->phys_start + (alloc->pages << 12)) < p)
-        return;
-
-    offset = p - alloc->phys_start;
-    byte = offset >> 15;
-    mask = (offset >> 12) & 0x7;
-
-    alloc->bitmap[byte] &= ~(1 << mask);
-}
-
-uintptr_t low_get_page(void)
-{
-    return get_page(low_mem_alloc);
-}
-
-void low_free_page(uintptr_t p)
-{
-    free_page(low_mem_alloc, p);
-}
-
-uintptr_t high_get_page(void)
-{
-    return get_page(high_mem_alloc);
-}
-
-void high_free_page(uintptr_t p)
-{
-    free_page(high_mem_alloc, p);
 }
 

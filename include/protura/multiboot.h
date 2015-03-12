@@ -165,7 +165,7 @@ struct multiboot_info
   uint32_t boot_device;
 
   /* Kernel command line */
-  const char *cmdline;
+  char *cmdline;
 
   /* Boot-Module list */
   uint32_t mods_count;

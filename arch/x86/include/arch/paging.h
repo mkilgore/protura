@@ -8,6 +8,7 @@
 #ifndef INCLUDE_ARCH_PAGING_H
 #define INCLUDE_ARCH_PAGING_H
 
+#define PG_SIZE (0x1000)
 
 #define CR0_PE 0x00000001
 #define CR0_MP 0x00000002
@@ -44,7 +45,7 @@
 #define PTE_RESERVED       0x080
 
 #define ALIGN(v, a) ((typeof(v))(((uintptr_t)(v) + (a) - 1) & ~(a - 1)))
-#define PG_ALIGN(v) ALIGN(v, 0x1000)
+#define PG_ALIGN(v) ALIGN(v, PG_SIZE)
 
 #define PAGING_DIR_INDEX_MASK 0x3FF
 #define PAGING_TABLE_INDEX_MASK 0x3FF
@@ -154,7 +155,7 @@ void paging_map_phys_to_virt_multiple(va_t virt, pa_t phys_start, size_t page_co
 void paging_unmap_virt(va_t virt);
 
 uintptr_t paging_get_phys(va_t virtaddr);
-void paging_dump_directory(void);
+void paging_dump_directory(pa_t dir);
 
 /* Low memory indicates the first 16M after the kernel is loaded This is mainly
  * for allcating pages who's physical addresses need to be known

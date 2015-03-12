@@ -27,26 +27,18 @@ stack_top:
 .section .data
 
 .align 0x1000
-initial_pgdir2:
+initial_pgdir:
 .fill 1024, 4, 0
 
 # These store the location of our identity map of MB0
 # as well as the high-mem map for the kernel
-.set pg0dir, initial_pgdir2
-.set pg1dir, initial_pgdir2 + KMEM_KPAGE * 4
+.set pg0dir, initial_pgdir
+.set pg1dir, initial_pgdir + KMEM_KPAGE * 4
 
-
-# This creates a table mapping from MB0 to MB4
-.align 0x1000
-pg0:
-.long 0 # This is zero so *(NULL) always fails
-
-.set x, 1
-.rept 1023
-.long ((x << 12) | PTE_PRESENT | PTE_WRITABLE)
-.set x, x + 1
-.endr
-
+.extern pg0
+.extern pg1
+.extern pg2
+.extern pg3
 
 start = V2P_WO(_start)
 
@@ -68,12 +60,25 @@ _start:
     movl $V2P_WO(pg0), %eax
     orl $(PTE_PRESENT | PTE_WRITABLE), %eax
 
+    movl $V2P_WO(pg0dir), %ebx
+    movl $V2P_WO(pg1dir), %edx
+
+    movl $4, %ecx
+
+.pg_dir_loop:
+    movl %eax, (%ebx)
+    movl %eax, (%edx)
+    addl $0x1000, %eax
+    addl $4, %ebx
+    addl $4, %edx
+    loop .pg_dir_loop
+
     # Put that page table pointer into both of the page directory
     # entries we care about
-    movl %eax, V2P_WO(pg0dir)
-    movl %eax, V2P_WO(pg1dir)
+    # movl %eax, V2P_WO(pg0dir)
+    # movl %eax, V2P_WO(pg1dir)
 
-    movl $V2P_WO(initial_pgdir2), %eax
+    movl $V2P_WO(initial_pgdir), %eax
     movl %eax, %cr3
 
     movl %cr0, %eax
@@ -95,7 +100,7 @@ higher_half:
     addl $0x16, %esp
 
     cli
-    hlt
 .loop:
+    hlt
     jmp .loop
 

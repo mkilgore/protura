@@ -7,6 +7,7 @@
  */
 #include <protura/types.h>
 #include <protura/debug.h>
+#include <protura/atomic.h>
 
 #include <arch/asm.h>
 #include <arch/idt.h>

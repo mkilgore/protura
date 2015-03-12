@@ -12,8 +12,11 @@
 #define KMEM_KBASE    0xC0000000
 #define KMEM_DEVSPACE 0xFE000000
 
+/* This size is the ammount of memory that the kernel should be mapped in for
+ * the initial booting (Until we having our actual paging and memory manager
+ * going) */
 /* 16 MB's */
-#define KMEM_LOW_SIZE 0x01000000
+#define KMEM_KERNEL_SIZE 0x01000000
 
 #define KMEM_LINK (KMEM_KBASE + KMEM_EXTMEM)
 
