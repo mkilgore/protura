@@ -20,6 +20,8 @@ static struct slab_alloc kmalloc_slabs[] = {
     { .slab_name = "kmalloc_128", .object_size = 128 },
     { .slab_name = "kmalloc_256", .object_size = 256 },
     { .slab_name = "kmalloc_512", .object_size = 512 },
+    { .slab_name = "kmalloc_1024", .object_size = 1024 },
+    { .slab_name = "kmalloc_2048", .object_size = 2048 },
     { .slab_name = NULL }
 };
 

@@ -18,11 +18,16 @@
 #include <arch/pmalloc.h>
 #include <mm/slab.h>
 
+struct page_frame_obj_empty {
+    struct page_frame_obj_empty *next;
+};
+
 struct slab_page_frame {
     struct slab_page_frame *next;
     void *first_addr;
+    int pages;
     int object_count;
-    uint8_t flags[PG_SIZE / 8 / 4];
+    struct page_frame_obj_empty *freelist;
 };
 
 void slab_info(struct slab_alloc *slab, char *buf, size_t buf_size)
@@ -34,34 +39,80 @@ void slab_info(struct slab_alloc *slab, char *buf, size_t buf_size)
         snprintf(buf, buf_size, "  frame (%p): %d objects\n", frame, frame->object_count);
 }
 
-void *slab_malloc(struct slab_alloc *slab)
+static struct slab_page_frame *slab_frame_new(struct slab_alloc *slab)
 {
-    struct slab_page_frame **frame = &slab->first_frame;
+    char *obj;
+    struct page_frame_obj_empty **current;
     struct slab_page_frame *newframe;
+    int i, pages = 20;
 
-    for (frame = &slab->first_frame; *frame; frame = &((*frame)->next)) {
-        int i, count = (*frame)->object_count;
-        for (i = 0; i < count; i++) {
-            if (!bit_get((*frame)->flags, i)) {
-                bit_set((*frame)->flags, i, 1);
-                return (*frame)->first_addr + i * slab->object_size;
-            }
-        }
-    }
-
-    newframe = P2V(pmalloc_page_alloc(PMAL_KERNEL));
+    newframe = P2V(pmalloc_pages_alloc(PMAL_KERNEL, pages));
+    newframe->pages = pages;
 
     newframe->next = NULL;
 
     newframe->first_addr = ALIGN(((char *)newframe) + sizeof(*newframe), slab->object_size);
-    newframe->object_count = (((char *)newframe + PG_SIZE) - (char *)newframe->first_addr) / slab->object_size;
+    newframe->object_count = (((char *)newframe + PG_SIZE * newframe->pages) - (char *)newframe->first_addr) / slab->object_size;
+
+    current = &newframe->freelist;
+    obj = newframe->first_addr;
+    for (i = 0; i < newframe->object_count; i++,
+                                            obj = ALIGN(obj + slab->object_size, slab->object_size),
+                                            current = &((*current)->next))
+        *current = (struct page_frame_obj_empty *)obj;
+
+    *current = NULL;
+
 
     kprintf("slab: %s: New page %p, %d objects\n", slab->slab_name, newframe, newframe->object_count);
+    return newframe;
+}
 
-    *frame = newframe;
+static void slab_frame_free(struct slab_alloc *slab, struct slab_page_frame *frame)
+{
+    if (frame->pages > 1)
+        pmalloc_pages_free(V2P(frame), frame->pages);
+    else
+        pmalloc_page_free(V2P(frame));
+}
 
-    bit_set(newframe->flags, 1, 1);
-    return newframe->first_addr;
+static void *slab_frame_object_alloc(struct slab_page_frame *frame)
+{
+    struct page_frame_obj_empty *obj, *next;
+    if (!frame->freelist)
+        return NULL;
+
+    obj = frame->freelist;
+    next = frame->freelist->next;
+
+    frame->freelist = next;
+    return obj;
+}
+
+static void slab_frame_object_free(struct slab_page_frame *frame, void *obj)
+{
+    struct page_frame_obj_empty *new = obj, **current;
+
+    for (current = &frame->freelist; *current; current = &(*current)->next) {
+        if (obj <= (void *)(*current) || !*current) {
+            new->next = *current;
+            *current = new;
+            return ;
+        }
+    }
+}
+
+void *slab_malloc(struct slab_alloc *slab)
+{
+    struct slab_page_frame **frame = &slab->first_frame;
+
+    for (frame = &slab->first_frame; *frame; frame = &((*frame)->next))
+        if ((*frame)->freelist)
+            return slab_frame_object_alloc(*frame);
+
+    *frame = slab_frame_new(slab);
+
+    return slab_frame_object_alloc(*frame);
 }
 
 int slab_has_addr(struct slab_alloc *slab, void *addr)
@@ -79,8 +130,7 @@ void slab_free(struct slab_alloc *slab, void *obj)
     struct slab_page_frame *frame;
     for (frame = slab->first_frame; frame; frame = frame->next) {
         if (obj >= (void *)frame && obj < (void *)frame + PG_SIZE) {
-            int obj_n = (uintptr_t)(obj - frame->first_addr) / slab->object_size;
-            bit_set(frame->flags, obj_n, 0);
+            slab_frame_object_free(frame, obj);
             return ;
         }
     }
@@ -93,7 +143,7 @@ void slab_clear(struct slab_alloc *slab)
     struct slab_page_frame *frame, *next;
     for (frame = slab->first_frame; frame; frame = next) {
         next = frame->next;
-        pmalloc_page_free(V2P(frame));
+        slab_frame_free(slab, frame);
     }
 }
 
