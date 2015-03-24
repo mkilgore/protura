@@ -35,7 +35,7 @@ static void str_putstr(struct printf_backbone *b, const char *s)
         *str->buf = *s;
 }
 
-char *snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
+size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
 {
     struct printf_backbone_str str = {
         .backbone = {
@@ -50,13 +50,13 @@ char *snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
 
     *str.buf = '\0';
 
-    return buf;
+    return len - str.left;
 }
 
 
-char *snprintf(char *buf, size_t len, const char *fmt, ...)
+size_t snprintf(char *buf, size_t len, const char *fmt, ...)
 {
-    char *ret;
+    size_t ret;
     va_list lst;
     va_start(lst, fmt);
     ret = snprintfv(buf, len, fmt, lst);

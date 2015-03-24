@@ -49,7 +49,9 @@ void idt_init(void)
     for (i = 0; i < 256; i++)
         IDT_SET_ENT(idt_entries[i], 0, _KERNEL_CS, (uint32_t)(irq_hands[i]), DPL_KERNEL);
 
-    IDT_SET_ENT(idt_entries[IRQ_SYSCALL], 0, _KERNEL_CS, (uint32_t)(irq_hands[IRQ_SYSCALL]), DPL_USER);
+    IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
+
+    kprintf("syscall dpl: %d\n", idt_entries[INT_SYSCALL].dpl);
 
     idt_flush(((uintptr_t)&idt_ptr));
 }

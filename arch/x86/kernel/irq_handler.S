@@ -26,12 +26,15 @@ irq_handler:
     movw %ax, %ds
     movw %ax, %es
     movw %ax, %fs
+    movw $_CPU_VAR, %ax
     movw %ax, %gs
 
     pushl %esp
     call irq_global_handler
     addl $4, %esp
 
+.globl irq_handler_end
+irq_handler_end:
     popal
     popl %gs
     popl %fs

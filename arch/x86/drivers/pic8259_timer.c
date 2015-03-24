@@ -11,14 +11,23 @@
 
 #include <arch/asm.h>
 #include <arch/idt.h>
+#include <arch/task.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 
-static uint32_t freq = 80;
+static uint32_t freq = 200;
+
+static atomic32_t ticks;
 
 static void timer_callback(struct idt_frame *frame)
 {
+    atomic32_inc(&ticks);
+    task_yield();
+}
 
+uint32_t timer_get_ticks(void)
+{
+    return atomic32_get(&ticks);
 }
 
 void pic8259_timer_init(void)

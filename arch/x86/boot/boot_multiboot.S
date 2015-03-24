@@ -9,6 +9,7 @@
 #include <protura/multiboot.h>
 #include <arch/paging.h>
 #include <mm/memlayout.h>
+#include <arch/gdt.h>
 
 .section .text
 multiboot:
@@ -40,7 +41,17 @@ initial_pgdir:
 .extern pg2
 .extern pg3
 
-start = V2P_WO(_start)
+# Temporary GDT with code and data segments for us to use
+temp_gdt:
+    GDT_SEG_NULL_ASM()
+    GDT_SEG_ASM(GDT_TYPE_EXECUTABLE | GDT_TYPE_READABLE, 0x0, 0xFFFFFFFF)
+    GDT_SEG_ASM(GDT_TYPE_WRITABLE, 0x0, 0xFFFFFFFF)
+
+temp_gdt_ptr:
+    .word (temp_gdt_ptr - temp_gdt - 1)
+    .long temp_gdt
+
+start = _start # V2P_WO(_start)
 
 .section .text
 .global start
@@ -53,6 +64,10 @@ _start:
 
     push %ebx
     push %eax
+
+    # Load our temporary GDT - When we do our jmpl to the higher-half, it won't
+    # work without proper segments setup
+    lgdt V2P_WO(temp_gdt_ptr)
 
     # Take the address of pg0, store it in %eax
     # And set the present and writable bits on it

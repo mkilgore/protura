@@ -40,14 +40,6 @@ void *kmalloc(size_t size, int flags)
     panic("kmalloc: Size %d is to big for kmalloc! Use pmalloc to get whole-pages instead\n", size);
 }
 
-void *kzalloc(size_t size, int flags)
-{
-    void *m = kmalloc(size, flags);
-    if (m)
-        memset(m, 0, size);
-    return m;
-}
-
 size_t ksize(void *p)
 {
     struct slab_alloc *slab;

@@ -23,5 +23,6 @@
 #define PIC8259_TIMER_IRQ     0x00 + 0x20
 
 void pic8259_timer_init(void);
+uint32_t timer_get_ticks(void);
 
 #endif

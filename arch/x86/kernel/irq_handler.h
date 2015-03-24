@@ -11,6 +11,7 @@
 #include <protura/types.h>
 
 void idt_flush(uint32_t);
+void irq_handler_end(void);
 
 extern void (*irq_hands[256])(void);
 

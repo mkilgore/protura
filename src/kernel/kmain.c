@@ -61,6 +61,10 @@ int kmain(void)
     char cmd_buf[128];
     const char *prompt = "~ # ";
 
+    term_setcurcolor(term_make_color(T_WHITE, T_RED) | 0x08);
+    term_printf("\nERROR: Kernel dead-lock. Did you accidentally install Windows ME?\n");
+    panic("ERROR: Kernel dead-lock. Did you accidentally install Windows ME?\n");
+
     term_printf("\nKernel booted!\n");
     kprintf("\nKernel booted!\n");
 

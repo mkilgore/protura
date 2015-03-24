@@ -27,6 +27,9 @@
 #include <arch/bootmem.h>
 #include <arch/paging.h>
 #include <arch/pmalloc.h>
+#include <arch/task.h>
+#include <arch/cpu.h>
+#include <arch/syscall.h>
 
 int kernel_is_booting = 1;
 char kernel_cmdline[2048];
@@ -39,6 +42,7 @@ struct sys_init {
 struct sys_init systems[] = {
     { "pic8259_timer", pic8259_timer_init },
     { "keyboard", keyboard_init },
+    { "syscall", syscall_init },
 
     { NULL, NULL }
 };
@@ -59,7 +63,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     com1_init();
     term_init();
 
-    kprintf("Kernel booting...\n");
+    kprintf("Protura booting...\n");
 
     /* We haven't started paging, so MB 1 is identity mapped and we can safely
      * deref 'info' and 'cmdline' */
@@ -118,7 +122,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     kmalloc_init();
 
     /* Load the initial GDT and IDT setups */
-    gdt_init();
+    cpu_info_init();
     idt_init();
 
     kprintf("Kernel Start: %p\nKernel End: %p\n", kern_start, kern_end);
@@ -127,9 +131,12 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     kprintf("Initalizing the 8259 PIC\n");
     pic8259_init();
 
-    /* Turn on interrupts for the rest of the boot process */
-    kprintf("Enabling interrupts!\n");
-    sti();
+    kprintf("Seting up tasks\n");
+    task_init();
+    task_fake_create();
+    task_fake_create();
+    task_fake_create();
+    task_fake_create();
 
     /* Loop through things to initalize and start them (timer, keyboard, etc...). */
     for (sys = systems; sys->name; sys++) {
@@ -139,6 +146,8 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     /* We're not booting anymore! */
     kernel_is_booting = 0;
+
+    scheduler();
 
     kmain();
 }

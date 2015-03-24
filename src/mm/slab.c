@@ -51,13 +51,13 @@ static struct slab_page_frame *slab_frame_new(struct slab_alloc *slab)
 
     newframe->next = NULL;
 
-    newframe->first_addr = ALIGN(((char *)newframe) + sizeof(*newframe), slab->object_size);
+    newframe->first_addr = ALIGN_2(((char *)newframe) + sizeof(*newframe), slab->object_size);
     newframe->object_count = (((char *)newframe + PG_SIZE * newframe->pages) - (char *)newframe->first_addr) / slab->object_size;
 
     current = &newframe->freelist;
     obj = newframe->first_addr;
     for (i = 0; i < newframe->object_count; i++,
-                                            obj = ALIGN(obj + slab->object_size, slab->object_size),
+                                            obj = ALIGN_2(obj + slab->object_size, slab->object_size),
                                             current = &((*current)->next))
         *current = (struct page_frame_obj_empty *)obj;
 

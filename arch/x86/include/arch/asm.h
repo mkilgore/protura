@@ -47,6 +47,28 @@ static __always_inline void sti(void)
     asm volatile("sti");
 }
 
+static __always_inline void ltr(uint16_t tss_seg)
+{
+    asm volatile("ltr %0\n"
+                 : : "r" (tss_seg));
+}
+
+static __always_inline uint32_t eflags_read(void)
+{
+    uint32_t flags;
+    asm volatile("pushfl\n"
+                 "popl %0\n" : "=a" (flags));
+    return flags;
+}
+
+#define EFLAGS_IF 0x00000200
+
+static __always_inline void eflags_write(uint32_t flags)
+{
+    asm volatile("pushl %0\n"
+                 "popfl\n" : : "a" (flags));
+}
+
 static __always_inline uint32_t xchg(volatile uint32_t *addr, uint32_t val)
 {
     uint32_t result;

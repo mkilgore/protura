@@ -8,6 +8,18 @@
 #ifndef INCLUDE_ARCH_SYSCALL_H
 #define INCLUDE_ARCH_SYSCALL_H
 
-#define IRQ_SYSCALL 0x81
+#define INT_SYSCALL 0x81
+
+#define SYSCALL_PUTCHAR 0x01
+#define SYSCALL_CLOCK   0x02
+#define SYSCALL_GETPID  0x03
+#define SYSCALL_PUTINT  0x04
+#define SYSCALL_PUTSTR  0x05
+
+#ifndef ASM
+
+void syscall_init(void);
+
+#endif
 
 #endif

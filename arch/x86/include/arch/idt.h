@@ -21,7 +21,7 @@
 
 struct idt_entry {
     uint16_t base_low;
-    uint16_t sel;
+    uint16_t cs;
     uint8_t  zero;
     uint8_t  type :4;
     uint8_t  s :1;
@@ -30,10 +30,10 @@ struct idt_entry {
     uint16_t  base_high;
 } __packed;
 
-#define IDT_SET_ENT(ent, istrap, cs, off, d) do { \
+#define IDT_SET_ENT(ent, istrap, sel, off, d) do { \
         (ent).base_low = (uint32_t)(off) & 0xFFFF; \
         (ent).base_high = ((uint32_t)(off) >> 16) & 0xFFFF; \
-        (ent).sel = cs; \
+        (ent).cs = sel; \
         (ent).zero = 0; \
         (ent).type = (istrap) ? STS_TG32 : STS_IG32; \
         (ent).s = 0; \

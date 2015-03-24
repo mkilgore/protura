@@ -34,7 +34,7 @@ struct keyboard keyboard = {
 #define KEY_READ_STATUS_PORT (0x64)
 #define KEY_WRITE_CMD_PORT (0x64)
 
-static void set_leds()
+static void set_leds(void)
 {
     outb(KEY_WRITE_BUF_PORT, 0xED);
     while (inb(KEY_READ_STATUS_PORT) & 2)
@@ -50,13 +50,8 @@ int keyboard_get_char(void)
     if (!atomic32_get(&keyboard.has_keys))
         return -1;
 
-    cli();
-    spinlock_aquire(&keyboard.buf_lock);
-
-    char_buf_read(&keyboard.buf, &ch, sizeof(ch));
-
-    spinlock_release(&keyboard.buf_lock);
-    sti();
+    using_spinlock(&keyboard.buf_lock)
+        char_buf_read(&keyboard.buf, &ch, sizeof(ch));
 
     atomic32_dec(&keyboard.has_keys);
     return ch;
@@ -119,12 +114,10 @@ static void keyboard_interrupt_handler(struct idt_frame *frame)
         asc_char = scancode2_to_ascii[scancode][0];
 
     if (asc_char) {
-        spinlock_aquire(&keyboard.buf_lock);
-
-        char_buf_write(&keyboard.buf, &asc_char, sizeof(asc_char));
-        atomic32_inc(&keyboard.has_keys);
-
-        spinlock_release(&keyboard.buf_lock);
+        using_spinlock(&keyboard.buf_lock) {
+            char_buf_write(&keyboard.buf, &asc_char, sizeof(asc_char));
+            atomic32_inc(&keyboard.has_keys);
+        }
     }
 }
 

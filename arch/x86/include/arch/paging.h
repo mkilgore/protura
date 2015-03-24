@@ -44,8 +44,9 @@
 #define PTE_GLOBAL         0x100
 #define PTE_RESERVED       0x080
 
-#define ALIGN(v, a) ((typeof(v))(((uintptr_t)(v) + (a) - 1) & ~(a - 1)))
-#define PG_ALIGN(v) ALIGN(v, PG_SIZE)
+/* Align to a power of two */
+#define ALIGN_2(v, a) ((typeof(v))(((uintptr_t)(v) + (a) - 1) & ~(a - 1)))
+#define PG_ALIGN(v) ALIGN_2(v, PG_SIZE)
 
 #define PAGING_DIR_INDEX_MASK 0x3FF
 #define PAGING_TABLE_INDEX_MASK 0x3FF
@@ -114,6 +115,7 @@ struct page_table {
     struct page_table_entry table[1024];
 };
 
+extern struct page_directory kernel_dir;
 
 static __always_inline void paging_disable(void)
 {
@@ -149,8 +151,10 @@ static __always_inline void flush_tlb_single(va_t addr)
 
 void paging_init(va_t kern_end, pa_t phys_end);
 
-void paging_map_phys_to_virt(va_t virt_start, pa_t phys);
-void paging_map_phys_to_virt_multiple(va_t virt, pa_t phys_start, size_t page_count);
+void paging_map_phys_to_virt(pa_t page_dir, va_t virt_start, pa_t phys);
+void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, size_t page_count);
+
+pa_t paging_get_new_directory(void);
 
 void paging_unmap_virt(va_t virt);
 

@@ -1,0 +1,8 @@
+megs: 32
+ata0-master: type=disk, path=./imgs/protura.iso, status=inserted
+boot: disk
+log: ./bochsout.txt
+mouse: enabled=0
+clock: sync=realtime
+cpu: ips=50000000
+

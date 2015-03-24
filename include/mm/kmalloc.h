@@ -10,12 +10,20 @@
 
 #include <protura/types.h>
 #include <arch/pmalloc.h>
+#include <protura/string.h>
 
 void kmalloc_init(void);
 
 void *kmalloc(size_t size, int flags);
-void *kzmalloc(size_t size, int flags);
 size_t ksize(void *p);
 void  kfree(void *p);
+
+static inline void *kzmalloc(size_t size, int flags)
+{
+    void *m = kmalloc(size, flags);
+    if (m)
+        memset(m, 0, size);
+    return m;
+}
 
 #endif
