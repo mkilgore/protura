@@ -12,32 +12,38 @@ struct inode;
 
 #include <protura/types.h>
 #include <protura/list.h>
+#include <protura/hlist.h>
+#include <protura/atomic.h>
 #include <fs/vfsnode.h>
 
 typedef uint32_t ino_t;
+typedef uint32_t dev_t;
 
 enum inode_type {
     FS_FILE,
     FS_DIR,
+    FS_DEV,
 };
 
 struct inode_ops;
 
 struct inode {
-    ino_t ino;
+    ino_t i_ino;
+    dev_t i_dev;
+    off_t i_size;
+    struct inode_ops *ops;
     enum inode_type type;
 
-    struct list_head vfsnodes; /* List of dentry's assiciated with this inode */
+    atomic32_t ref;
 
-    struct list_node inode_list;
+    uint32_t links;
+    struct list_head vfsnodes; /* List of vfsnode's assiciated with this inode */
 
-    unsigned int mask;
-    unsigned int i_uid;
-    unsigned int i_gid;
-
-    off_t i_size;
-
-    struct inode_ops *ops;
+     /* Entry in either the inode hash table, or free inode table */
+    union {
+        struct list_node inode_list;
+        struct hlist_node hash_entry;
+    };
 
     void *inode_data;
 };

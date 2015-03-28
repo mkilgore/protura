@@ -10,4 +10,11 @@
 
 void kmain(void);
 
+extern int kernel_is_booting;
+
+struct sys_init {
+    const char *name;
+    void (*init) (void);
+};
+
 #endif

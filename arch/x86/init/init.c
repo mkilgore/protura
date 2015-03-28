@@ -13,6 +13,7 @@
 #include <protura/string.h>
 #include <mm/memlayout.h>
 #include <mm/kmalloc.h>
+#include <fs/vfsnode.h>
 
 #include <arch/asm.h>
 #include <drivers/term.h>
@@ -31,15 +32,9 @@
 #include <arch/cpu.h>
 #include <arch/syscall.h>
 
-int kernel_is_booting = 1;
 char kernel_cmdline[2048];
 
-struct sys_init {
-    const char *name;
-    void (*init) (void);
-};
-
-struct sys_init systems[] = {
+struct sys_init arch_init_systems[] = {
     { "pic8259_timer", pic8259_timer_init },
     { "keyboard", keyboard_init },
     { "syscall", syscall_init },
@@ -51,10 +46,8 @@ struct sys_init systems[] = {
  *
  * info is the physical address of the multiboot info structure
  */
-
 void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_info *info)
 {
-    struct sys_init *sys;
     struct multiboot_memmap *mmap = (struct multiboot_memmap *)P2V(((struct multiboot_info*)P2V(info))->mmap_addr);
     uintptr_t high_addr = 0;
 
@@ -113,8 +106,6 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     bootmem_transfer_to_pmalloc();
 
-    kprintf("Testing pmalloc\n");
-
 
     /* Initalize our actual allocator - This also disables kbrk from every
      * being used again, since doing-so would over-write memory allocated via
@@ -130,24 +121,6 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     /* Initalize the 8259 PIC - This has to be initalized before we can enable interrupts on the CPU */
     kprintf("Initalizing the 8259 PIC\n");
     pic8259_init();
-
-    kprintf("Seting up tasks\n");
-    task_init();
-    task_fake_create();
-    task_fake_create();
-    task_fake_create();
-    task_fake_create();
-
-    /* Loop through things to initalize and start them (timer, keyboard, etc...). */
-    for (sys = systems; sys->name; sys++) {
-        kprintf("Starting: %s\n", sys->name);
-        (sys->init) ();
-    }
-
-    /* We're not booting anymore! */
-    kernel_is_booting = 0;
-
-    scheduler();
 
     kmain();
 }

@@ -15,78 +15,38 @@
 #include <arch/asm.h>
 #include <arch/reset.h>
 #include <arch/drivers/keyboard.h>
+#include <arch/task.h>
 #include <arch/idt.h>
+#include <arch/init.h>
 
-static int get_str(char *buf, size_t len)
+int kernel_is_booting = 1;
+
+void kmain(void)
 {
-    int l = 0;
+    struct sys_init *sys;
 
-    do {
-        hlt();
-        if (atomic32_get(&keyboard.has_keys)) {
-            int ch;
-            while ((ch = keyboard_get_char()) != -1) {
+    kprintf("VFS init\n");
+    vfs_init();
 
-                if (ch == '\n') {
-                    term_putchar('\n');
-                    buf[l] = '\0';
-                    goto end_loop;
-                } else if (ch == '\b') {
-                    if (l > 0) {
-                        l--;
-                        /* Erase the previously typed-out character from the screen */
-                        term_putchar('\b');
-                        term_putchar(' ');
-                        term_putchar('\b');
-                    }
-                } else if (ch < 256) {
-                    if (l < len) {
-                        term_putchar(ch);
-                        buf[l++] = ch;
-                    }
-                } else if (ch == KEY_UP) {
-                    kprintf("UP key\n");
-                }
-            }
-        }
-    } while (1);
+    kprintf("Seting up task switching\n");
+    task_init();
 
-end_loop:
+    task_fake_create();
+    task_fake_create();
+    task_fake_create();
+    task_fake_create();
 
-    return l;
-}
-
-int kmain(void)
-{
-    char cmd_buf[128];
-    const char *prompt = "~ # ";
-
-    term_setcurcolor(term_make_color(T_WHITE, T_RED) | 0x08);
-    term_printf("\nERROR: Kernel dead-lock. Did you accidentally install Windows ME?\n");
-    panic("ERROR: Kernel dead-lock. Did you accidentally install Windows ME?\n");
-
-    term_printf("\nKernel booted!\n");
-    kprintf("\nKernel booted!\n");
-
-    while (1) {
-
-        term_setcurcolor(term_make_color(T_RED, T_BLACK));
-        term_putstr(prompt);
-        term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
-
-        cmd_buf[0] = '\0';
-        get_str(cmd_buf, sizeof(cmd_buf));
-
-        if (strcmp(cmd_buf, "interrupts") == 0) {
-            interrupt_dump_stats(term_printf);
-        } else if (strcmp(cmd_buf, "reboot") == 0) {
-            kprintf("KERNEL IS GOING DOWN!!!");
-            system_reboot();
-        } else {
-            term_printf("protura: %s: command not found\n", cmd_buf);
-        }
+    /* Loop through things to initalize and start them (timer, keyboard, etc...). */
+    for (sys = arch_init_systems; sys->name; sys++) {
+        kprintf("Starting: %s\n", sys->name);
+        (sys->init) ();
     }
 
-    return 0;
+    kprintf("Kernel is done booting!\n");
+
+    kernel_is_booting = 0;
+    scheduler();
+
+    panic("ERROR! Scheduler returned!\n");
 }
 

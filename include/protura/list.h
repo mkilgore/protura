@@ -122,6 +122,26 @@ static inline struct list_node *__list_last(struct list_head *head)
 #define list_last(head, type, member) \
     container_of(__list_last(head), type, member)
 
+static inline struct list_node *__list_take_first(struct list_head *head)
+{
+    struct list_node *node = __list_first(head);
+    list_del(node);
+    return node;
+}
+
+#define list_take_first(head, type, member) \
+    container_of(__list_take_first(head), type, member)
+
+static inline struct list_node *__list_take_last(struct list_head *head)
+{
+    struct list_node *node = __list_last(head);
+    list_del(node);
+    return node;
+}
+
+#define list_take_last(head, type, member) \
+    container_of(__list_take_last(head), type, member)
+
 
 #define list_entry(ptr, type, member) \
     container_of(ptr, type, member)
@@ -141,18 +161,18 @@ static inline struct list_node *__list_last(struct list_head *head)
 #define list_prev_entry(pos, member) \
     list_entry((pos)->member.prev, typeof(*(pos)), member)
 
-#define list_foreach(pos, head) \
+#define list_foreach(head, pos) \
     for (pos = (head)->n.next; pos != &(head)->n; pos = pos->next)
 
-#define list_foreach_prev(pos, head) \
+#define list_foreach_prev(head, pos) \
     for (pos = (head)->n.prev; pos != &(head)->n; pos = pos->prev)
 
-#define list_foreach_entry(pos, head, member) \
+#define list_foreach_entry(head, pos, member) \
     for (pos = list_first_entry(head, typeof(*pos), member); \
          &pos->member != &(head)->n; \
          pos = list_next_entry(pos, member))
 
-#define list_foreach_entry_reverse(pos, head, member) \
+#define list_foreach_entry_reverse(head, pos, member) \
     for (pos = list_last_entry(head, typeof(*pos), member); \
          &pos->member != &(head)->n; \
          pos = list_prev_entry(pos, member))

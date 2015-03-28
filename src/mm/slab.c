@@ -68,7 +68,7 @@ static struct slab_page_frame *slab_frame_new(struct slab_alloc *slab)
     return newframe;
 }
 
-static void slab_frame_free(struct slab_alloc *slab, struct slab_page_frame *frame)
+static void slab_frame_free(struct slab_page_frame *frame)
 {
     if (frame->pages > 1)
         pmalloc_pages_free(V2P(frame), frame->pages);
@@ -143,7 +143,7 @@ void slab_clear(struct slab_alloc *slab)
     struct slab_page_frame *frame, *next;
     for (frame = slab->first_frame; frame; frame = next) {
         next = frame->next;
-        slab_frame_free(slab, frame);
+        slab_frame_free(frame);
     }
 }
 

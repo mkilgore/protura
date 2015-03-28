@@ -23,6 +23,8 @@
 
 #define __align(size) __attribute__((__aligned__(size)))
 
+#define __unused __attribute__((unused))
+
 
 #endif
 
