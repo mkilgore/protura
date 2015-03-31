@@ -58,7 +58,7 @@ static void inode_list_grow(void)
         for (i = 0; i < INODE_LIST_GROW_COUNT; i++) {
             struct inode *inode = kmalloc(sizeof(*inode), PMAL_KERNEL);
             memset(inode, 0, sizeof(*inode));
-            list_add(&inode_list.free_inodes, &inode->inode_list);
+            list_add(&inode_list.free_inodes, &inode->free_entry);
         }
     }
 }
@@ -75,7 +75,7 @@ struct inode *inode_new(void)
         inode_list_grow();
 
     using_spinlock(&inode_list.lock) {
-        inode = list_take_first(&inode_list.free_inodes, struct inode, inode_list);
+        inode = list_take_first(&inode_list.free_inodes, struct inode, free_entry);
         inode->i_ino = inode_list.next_ino++;
     }
 
@@ -103,11 +103,9 @@ struct inode *inode_get(dev_t dev, ino_t ino)
 
 void inode_free(struct inode *inode)
 {
-    if (inode->ops->release)
-        (inode->ops->release) (inode);
 
     memset(inode, 0, sizeof(*inode));
     using_spinlock(&inode_list.lock)
-        list_add(&inode_list.free_inodes, &inode->inode_list);
+        list_add(&inode_list.free_inodes, &inode->free_entry);
 }
 
