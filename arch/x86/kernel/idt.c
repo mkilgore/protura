@@ -16,6 +16,7 @@
 #include <arch/syscall.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/gdt.h>
+#include <arch/task.h>
 #include <arch/idt.h>
 
 static struct idt_ptr idt_ptr;
@@ -29,6 +30,9 @@ struct idt_identifier {
 };
 
 static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
+
+int intr_count = 0;
+int reschedule = 0;
 
 void irq_register_callback(uint8_t irqno, void (*handler)(struct idt_frame *), const char *id)
 {
@@ -49,7 +53,7 @@ void idt_init(void)
     for (i = 0; i < 256; i++)
         IDT_SET_ENT(idt_entries[i], 0, _KERNEL_CS, (uint32_t)(irq_hands[i]), DPL_KERNEL);
 
-    IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
+    IDT_SET_ENT(idt_entries[INT_SYSCALL], 0, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
 
     kprintf("syscall dpl: %d\n", idt_entries[INT_SYSCALL].dpl);
 
@@ -73,6 +77,10 @@ void irq_global_handler(struct idt_frame *iframe)
 {
     atomic32_inc(&idt_ids[iframe->intno].count);
 
+    reschedule = 0;
+
+    intr_count++;
+
     if (iframe->intno >= 0x20 && iframe->intno <= 0x31) {
         if (iframe->intno >= 40)
             outb(PIC8259_IO_PIC2, PIC8259_EOI);
@@ -80,5 +88,13 @@ void irq_global_handler(struct idt_frame *iframe)
     }
     if (irq_handlers[iframe->intno] != NULL)
         (irq_handlers[iframe->intno]) (iframe);
+
+    intr_count--;
+
+    if (reschedule && intr_count == 0)
+    {
+        scheduler(iframe);
+        reschedule = 0;
+    }
 }
 

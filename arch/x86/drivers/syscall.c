@@ -9,21 +9,21 @@
 
 static void syscall_handler(struct idt_frame *frame)
 {
-    switch (frame->eax) {
+    switch (frame->regs.eax) {
     case SYSCALL_PUTCHAR:
-        term_putchar(frame->ebx);
+        term_putchar(frame->regs.ebx);
         break;
     case SYSCALL_CLOCK:
-        frame->eax = timer_get_ticks();
+        frame->regs.eax = timer_get_ticks();
         break;
     case SYSCALL_GETPID:
-        frame->eax = curcpu->current->pid;
+        frame->regs.eax = cpu_get_local()->current->pid;
         break;
     case SYSCALL_PUTINT:
-        term_printf("%d", frame->ebx);
+        term_printf("%d", frame->regs.ebx);
         break;
     case SYSCALL_PUTSTR:
-        term_printf("%s", (char *)frame->ebx);
+        term_printf("%s", (char *)frame->regs.ebx);
         break;
     }
 }

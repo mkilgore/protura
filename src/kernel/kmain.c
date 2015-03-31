@@ -16,6 +16,7 @@
 #include <arch/reset.h>
 #include <arch/drivers/keyboard.h>
 #include <arch/task.h>
+#include <arch/cpu.h>
 #include <arch/idt.h>
 #include <arch/init.h>
 
@@ -24,6 +25,7 @@ int kernel_is_booting = 1;
 void kmain(void)
 {
     struct sys_init *sys;
+    struct task *first;
 
     kprintf("VFS init\n");
     vfs_init();
@@ -31,7 +33,7 @@ void kmain(void)
     kprintf("Seting up task switching\n");
     task_init();
 
-    task_fake_create();
+    first = task_fake_create();
     task_fake_create();
     task_fake_create();
     task_fake_create();
@@ -45,8 +47,13 @@ void kmain(void)
     kprintf("Kernel is done booting!\n");
 
     kernel_is_booting = 0;
-    scheduler();
 
-    panic("ERROR! Scheduler returned!\n");
+    cpu_get_local()->current = first;
+
+    task_start_init();
+
+    panic("ERROR! task_start_init() returned!\n");
+    while (1)
+        hlt();
 }
 

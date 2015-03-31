@@ -3,10 +3,12 @@
 
 #include <protura/types.h>
 #include <protura/list.h>
+#include <protura/stddef.h>
 #include <fs/file.h>
 #include <fs/vfsnode.h>
 #include <arch/paging.h>
 #include <arch/idt.h>
+#include <arch/gdt.h>
 #include <arch/context.h>
 
 #define NOFILE 20
@@ -28,12 +30,10 @@ struct task {
     struct page_directory *page_dir;
 
     struct task *parent;
-    struct idt_frame *frame;
-    struct arch_context *context;
+    struct arch_context context;
 
     int killed; /* If non-zero, we've been killed */
 
-    void *kern_stack;
     char name[20];
 };
 
@@ -58,10 +58,50 @@ void task_paging_init(struct task *);
 void task_paging_free(struct task *);
 
 void task_paging_copy_user(struct task *restrict new, struct task *restrict old);
-void task_fake_create(void);
-void scheduler(void);
+struct task *task_fake_create(void);
 void task_yield(void);
 
+void scheduler(struct idt_frame *frame);
+
 void task_print(char *buf, size_t size, struct task *);
+void task_switch(struct task *old, struct task *new, struct idt_frame *frame);
+void task_start_init(void);
+
+static inline void task_start(struct task *t, uint32_t flags)
+{
+    void *__context = &t->context.save_regs;
+
+    asm volatile (
+        "pushl $%c3\n"
+        "pushl %0\n"
+        "pushl %5\n"
+        "pushl $%c4\n"
+        "pushl %1\n"
+
+        "pushl 44(%2)\n"
+        "pushl 40(%2)\n"
+        "pushl 36(%2)\n"
+        "pushl 32(%2)\n"
+        "pushl 28(%2)\n"
+        "pushl 24(%2)\n"
+        "pushl 20(%2)\n"
+        "pushl 16(%2)\n"
+        "pushl 12(%2)\n"
+        "pushl 8(%2)\n"
+        "pushl 4(%2)\n"
+        "pushl (%2)\n"
+
+        "popal\n"
+        "popl %%gs\n"
+        "popl %%fs\n"
+        "popl %%es\n"
+        "popl %%ds\n"
+        "iret\n"
+        : /* No outputs */
+        : "r" (t->context.esp), "r" (t->context.eip),
+          "r" (__context),      "i" (_USER_DS | DPL_USER),
+          "i" (_USER_CS | DPL_USER), "r" (flags)
+    );
+}
 
 #endif

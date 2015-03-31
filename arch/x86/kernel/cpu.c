@@ -3,6 +3,8 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 
+#include <arch/memlayout.h>
+#include <arch/pmalloc.h>
 #include <arch/asm.h>
 #include <arch/gdt.h>
 #include <arch/cpu.h>
@@ -59,5 +61,7 @@ void cpu_info_init(void)
     cpu_gdt(&cpu);
     cpu_tss(&cpu);
     cpu.cpu = &cpu;
+
+    cpu.kernel_stack = P2V(pmalloc_pages_alloc(4, PMAL_KERNEL));
 }
 

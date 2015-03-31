@@ -22,6 +22,7 @@
 #include <arch/idle_task.h>
 #include <arch/context.h>
 #include <arch/gdt.h>
+#include <arch/idt.h>
 #include "irq_handler.h"
 #include <arch/paging.h>
 #include <arch/asm.h>
@@ -35,14 +36,11 @@ static struct {
 
     struct list_head empty;
 
-    struct arch_context *scheduler;
-
     pid_t next_pid;
 } ktasks = {
     .lock = SPINLOCK_INIT("Task list lock"),
     .list = LIST_HEAD_INIT(ktasks.list),
     .empty = LIST_HEAD_INIT(ktasks.empty),
-    .scheduler = NULL,
     .next_pid = 0,
 };
 
@@ -56,10 +54,6 @@ void task_init(void)
 /* This is a child's very first entry-point from the scheduler. */
 static void new_task_ret(void)
 {
-    /* Necessary to release lock, because scheduler acquires it before switching
-     * contexts. */
-    spinlock_release(&ktasks.lock);
-
     /* task_new() set's it up to we 'return' to 'irq_handler_end', which will
      * iret us into the user-code */
 }
@@ -81,59 +75,29 @@ void task_remove(struct task *task)
 
 void task_yield(void)
 {
-    using_spinlock(&ktasks.lock) {
-        /* If ktasks.scheduler is NULL, then we're already in the scheduler, so we
-         * can't yield. */
-        if (ktasks.scheduler && curcpu->current) {
-            curcpu->current->state = TASK_RUNNABLE;
-            arch_context_switch(&curcpu->current->context, ktasks.scheduler);
-        }
-    }
+    reschedule = 1;
 }
 
-void scheduler(void)
+void scheduler(struct idt_frame *frame)
 {
     struct task *t;
 
-    kprintf("scheduler: Staring!\n");
-
-    for (;;) {
-        sti(); /* We force interrupts on so that other tasks can get scheduled
-                * on other CPU's which need access to ktasks.lock. The
-                * spinlock acquire will turn interrupts back off */
-        using_spinlock(&ktasks.lock) {
+    using_spinlock(&ktasks.lock) {
+        do {
             t = list_first(&ktasks.list, struct task, task_list_node);
             list_rotate_left(&ktasks.list);
+        } while (t->state != TASK_RUNNABLE);
 
-            if (t->state != TASK_RUNNABLE)
-                continue;
-
-            curcpu->current = t;
-
-            cpu_set_kernel_stack(curcpu, t->kern_stack);
-            set_current_page_directory(V2P(t->page_dir));
-            arch_context_switch(&ktasks.scheduler, t->context);
-
-            /* When we get here, we just switched into the scheduler. Set it to
-             * NULL so nobody else can switch into the scheduler while we're here
-             * 
-             * This is a flag to indicate that the scheduler is currently running,
-             * so nobody else should attempt to schedule (And this is enforced by
-             * the fact that ktasks.scheduler is set to NULL, so any accidental
-             * attempt to call the scheduler will result in a NULL deref and a
-             * page-fault). */
-            ktasks.scheduler = NULL;
-            set_current_page_directory(V2P(&kernel_dir));
-
-            curcpu->current = NULL;
-        }
+        cpu_get_local()->current->state = TASK_RUNNABLE;
+        task_switch(cpu_get_local()->current, t, frame);
+        cpu_get_local()->current = t;
+        t->state = TASK_RUNNING;
     }
 }
 
 struct task *task_new(char *name)
 {
     struct task *task;
-    char *kstack;
 
     task = kmalloc(sizeof(*task), PMAL_KERNEL);
     if (!task)
@@ -144,27 +108,6 @@ struct task *task_new(char *name)
     strcpy(task->name, name);
     task->state = TASK_EMBRYO;
     task->pid = ktasks.next_pid++;
-
-    task->kern_stack = P2V(pmalloc_pages_alloc(PMAL_KERNEL, KERNEL_STACK_PAGES)) + KERNEL_STACK_PAGES * PG_SIZE - 1;
-    kstack = task->kern_stack;
-
-    /* Put the idt_frame on the bottom of the stack */
-    kstack -= sizeof(*task->frame);
-    task->frame = (struct idt_frame *)kstack;
-
-    /* Put the address 'irq_handler_end' on the stack, so 'new_task_ret' returns to it */
-    kstack -= 4;
-    *(uint32_t *)(kstack) = (uint32_t)irq_handler_end;
-
-    /* Setup the context for use by arch_switch_context. The context acts like
-     * arch_switch_context was called from inside of 'new_task_ret', so
-     * 'new_task_ret' is run when arch_switch_context is called with this
-     * tasks's context and arch_switch_context returns. */
-    kstack -= sizeof(*task->context);
-    task->context = (struct arch_context *)kstack;
-
-    memset(task->context, 0, sizeof(*task->context) - 1);
-    task->context->eip = (uint32_t)new_task_ret;
 
     task_paging_init(task);
 
@@ -180,7 +123,7 @@ struct task *task_fork(struct task *parent)
     task_paging_copy_user(new, parent);
 
     new->parent = parent;
-    *new->frame = *parent->frame;
+    new->context= parent->context;
 
     return new;
 }
@@ -210,7 +153,7 @@ void task_paging_free(struct task *task)
     task->page_dir = NULL;
 }
 
-void task_fake_create(void)
+struct task *task_fake_create(void)
 {
     pa_t code, sp;
     va_t code_load_addr = KMEM_PROG_LINK;
@@ -221,23 +164,26 @@ void task_fake_create(void)
     memcpy(P2V(code), fake_task_entry, fake_task_size);
     paging_map_phys_to_virt(V2P(t->page_dir), code_load_addr, code);
 
-    memset(t->frame, 0, sizeof(*t->frame));
+    memset(&t->context, 0, sizeof(t->context));
 
-    t->frame->eax = t->pid + 'a';
-    t->frame->cs = _USER_CS | DPL_USER;
-    t->frame->ds = _USER_DS | DPL_USER;
-    t->frame->es = t->frame->ds;
-    t->frame->ss = t->frame->ds;
-    t->frame->eflags = EFLAGS_IF;
-    t->frame->eip = (uintptr_t)code_load_addr;
+    t->context.save_regs.eax = 'a' + t->pid;
+
+    t->context.save_regs.ds = _USER_DS | DPL_USER;
+    t->context.save_regs.es = t->context.save_regs.ds;
+
+    t->context.cs = _USER_CS | DPL_USER;
+    t->context.eip = (uintptr_t)code_load_addr;
+
+    t->context.ss = t->context.save_regs.ds;
+    t->context.esp = (uintptr_t)KMEM_PROG_STACK_END - 1;
 
     sp = pmalloc_pages_alloc(PMAL_KERNEL, KMEM_STACK_LIMIT);
     paging_map_phys_to_virt_multiple(V2P(t->page_dir), stack_load_addr, sp, KMEM_STACK_LIMIT);
 
-    t->frame->esp = (uintptr_t)KMEM_PROG_STACK_END - 1;
-
     t->state = TASK_RUNNABLE;
     task_add(t);
+
+    return t;
 }
 
 void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
@@ -283,5 +229,35 @@ void task_print(char *buf, size_t size, struct task *task)
                         , task_states[task->state]
                         , task->killed
                         );
+}
+
+void task_start_init(void)
+{
+    struct task *t = cpu_get_local()->current;
+    cpu_set_kernel_stack(cpu_get_local(), cpu_get_local()->kernel_stack);
+    set_current_page_directory(V2P(t->page_dir));
+    task_start(t, EFLAGS_IF);
+}
+
+void task_switch(struct task *old, struct task *new, struct idt_frame *frame)
+{
+    cpu_set_kernel_stack(cpu_get_local(), cpu_get_local()->kernel_stack);
+    set_current_page_directory(V2P(new->page_dir));
+    arch_context_switch(&old->context, &new->context, frame);
+}
+
+void arch_context_switch(struct arch_context *old, struct arch_context *new, struct idt_frame *cur)
+{
+    old->save_regs = cur->regs;
+    old->cs        = cur->cs;
+    old->eip       = cur->eip;
+    old->ss        = cur->ss;
+    old->esp       = cur->esp;
+
+    cur->regs = new->save_regs;
+    cur->cs   = new->cs;
+    cur->eip  = new->eip;
+    cur->ss   = new->ss;
+    cur->esp  = new->esp;
 }
 

@@ -13,6 +13,8 @@
 #include <protura/compiler.h>
 #include <protura/types.h>
 
+#include <arch/context.h>
+
 #define DPL_USER 3
 #define DPL_KERNEL 0
 
@@ -47,9 +49,7 @@ struct idt_ptr {
 } __packed;
 
 struct idt_frame {
-    uint32_t edi, esi, ebp, oesp /* Ignore */, ebx, edx, ecx, eax;
-
-    uint16_t gs, pad1, fs, pad2, es, pad3, ds, pad4;
+    struct x86_regs regs;
 
     uint32_t intno;
     uint32_t err;
@@ -70,6 +70,9 @@ void irq_global_handler(struct idt_frame *);
 void irq_register_callback(uint8_t irqno, void (*callback)(struct idt_frame *), const char *id);
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
+
+extern int intr_count;
+extern int reschedule;
 
 #endif
 
