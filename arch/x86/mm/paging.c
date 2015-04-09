@@ -19,6 +19,7 @@
 #include <arch/bootmem.h>
 #include <arch/pmalloc.h>
 #include <arch/paging.h>
+#include <arch/backtrace.h>
 
 __align(0x1000) struct page_directory kernel_dir = {
     { { .entry = 0 } }
@@ -29,10 +30,17 @@ static void page_fault_handler(struct idt_frame *frame)
     uintptr_t p;
     asm volatile("movl %%cr2, %0": "=r" (p));
     term_setcurcolor(term_make_color(T_BLACK, T_RED));
-    term_printf(" PAGE FAULT!!! AT: %p, ADDR: %p, ERR: %x\n", (void *)frame->eip, (void *)p, frame->err);
-    term_printf(" PAGE DIR INDEX: %x, PAGE TABLE INDEX: %x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
+    kprintf(" PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%x\n", (void *)frame->eip, (void *)p, frame->err);
+    kprintf(" PAGE DIR INDEX: 0x%x, PAGE TABLE INDEX: 0x%x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
 
-    while (1);
+    term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
+    kprintf(" Stack backtrace:\n");
+    dump_stack_ptr((void *)frame->regs.ebp);
+    kprintf(" End of backtrace\n");
+    kprintf(" Kernel halting\n");
+
+    while (1)
+        hlt();
 }
 
 /* To make our lives easier, we allocate and setup empty page_tables for all of

@@ -29,6 +29,10 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
            -fno-strict-aliasing -nostdlib -fno-builtin
 
+ifdef CONFIG_FRAME_POINTER
+CFLAGS += -fno-omit-frame-pointer
+endif
+
 LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc
 ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
 

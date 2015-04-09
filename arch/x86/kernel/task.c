@@ -19,6 +19,7 @@
 #include <protura/dump_mem.h>
 
 #include <arch/fake_task.h>
+#include <arch/kernel_task.h>
 #include <arch/idle_task.h>
 #include <arch/context.h>
 #include <arch/gdt.h>
@@ -51,14 +52,7 @@ void task_init(void)
 
 }
 
-/* This is a child's very first entry-point from the scheduler. */
-static void new_task_ret(void)
-{
-    /* task_new() set's it up to we 'return' to 'irq_handler_end', which will
-     * iret us into the user-code */
-}
-
-void task_add(struct task *task)
+void task_schedule_add(struct task *task)
 {
     /* Add this task to the beginning of the list of current tasks.
      * Adding to the beginning means it will get the next time-slice. */
@@ -66,7 +60,7 @@ void task_add(struct task *task)
         list_add(&ktasks.list, &task->task_list_node);
 }
 
-void task_remove(struct task *task)
+void task_schedule_remove(struct task *task)
 {
     /* Remove 'task' from the list of tasks to schedule. */
     using_spinlock(&ktasks.lock)
@@ -83,12 +77,17 @@ void scheduler(struct idt_frame *frame)
     struct task *t;
 
     using_spinlock(&ktasks.lock) {
+        /* Select the first RUNNABLE task in the schedule list */
         do {
             t = list_first(&ktasks.list, struct task, task_list_node);
             list_rotate_left(&ktasks.list);
         } while (t->state != TASK_RUNNABLE);
 
+        /* Suspend the current task - Set it to RUNNABLE */
         cpu_get_local()->current->state = TASK_RUNNABLE;
+
+        /* Switch the task, set our current task equal to our new one, and set
+         * it to RUNNING */
         task_switch(cpu_get_local()->current, t, frame);
         cpu_get_local()->current = t;
         t->state = TASK_RUNNING;
@@ -112,6 +111,46 @@ struct task *task_new(char *name)
     task_paging_init(task);
 
     return task;
+}
+
+struct task *task_new_kernel(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
+{
+    pa_t code, sp;
+    va_t code_load_addr = KMEM_PROG_LINK;
+    va_t stack_load_addr = (va_t)KMEM_PROG_STACK_START;
+    struct task *t = task_new(name);
+
+    if (!t)
+        return NULL;
+
+    code = pmalloc_page_alloc(PMAL_KERNEL);
+    memcpy(P2V(code), fake_task_entry, fake_task_size);
+    paging_map_phys_to_virt(V2P(t->page_dir), code_load_addr, code);
+
+    t->context.save_regs.eax = argc;
+    t->context.save_regs.ebx = (uint32_t)argv;
+    t->context.save_regs.ecx = (uint32_t)kernel_task;
+
+    t->context.save_regs.ds = _KERNEL_DS;
+    t->context.save_regs.es = t->context.save_regs.ds;
+
+    t->context.cs = _KERNEL_CS;
+    t->context.eip = kernel_task_entry_addr;
+
+    kprintf("Context EIP: %p, %p\n", (void *)kernel_task_entry_addr, (void *)t->context.eip);
+
+    t->context.ss = t->context.save_regs.ds;
+    t->context.esp = (uint32_t)KMEM_PROG_STACK_END - 1;
+
+    t->context.eflags = EFLAGS_IF;
+
+    sp = pmalloc_pages_alloc(PMAL_KERNEL, KMEM_STACK_LIMIT);
+    paging_map_phys_to_virt_multiple(V2P(t->page_dir), stack_load_addr, sp, KMEM_STACK_LIMIT);
+
+    t->state = TASK_RUNNABLE;
+    task_schedule_add(t);
+
+    return t;
 }
 
 struct task *task_fork(struct task *parent)
@@ -177,11 +216,13 @@ struct task *task_fake_create(void)
     t->context.ss = t->context.save_regs.ds;
     t->context.esp = (uintptr_t)KMEM_PROG_STACK_END - 1;
 
+    t->context.eflags = EFLAGS_IF;
+
     sp = pmalloc_pages_alloc(PMAL_KERNEL, KMEM_STACK_LIMIT);
     paging_map_phys_to_virt_multiple(V2P(t->page_dir), stack_load_addr, sp, KMEM_STACK_LIMIT);
 
     t->state = TASK_RUNNABLE;
-    task_add(t);
+    task_schedule_add(t);
 
     return t;
 }
@@ -236,7 +277,7 @@ void task_start_init(void)
     struct task *t = cpu_get_local()->current;
     cpu_set_kernel_stack(cpu_get_local(), cpu_get_local()->kernel_stack);
     set_current_page_directory(V2P(t->page_dir));
-    task_start(t, EFLAGS_IF);
+    task_start(t);
 }
 
 void task_switch(struct task *old, struct task *new, struct idt_frame *frame)

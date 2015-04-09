@@ -8,12 +8,13 @@
 #ifndef INCLUDE_PROTURA_BASIC_PRINTF_H
 #define INCLUDE_PROTURA_BASIC_PRINTF_H
 
+#include <protura/types.h>
 #include <protura/stdarg.h>
 #include <protura/compiler.h>
 
 struct printf_backbone {
     void (*putchar) (struct printf_backbone *, char ch);
-    void (*putstr) (struct printf_backbone *, const char *str);
+    void (*putnstr) (struct printf_backbone *, const char *str, size_t len);
 };
 
 void basic_printf(struct printf_backbone *backbone, const char *s, ...) __printf(2, 3);

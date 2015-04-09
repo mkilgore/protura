@@ -72,7 +72,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     for (; V2P(mmap) < info->mmap_addr + info->mmap_length
          ; mmap = (struct multiboot_memmap *) ((uint32_t)mmap + mmap->size + sizeof(uint32_t))) {
-        kprintf("mmap: %llx to %llx, type: %d\n", mmap->base_addr,
+        kprintf("mmap: 0x%llx to 0x%llx, type: %d\n", mmap->base_addr,
                 mmap->base_addr + mmap->length, mmap->type);
 
         /* A type of non-one means it's not usable memory - just ignore it */

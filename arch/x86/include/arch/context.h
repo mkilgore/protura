@@ -23,8 +23,9 @@
 
 /* Saved registers for a context switch. */
 
-/* A structure holding all the x86 registers 'pusha'. The order is the same as
- * a 'pusha', so the order should *not* be changed. */
+/* A structure holding all the x86 registers from 'pusha', in that order, as
+ * well as the segment registers. The order is important for 'task_start', so
+ * *DO NOT CHANGE* */
 struct x86_regs {
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
     uint16_t gs, _pad1, fs, _pad2, es, _pad3, ds, _pad4;
@@ -38,6 +39,7 @@ struct arch_context {
     uint32_t eip;
     uint32_t esp;
     uint32_t ss;
+    uint32_t eflags;
 };
 
 struct idt_frame;

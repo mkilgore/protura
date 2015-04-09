@@ -21,11 +21,11 @@ static void arch_putchar(struct printf_backbone *b, char ch)
     com1_putchar(ch);
 }
 
-static void arch_putstr(struct printf_backbone *b, const char *s)
+static void arch_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     if (kernel_is_booting)
-        term_putstr(s);
-    com1_putstr(s);
+        term_putnstr(s, len);
+    com1_putnstr(s, len);
 }
 
 struct printf_backbone_arch {
@@ -37,7 +37,7 @@ void arch_kprintfv(const char *fmt, va_list lst)
     struct printf_backbone_arch arch = {
         .backbone = {
             .putchar = arch_putchar,
-            .putstr = arch_putstr,
+            .putnstr = arch_putnstr,
         },
     };
 

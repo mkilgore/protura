@@ -12,6 +12,7 @@
 
 #include <protura/compiler.h>
 #include <protura/types.h>
+#include <protura/atomic.h>
 
 #include <arch/context.h>
 
@@ -71,7 +72,7 @@ void irq_register_callback(uint8_t irqno, void (*callback)(struct idt_frame *), 
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
-extern int intr_count;
+extern atomic32_t intr_count;
 extern int reschedule;
 
 #endif

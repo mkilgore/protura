@@ -13,6 +13,8 @@
 #include <protura/skprintf.h>
 
 #include <arch/debug.h>
+#include <arch/backtrace.h>
+#include <arch/asm.h>
 
 void kprintfv(const char *fmt, va_list lst)
 {
@@ -27,19 +29,22 @@ void kprintf(const char *fmt, ...)
     va_end(lst);
 }
 
-void panicv(const char *fmt, va_list lst)
+__noreturn void panicv(const char *fmt, va_list lst)
 {
     kprintfv(fmt, lst);
-    while (1);
+
+    dump_stack();
+
+    while (1)
+        hlt();
 }
 
-void panic(const char *fmt, ...)
+__noreturn void panic(const char *fmt, ...)
 {
     va_list lst;
     va_start(lst, fmt);
-    kprintfv(fmt, lst);
+    panicv(fmt, lst);
     va_end(lst);
-
     while (1);
 }
 

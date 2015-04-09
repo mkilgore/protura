@@ -27,12 +27,14 @@ static void str_putchar(struct printf_backbone *b, char ch)
     str->left--;
 }
 
-static void str_putstr(struct printf_backbone *b, const char *s)
+static void str_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     struct printf_backbone_str *str = container_of(b, struct printf_backbone_str, backbone);
+    size_t l;
 
-    for (; *s && str->left; s++, str->buf++, str->left--)
-        *str->buf = *s;
+    for (l = 0; l < len; l++)
+        str->buf[len - l] = s[l];
+    str->buf += len;
 }
 
 size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
@@ -40,7 +42,7 @@ size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
     struct printf_backbone_str str = {
         .backbone = {
             .putchar = str_putchar,
-            .putstr  = str_putstr,
+            .putnstr  = str_putnstr,
         },
         .buf = buf,
         .left = len - 1,

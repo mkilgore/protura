@@ -22,7 +22,7 @@ static atomic32_t ticks;
 static void timer_callback(struct idt_frame *frame)
 {
     atomic32_inc(&ticks);
-    task_yield();
+    reschedule = 1;
 }
 
 uint32_t timer_get_ticks(void)

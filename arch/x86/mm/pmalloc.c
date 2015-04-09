@@ -35,14 +35,14 @@ void pmalloc_init(va_t kernel_end, pa_t last_physical_address)
 
     pmem_alloc.addr_start = PG_ALIGN(V2P(kernel_end));
 
-    kprintf("pmalloc: kernel memory page start: %x\n", pmem_alloc.addr_start);
+    kprintf("pmalloc: kernel memory page start: 0x%x\n", pmem_alloc.addr_start);
 
     pmem_alloc.page_count = memory_byte_size >> 12;
     pmem_alloc.page_size = PG_SIZE;
 
-    kprintf("pmalloc: kernel page count: %x\n", pmem_alloc.page_count);
+    kprintf("pmalloc: kernel page count: 0x%x\n", pmem_alloc.page_count);
 
-    kprintf("pmalloc: bitmap pages: %x\n", pmem_alloc.page_count / PG_SIZE);
+    kprintf("pmalloc: bitmap pages: 0x%x\n", pmem_alloc.page_count / PG_SIZE);
     pmem_alloc.bitmap_size = pmem_alloc.page_count;
     pmem_alloc.bitmap = P2V(bootmem_alloc_pages(pmem_alloc.page_count / PG_SIZE));
 }

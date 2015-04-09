@@ -31,7 +31,7 @@ struct idt_identifier {
 
 static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
 
-int intr_count = 0;
+atomic32_t intr_count = ATOMIC32_INIT(0);
 int reschedule = 0;
 
 void irq_register_callback(uint8_t irqno, void (*handler)(struct idt_frame *), const char *id)
@@ -48,7 +48,7 @@ void idt_init(void)
     idt_ptr.base  = (uintptr_t)&idt_entries;
 
     kprintf("Limit: %d\n", idt_ptr.limit);
-    kprintf("Base:  %x\n", idt_ptr.base);
+    kprintf("Base:  0x%x\n", idt_ptr.base);
 
     for (i = 0; i < 256; i++)
         IDT_SET_ENT(idt_entries[i], 0, _KERNEL_CS, (uint32_t)(irq_hands[i]), DPL_KERNEL);
@@ -79,7 +79,7 @@ void irq_global_handler(struct idt_frame *iframe)
 
     reschedule = 0;
 
-    intr_count++;
+    atomic32_inc(&intr_count);
 
     if (iframe->intno >= 0x20 && iframe->intno <= 0x31) {
         if (iframe->intno >= 40)
@@ -89,9 +89,11 @@ void irq_global_handler(struct idt_frame *iframe)
     if (irq_handlers[iframe->intno] != NULL)
         (irq_handlers[iframe->intno]) (iframe);
 
-    intr_count--;
+    /* There's a possibility that interrupts are on, if this was a syscall */
+    cli();
+    atomic32_dec(&intr_count);
 
-    if (reschedule && intr_count == 0)
+    if (reschedule && atomic32_get(&intr_count) == 0)
     {
         scheduler(iframe);
         reschedule = 0;

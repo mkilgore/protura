@@ -19,8 +19,20 @@
 #include <arch/cpu.h>
 #include <arch/idt.h>
 #include <arch/init.h>
+#include <arch/backtrace.h>
 
 int kernel_is_booting = 1;
+
+int test_kernel_thread(int argc, const char **argv)
+{
+    term_printf("In kernel thread!!!\n");
+
+    term_printf("Argc: %d\n", argc);
+    term_printf("Argv: %p\n", argv);
+
+    while (1)
+        hlt();
+}
 
 void kmain(void)
 {
@@ -33,9 +45,7 @@ void kmain(void)
     kprintf("Seting up task switching\n");
     task_init();
 
-    first = task_fake_create();
-    task_fake_create();
-    task_fake_create();
+    first = task_new_kernel("Kernel thread", test_kernel_thread, 1, (const char *[]){ "Kernel thread" });
     task_fake_create();
 
     /* Loop through things to initalize and start them (timer, keyboard, etc...). */

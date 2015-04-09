@@ -23,10 +23,11 @@ void com1_putchar(char c)
     outb(PORT, c);
 }
 
-void com1_putstr(const char *s)
+void com1_putnstr(const char *s, size_t len)
 {
-    while (*s)
-        com1_putchar(*(s++));
+    size_t l;
+    for (l = 0; l < len; l++)
+        com1_putchar(s[l]);
 }
 
 static void com1_printf_putchar(struct printf_backbone *b, char ch)
@@ -34,16 +35,16 @@ static void com1_printf_putchar(struct printf_backbone *b, char ch)
     com1_putchar(ch);
 }
 
-static void com1_printf_putstr(struct printf_backbone *b, const char *s)
+static void com1_printf_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
-    com1_putstr(s);
+    com1_putnstr(s, len);
 }
 
 void com1_printfv(const char *s, va_list lst)
 {
     struct printf_backbone backbone = {
         .putchar = com1_printf_putchar,
-        .putstr = com1_printf_putstr,
+        .putnstr = com1_printf_putnstr,
     };
 
     basic_printfv(&backbone, s, lst);
