@@ -6,7 +6,7 @@
     pushl %es; \
     pushl %fs; \
     pushl %gs; \
-    pushl;
+    pushal;
 
 #define X86_REGS_LOAD_FROM_STACK() \
     popal; \
@@ -21,30 +21,18 @@
 #include <protura/types.h>
 #include <protura/compiler.h>
 
-/* Saved registers for a context switch. */
-
-/* A structure holding all the x86 registers from 'pusha', in that order, as
- * well as the segment registers. The order is important for 'task_start', so
- * *DO NOT CHANGE* */
 struct x86_regs {
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
-    uint16_t gs, _pad1, fs, _pad2, es, _pad3, ds, _pad4;
-} __packed;
-
-struct arch_context {
-    /* Note: The 'save_regs' cs is going to be wrong, the actual 'cs' is down
-     * below */
-    struct x86_regs save_regs;
-    uint16_t cs;
-    uint32_t eip;
-    uint32_t esp;
-    uint32_t ss;
-    uint32_t eflags;
+    uint32_t edi, esi, ebx, ebp, eip;
 };
 
-struct idt_frame;
+/* Note: 'arch_context_switch' assembly depends on 'x86_regs' being the first
+ * entry */
+struct arch_context {
+    struct x86_regs *esp;
+    struct idt_frame *frame;
+};
 
-void arch_context_switch(struct arch_context *old, struct arch_context *new, struct idt_frame *);
+void arch_context_switch(struct arch_context *new, struct arch_context *old);
 
 #endif
 

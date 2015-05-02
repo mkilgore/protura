@@ -4,5 +4,6 @@
 #include <protura/types.h>
 
 extern uint32_t kernel_task_entry_addr;
+extern uint32_t kernel_task_entry_interruptable_addr;
 
 #endif

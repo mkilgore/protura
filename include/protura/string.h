@@ -37,5 +37,16 @@ int    strcmp(const char *, const char *);
 size_t strlen(const char *);
 #endif
 
+
+#ifndef _STRING_ARCH_STRNCPY
+char  *strncpy(char *restrict, const char *restrict, size_t len);
+#endif
+#ifndef _STRING_ARCH_STRNCAT
+char  *strncat(char *restrict, const char *restrict, size_t len);
+#endif
+#ifndef _STRING_ARCH_STRNCMP
+int    strncmp(const char *, const char *, size_t len);
+#endif
+
 #endif
 

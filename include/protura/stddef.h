@@ -92,4 +92,10 @@
  * an error code you want to check before you keep going. */
 #define using(cmd1, cmd2) using_cond(cmd1, do { ; } while (0), cmd2)
 
+/* This is defined by the Makefile, but it's useful to have it defined anyway,
+ * so syntax checkers don't barf saying 'PROTURA_BITS' doesn't exist */
+#ifndef PROTURA_BITS
+# define PROTURA_BITS 32
+#endif
+
 #endif

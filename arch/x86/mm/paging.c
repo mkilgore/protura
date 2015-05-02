@@ -14,6 +14,7 @@
 #include <drivers/term.h>
 
 #include <arch/asm.h>
+#include <arch/cpu.h>
 #include <arch/idt.h>
 #include <arch/alloc.h>
 #include <arch/bootmem.h>
@@ -32,10 +33,11 @@ static void page_fault_handler(struct idt_frame *frame)
     term_setcurcolor(term_make_color(T_BLACK, T_RED));
     kprintf(" PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%x\n", (void *)frame->eip, (void *)p, frame->err);
     kprintf(" PAGE DIR INDEX: 0x%x, PAGE TABLE INDEX: 0x%x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
+    kprintf(" Current running program: %s\n", cpu_get_local()->current->name);
 
     term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
     kprintf(" Stack backtrace:\n");
-    dump_stack_ptr((void *)frame->regs.ebp);
+    dump_stack_ptr((void *)frame->ebp);
     kprintf(" End of backtrace\n");
     kprintf(" Kernel halting\n");
 

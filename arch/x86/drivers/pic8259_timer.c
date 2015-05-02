@@ -15,14 +15,22 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 
-static uint32_t freq = 200;
+/* Set timer frequency - interrupts per second */
+static uint32_t freq = 100;
+
+/* Number of task reschedules per second. */
+#define SWITCH_PER_SEC 20
 
 static atomic32_t ticks;
 
 static void timer_callback(struct idt_frame *frame)
 {
     atomic32_inc(&ticks);
-    reschedule = 1;
+
+    if ((atomic32_get(&ticks) % (freq / SWITCH_PER_SEC)) == 0) {
+        kprintf("Reschedule\n");
+        reschedule = 1;
+    }
 }
 
 uint32_t timer_get_ticks(void)

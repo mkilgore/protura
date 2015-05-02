@@ -10,7 +10,7 @@ struct cpu_info {
     struct tss_entry tss;
     struct gdt_entry gdt_entries[GDT_ENTRIES];
 
-    void *kernel_stack;
+    struct arch_context scheduler;
 
     struct cpu_info *cpu;
 };

@@ -22,6 +22,7 @@
 #include <arch/kernel_task.h>
 #include <arch/idle_task.h>
 #include <arch/context.h>
+#include <arch/backtrace.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include "irq_handler.h"
@@ -47,6 +48,23 @@ static struct {
 
 #define KERNEL_STACK_PAGES 2
 
+/* This functions is used as the starting point for all new forked threads.
+ * The stack is manually setup by the initalization code, and this function is
+ * the first function to be run.
+ *
+ * This function is necessary because we have to release the lock on ktasks
+ * that we acquire from scheduler(). Normally this isn't a problem because a
+ * task will call into scheduler() from it's context, and then get switch to
+ * another context which exits the scheduler() and releases the lock on ktasks
+ * - But since this is our first entry for this task, we never called
+ *   scheduler() and thus need to clean-up on our own.
+ */
+static void task_fork_start(void)
+{
+    /* kprintf("Return address: %p\n", (void *)read_return_addr()); */
+    spinlock_release(&ktasks.lock);
+}
+
 void task_init(void)
 {
 
@@ -69,28 +87,36 @@ void task_schedule_remove(struct task *task)
 
 void task_yield(void)
 {
-    reschedule = 1;
+    using_spinlock(&ktasks.lock)
+        arch_context_switch(&cpu_get_local()->scheduler, &cpu_get_local()->current->context);
 }
 
-void scheduler(struct idt_frame *frame)
+void scheduler(void)
 {
     struct task *t;
 
-    using_spinlock(&ktasks.lock) {
-        /* Select the first RUNNABLE task in the schedule list */
-        do {
-            t = list_first(&ktasks.list, struct task, task_list_node);
-            list_rotate_left(&ktasks.list);
-        } while (t->state != TASK_RUNNABLE);
+    while (1) {
+        using_spinlock(&ktasks.lock) {
+            /* Select the first RUNNABLE task in the schedule list */
+            do {
+                t = list_first(&ktasks.list, struct task, task_list_node);
+                list_rotate_left(&ktasks.list);
+            } while (t->state != TASK_RUNNABLE);
 
-        /* Suspend the current task - Set it to RUNNABLE */
-        cpu_get_local()->current->state = TASK_RUNNABLE;
+            /* Set our current task equal to our new one, and set
+             * it to RUNNING. After that we perform the actual switch
+             *
+             * Once the task_switch happens, */
+            t->state = TASK_RUNNING;
+            cpu_get_local()->current = t;
 
-        /* Switch the task, set our current task equal to our new one, and set
-         * it to RUNNING */
-        task_switch(cpu_get_local()->current, t, frame);
-        cpu_get_local()->current = t;
-        t->state = TASK_RUNNING;
+            kprintf("Task: %s\n", t->name);
+
+            task_switch(&cpu_get_local()->scheduler, t);
+
+            t->state = TASK_RUNNABLE;
+            cpu_get_local()->current = NULL;
+        }
     }
 }
 
@@ -113,46 +139,6 @@ struct task *task_new(char *name)
     return task;
 }
 
-struct task *task_new_kernel(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
-{
-    pa_t code, sp;
-    va_t code_load_addr = KMEM_PROG_LINK;
-    va_t stack_load_addr = (va_t)KMEM_PROG_STACK_START;
-    struct task *t = task_new(name);
-
-    if (!t)
-        return NULL;
-
-    code = pmalloc_page_alloc(PMAL_KERNEL);
-    memcpy(P2V(code), fake_task_entry, fake_task_size);
-    paging_map_phys_to_virt(V2P(t->page_dir), code_load_addr, code);
-
-    t->context.save_regs.eax = argc;
-    t->context.save_regs.ebx = (uint32_t)argv;
-    t->context.save_regs.ecx = (uint32_t)kernel_task;
-
-    t->context.save_regs.ds = _KERNEL_DS;
-    t->context.save_regs.es = t->context.save_regs.ds;
-
-    t->context.cs = _KERNEL_CS;
-    t->context.eip = kernel_task_entry_addr;
-
-    kprintf("Context EIP: %p, %p\n", (void *)kernel_task_entry_addr, (void *)t->context.eip);
-
-    t->context.ss = t->context.save_regs.ds;
-    t->context.esp = (uint32_t)KMEM_PROG_STACK_END - 1;
-
-    t->context.eflags = EFLAGS_IF;
-
-    sp = pmalloc_pages_alloc(PMAL_KERNEL, KMEM_STACK_LIMIT);
-    paging_map_phys_to_virt_multiple(V2P(t->page_dir), stack_load_addr, sp, KMEM_STACK_LIMIT);
-
-    t->state = TASK_RUNNABLE;
-    task_schedule_add(t);
-
-    return t;
-}
-
 struct task *task_fork(struct task *parent)
 {
     struct task *new = task_new(parent->name);
@@ -170,6 +156,7 @@ struct task *task_fork(struct task *parent)
 void task_paging_init(struct task *task)
 {
     task->page_dir = P2V(pmalloc_page_alloc(PMAL_KERNEL));
+    kprintf("PAGE DIR: %p\n", task->page_dir);
     memcpy(task->page_dir, &kernel_dir, sizeof(kernel_dir));
 }
 
@@ -192,6 +179,38 @@ void task_paging_free(struct task *task)
     task->page_dir = NULL;
 }
 
+static char *task_setup_fork_ret(struct task *t, char *ksp)
+{
+    ksp -= sizeof(*t->context.esp);
+    t->context.esp = (struct x86_regs *)ksp;
+
+    memset(t->context.esp, 0, sizeof(*t->context.esp));
+    t->context.esp->eip = (uintptr_t)task_fork_start;
+    kprintf("EIP: %p, ESP: %p\n", (void *)t->context.esp->eip, t->context.esp);
+
+    return ksp;
+}
+
+static void task_user_kernel_stack_setup(struct task *t)
+{
+    char *sp;
+    t->kstack_bot = P2V(pmalloc_pages_alloc(PMAL_KERNEL, KERNEL_STACK_PAGES));
+
+    kprintf("Task Kstack: %p\n", t->kstack_bot);
+
+    sp = t->kstack_bot + PG_SIZE * KERNEL_STACK_PAGES - 1;
+    t->kstack_top = sp;
+
+    sp -= sizeof(*t->context.frame);
+    t->context.frame = (struct idt_frame *)sp;
+
+    sp -= sizeof(uintptr_t);
+    *(uintptr_t *)sp = (uintptr_t)irq_handler_end;
+    kprintf("Irq handler end: %p\n", irq_handler_end);
+
+    sp = task_setup_fork_ret(t, sp);
+}
+
 struct task *task_fake_create(void)
 {
     pa_t code, sp;
@@ -205,26 +224,75 @@ struct task *task_fake_create(void)
 
     memset(&t->context, 0, sizeof(t->context));
 
-    t->context.save_regs.eax = 'a' + t->pid;
-
-    t->context.save_regs.ds = _USER_DS | DPL_USER;
-    t->context.save_regs.es = t->context.save_regs.ds;
-
-    t->context.cs = _USER_CS | DPL_USER;
-    t->context.eip = (uintptr_t)code_load_addr;
-
-    t->context.ss = t->context.save_regs.ds;
-    t->context.esp = (uintptr_t)KMEM_PROG_STACK_END - 1;
-
-    t->context.eflags = EFLAGS_IF;
-
     sp = pmalloc_pages_alloc(PMAL_KERNEL, KMEM_STACK_LIMIT);
     paging_map_phys_to_virt_multiple(V2P(t->page_dir), stack_load_addr, sp, KMEM_STACK_LIMIT);
+
+    /* Setup the stack */
+    task_user_kernel_stack_setup(t);
+
+    t->context.frame->eax = 'a' + t->pid;
+
+    t->context.frame->ds = _USER_DS | DPL_USER;
+    t->context.frame->es = t->context.frame->ds;
+
+    t->context.frame->cs = _USER_CS | DPL_USER;
+    t->context.frame->eip = (uintptr_t)code_load_addr;
+
+    t->context.frame->ss = t->context.frame->ds;
+    t->context.frame->esp = (uintptr_t)KMEM_PROG_STACK_END - 1;
+
+    t->context.frame->eflags = EFLAGS_IF;
 
     t->state = TASK_RUNNABLE;
     task_schedule_add(t);
 
     return t;
+}
+
+static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, uintptr_t task_entry)
+{
+    char *ksp, *ksp_bot;
+    struct task *t = task_new(name);
+
+    if (!t)
+        return NULL;
+
+    /* We never exit to user-mode, so we have no frame */
+    t->context.frame = NULL;
+
+    ksp_bot = P2V(pmalloc_pages_alloc(PMAL_KERNEL, KMEM_STACK_LIMIT));
+    t->kstack_bot = ksp_bot;
+
+    ksp = ksp_bot + PG_SIZE * KERNEL_STACK_PAGES - 1;
+
+    ksp -= sizeof(argc);
+    *(int *)ksp = argc;
+
+    ksp -= sizeof(argv);
+    *(void **)ksp = argv;
+
+    ksp -= sizeof(kernel_task);
+    *(void **)ksp = kernel_task;
+
+    ksp -= sizeof(uintptr_t);
+    *(uintptr_t *)ksp = (uintptr_t)task_entry;
+
+    task_setup_fork_ret(t, ksp);
+
+    t->state = TASK_RUNNABLE;
+    task_schedule_add(t);
+
+    return t;
+}
+
+struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
+{
+    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_interruptable_addr);
+}
+
+struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
+{
+    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_addr);
 }
 
 void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
@@ -272,33 +340,11 @@ void task_print(char *buf, size_t size, struct task *task)
                         );
 }
 
-void task_start_init(void)
+void task_switch(struct arch_context *old, struct task *new)
 {
-    struct task *t = cpu_get_local()->current;
-    cpu_set_kernel_stack(cpu_get_local(), cpu_get_local()->kernel_stack);
-    set_current_page_directory(V2P(t->page_dir));
-    task_start(t);
-}
-
-void task_switch(struct task *old, struct task *new, struct idt_frame *frame)
-{
-    cpu_set_kernel_stack(cpu_get_local(), cpu_get_local()->kernel_stack);
+    cpu_set_kernel_stack(cpu_get_local(), new->kstack_top);
     set_current_page_directory(V2P(new->page_dir));
-    arch_context_switch(&old->context, &new->context, frame);
-}
 
-void arch_context_switch(struct arch_context *old, struct arch_context *new, struct idt_frame *cur)
-{
-    old->save_regs = cur->regs;
-    old->cs        = cur->cs;
-    old->eip       = cur->eip;
-    old->ss        = cur->ss;
-    old->esp       = cur->esp;
-
-    cur->regs = new->save_regs;
-    cur->cs   = new->cs;
-    cur->eip  = new->eip;
-    cur->ss   = new->ss;
-    cur->esp  = new->esp;
+    arch_context_switch(&new->context, old);
 }
 

@@ -50,7 +50,8 @@ struct idt_ptr {
 } __packed;
 
 struct idt_frame {
-    struct x86_regs regs;
+    uint32_t edi, esi, ebp, oesp, ebx, edx, ecx, eax;
+    uint16_t gs, pad1, fs, pad2, es, pad3, ds, pad4;
 
     uint32_t intno;
     uint32_t err;

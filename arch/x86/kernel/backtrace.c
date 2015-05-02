@@ -5,17 +5,6 @@
 
 #include <arch/backtrace.h>
 
-/* The make-up of an x86 stackframe.
- * Note: 'caller_stackframe' is the 'ebp' of the caller. */
-struct stackframe {
-    struct stackframe *caller_stackframe;
-    uintptr_t return_addr;
-} __packed;
-
-#define read_ebp() ({ void *__ebp; \
-                      asm volatile("movl %%ebp, %0": "=r" (__ebp)::); \
-                      __ebp; })
-
 void dump_stack_ptr(void *start)
 {
     struct stackframe *stack = start;

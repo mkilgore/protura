@@ -23,6 +23,12 @@ void com1_putchar(char c)
     outb(PORT, c);
 }
 
+void com1_putstr(const char *s)
+{
+    for (; *s; s++)
+        com1_putchar(*s);
+}
+
 void com1_putnstr(const char *s, size_t len)
 {
     size_t l;

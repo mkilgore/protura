@@ -16,6 +16,7 @@
 #include <arch/syscall.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/gdt.h>
+#include <arch/cpu.h>
 #include <arch/task.h>
 #include <arch/idt.h>
 
@@ -53,7 +54,7 @@ void idt_init(void)
     for (i = 0; i < 256; i++)
         IDT_SET_ENT(idt_entries[i], 0, _KERNEL_CS, (uint32_t)(irq_hands[i]), DPL_KERNEL);
 
-    IDT_SET_ENT(idt_entries[INT_SYSCALL], 0, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
+    IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
 
     kprintf("syscall dpl: %d\n", idt_entries[INT_SYSCALL].dpl);
 
@@ -81,6 +82,8 @@ void irq_global_handler(struct idt_frame *iframe)
 
     atomic32_inc(&intr_count);
 
+    cpu_get_local()->current->context.frame = iframe;
+
     if (iframe->intno >= 0x20 && iframe->intno <= 0x31) {
         if (iframe->intno >= 40)
             outb(PIC8259_IO_PIC2, PIC8259_EOI);
@@ -89,14 +92,20 @@ void irq_global_handler(struct idt_frame *iframe)
     if (irq_handlers[iframe->intno] != NULL)
         (irq_handlers[iframe->intno]) (iframe);
 
-    /* There's a possibility that interrupts are on, if this was a syscall */
+    /* There's a possibility that interrupts are on, if this was a syscall.
+     *
+     * This point represents the end of the interrupt. From here we do clean-up
+     * and exit to the running task */
     cli();
     atomic32_dec(&intr_count);
 
-    if (reschedule && atomic32_get(&intr_count) == 0)
-    {
-        scheduler(iframe);
+    /* If something set the reschedule flag and we're the last interrupt
+     * (Meaning, we weren't fired while some other interrupt was going on, but
+     * when a task was running), then we yield the current task, whcih
+     * reschedules a new task to start running. */
+    if (reschedule && atomic32_get(&intr_count) == 0) {
         reschedule = 0;
+        task_yield();
     }
 }
 

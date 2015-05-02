@@ -56,12 +56,14 @@ void *memmove(void *p1, const void *p2, size_t len)
 #endif
 
 #ifndef _STRING_ARCH_MEMSET
-void *memset(void *p1, int val, size_t len)
+void *memset(void *p1, int ival, size_t count)
 {
     unsigned char *s1 = p1;
-    unsigned char *end = s1 + len + 1;
-    for (; s1 != end; s1++)
-        *s1 = val;
+    unsigned char val = ival & 0xFF;
+
+    while (count--)
+        *s1++ = val;
+
     return p1;
 }
 #endif
@@ -112,6 +114,52 @@ size_t strlen(const char *s)
         s++;
 
     return (size_t) (s - s1);
+}
+#endif
+
+#ifndef _STRING_ARCH_STRNCPY
+char *strncpy(char *restrict s1, const char *restrict s2, size_t len)
+{
+    size_t i;
+
+    for (i = 0; i < len && s2[i]; i++)
+        s1[i] = s2[i];
+    for (; i < len; i++)
+        s1[i] = '\0';
+
+    return s1;
+}
+#endif
+
+#ifndef _STRING_ARCH_STRNCAT
+char *strncat(char *restrict s1, const char *restrict s2, size_t len)
+{
+    size_t s1_len = strlen(s1), i;
+
+    for (i = 0; i < len && s2[i]; i++)
+        s1[s1_len + i] = s2[i];
+    s1[s1_len + i] = '\0';
+
+    return s1;
+}
+#endif
+
+#ifndef _STRING_ARCH_STRNCMP
+int strncmp(const char *s1, const char *s2, size_t len)
+{
+    size_t i;
+    for (i = 0; i < len && s1[i] && s2[i]; i++)
+        if (s1[i] > s2[i])
+            return 1;
+        else if (s1[i] < s2[i])
+            return -1;
+
+    if (s1[i] && !s2[i])
+        return 1;
+    if (!s1[i] && s2[i])
+        return -1;
+
+    return 0;
 }
 #endif
 

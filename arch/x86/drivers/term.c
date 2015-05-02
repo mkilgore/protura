@@ -203,7 +203,7 @@ void term_printfv(const char *s, va_list lst)
 {
     struct printf_backbone backbone = {
         .putchar = term_printf_putchar,
-        .putnstr  = term_printf_putnstr,
+        .putnstr = term_printf_putnstr,
     };
     basic_printfv(&backbone, s, lst);
 }
