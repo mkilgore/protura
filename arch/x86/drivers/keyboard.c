@@ -126,7 +126,7 @@ void keyboard_init(void)
     kprintf("Enabling keyboard\n");
     char_buf_init(&keyboard.buf, keyboard.buffer, sizeof(keyboard.buffer));
 
-    irq_register_callback(PIC8259_IRQ0 + 1, keyboard_interrupt_handler, "Keyboard");
+    irq_register_callback(PIC8259_IRQ0 + 1, keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT);
     pic8259_enable_irq(1);
 
     return ;

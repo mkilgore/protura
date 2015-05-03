@@ -2,7 +2,9 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
+#include <protura/snprintf.h>
 
+#include <arch/task.h>
 #include <arch/memlayout.h>
 #include <arch/pmalloc.h>
 #include <arch/asm.h>
@@ -56,10 +58,33 @@ void cpu_set_kernel_stack(struct cpu_info *c, void *kstack)
     ltr(_GDT_TSS);
 }
 
+/* Dumb cpu idle loop - Used when we have no tasks to execute on this cpu. */
+static int cpu_idle_loop(int argc, const char **argv)
+{
+    kprintf("kidle: %d\n", argc);
+    while (1)
+        hlt();
+
+    return 0;
+}
+
+void cpu_start_scheduler(void)
+{
+    char name[20];
+    struct cpu_info *c = cpu_get_local();
+
+    snprintf(name, sizeof(name), "kidle %d", c->cpu_id);
+
+    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, c->cpu_id, NULL);
+
+    scheduler();
+}
+
 void cpu_info_init(void)
 {
     cpu_gdt(&cpu);
     cpu_tss(&cpu);
     cpu.cpu = &cpu;
+    cpu.cpu_id = 0;
 }
 

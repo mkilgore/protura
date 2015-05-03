@@ -15,9 +15,6 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 
-/* Set timer frequency - interrupts per second */
-static uint32_t freq = 100;
-
 /* Number of task reschedules per second. */
 #define SWITCH_PER_SEC 20
 
@@ -27,10 +24,8 @@ static void timer_callback(struct idt_frame *frame)
 {
     atomic32_inc(&ticks);
 
-    if ((atomic32_get(&ticks) % (freq / SWITCH_PER_SEC)) == 0) {
-        kprintf("Reschedule\n");
+    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / SWITCH_PER_SEC)) == 0)
         reschedule = 1;
-    }
 }
 
 uint32_t timer_get_ticks(void)
@@ -45,12 +40,12 @@ void pic8259_timer_init(void)
           | PIC8259_TIMER_RATEGEN
           | PIC8259_TIMER_16BIT);
     outb(PIC8259_TIMER_IO,
-            PIC8259_TIMER_DIV(freq) % 256);
+            PIC8259_TIMER_DIV(TIMER_TICKS_PER_SEC) % 256);
     outb(PIC8259_TIMER_IO,
-            PIC8259_TIMER_DIV(freq) / 256);
+            PIC8259_TIMER_DIV(TIMER_TICKS_PER_SEC) / 256);
 
     pic8259_enable_irq(PIC8259_TIMER_IRQ);
 
-    irq_register_callback(PIC8259_IRQ0, timer_callback, "PIC 8259 Timer");
+    irq_register_callback(PIC8259_IRQ0, timer_callback, "PIC 8259 Timer", IRQ_INTERRUPT);
 }
 

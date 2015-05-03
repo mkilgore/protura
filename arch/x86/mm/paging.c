@@ -74,7 +74,7 @@ static void setup_extra_page_tables(void)
 
 void paging_init(va_t kernel_end, pa_t last_physical_address)
 {
-    irq_register_callback(14, page_fault_handler, "Page fault handler");
+    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_INTERRUPT);
 
     kprintf("Setting-up initial kernel page-directory\n");
 

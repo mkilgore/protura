@@ -20,6 +20,7 @@
 
 #include <arch/fake_task.h>
 #include <arch/kernel_task.h>
+#include <arch/drivers/pic8259_timer.h>
 #include <arch/idle_task.h>
 #include <arch/context.h>
 #include <arch/backtrace.h>
@@ -91,32 +92,78 @@ void task_yield(void)
         arch_context_switch(&cpu_get_local()->scheduler, &cpu_get_local()->current->context);
 }
 
+void task_sleep(uint32_t mseconds)
+{
+    struct task *t = cpu_get_local()->current;
+    t->state = TASK_SLEEPING;
+    t->wake_up = timer_get_ticks() + mseconds * (TIMER_TICKS_PER_SEC / 1000);
+    kprintf("Wake-up tick: %d\n", t->wake_up);
+    task_yield();
+}
+
 void scheduler(void)
 {
     struct task *t;
 
+    /* We acquire but don't release this lock. This works because we
+     * task_switch into other tasks, and those tasks will release the spinlock
+     * for us, as well as acquire it for us before switching back into the
+     * schedule */
+    spinlock_acquire(&ktasks.lock);
+
     while (1) {
-        using_spinlock(&ktasks.lock) {
-            /* Select the first RUNNABLE task in the schedule list */
-            do {
-                t = list_first(&ktasks.list, struct task, task_list_node);
-                list_rotate_left(&ktasks.list);
-            } while (t->state != TASK_RUNNABLE);
+        struct task *last_task = list_last(&ktasks.list, struct task, task_list_node);
+        uint32_t ticks = timer_get_ticks();
 
-            /* Set our current task equal to our new one, and set
-             * it to RUNNING. After that we perform the actual switch
-             *
-             * Once the task_switch happens, */
-            t->state = TASK_RUNNING;
-            cpu_get_local()->current = t;
+        /* Select the first RUNNABLE task in the schedule list.
+         *
+         * We use 'last_task' to check if we made a full loop over the list
+         * of tasks. If we did then we exit anyway even if we didn't find a
+         * RUNNABLE task.
+         *
+         * We do a rotation and grab the first so that when we actually
+         * find a task, the next scheduler to run will grab the task
+         * afterward. This hopefully lets all tasks get an equal amount of
+         * run time (Assuing they're actually asking for runtime). */
+        do {
+            t = list_first(&ktasks.list, struct task, task_list_node);
+            list_rotate_left(&ktasks.list);
 
-            kprintf("Task: %s\n", t->name);
+            switch (t->state) {
+            case TASK_RUNNABLE:
+                goto found_task;
 
-            task_switch(&cpu_get_local()->scheduler, t);
+            case TASK_SLEEPING:
+                if (t->wake_up <= ticks)
+                    goto found_task;
+                break;
 
+            case TASK_RUNNING:
+                break;
+            }
+        } while (t != last_task);
+
+        /* We execute this cpu's idle task if we didn't find a task to run */
+        t = cpu_get_local()->kidle;
+
+    found_task:
+
+        /* Set our current task equal to our new one, and set
+         * it to RUNNING. After that we perform the actual switch
+         *
+         * Once the task_switch happens, */
+        t->state = TASK_RUNNING;
+        cpu_get_local()->current = t;
+
+        task_switch(&cpu_get_local()->scheduler, t);
+
+        /* Note - There's a big possibility that when we come back here
+         * from a task switch, it's because the task was suspended or
+         * similar. Thus, it's state may not be RUNNING, and if it's not we
+         * don't want to change it to RUNNING */
+        if (t->state == TASK_RUNNING)
             t->state = TASK_RUNNABLE;
-            cpu_get_local()->current = NULL;
-        }
+        cpu_get_local()->current = NULL;
     }
 }
 
@@ -131,7 +178,6 @@ struct task *task_new(char *name)
     memset(task, 0, sizeof(*task));
 
     strcpy(task->name, name);
-    task->state = TASK_EMBRYO;
     task->pid = ktasks.next_pid++;
 
     task_paging_init(task);
@@ -244,7 +290,6 @@ struct task *task_fake_create(void)
     t->context.frame->eflags = EFLAGS_IF;
 
     t->state = TASK_RUNNABLE;
-    task_schedule_add(t);
 
     return t;
 }
@@ -280,8 +325,6 @@ static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc,
     task_setup_fork_ret(t, ksp);
 
     t->state = TASK_RUNNABLE;
-    task_schedule_add(t);
-
     return t;
 }
 
@@ -317,12 +360,9 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
 }
 
 static const char *task_states[] = {
-    [TASK_UNUSED]   = "unused",
-    [TASK_EMBRYO]   = "embryo",
     [TASK_SLEEPING] = "sleeping",
     [TASK_RUNNABLE] = "runnable",
     [TASK_RUNNING]  = "running",
-    [TASK_ZOMBIE]   = "zombie"
 };
 
 void task_print(char *buf, size_t size, struct task *task)

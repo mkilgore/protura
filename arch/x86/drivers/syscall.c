@@ -2,6 +2,7 @@
 #include <protura/types.h>
 #include <arch/idt.h>
 #include <drivers/term.h>
+#include <arch/task.h>
 #include <arch/syscall.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
@@ -25,11 +26,14 @@ static void syscall_handler(struct idt_frame *frame)
     case SYSCALL_PUTSTR:
         term_printf("%s", (char *)frame->ebx);
         break;
+    case SYSCALL_SLEEP:
+        task_sleep(frame->ebx);
+        break;
     }
 }
 
 void syscall_init(void)
 {
-    irq_register_callback(INT_SYSCALL, syscall_handler, "syscall");
+    irq_register_callback(INT_SYSCALL, syscall_handler, "syscall", IRQ_SYSCALL);
 }
 

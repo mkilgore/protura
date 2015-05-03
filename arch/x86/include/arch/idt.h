@@ -64,16 +64,21 @@ struct idt_frame {
     uint16_t ss, padding6;
 } __packed;
 
+enum irq_type {
+    IRQ_INTERRUPT,
+    IRQ_SYSCALL
+};
+
 void idt_flush(uint32_t);
 
 void idt_init(void);
 
 void irq_global_handler(struct idt_frame *);
-void irq_register_callback(uint8_t irqno, void (*callback)(struct idt_frame *), const char *id);
+void irq_register_callback(uint8_t irqno, void (*callback)(struct idt_frame *), const char *id, enum irq_type);
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
-extern atomic32_t intr_count;
+extern atomic32_t iter_count;
 extern int reschedule;
 
 #endif

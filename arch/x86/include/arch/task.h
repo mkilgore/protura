@@ -14,17 +14,16 @@
 #define NOFILE 20
 
 enum task_state {
-    TASK_UNUSED,
-    TASK_EMBRYO,
     TASK_SLEEPING,
     TASK_RUNNABLE,
     TASK_RUNNING,
-    TASK_ZOMBIE,
 };
 
 struct task {
     pid_t pid;
     enum task_state state;
+    int wake_up; /* Tick number to wake-up on */
+
     struct list_node task_list_node;
 
     struct page_directory *page_dir;
@@ -65,6 +64,7 @@ struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char
 struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv);
 
 void task_yield(void);
+void task_sleep(uint32_t mseconds);
 
 void scheduler(void);
 

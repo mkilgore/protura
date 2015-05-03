@@ -23,11 +23,11 @@
 static struct idt_ptr idt_ptr;
 static struct idt_entry idt_entries[256] = { {0} };
 
-static void (*irq_handlers[256])(struct idt_frame *);
-
 struct idt_identifier {
     atomic32_t count;
     const char *name;
+    enum irq_type type;
+    void (*handler)(struct idt_frame *);
 };
 
 static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
@@ -35,10 +35,13 @@ static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
 atomic32_t intr_count = ATOMIC32_INIT(0);
 int reschedule = 0;
 
-void irq_register_callback(uint8_t irqno, void (*handler)(struct idt_frame *), const char *id)
+void irq_register_callback(uint8_t irqno, void (*handler)(struct idt_frame *), const char *id, enum irq_type type)
 {
-    irq_handlers[irqno] = handler;
-    idt_ids[irqno].name = id;
+    struct idt_identifier *ident = idt_ids + irqno;
+
+    ident->handler = handler;
+    ident->name = id;
+    ident->type = type;
 }
 
 void idt_init(void)
@@ -67,7 +70,7 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
     (print) ("Interrupt stats:\n");
     for (k = 0; k < 256; k++) {
         /* Only display IRQ's that have a handler */
-        if (!irq_handlers[k])
+        if (!idt_ids[k].handler)
             continue;
 
         (print) (" %s(%02d) - %d\n", idt_ids[k].name, k, atomic32_get(&idt_ids[k].count));
@@ -76,11 +79,15 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
 
 void irq_global_handler(struct idt_frame *iframe)
 {
-    atomic32_inc(&idt_ids[iframe->intno].count);
+    struct idt_identifier *ident = idt_ids + iframe->intno;
+
+    atomic32_inc(&ident->count);
 
     reschedule = 0;
 
-    atomic32_inc(&intr_count);
+    /* Only actual INTERRUPT types increment the intr_count */
+    if (ident->type == IRQ_INTERRUPT)
+        atomic32_inc(&intr_count);
 
     cpu_get_local()->current->context.frame = iframe;
 
@@ -89,8 +96,14 @@ void irq_global_handler(struct idt_frame *iframe)
             outb(PIC8259_IO_PIC2, PIC8259_EOI);
         outb(PIC8259_IO_PIC1, PIC8259_EOI);
     }
-    if (irq_handlers[iframe->intno] != NULL)
-        (irq_handlers[iframe->intno]) (iframe);
+
+    if (ident->handler != NULL)
+        (ident->handler) (iframe);
+
+
+    /* If this isn't an interrupt irq, then we don't do the clean-up. */
+    if (ident->type != IRQ_INTERRUPT)
+        return ;
 
     /* There's a possibility that interrupts are on, if this was a syscall.
      *

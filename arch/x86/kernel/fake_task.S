@@ -44,22 +44,15 @@ fake_task_entry:
     movl $SYSCALL_PUTSTR, %eax
     int $INT_SYSCALL
 
-    popl %ebx
+    popl %ecx
 
-1:  movl $SYSCALL_PUTCHAR, %eax
+1:  movl %ecx, %ebx
+    movl $SYSCALL_PUTCHAR, %eax
     int $INT_SYSCALL
 
-    movl $SYSCALL_CLOCK, %eax
+    movl $2000, %ebx
+    movl $SYSCALL_SLEEP, %eax
     int $INT_SYSCALL
-
-.globl right_before_set
-right_before_set:
-    shll $16, %eax
-    andl $0x003FFFFF, %eax
-    orl $0x00100000, %eax
-
-    movl %eax, %ecx
-2:  loop 2b
 
     jmp 1b
 

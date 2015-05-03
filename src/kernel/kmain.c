@@ -63,17 +63,18 @@ void kmain(void)
 
     kernel_is_booting = 0;
 
-    task_fake_create();
-    task_fake_create();
+    task_schedule_add(task_fake_create());
+    task_schedule_add(task_fake_create());
 
-    task_kernel_new_interruptable("Kernel thread 1", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "2" });
-    task_kernel_new_interruptable("Kernel thread 2", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "3" });
-    task_kernel_new_interruptable("Kernel thread 3", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "4" });
-    task_kernel_new_interruptable("Kernel thread 4", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "5" });
+    /*
+    task_schedule_add(task_kernel_new_interruptable("Kernel thread 1", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "2" }));
+    task_schedule_add(task_kernel_new_interruptable("Kernel thread 2", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "3" }));
+    task_schedule_add(task_kernel_new_interruptable("Kernel thread 3", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "4" }));
+    task_schedule_add(task_kernel_new_interruptable("Kernel thread 4", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "5" })); */
 
-    scheduler();
+    cpu_start_scheduler();
 
-    panic("ERROR! task_start_init() returned!\n");
+    panic("ERROR! cpu_start_scheduler() returned!\n");
     while (1)
         hlt();
 }
