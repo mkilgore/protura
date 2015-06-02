@@ -1,8 +1,10 @@
 
 #include <protura/types.h>
+#include <protura/debug.h>
 #include <arch/idt.h>
 #include <drivers/term.h>
 #include <arch/task.h>
+#include <arch/scheduler.h>
 #include <arch/syscall.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
@@ -10,6 +12,8 @@
 
 static void syscall_handler(struct idt_frame *frame)
 {
+    struct task *current = cpu_get_local()->current, *new;
+
     switch (frame->eax) {
     case SYSCALL_PUTCHAR:
         term_putchar(frame->ebx);
@@ -18,7 +22,7 @@ static void syscall_handler(struct idt_frame *frame)
         frame->eax = timer_get_ticks();
         break;
     case SYSCALL_GETPID:
-        frame->eax = cpu_get_local()->current->pid;
+        frame->eax = current->pid;
         break;
     case SYSCALL_PUTINT:
         term_printf("%d", frame->ebx);
@@ -27,7 +31,28 @@ static void syscall_handler(struct idt_frame *frame)
         term_printf("%s", (char *)frame->ebx);
         break;
     case SYSCALL_SLEEP:
-        task_sleep(frame->ebx);
+        scheduler_task_sleep(frame->ebx);
+        break;
+    case SYSCALL_FORK:
+        new = task_fork(current);
+
+        kprintf("New task: %d\n", new->pid);
+
+        if (new) {
+            scheduler_task_add(new);
+
+            new->context.frame->eax = 0;
+            current->context.frame->eax = new->pid;
+        } else {
+            current->context.frame->eax = -1;
+        }
+
+        break;
+    case SYSCALL_GETPPID:
+        if (current->parent)
+            frame->eax = current->parent->pid;
+        else
+            frame->eax = -1;
         break;
     }
 }

@@ -8,6 +8,7 @@
 #ifndef INCLUDE_ARCH_DRIVERS_KEYBOARD_H
 #define INCLUDE_ARCH_DRIVERS_KEYBOARD_H
 
+#include <config/autoconf.h>
 #include <protura/types.h>
 #include <protura/spinlock.h>
 #include <protura/atomic.h>
@@ -19,7 +20,7 @@ struct keyboard {
 
     atomic32_t has_keys;
 
-    short buffer[256];
+    short buffer[CONFIG_KEYBOARD_BUFSZ];
 
     struct char_buf buf;
     struct spinlock buf_lock;

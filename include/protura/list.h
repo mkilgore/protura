@@ -106,6 +106,42 @@ static inline void list_rotate_right(struct list_head *head)
         list_move(head, head->n.prev);
 }
 
+/* Moves 'first', which is already in list 'head', to the position of the first
+ * entry in 'head', by rotating the list. */
+static inline void list_new_first(struct list_head *head, struct list_node *new_first)
+{
+    struct list_node *last = head->n.prev;
+    struct list_node *first = head->n.next;
+    struct list_node *new_last = new_first->prev;
+
+    /* Connect first and last list node together */
+    last->next = first;
+    first->prev = last;
+
+    /* Make 'new_last' and 'new_first' the first and last nodes of the list */
+    new_last->next = &head->n;
+    new_first->prev = &head->n;
+
+    head->n.prev = new_last;
+    head->n.next = new_first;
+}
+
+static inline void list_new_last(struct list_head *head, struct list_node *new_last)
+{
+    struct list_node *last = head->n.prev;
+    struct list_node *first = head->n.next;
+    struct list_node *new_first = new_last->next;
+
+    last->next = first;
+    first->prev = last;
+
+    new_last->next = &head->n;
+    new_first->prev = &head->n;
+
+    head->n.prev = new_last;
+    head->n.next = new_first;
+}
+
 static inline struct list_node *__list_first(struct list_head *head)
 {
     return head->n.next;
@@ -177,4 +213,6 @@ static inline struct list_node *__list_take_last(struct list_head *head)
          &pos->member != &(head)->n; \
          pos = list_prev_entry(pos, member))
 
+#define list_ptr_is_head(head, ptr) \
+    ((ptr) == (&(head)->n))
 #endif

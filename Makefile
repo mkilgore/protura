@@ -26,14 +26,14 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_BITS=$(BITS)                    \
             -I'./include' -I'./arch/$(ARCH)/include'
 
-CFLAGS  := -Wall -O0 -std=gnu99 -ffreestanding \
+CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
            -fno-strict-aliasing -nostdlib -fno-builtin
 
 ifdef CONFIG_FRAME_POINTER
 CFLAGS += -fno-omit-frame-pointer
 endif
 
-LDFLAGS := -nostdlib -O0 -ffreestanding -lgcc
+LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc
 ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
 
 # Configuration -- Uncomment lines to enable option

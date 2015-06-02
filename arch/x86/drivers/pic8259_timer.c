@@ -8,6 +8,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/atomic.h>
+#include <config/autoconf.h>
 
 #include <arch/asm.h>
 #include <arch/idt.h>
@@ -15,16 +16,13 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 
-/* Number of task reschedules per second. */
-#define SWITCH_PER_SEC 20
-
 static atomic32_t ticks;
 
 static void timer_callback(struct idt_frame *frame)
 {
     atomic32_inc(&ticks);
 
-    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / SWITCH_PER_SEC)) == 0)
+    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0)
         reschedule = 1;
 }
 

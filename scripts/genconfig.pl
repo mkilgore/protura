@@ -14,11 +14,11 @@ sub print_cpp {
     my ($id, $val) = @_;
 
     if ($val eq 'y') {
-        print "#define $id\n";
+        print "#define CONFIG_$id\n";
     } elsif ($val eq 'n') {
-        print "/* #define $id */\n";
+        print "/* #define CONFIG_$id */\n";
     } else {
-        print "#define $id $val\n";
+        print "#define CONFIG_$id $val\n";
     }
 }
 
@@ -29,7 +29,7 @@ sub print_cpp_ending {
 sub print_make {
     my ($id, $val) = @_;
 
-    print "$id := $val\n";
+    print "CONFIG_$id := $val\n";
 }
 
 my $genopt = 0;

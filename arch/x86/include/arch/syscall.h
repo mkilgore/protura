@@ -15,7 +15,9 @@
 #define SYSCALL_GETPID  0x03
 #define SYSCALL_PUTINT  0x04
 #define SYSCALL_PUTSTR  0x05
-#define SYSCALL_SLEEP   0x06 /* Doesn't return yet */
+#define SYSCALL_SLEEP   0x06
+#define SYSCALL_FORK    0x07
+#define SYSCALL_GETPPID 0x08
 
 #ifndef ASM
 

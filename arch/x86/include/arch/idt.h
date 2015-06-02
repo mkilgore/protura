@@ -78,7 +78,7 @@ void irq_register_callback(uint8_t irqno, void (*callback)(struct idt_frame *), 
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
-extern atomic32_t iter_count;
+extern atomic32_t intr_count;
 extern int reschedule;
 
 #endif

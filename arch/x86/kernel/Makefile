@@ -3,6 +3,7 @@ objs-y += cpu.o
 objs-y += task.o
 objs-y += fake_task.o
 objs-y += kernel_task.o
+objs-y += scheduler.o
 objs-y += context.o
 objs-y += backtrace.o
 objs-y += irq_handler.o

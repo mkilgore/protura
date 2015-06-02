@@ -5,6 +5,7 @@
 #include <protura/snprintf.h>
 
 #include <arch/task.h>
+#include <arch/scheduler.h>
 #include <arch/memlayout.h>
 #include <arch/pmalloc.h>
 #include <arch/asm.h>

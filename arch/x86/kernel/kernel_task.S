@@ -16,7 +16,6 @@ kernel_task_entry_interruptable:
 .global kernel_task_entry
 kernel_task_entry:
 
-    # Push argv and argc
     pop %ebx
 
     # Call the kernel thread function

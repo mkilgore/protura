@@ -33,7 +33,7 @@ static void str_putnstr(struct printf_backbone *b, const char *s, size_t len)
     size_t l;
 
     for (l = 0; l < len; l++)
-        str->buf[len - l] = s[l];
+        str->buf[l] = s[l];
     str->buf += len;
 }
 

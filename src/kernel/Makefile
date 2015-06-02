@@ -7,4 +7,5 @@ objs-y += sprintf.o
 objs-y += spinlock.o
 objs-y += char_buf.o
 objs-y += dump_mem.o
+objs-y += strtol.o
 

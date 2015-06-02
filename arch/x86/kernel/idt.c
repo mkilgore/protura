@@ -18,6 +18,7 @@
 #include <arch/gdt.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
+#include <arch/scheduler.h>
 #include <arch/idt.h>
 
 static struct idt_ptr idt_ptr;
@@ -80,6 +81,8 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
 void irq_global_handler(struct idt_frame *iframe)
 {
     struct idt_identifier *ident = idt_ids + iframe->intno;
+    struct task *t;
+    int frame_flag = 0;
 
     atomic32_inc(&ident->count);
 
@@ -89,7 +92,15 @@ void irq_global_handler(struct idt_frame *iframe)
     if (ident->type == IRQ_INTERRUPT)
         atomic32_inc(&intr_count);
 
-    cpu_get_local()->current->context.frame = iframe;
+    /* If frame is NULL, then this is the first interrupt from this task - This
+     * frame is special because it allows us to change the cpu state returned
+     * to the task when this interrupt chain finally returns. All syscalls that
+     * return values have to modify *this* frame specefically. */
+    t = cpu_get_local()->current;
+    if (!t->context.frame) {
+        frame_flag = 1;
+        t->context.frame = iframe;
+    }
 
     if (iframe->intno >= 0x20 && iframe->intno <= 0x31) {
         if (iframe->intno >= 40)
@@ -100,16 +111,23 @@ void irq_global_handler(struct idt_frame *iframe)
     if (ident->handler != NULL)
         (ident->handler) (iframe);
 
-
-    /* If this isn't an interrupt irq, then we don't do the clean-up. */
-    if (ident->type != IRQ_INTERRUPT)
-        return ;
-
     /* There's a possibility that interrupts are on, if this was a syscall.
      *
      * This point represents the end of the interrupt. From here we do clean-up
      * and exit to the running task */
     cli();
+
+    /* If this flag is set, then we're at the end of an interrupt chain - unset
+     * 'frame' so that the next interrupt from this task will reconize it's the
+     * new first interrupt. Also note. */
+    if (frame_flag)
+        t->context.frame = NULL;
+
+    /* If this isn't an interrupt irq, then we don't do have to do the
+     * stuff after this. */
+    if (ident->type != IRQ_INTERRUPT)
+        return ;
+
     atomic32_dec(&intr_count);
 
     /* If something set the reschedule flag and we're the last interrupt
@@ -118,7 +136,7 @@ void irq_global_handler(struct idt_frame *iframe)
      * reschedules a new task to start running. */
     if (reschedule && atomic32_get(&intr_count) == 0) {
         reschedule = 0;
-        task_yield();
+        scheduler_task_yield();
     }
 }
 
