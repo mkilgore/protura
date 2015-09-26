@@ -22,6 +22,27 @@ void char_buf_init(struct char_buf *buf, void *nbuffer, size_t buf_size)
     buf->end_pos = 0;
 }
 
+void char_buf_write_char(struct char_buf *buf, char data)
+{
+    buf->buffer[buf->end_pos] = data;
+    buf->end_pos++;
+    if (buf->end_pos == buf->len)
+        buf->end_pos = 0;
+}
+
+char char_buf_read_char(struct char_buf *buf)
+{
+    char data;
+
+    data = buf->buffer[buf->start_pos];
+
+    buf->start_pos++;
+    if (buf->start_pos == buf->len)
+        buf->start_pos = 0;
+
+    return data;
+}
+
 void char_buf_write(struct char_buf *buf, void *data, size_t data_len)
 {
     if (buf->len - buf->end_pos >= data_len) {

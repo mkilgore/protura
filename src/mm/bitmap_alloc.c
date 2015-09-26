@@ -11,9 +11,9 @@
 #include <protura/debug.h>
 #include <mm/bitmap_alloc.h>
 
-#define bs(bitm) (sizeof(*(bitm)->bitmap))
+#define bs(bitm) (sizeof(*(bitm)->bitmap) * 8)
 
-#define bitmap_get_bit(bitm, n) (((bitm)->bitmap[(n) / 8] & (1 << ((n) % 8))) == (1 << ((n) % 8)))
+#define bitmap_get_bit(bitm, n) ((bitm)->bitmap[(n) / 8] & (1 << ((n) % 8)))
 #define bitmap_set_bit(bitm, n, b)                                      \
     do {                                                                \
         if (b)                                                          \
@@ -21,20 +21,6 @@
         else                                                            \
             (bitm)->bitmap[(n) / 8] &= ~(1 << ((n) % 8));               \
     } while (0)
-
-uintptr_t bitmap_alloc_get_page(struct bitmap_alloc *bitmap)
-{
-    int bits = bitmap->bitmap_size * bs(bitmap);
-    int i;
-    for (i = 0; i < bits; i++) {
-        if (!bitmap_get_bit(bitmap, i)) {
-            bitmap_set_bit(bitmap, i, 1);
-            return bitmap->addr_start + (i * bitmap->page_size);
-        }
-    }
-
-    return 0;
-}
 
 static char buf[5000];
 
@@ -59,29 +45,41 @@ uintptr_t bitmap_alloc_get_pages(struct bitmap_alloc *bitmap, int pages)
 {
     int bits = bitmap->bitmap_size * bs(bitmap);
     int i;
-    for (i = 0; i < bits; i++) {
+    for (i = bitmap->last_found; i < bits; i++) {
         if (!bitmap_get_bit(bitmap, i)) {
             int k;
             for (k = 1; k < pages; k++)
                 if (bitmap_get_bit(bitmap, k + i))
                     break;
-            if (k != pages)
+
+            if (k != pages) {
+                i += k;
                 continue;
+            }
 
             for (k = 0; k < pages; k++)
                 bitmap_set_bit(bitmap, k + i, 1);
 
+            bitmap->last_found = i + pages;
+
             return bitmap->addr_start + (i * bitmap->page_size);
         }
     }
-
     return 0;
+}
+
+
+uintptr_t bitmap_alloc_get_page(struct bitmap_alloc *bitmap)
+{
+    return bitmap_alloc_get_pages(bitmap, 1);
 }
 
 void bitmap_alloc_free_page(struct bitmap_alloc *bitmap, uintptr_t page)
 {
     int page_n = (page - bitmap->addr_start) / bitmap->page_size;
     bitmap_set_bit(bitmap, page_n, 0);
+    if (page_n < bitmap->last_found)
+        bitmap->last_found = page_n;
 }
 
 void bitmap_alloc_free_pages(struct bitmap_alloc *bitmap, uintptr_t page, int pages)

@@ -76,7 +76,6 @@ static char *task_setup_scheduler_entry(struct task *t, char *ksp)
 
     memset(t->context.esp, 0, sizeof(*t->context.esp));
     t->context.esp->eip = (uintptr_t)scheduler_task_entry;
-    kprintf("EIP: %p, ESP: %p\n", (void *)t->context.esp->eip, t->context.esp);
 
     return ksp;
 }
@@ -92,16 +91,19 @@ static void task_user_kernel_stack_setup(struct task *t)
 
     sp -= sizeof(uintptr_t);
     *(uintptr_t *)sp = (uintptr_t)irq_handler_end;
-    kprintf("Irq handler end: %p\n", irq_handler_end);
 
     sp = task_setup_scheduler_entry(t, sp);
 }
 
+/* Makes a copy the pages in the user memory space in one task to another
+ * task */
 void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
 {
     struct page_directory *restrict new_dir = new->page_dir;
     struct page_directory *restrict old_dir = old->page_dir;
     int table;
+
+    kprintf("Copying user pages\n");
 
     for (table = 0; table < KMEM_KPAGE; table++) {
         if (old_dir->table[table].present) {
@@ -117,7 +119,6 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
             new_table = (struct page_table *)P2V(PAGING_FRAME(new_table_addr));
 
             /* Make copies of every page the old task has, and place them at the same addresses for the new task */
-            kprintf("Entry: %d table: %d\n", KMEM_KPAGE, table);
             int page;
             for (page = 0; page < PG_SIZE / 4; page++) {
                 if (old_table->table[page].present) {
@@ -131,12 +132,6 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
                     new_table->table[page].entry = 0;
                 }
             }
-
-#if 0
-            /* Just memcpy the table, since we're going to map the same
-             * addresses */
-            memcpy(P2V(PAGING_FRAME(new_table)), P2V(PAGING_FRAME(old_dir->table[table].entry)), PG_SIZE);
-#endif
         }
     }
 }
@@ -144,7 +139,6 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
 void task_paging_init(struct task *task)
 {
     task->page_dir = P2V(pmalloc_page_alloc(PMAL_KERNEL));
-    kprintf("PAGE DIR: %p\n", task->page_dir);
     memcpy(task->page_dir, &kernel_dir, sizeof(kernel_dir));
 }
 
@@ -189,7 +183,8 @@ static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc,
     ksp -= sizeof(argc);
     *(int *)ksp = argc;
 
-    /* Push the address of 'kernel_task'. The task_entry function will pop it off the stack and call it for us */
+    /* Push the address of 'kernel_task'. The task_entry function will pop it
+     * off the stack and call it for us */
     ksp -= sizeof(kernel_task);
     *(void **)ksp = kernel_task;
 
@@ -237,6 +232,8 @@ struct task *task_new(void)
     task_paging_init(task);
     task->state = TASK_RUNNABLE;
 
+    kprintf("Created task %d\n", task->pid);
+
     return task;
 }
 
@@ -249,18 +246,13 @@ struct task *task_fork(struct task *parent)
     if (!new)
         return NULL;
 
-    kprintf("Before Parent context: %p, %p\n", (void *)parent->context.frame->eip, (void *)parent->context.frame->esp);
-
     snprintf(new->name, sizeof(new->name), "Chld: %s", parent->name);
 
     task_paging_copy_user(new, parent);
     task_user_kernel_stack_setup(new);
 
     new->parent = parent;
-    *new->context.frame = *parent->context.frame;
-
-    kprintf("After Parent context: %p, %p\n", (void *)parent->context.frame->eip, (void *)parent->context.frame->esp);
-    kprintf("Frame Eip: %p\n", (void *)new->context.frame->eip);
+    memcpy(new->context.frame, parent->context.frame, sizeof(*new->context.frame));
 
     return new;
 }

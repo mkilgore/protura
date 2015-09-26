@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/string.h>
 #include <protura/debug.h>
+#include <protura/spinlock.h>
 #include <mm/memlayout.h>
 #include <mm/bitmap_alloc.h>
 
@@ -20,6 +21,7 @@
 
 
 static struct bitmap_alloc pmem_alloc;
+static struct spinlock pmem_lock = SPINLOCK_INIT("pmalloc-lock");
 
 void pmalloc_init(va_t kernel_end, pa_t last_physical_address)
 {
@@ -40,37 +42,52 @@ void pmalloc_init(va_t kernel_end, pa_t last_physical_address)
     pmem_alloc.page_count = memory_byte_size >> 12;
     pmem_alloc.page_size = PG_SIZE;
 
-    kprintf("pmalloc: kernel page count: 0x%x\n", pmem_alloc.page_count);
+    kprintf("pmalloc: kernel page count: %d\n", pmem_alloc.page_count);
 
-    kprintf("pmalloc: bitmap pages: 0x%x\n", pmem_alloc.page_count / PG_SIZE);
-    pmem_alloc.bitmap_size = pmem_alloc.page_count;
-    pmem_alloc.bitmap = P2V(bootmem_alloc_pages(pmem_alloc.page_count / PG_SIZE));
+    kprintf("pmalloc: bitmap pages: 0x%x\n", pmem_alloc.page_count / 8 + 1);
+
+    pmem_alloc.bitmap_size = pmem_alloc.page_count / 8 + 1;
+    pmem_alloc.bitmap = P2V(bootmem_alloc_pages(pmem_alloc.bitmap_size / PG_SIZE + 1));
+    memset(pmem_alloc.bitmap, 0, pmem_alloc.bitmap_size);
 }
 
 void pmalloc_page_set(pa_t page)
 {
     int page_n = (page - pmem_alloc.addr_start) >> 12;
 
-    pmem_alloc.bitmap[page_n / 8] |= (1 << (page_n % 8));
+    using_spinlock(&pmem_lock)
+        pmem_alloc.bitmap[page_n / 8] |= (1 << (page_n % 8));
 }
 
 pa_t pmalloc_page_alloc(int flags)
 {
-    return bitmap_alloc_get_page(&pmem_alloc);
+    pa_t page;
+
+    using_spinlock(&pmem_lock)
+        page = bitmap_alloc_get_page(&pmem_alloc);
+
+    return page;
 }
 
 pa_t pmalloc_pages_alloc(int flags, size_t count)
 {
-    return bitmap_alloc_get_pages(&pmem_alloc, count);
+    pa_t page;
+
+    using_spinlock(&pmem_lock)
+        page = bitmap_alloc_get_pages(&pmem_alloc, count);
+
+    return page;
 }
 
 void pmalloc_page_free(pa_t page)
 {
-    bitmap_alloc_free_page(&pmem_alloc, page);
+    using_spinlock(&pmem_lock)
+        bitmap_alloc_free_page(&pmem_alloc, page);
 }
 
 void pmalloc_pages_free(pa_t page, size_t count)
 {
-    bitmap_alloc_free_pages(&pmem_alloc, page, count);
+    using_spinlock(&pmem_lock)
+        bitmap_alloc_free_pages(&pmem_alloc, page, count);
 }
 

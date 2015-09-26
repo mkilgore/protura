@@ -15,6 +15,7 @@
 #include <arch/asm.h>
 #include <arch/idt.h>
 #include <arch/reset.h>
+#include <arch/scheduler.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/scancode.h>
 #include <arch/drivers/keyboard.h>
@@ -51,7 +52,7 @@ int keyboard_get_char(void)
         return -1;
 
     using_spinlock(&keyboard.buf_lock)
-        char_buf_read(&keyboard.buf, &ch, sizeof(ch));
+        ch = char_buf_read_char(&keyboard.buf);
 
     atomic32_dec(&keyboard.has_keys);
     return ch;
@@ -115,8 +116,10 @@ static void keyboard_interrupt_handler(struct idt_frame *frame)
 
     if (asc_char) {
         using_spinlock(&keyboard.buf_lock) {
-            char_buf_write(&keyboard.buf, &asc_char, sizeof(asc_char));
+            char_buf_write_char(&keyboard.buf, asc_char);
             atomic32_inc(&keyboard.has_keys);
+
+            wakeup_list_wakeup(&keyboard.watch_list);
         }
     }
 }
@@ -125,16 +128,13 @@ void keyboard_init(void)
 {
     kprintf("Enabling keyboard\n");
     char_buf_init(&keyboard.buf, keyboard.buffer, sizeof(keyboard.buffer));
+    wakeup_list_init(&keyboard.watch_list);
 
     irq_register_callback(PIC8259_IRQ0 + 1, keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT);
     pic8259_enable_irq(1);
 
     return ;
 }
-
-/* A fake IDT setup - Issuing an interrupt with this IDT will triple-fault the
- * CPU, causing a reset */
-static struct idt_ptr fake_idt_ptr = { 0, 0 };
 
 void clear_keyboard(void)
 {
@@ -145,6 +145,20 @@ void clear_keyboard(void)
             inb(KEY_READ_BUF_PORT);
     } while (test & 0x02);
 }
+
+void keyboard_wakeup_add(struct task *t)
+{
+    wakeup_list_add(&keyboard.watch_list, t);
+}
+
+void keyboard_wakeup_remove(struct task *t)
+{
+    wakeup_list_remove(&keyboard.watch_list, t);
+}
+
+/* A fake IDT setup - Issuing an interrupt with this IDT will triple-fault the
+ * CPU, causing a reset */
+static struct idt_ptr fake_idt_ptr = { 0, 0 };
 
 void system_reboot(void)
 {

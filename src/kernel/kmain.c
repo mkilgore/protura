@@ -46,6 +46,26 @@ int test_kernel_thread(int argc, const char **argv)
     }
 }
 
+int kernel_keyboard_thread(int argc, const char **argv)
+{
+    kprintf("Keyboard watch task started!\n");
+    keyboard_wakeup_add(cpu_get_local()->current);
+    while (1) {
+        /* Go back to sleep until the keyboard wakes us up */
+        cpu_get_local()->current->state = TASK_SLEEPING;
+        scheduler_task_yield();
+
+        /* If we got here, then we were woke up by the keyboard */
+        term_printf("Task started by keyboard presses: ");
+        char ch;
+
+        while ((ch = keyboard_get_char()) != -1)
+            term_putchar(ch);
+
+        term_printf("\n");
+    }
+}
+
 void kmain(void)
 {
     struct sys_init *sys;
@@ -70,14 +90,15 @@ void kmain(void)
     scheduler_task_add(task_fake_create());
     scheduler_task_add(task_fake_create());
     scheduler_task_add(task_fake_create());
-    /* scheduler_task_add(task_fake_create());
     scheduler_task_add(task_fake_create());
-    scheduler_task_add(task_fake_create()); */
+    scheduler_task_add(task_fake_create());
+    scheduler_task_add(task_fake_create());
 
     /* task_schedule_add(task_kernel_new_interruptable("Kernel thread 1", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "1" }));
     task_schedule_add(task_kernel_new_interruptable("Kernel thread 2", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "2" }));
     task_schedule_add(task_kernel_new_interruptable("Kernel thread 3", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "3" }));
     task_schedule_add(task_kernel_new_interruptable("Kernel thread 4", test_kernel_thread, 2, (const char *[]){ "Kernel thread", "4" })); */
+    scheduler_task_add(task_kernel_new("Keyboard watch", kernel_keyboard_thread, 0, (const char *[]) { }));
 
     cpu_start_scheduler();
 

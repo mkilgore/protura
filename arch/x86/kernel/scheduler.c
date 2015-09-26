@@ -31,6 +31,7 @@
 #include <arch/asm.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
+#include <arch/scheduler.h>
 
 
 static struct {
@@ -159,10 +160,48 @@ void scheduler(void)
         /* Note - There's a big possibility that when we come back here
          * from a task switch, it's because the task was suspended or
          * similar. Thus, it's state may not be RUNNING, and if it's not we
-         * don't want to change it to RUNNING */
+         * don't want to change it to RUNNABLE */
         if (t->state == TASK_RUNNING)
             t->state = TASK_RUNNABLE;
         cpu_get_local()->current = NULL;
     }
+}
+
+void wakeup_list_init(struct wakeup_list *list)
+{
+    memset(list, 0, sizeof(*list));
+}
+
+void wakeup_list_add(struct wakeup_list *list, struct task *new)
+{
+    int i;
+
+    for (i = 0; i < WAKEUP_LIST_MAX_TASKS; i++) {
+        if (!list->tasks[i]) {
+            list->tasks[i] = new;
+            return ;
+        }
+    }
+}
+
+void wakeup_list_remove(struct wakeup_list *list, struct task *old)
+{
+    int i;
+
+    for (i = 0; i < WAKEUP_LIST_MAX_TASKS; i++) {
+        if (list->tasks[i] == old) {
+            list->tasks[i] = NULL;
+            return ;
+        }
+    }
+}
+
+void wakeup_list_wakeup(struct wakeup_list *list)
+{
+    int i;
+
+    for (i = 0; i < WAKEUP_LIST_MAX_TASKS; i++)
+        if (list->tasks[i])
+            list->tasks[i]->state = TASK_RUNNABLE;
 }
 

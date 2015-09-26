@@ -11,6 +11,8 @@ struct bitmap_alloc {
 
     uint32_t bitmap_size;
     uint8_t *bitmap;
+
+    uint32_t last_found;
 };
 
 uintptr_t bitmap_alloc_get_page(struct bitmap_alloc *);

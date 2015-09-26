@@ -13,6 +13,8 @@
 #include <protura/spinlock.h>
 #include <protura/atomic.h>
 #include <protura/char_buf.h>
+#include <arch/task.h>
+#include <arch/scheduler.h>
 
 struct keyboard {
     uint8_t led_status;
@@ -24,6 +26,7 @@ struct keyboard {
 
     struct char_buf buf;
     struct spinlock buf_lock;
+    struct wakeup_list watch_list;
 };
 
 extern struct keyboard keyboard;
@@ -43,5 +46,8 @@ enum {
 
 void keyboard_init(void);
 int keyboard_get_char(void);
+
+void keyboard_wakeup_add(struct task *);
+void keyboard_wakeup_remove(struct task *);
 
 #endif

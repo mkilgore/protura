@@ -93,6 +93,7 @@ void bootmem_transfer_to_pmalloc(void)
 {
     int i;
     kprintf("bootmem: Transfering bootmem to pmalloc\n");
+    kprintf("bootmem: Size: %d\n", bootmem_allocator.bitmap_size * 8);
     for (i = 0; i < bootmem_allocator.bitmap_size * 8; i++)
         if (bootmem_allocator.bitmap[i / 8] & (1 << (i % 8)))
             pmalloc_page_set(bootmem_allocator.addr_start + (i * bootmem_allocator.page_size));

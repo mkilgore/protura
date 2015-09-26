@@ -18,6 +18,8 @@ childpid:
     .string "Child pid: \0"
 childstr:
     .string "In child! Pid: \0"
+pid_prefix:
+    .string ": \0"
 
 .macro SYSCALL sys
     movl $\sys, %eax
@@ -29,29 +31,32 @@ childstr:
     SYSCALL SYSCALL_PUTSTR
 .endm
 
+.macro PID_PREFIX pid
+    movl \pid, %ebx
+    SYSCALL SYSCALL_PUTINT
+    WRITE_STR pid_prefix
+.endm
+
 
 .extern term_putchar
 .globl fake_task_entry
 fake_task_entry:
+
     pushl %eax /* Push the char to print, we'll pop it into %ebx later */
 
     /* Display 'My Pid: pid' */
-    WRITE_STR str1
     SYSCALL SYSCALL_GETPID
-    movl %eax, %ebx
+    movl %eax, %edi /* Store our pid in %edi for future use */
+
+    PID_PREFIX %edi
+    WRITE_STR str1
+    movl %edi, %ebx
     SYSCALL SYSCALL_PUTINT
     WRITE_STR newl
-
-    /* Display 'My Parent: pid' */
-    WRITE_STR str3
-    SYSCALL SYSCALL_GETPPID
-    movl %eax, %ebx
-    SYSCALL SYSCALL_PUTINT
-    WRITE_STR newl
-
-    popl %ecx
 
     SYSCALL SYSCALL_FORK
+
+    popl %ecx
 
     /* Conditionally jump to 'child' or 'parent' code, depending on if we're
      * currently the child or parent from 'fork()'.
@@ -65,6 +70,7 @@ parent:
     /* Save child pid */
     movl %eax, %edx
 
+    PID_PREFIX %edi
     WRITE_STR childpid
     movl %edx, %ebx
     SYSCALL SYSCALL_PUTINT
@@ -73,13 +79,26 @@ parent:
     jmp charloop
 
 child:
+    /* Get our new pid */
+    SYSCALL SYSCALL_GETPID
+    movl %eax, %edi /* Store our pid in %edi for future use */
 
     incl %ecx
 
+    PID_PREFIX %edi
     WRITE_STR childstr
-    /*SYSCALL SYSCALL_GETPID
+    movl %edi, %ebx
+    SYSCALL SYSCALL_PUTINT
     movl %eax, %ebx
-    SYSCALL SYSCALL_PUTINT */
+    SYSCALL SYSCALL_PUTINT
+    WRITE_STR newl
+
+    /* Display 'My Parent: pid' */
+    PID_PREFIX %edi
+    WRITE_STR str3
+    SYSCALL SYSCALL_GETPPID
+    movl %eax, %ebx
+    SYSCALL SYSCALL_PUTINT
     WRITE_STR newl
 
     /* Fall through to charloop */

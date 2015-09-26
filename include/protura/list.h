@@ -114,6 +114,9 @@ static inline void list_new_first(struct list_head *head, struct list_node *new_
     struct list_node *first = head->n.next;
     struct list_node *new_last = new_first->prev;
 
+    if (first == new_first)
+        return ;
+
     /* Connect first and last list node together */
     last->next = first;
     first->prev = last;
@@ -131,6 +134,9 @@ static inline void list_new_last(struct list_head *head, struct list_node *new_l
     struct list_node *last = head->n.prev;
     struct list_node *first = head->n.next;
     struct list_node *new_first = new_last->next;
+
+    if (last == new_last)
+        return ;
 
     last->next = first;
     first->prev = last;
