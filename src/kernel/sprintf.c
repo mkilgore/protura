@@ -13,13 +13,13 @@
 struct printf_backbone_str {
     struct printf_backbone backbone;
     char *buf;
-    size_t left;
+    ksize_t left;
 };
 
 static void str_putchar(struct printf_backbone *b, char ch)
 {
     struct printf_backbone_str *str = container_of(b, struct printf_backbone_str, backbone);
-    if (str->left == 0)
+    if (str->left <= 0)
         return ;
 
     *str->buf = ch;
@@ -27,17 +27,25 @@ static void str_putchar(struct printf_backbone *b, char ch)
     str->left--;
 }
 
-static void str_putnstr(struct printf_backbone *b, const char *s, size_t len)
+static void str_putnstr(struct printf_backbone *b, const char *s, ksize_t len)
 {
     struct printf_backbone_str *str = container_of(b, struct printf_backbone_str, backbone);
-    size_t l;
+    ksize_t l;
 
-    for (l = 0; l < len; l++)
-        str->buf[l] = s[l];
-    str->buf += len;
+    if (str->left >= len) {
+        for (l = 0; l < len; l++)
+            str->buf[l] = s[l];
+        str->buf += len;
+        str->left -= len;
+    } else {
+        for (l = 0; l < str->left; l++)
+            str->buf[l] = s[l];
+        str->buf += str->left;
+        str->left = 0;
+    }
 }
 
-size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
+ksize_t snprintfv(char *buf, ksize_t len, const char *fmt, va_list lst)
 {
     struct printf_backbone_str str = {
         .backbone = {
@@ -52,16 +60,31 @@ size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
 
     *str.buf = '\0';
 
-    return len - str.left;
+    return len - str.left - 1;
 }
 
 
-size_t snprintf(char *buf, size_t len, const char *fmt, ...)
+ksize_t snprintf(char *buf, ksize_t len, const char *fmt, ...)
 {
-    size_t ret;
+    ksize_t ret;
     va_list lst;
     va_start(lst, fmt);
     ret = snprintfv(buf, len, fmt, lst);
+    va_end(lst);
+    return ret;
+}
+
+ksize_t sprintfv(char *buf, const char *fmt, va_list lst)
+{
+    return snprintfv(buf, SIZE_MAX, fmt, lst);
+}
+
+ksize_t sprintf(char *buf, const char *fmt, ...)
+{
+    ksize_t ret;
+    va_list lst;
+    va_start(lst, fmt);
+    ret = snprintfv(buf, SIZE_MAX, fmt, lst);
     va_end(lst);
     return ret;
 }

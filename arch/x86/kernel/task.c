@@ -40,13 +40,14 @@ void task_init(void)
 
 }
 
-static const char *task_states[] = {
+const char *task_states[] = {
+    [TASK_NONE]     = "no state",
     [TASK_SLEEPING] = "sleeping",
     [TASK_RUNNABLE] = "runnable",
     [TASK_RUNNING]  = "running",
 };
 
-void task_print(char *buf, size_t size, struct task *task)
+void task_print(char *buf, ksize_t size, struct task *task)
 {
     snprintf(buf, size, "Task: %s\n"
                         "Pid: %d\n"
@@ -295,5 +296,14 @@ struct task *task_fake_create(void)
     t->state = TASK_RUNNABLE;
 
     return t;
+}
+
+void task_free(struct task *t)
+{
+    task_paging_free(t);
+
+    pmalloc_pages_free(V2P(t->kstack_bot), KERNEL_STACK_PAGES);
+
+    kfree(t);
 }
 

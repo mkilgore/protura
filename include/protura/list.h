@@ -1,6 +1,8 @@
 #ifndef INCLUDE_PROTURA_LIST_H
 #define INCLUDE_PROTURA_LIST_H
 
+#include <protura/stddef.h>
+
 /* Very similar to the Linux-kernel list.h header (GPLv2) */
 
 struct list_node {
@@ -22,8 +24,11 @@ static inline void INIT_LIST_HEAD(struct list_head *list)
     list->n.prev = &list->n;
 }
 
-#define LIST_POISON1 ((void *)0x00001010)
-#define LIST_POISON2 ((void *)0x00002020)
+/* If both are NULL, then this node isn't currently in a list */
+static inline int list_node_is_in_list(struct list_node *node)
+{
+    return node->next || node->prev;
+}
 
 static inline void __list_add(struct list_node *new,
                               struct list_node *prev,
@@ -60,8 +65,8 @@ static inline void __list_del_entry(struct list_node *entry)
 static inline void list_del(struct list_node *entry)
 {
     __list_del_entry(entry);
-    entry->next = LIST_POISON1;
-    entry->prev = LIST_POISON2;
+    entry->next = NULL;
+    entry->prev = NULL;
 }
 
 static inline void list_replace(struct list_node *new, struct list_node *old)
@@ -219,6 +224,17 @@ static inline struct list_node *__list_take_last(struct list_head *head)
          &pos->member != &(head)->n; \
          pos = list_prev_entry(pos, member))
 
+#define list_foreach_take_entry(head, pos, member)                                  \
+    for (pos = list_empty(head)? NULL: list_take_first(head, typeof(*pos), member); \
+         pos;                                                                       \
+         pos = list_empty(head)? NULL: list_take_first(head, typeof(*pos), member))
+
+#define list_foreach_take_entry_reverse(head, pos, member) \
+    for (pos = list_empty(head)? NULL: list_take_last(head, typeof(*pos), member); \
+         &(pos)->member != NULL;                           \
+         pos = list_empty(head)? NULL: list_take_last(head, typeof(*pos), member))
+
 #define list_ptr_is_head(head, ptr) \
     ((ptr) == (&(head)->n))
+
 #endif

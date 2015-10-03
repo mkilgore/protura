@@ -8,7 +8,7 @@
 void com1_init(void);
 void com1_putchar(char c);
 void com1_putstr(const char *s);
-void com1_putnstr(const char *s, size_t len);
+void com1_putnstr(const char *s, ksize_t len);
 
 void com1_printfv(const char *s, va_list lst);
 void com1_printf(const char *s, ...) __printf(1, 2);

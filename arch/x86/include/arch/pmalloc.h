@@ -9,10 +9,10 @@ enum {
 };
 
 pa_t pmalloc_page_alloc(int flags);
-pa_t pmalloc_pages_alloc(int flags, size_t count);
+pa_t pmalloc_pages_alloc(int flags, ksize_t count);
 
 void pmalloc_page_free(pa_t page);
-void pmalloc_pages_free(pa_t page, size_t count);
+void pmalloc_pages_free(pa_t page, ksize_t count);
 
 void pmalloc_page_set(pa_t page);
 

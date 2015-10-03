@@ -11,7 +11,7 @@
 #include <protura/debug.h>
 #include <protura/char_buf.h>
 
-void char_buf_init(struct char_buf *buf, void *nbuffer, size_t buf_size)
+void char_buf_init(struct char_buf *buf, void *nbuffer, ksize_t buf_size)
 {
     memset(buf, 0, sizeof(*buf));
 
@@ -43,7 +43,7 @@ char char_buf_read_char(struct char_buf *buf)
     return data;
 }
 
-void char_buf_write(struct char_buf *buf, void *data, size_t data_len)
+void char_buf_write(struct char_buf *buf, void *data, ksize_t data_len)
 {
     if (buf->len - buf->end_pos >= data_len) {
         /* All the data can fit after end_pos, no wrapping nessisary */
@@ -66,7 +66,7 @@ void char_buf_write(struct char_buf *buf, void *data, size_t data_len)
     }
 }
 
-void char_buf_read(struct char_buf *buf, void *data, size_t data_len)
+void char_buf_read(struct char_buf *buf, void *data, ksize_t data_len)
 {
     if (buf->len - buf->start_pos >= data_len) {
         memcpy(data, buf->buffer + buf->start_pos, data_len);

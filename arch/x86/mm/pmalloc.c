@@ -25,7 +25,7 @@ static struct spinlock pmem_lock = SPINLOCK_INIT("pmalloc-lock");
 
 void pmalloc_init(va_t kernel_end, pa_t last_physical_address)
 {
-    size_t memory_byte_size;
+    ksize_t memory_byte_size;
 
     memory_byte_size = last_physical_address;
     if (memory_byte_size > 0x40000000)
@@ -69,7 +69,7 @@ pa_t pmalloc_page_alloc(int flags)
     return page;
 }
 
-pa_t pmalloc_pages_alloc(int flags, size_t count)
+pa_t pmalloc_pages_alloc(int flags, ksize_t count)
 {
     pa_t page;
 
@@ -85,7 +85,7 @@ void pmalloc_page_free(pa_t page)
         bitmap_alloc_free_page(&pmem_alloc, page);
 }
 
-void pmalloc_pages_free(pa_t page, size_t count)
+void pmalloc_pages_free(pa_t page, ksize_t count)
 {
     using_spinlock(&pmem_lock)
         bitmap_alloc_free_pages(&pmem_alloc, page, count);

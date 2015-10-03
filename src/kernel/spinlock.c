@@ -19,3 +19,21 @@ void spinlock_release(struct spinlock *lock)
     eflags_write(lock->eflags);
 }
 
+int spinlock_trylock(struct spinlock *lock)
+{
+    u32 eflags;
+    int got_lock;
+
+    eflags = eflags_read();
+    cli();
+
+    got_lock = xchg(&lock->locked, 1);
+
+    if (got_lock)
+        lock->eflags = eflags;
+    else
+        eflags_write(eflags);
+
+    return got_lock;
+}
+

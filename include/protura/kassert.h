@@ -6,17 +6,18 @@
 #include <protura/stddef.h>
 #include <protura/debug.h>
 
-#define BUG(str) \
+#define BUG(str, ...) \
     do { \
-        kprintf("BUG: at %s:%d/%s(): %s\n", __FILE__, __LINE__, __func__, str); \
-        panic(); \
+        kprintf("BUG: %s: %d/%s(): \"%s\"\n", __FILE__, __LINE__, __func__, str); \
+        panic(__VA_ARGS__); \
     } while (0)
 
-#define kassert(cond) \
+/* Called with 'condition' and then printf-like format string + arguments */
+#define kassert(cond, ...) \
     do { \
         int __kassert_cond = (cond); \
-        if (unlikely(__kassert_cond)) \
-            BUF(QQ(QQ(cond))); \
+        if (unlikely(!__kassert_cond)) \
+            BUG(QQ(QQ(cond)), __VA_ARGS__); \
     } while (0)
 
 #endif

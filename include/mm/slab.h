@@ -11,7 +11,7 @@ struct slab_alloc {
     struct slab_page_frame *first_frame;
 };
 
-void slab_info(struct slab_alloc *, char *buf, size_t buf_size);
+void slab_info(struct slab_alloc *, char *buf, ksize_t buf_size);
 
 void *slab_malloc(struct slab_alloc *);
 void slab_free(struct slab_alloc *, void *);

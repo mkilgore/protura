@@ -22,21 +22,15 @@ typedef int int32_t;
 typedef unsigned long long uint64_t;
 typedef long long int64_t;
 
-typedef uint32_t size_t;
-typedef int32_t ssize_t;
+typedef uint32_t ksize_t;
+
+#define SIZE_MAX ((ksize_t)-1)
 
 typedef uint32_t uintptr_t;
 typedef int32_t   intptr_t;
 
 /* General purpose int size */
 typedef unsigned int pint __attribute__((__mode__(__word__)));
-
-/*
-struct virtual_addr { void *a; } __packed;
-typedef struct virtual_addr va_t;
-
-struct physical_addr { uintptr_t p; } __packed;
-typedef struct physical_addr pa_t; */
 
 typedef void *    va_t;
 typedef uintptr_t pa_t;

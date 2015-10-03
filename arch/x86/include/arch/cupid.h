@@ -8,6 +8,8 @@
 #ifndef INCLUDE_ARCH_CUPID_H
 #define INCLUDE_ARCH_CUPID_H
 
+#include <protura/compiler.h>
+
 enum cpuid_vendors {
     CPUID_VENDOR_OLDAMD = 0,
     CPUID_VENDOR_AMD,

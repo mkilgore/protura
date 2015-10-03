@@ -14,7 +14,7 @@
 
 struct printf_backbone {
     void (*putchar) (struct printf_backbone *, char ch);
-    void (*putnstr) (struct printf_backbone *, const char *str, size_t len);
+    void (*putnstr) (struct printf_backbone *, const char *str, ksize_t len);
 };
 
 void basic_printf(struct printf_backbone *backbone, const char *s, ...) __printf(2, 3);

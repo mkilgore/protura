@@ -10,7 +10,7 @@
 
 #define NULL ((void *)0)
 
-#define offsetof(s, m) ((size_t)&(((s *)0)->m))
+#define offsetof(s, m) ((ksize_t)&(((s *)0)->m))
 
 #define alignof(t) __alignof__(t)
 
@@ -20,8 +20,13 @@
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
 
+#define SUCCESS 0
+
 #define TP2(x, y) x ## y
 #define TP(x, y) TP2(x, y)
+
+#define Q(x) #x
+#define QQ(x) Q(x)
 
 /* Macro black-magic
  *
@@ -59,8 +64,10 @@
  * its usage.
  */
 #define using_cond(cond, cmd1, cmd2)                               \
+    while (1)                                                      \
     if (0)                                                         \
-        TP(__using_finished, __LINE__): ;                          \
+        TP(__using_finished, __LINE__):                            \
+        break;                                                     \
     else                                                           \
         for (int __using_cond = 0;;)                               \
             if (1)                                                 \

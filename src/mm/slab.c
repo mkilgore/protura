@@ -30,7 +30,7 @@ struct slab_page_frame {
     struct page_frame_obj_empty *freelist;
 };
 
-void slab_info(struct slab_alloc *slab, char *buf, size_t buf_size)
+void slab_info(struct slab_alloc *slab, char *buf, ksize_t buf_size)
 {
     struct slab_page_frame *frame;
 

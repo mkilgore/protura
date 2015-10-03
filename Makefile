@@ -24,6 +24,7 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_VERSION_N="$(VERSION_N)"        \
             -DPROTURA_ARCH="$(ARCH)"                  \
             -DPROTURA_BITS=$(BITS)                    \
+			-D__KERNEL__                              \
             -I'./include' -I'./arch/$(ARCH)/include'
 
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
@@ -177,12 +178,14 @@ endef
 
 $(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
 
+DEP_LIST := $(foreach file,$(REAL_OBJS_y),$(dir $(file)).$(notdir $(file)))
+DEP_LIST := $(DEP_LIST:.o=.d)
 
 ifneq ($(MAKECMDGOALS),clean)
--include $(REAL_OBJS_y:.o=.d)
+-include $(DEP_LIST)
 endif
 
-CLEAN_LIST += $(REAL_OBJS_y:.o=.d)
+CLEAN_LIST += $(DEP_LIST)
 
 
 REAL_BOOT_TARGETS :=
@@ -247,14 +250,16 @@ $(objtree)/%.ld: $(srctree)/%.ldS
 	@echo " CPP     $@"
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
-$(objtree)/%.d: $(srctree)/%.ldS
+$(objtree)/.%.d: $(srctree)/%.ldS
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
 
-$(objtree)/%.d: $(srctree)/%.c
+$(objtree)/.%.d: $(srctree)/%.c
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
-$(objtree)/%.d: $(srctree)/%.S
+$(objtree)/.%.d: $(srctree)/%.S
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
+
+
 
 $(objtree)/%.o: $(objtree)/%.c
 	@echo " CC      $@"
@@ -268,14 +273,26 @@ $(objtree)/%.ld: $(objtree)/%.ldS
 	@echo " CPP     $@"
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
-$(objtree)/%.d: $(objtree)/%.ldS
+$(objtree)/.%.d: $(objtree)/%.ldS
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
 
-$(objtree)/%.d: $(objtree)/%.c
+$(objtree)/.%.d: $(objtree)/%.c
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
-$(objtree)/%.d: $(objtree)/%.S
+$(objtree)/.%.d: $(objtree)/%.S
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
+
+PHONY+=cscope
+cscope:
+	@echo " Generating cscope for arch $(ARCH)" 
+	$(Q)find ./ \
+		-path "./arch/*" ! -path "./arch/$(ARCH)/*" -prune -o \
+		-path "./scripts/*" -prune -o \
+		-name "*.[chsS]" -print \
+		> ./cscope.files
+	$(Q)cscope -b -q -k
+
+include ./tools/Makefile
 
 .PHONY: $(PHONY)
 

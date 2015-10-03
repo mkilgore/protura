@@ -23,7 +23,7 @@ static void timer_callback(struct idt_frame *frame)
     atomic32_inc(&ticks);
 
     if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0)
-        reschedule = 1;
+        reschedule_preempt = 1;
 }
 
 uint32_t timer_get_ticks(void)

@@ -138,9 +138,21 @@ static void __term_putchar_nocur(char ch)
         c = 0;
         r++;
         break;
-    case '\t':
-        c += (c % 8);
+
+    case '\r':
+        c = 0;
+        r++;
         break;
+
+    case '\t':
+        c += ((c + 2) % 8);
+        break;
+
+    case '\b':
+        if (c > 0)
+            c--;
+        break;
+
     default:
         glob_term.buf[r][c].chr = ch;
         glob_term.buf[r][c].color = glob_term.cur_col;
@@ -178,10 +190,10 @@ void term_putstr(const char *s)
     }
 }
 
-void term_putnstr(const char *s, size_t len)
+void term_putnstr(const char *s, ksize_t len)
 {
     using_spinlock(&glob_term.lock) {
-        size_t l;
+        ksize_t l;
         for (l = 0; l < len; l++)
             __term_putchar_nocur(s[l]);
 
@@ -194,7 +206,7 @@ static void term_printf_putchar(struct printf_backbone *b, char ch)
     term_putchar(ch);
 }
 
-static void term_printf_putnstr(struct printf_backbone *b, const char *s, size_t len)
+static void term_printf_putnstr(struct printf_backbone *b, const char *s, ksize_t len)
 {
     term_putnstr(s, len);
 }

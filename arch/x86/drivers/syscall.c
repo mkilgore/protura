@@ -31,7 +31,7 @@ static void syscall_handler(struct idt_frame *frame)
         term_printf("%s", (char *)frame->ebx);
         break;
     case SYSCALL_SLEEP:
-        scheduler_task_sleep(frame->ebx);
+        scheduler_task_waitms(frame->ebx);
         break;
     case SYSCALL_FORK:
         new = task_fork(current);

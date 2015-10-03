@@ -34,7 +34,7 @@ struct idt_identifier {
 static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
 
 atomic32_t intr_count = ATOMIC32_INIT(0);
-int reschedule = 0;
+int reschedule = 0, reschedule_preempt = 0;
 
 void irq_register_callback(uint8_t irqno, void (*handler)(struct idt_frame *), const char *id, enum irq_type type)
 {
@@ -87,6 +87,7 @@ void irq_global_handler(struct idt_frame *iframe)
     atomic32_inc(&ident->count);
 
     reschedule = 0;
+    reschedule_preempt = 0;
 
     /* Only actual INTERRUPT types increment the intr_count */
     if (ident->type == IRQ_INTERRUPT)
@@ -133,10 +134,20 @@ void irq_global_handler(struct idt_frame *iframe)
     /* If something set the reschedule flag and we're the last interrupt
      * (Meaning, we weren't fired while some other interrupt was going on, but
      * when a task was running), then we yield the current task, whcih
-     * reschedules a new task to start running. */
-    if (reschedule && atomic32_get(&intr_count) == 0) {
+     * reschedules a new task to start running.
+     *
+     * Note the separte reschedule_preempt flag - Preempted tasks are always
+     * marked TASK_RUNNABLE so they can be resumed from where they were
+     * preempted, even if they were not previously marked RUNNABLE.
+     */
+    if (atomic32_get(&intr_count) == 0) {
+        if (reschedule)
+            scheduler_task_yield();
+        else if (reschedule_preempt)
+            scheduler_task_yield_preempt();
+
         reschedule = 0;
-        scheduler_task_yield();
+        reschedule_preempt = 0;
     }
 }
 

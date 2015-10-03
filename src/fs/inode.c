@@ -15,34 +15,34 @@
 #include <protura/atomic.h>
 #include <mm/kmalloc.h>
 
+#include <fs/block.h>
+#include <fs/super.h>
 #include <fs/inode.h>
 
 #define INODE_HASH_SIZE 512
 
 static struct {
     struct spinlock lock;
-    struct list_head free_inodes;
 
     struct hlist_head inode_hashes[INODE_HASH_SIZE];
 
-    ino_t next_ino;
+    kino_t next_ino;
 } inode_list = {
     .lock = SPINLOCK_INIT("Inode table lock"),
-    .free_inodes = LIST_HEAD_INIT(inode_list.free_inodes),
     .inode_hashes = { { .first = NULL } },
     .next_ino = 1,
 };
 
 #define INODE_LIST_GROW_COUNT 20
 
-static inline int inode_hash_get(dev_t dev, ino_t ino)
+static inline int inode_hash_get(kdev_t dev, kino_t ino)
 {
-    return (ino ^ dev) % INODE_HASH_SIZE;
+    return (ino ^ (DEV_MAJOR(dev) + DEV_MINOR(dev))) % INODE_HASH_SIZE;
 }
 
 static void inode_hash(struct inode *inode)
 {
-    int hash = inode_hash_get(inode->i_dev, inode->i_ino);
+    int hash = inode_hash_get(inode->dev, inode->ino);
     if (hlist_hashed(&inode->hash_entry))
         hlist_del(&inode->hash_entry);
 
@@ -50,62 +50,35 @@ static void inode_hash(struct inode *inode)
         hlist_add(inode_list.inode_hashes + hash, &inode->hash_entry);
 }
 
-static void inode_list_grow(void)
-{
-    int i;
-
-    using_spinlock(&inode_list.lock) {
-        for (i = 0; i < INODE_LIST_GROW_COUNT; i++) {
-            struct inode *inode = kmalloc(sizeof(*inode), PMAL_KERNEL);
-            memset(inode, 0, sizeof(*inode));
-            list_add(&inode_list.free_inodes, &inode->free_entry);
-        }
-    }
-}
-
-struct inode *inode_new(void)
-{
-    struct inode *inode;
-    int empty;
-
-    using_spinlock(&inode_list.lock)
-        empty = list_empty(&inode_list.free_inodes);
-
-    if (empty)
-        inode_list_grow();
-
-    using_spinlock(&inode_list.lock) {
-        inode = list_take_first(&inode_list.free_inodes, struct inode, free_entry);
-        inode->i_ino = inode_list.next_ino++;
-    }
-
-    return inode;
-}
-
 void inode_put(struct inode *inode)
 {
+    struct super_block *sb = inode->sb;
     atomic32_dec(&inode->ref);
+
+    using_inode(inode)
+        if (inode->dirty && atomic32_get(&inode->ref) == 0)
+            sb->ops->write_inode(sb, inode);
 }
 
-struct inode *inode_get(dev_t dev, ino_t ino)
+struct inode *inode_get(struct super_block *sb, kino_t ino)
 {
-    int hash = inode_hash_get(dev, ino);
+    int hash = inode_hash_get(sb->dev, ino);
     struct inode *inode;
+
     using_spinlock(&inode_list.lock)
         hlist_foreach_entry(&inode_list.inode_hashes[hash], inode, hash_entry)
-            if (inode->i_ino == ino && inode->i_dev == dev)
+            if (inode->ino == ino && inode->dev == sb->dev)
                 break;
 
     if (inode)
-        atomic32_inc(&inode->ref);
+        goto return_inode;
+
+    inode = sb->ops->read_inode(sb, ino);
+
+    inode_hash(inode);
+
+  return_inode:
+    atomic32_inc(&inode->ref);
     return inode;
-}
-
-void inode_free(struct inode *inode)
-{
-
-    memset(inode, 0, sizeof(*inode));
-    using_spinlock(&inode_list.lock)
-        list_add(&inode_list.free_inodes, &inode->free_entry);
 }
 

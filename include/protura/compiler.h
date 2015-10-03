@@ -13,7 +13,10 @@
 #define barrier() __asm__ __volatile__("": : :"memory")
 
 #define noinline __attribute__((noinline))
-#define __always_inline    inline __attribute__((always_inline))
+
+#ifndef __always_inline
+# define __always_inline    inline __attribute__((always_inline))
+#endif
 
 #define __noreturn __attribute__((noreturn))
 

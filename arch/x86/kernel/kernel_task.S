@@ -3,6 +3,7 @@ kernel_exit_string:
     .ascii "Kernel thread exited with: %d\n\0"
 
 .extern kprintf
+.extern scheduler_task_exit
 
 
 /* A separate way to start a kernel_task - This turns on interrupts before
@@ -18,14 +19,13 @@ kernel_task_entry:
 
     pop %ebx
 
-    # Call the kernel thread function
+    /* Call the kernel thread function */
     call *%ebx
 
-    # Push the exit-code from the thread
-    # And display it
+    /* Call 'scheduler_task_exit()' with the exit code */
     pushl %eax
-    pushl kernel_exit_string
-    call kprintf
+    call scheduler_task_exit
+    /* Loop just in case there is a problem -- In working conditions exit should never return */
 1: jmp 1b
 
 .global kernel_task_entry_addr

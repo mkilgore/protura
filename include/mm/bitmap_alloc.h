@@ -7,7 +7,7 @@ struct bitmap_alloc {
     uintptr_t addr_start;
 
     uint32_t page_count;
-    size_t page_size;
+    ksize_t page_size;
 
     uint32_t bitmap_size;
     uint8_t *bitmap;

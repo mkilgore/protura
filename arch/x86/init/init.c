@@ -13,10 +13,11 @@
 #include <protura/string.h>
 #include <mm/memlayout.h>
 #include <mm/kmalloc.h>
-#include <fs/vfsnode.h>
+#include <fs/block.h>
 
 #include <arch/asm.h>
 #include <drivers/term.h>
+#include <drivers/ide.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include <arch/init.h>
@@ -38,7 +39,8 @@ struct sys_init arch_init_systems[] = {
     { "pic8259_timer", pic8259_timer_init },
     { "keyboard", keyboard_init },
     { "syscall", syscall_init },
-
+    { "block-cache", block_cache_init },
+    { "block-device", block_dev_init },
     { NULL, NULL }
 };
 

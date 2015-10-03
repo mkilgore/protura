@@ -14,38 +14,51 @@ struct inode;
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/atomic.h>
-#include <fs/vfsnode.h>
-#include <fs/stat.h>
-
-typedef uint32_t ino_t;
-typedef uint32_t dev_t;
-typedef uint16_t umode_t;
+#include <protura/semaphore.h>
 
 struct inode_ops;
+struct super_block;
+
 
 struct inode {
-    ino_t i_ino;
-    dev_t i_dev;
-    off_t i_size;
-    umode_t i_mode;
+    kino_t ino;
+    kdev_t dev;
+    koff_t size;
+    kumode_t mode;
 
-    struct inode_ops *ops;
+    uint32_t valid :1;
+    uint32_t dirty :1;
+
+    mutex_t lock;
 
     atomic32_t ref;
 
-    uint32_t links;
+    struct super_block *sb;
+    struct inode_ops *ops;
 
-     /* Entry in either the inode hash table, or free inode table */
-    struct list_node free_entry;
     struct hlist_node hash_entry;
 };
 
 struct inode_ops {
     struct file_ops *default_file_ops;
-    int (*create) (struct inode *dir, const char *, int len, umode_t mode, struct inode **result);
+    int (*create) (struct inode *dir, const char *, int len, kumode_t mode, struct inode **result);
 };
 
-struct inode *inode_new(void);
-void inode_free(struct inode *);
+struct inode *inode_get(struct super_block *, kino_t ino);
+void inode_put(struct inode *);
+
+
+static inline void inode_lock(struct inode *inode)
+{
+    mutex_lock(&inode->lock);
+}
+
+static inline void inode_unlock(struct inode *inode)
+{
+    mutex_unlock(&inode->lock);
+}
+
+#define using_inode(inode) \
+    using_nocheck(inode_lock(inode), inode_unlock(inode))
 
 #endif

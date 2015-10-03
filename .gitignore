@@ -3,3 +3,6 @@
 imgs/*
 config.mk
 debug_start.sh
+cscope*
+disk.img
+

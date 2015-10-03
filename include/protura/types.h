@@ -10,6 +10,7 @@
 
 #include <arch/types.h>
 #include <protura/stddef.h>
+#include <protura/compiler.h>
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -21,7 +22,15 @@ typedef int16_t s16;
 typedef int32_t s32;
 typedef int64_t s64;
 
-typedef long off_t;
-typedef uint32_t pid_t;
+typedef long koff_t;
+typedef uint32_t kpid_t;
+
+typedef uint32_t kmode_t;
+
+typedef uint32_t kdev_t;
+typedef uint32_t ksector_t;
+
+typedef uint32_t kino_t;
+typedef uint16_t kumode_t;
 
 #endif

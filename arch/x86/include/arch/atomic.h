@@ -16,10 +16,6 @@ typedef struct {
     int32_t counter;
 } atomic32_t;
 
-typedef struct {
-    int64_t counter;
-} atomic64_t;
-
 #define ATOMIC32_INIT(i) { (i) }
 #define ATOMIC64_INIT(i) { (i) }
 
@@ -58,5 +54,14 @@ static __always_inline void atomic32_dec(atomic32_t *v)
     asm volatile(LOCK_PREFIX "decl %0"
             : "+m" (v->counter));
 }
+
+typedef atomic32_t atomic_t;
+
+#define atomic_get(a)    atomic32_get(a)
+#define atomic_set(a, i) atomic32_set(a, i)
+#define atomic_add(a, i) atomic32_add(a, i)
+#define atomic_sub(a, i) atomic32_sub(a, i)
+#define atomic_inc(a)    atomic32_inc(a)
+#define atomic_dec(a)    atomic32_dec(a)
 
 #endif

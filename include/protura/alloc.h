@@ -8,6 +8,8 @@
 #ifndef INCLUDE_PROTURA_ALLOC_H
 #define INCLUDE_PROTURA_ALLOC_H
 
+#include <protura/types.h>
+
 struct allocator {
     uintptr_t addr_start;
     uint32_t pages;

@@ -7,6 +7,7 @@
 
 struct cpu_info {
     int cpu_id;
+    int cli_count; /* Current count of cli's done in sucession on this CPU */
 
     struct task *current;
     struct tss_entry tss;

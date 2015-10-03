@@ -45,6 +45,14 @@ static void set_leds(void)
         ;
 }
 
+int keyboard_has_char(void)
+{
+    if (atomic32_get(&keyboard.has_keys))
+        return 1;
+    else
+        return 0;
+}
+
 int keyboard_get_char(void)
 {
     short ch;
@@ -88,10 +96,10 @@ static void keyboard_interrupt_handler(struct idt_frame *frame)
     if (scancode == (0x80 + KEY_LEFT_SHIFT) || scancode == (0x80 + KEY_RIGHT_SHIFT))
         keyboard.control_keys &= ~CK_SHIFT;
 
-    if (scancode == CK_ALT)
+    if (scancode == KEY_ALT)
         keyboard.control_keys |= CK_ALT;
 
-    if (scancode == (0x80 + CK_ALT))
+    if (scancode == (0x80 + KEY_ALT))
         keyboard.control_keys &= ~CK_ALT;
 
     if (scancode & 0x80)

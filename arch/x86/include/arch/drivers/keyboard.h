@@ -45,6 +45,7 @@ enum {
 };
 
 void keyboard_init(void);
+int keyboard_has_char(void);
 int keyboard_get_char(void);
 
 void keyboard_wakeup_add(struct task *);

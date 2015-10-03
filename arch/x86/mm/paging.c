@@ -128,7 +128,7 @@ void paging_map_phys_to_virt(pa_t page_dir, va_t virt, pa_t phys)
     cur_page_table->table[page_off].entry = PAGING_FRAME(phys) | PTE_PRESENT | PTE_WRITABLE | PTE_USER;
 }
 
-void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, size_t page_count)
+void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, ksize_t page_count)
 {
     uintptr_t virt_ptr = (uintptr_t)virt;
     for (; page_count != 0; page_count--, virt_ptr += 0x1000, phys_start += 0x1000)

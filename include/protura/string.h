@@ -12,16 +12,16 @@
 #include <arch/string.h>
 
 #ifndef _STRING_ARCH_MEMCMP
-int    memcmp(const void *, const void *, size_t);
+int    memcmp(const void *, const void *, ksize_t);
 #endif
 #ifndef _STRING_ARCH_MEMCPY
-void  *memcpy(void *restrict, const void *restrict, size_t);
+void  *memcpy(void *restrict, const void *restrict, ksize_t);
 #endif
 #ifndef _STRING_ARCH_MEMMOVE
-void  *memmove(void *, const void *, size_t);
+void  *memmove(void *, const void *, ksize_t);
 #endif
 #ifndef _STRING_ARCH_MEMSET
-void  *memset(void *, int, size_t);
+void  *memset(void *, int, ksize_t);
 #endif
 
 #ifndef _STRING_ARCH_STRCPY
@@ -34,18 +34,21 @@ char  *strcat(char *restrict, const char *restrict);
 int    strcmp(const char *, const char *);
 #endif
 #ifndef _STRING_ARCH_STRLEN
-size_t strlen(const char *);
+ksize_t strlen(const char *);
+#endif
+#ifndef _STRING_ARCH_STRNLEN
+ksize_t strnlen(const char *, ksize_t len);
 #endif
 
 
 #ifndef _STRING_ARCH_STRNCPY
-char  *strncpy(char *restrict, const char *restrict, size_t len);
+char  *strncpy(char *restrict, const char *restrict, ksize_t len);
 #endif
 #ifndef _STRING_ARCH_STRNCAT
-char  *strncat(char *restrict, const char *restrict, size_t len);
+char  *strncat(char *restrict, const char *restrict, ksize_t len);
 #endif
 #ifndef _STRING_ARCH_STRNCMP
-int    strncmp(const char *, const char *, size_t len);
+int    strncmp(const char *, const char *, ksize_t len);
 #endif
 
 #endif
