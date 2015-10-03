@@ -7,6 +7,8 @@ disk.img: ./tools/gendisk
 	@echo " CCLD    tools/gendisk"
 	$(Q)gcc -I./include -I./arch/$(ARCH)/include -o $@ $< 
 
+CLEAN_LIST += ./disk.img ./tools/gendisk
+
 PHONY += gendisk
 gendisk: disk.img
 
