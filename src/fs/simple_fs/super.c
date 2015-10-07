@@ -9,16 +9,15 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/spinlock.h>
 #include <protura/list.h>
 #include <protura/semaphore.h>
 #include <protura/dump_mem.h>
 #include <mm/kmalloc.h>
 
+#include <arch/spinlock.h>
 #include <fs/block.h>
+#include <fs/file_system.h>
 #include <fs/simple_fs.h>
-
-static char output[80 * 512 / 16 + 1];
 
 static struct inode *simple_fs_read_inode(struct super_block *sb, kino_t ino)
 {
@@ -26,7 +25,7 @@ static struct inode *simple_fs_read_inode(struct super_block *sb, kino_t ino)
     struct simple_fs_disk_inode *diski;
     struct block *b;
 
-    inode = kzmalloc(sizeof(*inode), PMAL_KERNEL);
+    inode = kzalloc(sizeof(*inode), PMAL_KERNEL);
 
     mutex_init(&inode->i.lock);
 
@@ -38,9 +37,6 @@ static struct inode *simple_fs_read_inode(struct super_block *sb, kino_t ino)
 
     using_block(sb->dev, ino, b) {
         diski = (struct simple_fs_disk_inode *)b->data;
-
-        dump_mem(output, sizeof(output), b->data, 512, ino * 512);
-        kprintf("%s\n", output);
 
         inode->i.size = diski->size;
         memcpy(inode->contents, diski->sectors, sizeof(diski->sectors));
@@ -113,7 +109,7 @@ struct super_block *simple_fs_read_sb(kdev_t dev)
     struct simple_fs_disk_sb *disksb;
     struct block *b;
 
-    sb = kzmalloc(sizeof(*sb), PMAL_KERNEL);
+    sb = kzalloc(sizeof(*sb), PMAL_KERNEL);
 
     sb->sb.bdev = block_dev_get(dev);
     sb->sb.dev = dev;
@@ -131,5 +127,15 @@ struct super_block *simple_fs_read_sb(kdev_t dev)
     sb->sb.root = inode_get(&sb->sb, sb->root_ino);
 
     return &sb->sb;
+}
+
+static struct file_system simple_fs_fs = {
+    .name = "simple_fs",
+    .read_sb = simple_fs_read_sb,
+};
+
+void simple_fs_init(void)
+{
+    file_system_register(&simple_fs_fs);
 }
 

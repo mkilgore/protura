@@ -2,7 +2,6 @@
 #define INCLUDE_PROTURA_KASSERT_H
 
 #include <protura/compiler.h>
-#include <protura/kprintf.h>
 #include <protura/stddef.h>
 #include <protura/debug.h>
 

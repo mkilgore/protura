@@ -25,5 +25,3 @@ for (my $i = 0; $i < 4; $i++) {
     print ".endr\n";
 }
 
-
-

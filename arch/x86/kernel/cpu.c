@@ -3,9 +3,9 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/snprintf.h>
+#include <protura/scheduler.h>
 
 #include <arch/task.h>
-#include <arch/scheduler.h>
 #include <arch/memlayout.h>
 #include <arch/pmalloc.h>
 #include <arch/asm.h>

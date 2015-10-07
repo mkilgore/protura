@@ -8,6 +8,7 @@
 
 #include <protura/stdarg.h>
 #include <protura/types.h>
+#include <protura/limits.h>
 #include <protura/basic_printf.h>
 
 struct printf_backbone_str {

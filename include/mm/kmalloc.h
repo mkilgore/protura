@@ -18,7 +18,7 @@ void *kmalloc(ksize_t size, int flags);
 ksize_t ksize(void *p);
 void  kfree(void *p);
 
-static inline void *kzmalloc(ksize_t size, int flags)
+static inline void *kzalloc(ksize_t size, int flags)
 {
     void *m = kmalloc(size, flags);
     if (m)

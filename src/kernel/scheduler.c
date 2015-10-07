@@ -10,7 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
-#include <protura/spinlock.h>
+#include <arch/spinlock.h>
 #include <protura/snprintf.h>
 #include <protura/kassert.h>
 #include <mm/kmalloc.h>
@@ -27,19 +27,20 @@
 #include <arch/backtrace.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
-#include "irq_handler.h"
 #include <arch/paging.h>
 #include <arch/asm.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
-#include <arch/scheduler.h>
+#include <protura/scheduler.h>
 
 
 /* ktasks is the current list of tasks the scheduler is holding.
  *
  * 'list' is the current list of struct task tasks that the scheduler could schedule.
  *
- * 'empty' is a holding place for 'struct task' objects that are empty and could be reused.
+ * 'dead' is a list of tasks that have been killed and need to be cleaned up.
+ *      - The scheduler handles this because a task can't clean itself up from
+ *        it's own task. For example, a task can't free it's own stack.
  *
  * 'next_pid' is the next pid to assign to a new 'struct task'.
  *
@@ -115,20 +116,16 @@ void scheduler_task_yield(void)
         __yield(t);
 }
 
-/* yield_preempt() saves the current task's state and forces it to be RUNNABLE.
+/* yield_preempt() sets the 'preempted' flag on the task before yielding.
  *
  * This is important beacuse if we preempt a task that's not RUNNABLE, it needs
- * to continue running anyway - If it doesn't want to be RUNNABLE anymore then
- * it will call __yield() directly when ready. */
+ * to get scheduled anyway - If it doesn't want to be run anymore then it will
+ * call __yield() directly when ready. */
 void scheduler_task_yield_preempt(void)
 {
     struct task *t = cpu_get_local()->current;
 
-    if (t->state != TASK_RUNNING)
-        t->preempt_state = t->state;
-
-    t->state = TASK_RUNNING;
-
+    t->preempted = 1;
     using_spinlock(&ktasks.lock)
         __yield(t);
 }
@@ -196,6 +193,14 @@ void scheduler(void)
          * keep the same ordering and ensure that the next task we run is a
          * task we haven't checked yet. */
         list_foreach_entry(&ktasks.list, t, task_list_node) {
+
+            /* If a task was preempted, then we start it again, reguardless of
+             * it's current state */
+            if (t->preempted) {
+                t->preempted = 0;
+                goto found_task;
+            }
+
             switch (t->state) {
             case TASK_RUNNABLE:
                 goto found_task;
@@ -237,13 +242,6 @@ void scheduler(void)
          * Once the task_switch happens, */
         t->state = TASK_RUNNING;
         cpu_get_local()->current = t;
-
-        /* If preempt_state is set, then it means we preempted a task which had
-         * a different 'state' then TASK_RUNNING. We restore that state here. */
-        if (t->preempt_state == TASK_NONE) {
-            t->state = t->preempt_state;
-            t->preempt_state = TASK_NONE;
-        }
 
         task_switch(&cpu_get_local()->scheduler, t);
 
@@ -355,6 +353,19 @@ void wait_queue_wake(struct wait_queue *queue)
                 t->state = TASK_RUNNABLE;
                 break;
             }
+        }
+    }
+}
+
+void wait_queue_wake_all(struct wait_queue *queue)
+{
+    struct wait_queue_node *node;
+    struct task *t;
+
+    using_spinlock(&queue->lock) {
+        list_foreach_take_entry(&queue->queue, node, node) {
+            t = container_of(node, struct task, wait);
+            scheduler_task_wake(t);
         }
     }
 }

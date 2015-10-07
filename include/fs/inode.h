@@ -31,7 +31,7 @@ struct inode {
 
     mutex_t lock;
 
-    atomic32_t ref;
+    atomic_t ref;
 
     struct super_block *sb;
     struct inode_ops *ops;
@@ -41,7 +41,9 @@ struct inode {
 
 struct inode_ops {
     struct file_ops *default_file_ops;
+
     int (*create) (struct inode *dir, const char *, int len, kumode_t mode, struct inode **result);
+    ksector_t (*bmap) (struct inode *, ksector_t);
 };
 
 struct inode *inode_get(struct super_block *, kino_t ino);

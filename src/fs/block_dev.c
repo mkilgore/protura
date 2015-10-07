@@ -9,7 +9,6 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/spinlock.h>
 #include <mm/kmalloc.h>
 #include <fs/block.h>
 #include <protura/dev.h>

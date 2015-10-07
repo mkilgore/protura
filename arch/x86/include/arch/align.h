@@ -5,9 +5,13 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_PROTURA_SPINLOCK_H
-#define INCLUDE_PROTURA_SPINLOCK_H
+#ifndef INCLUDE_ARCH_ALIGN_H
+#define INCLUDE_ARCH_ALIGN_H
 
-#include <arch/spinlock.h>
+#include <protura/compiler.h>
+
+#define CACHELINE_SIZE 64
+
+#define __align_cacheline __align(CACHELINE_SIZE)
 
 #endif

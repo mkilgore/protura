@@ -8,7 +8,9 @@
 #ifndef INCLUDE_ARCH_PAGING_H
 #define INCLUDE_ARCH_PAGING_H
 
-#define PG_SIZE (0x1000)
+#define PG_SHIFT (12)
+
+#define PG_SIZE (1 << PG_SHIFT)
 
 #define CR0_PE 0x00000001
 #define CR0_MP 0x00000002
@@ -23,6 +25,7 @@
 #define CR0_PG 0x80000000
 
 #define CR4_PSE 0x00000010
+#define CR4_GLOBAL 0x00000080
 
 #define PDE_PRESENT        0x001
 #define PDE_WRITABLE       0x002
@@ -62,6 +65,8 @@
 
 #define PAGING_FRAME(entry) ((entry) & PAGING_FRAME_MASK)
 
+#define __PN(addr) ((uint32_t)(addr) >> PG_SHIFT)
+
 #ifndef ASM
 
 #include <protura/types.h>
@@ -81,7 +86,7 @@ struct page_directory_entry {
             uint32_t accessed :1;
             uint32_t zero :1;
             uint32_t page_size :1;
-            uint32_t ingored :1;
+            uint32_t ignored :1;
             uint32_t reserved :3;
             uint32_t addr :20;
         };
@@ -114,6 +119,8 @@ struct page_directory {
 struct page_table {
     struct page_table_entry table[1024];
 };
+
+typedef struct page_directory pd_t;
 
 extern struct page_directory kernel_dir;
 
@@ -149,7 +156,7 @@ static __always_inline void flush_tlb_single(va_t addr)
     asm volatile("invlpg (%0)"::"r" (addr): "memory");
 }
 
-void paging_init(va_t kern_end, pa_t phys_end);
+void paging_setup_kernelspace(void **kbrk);
 
 void paging_map_phys_to_virt(pa_t page_dir, va_t virt_start, pa_t phys);
 void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, ksize_t page_count);

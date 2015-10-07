@@ -9,6 +9,7 @@
 #define INCLUDE_PROTURA_BITS
 
 #include <protura/limits.h>
+#include <arch/bitops.h>
 
 #define HEX(n) 0x ## n ## UL
 #define BINARY(x) (((x & 0x0000000FUL)? 1: 0) \
@@ -23,18 +24,5 @@
 #define b8(bin) ((unsigned char)BINARY(HEX(bin)))
 #define b16(binhigh, binlow) (((unsigned short)b8(binhigh) << 8) + b8(binlow))
 #define b32(binhigh, binmid1, binmid2, binlow) (((unsigned int)b8(binhigh) << 24) + (b8(binmid1) << 16) + (b8(binmid2) << 8) + b8(binlow))
-
-
-#define bit_per_entry(bitmap) (sizeof(*(bitmap)) * CHAR_BIT)
-#define bit_get(bitmap, bit) (((bitmap)[(bit) / bit_per_entry(bitmap)]) & (1 << ((bit) % bit_per_entry(bitmap))))
-
-#define bit_set(bitmap, bit, val) \
-    do { \
-        if ((val)) \
-            (bitmap)[(bit) / bit_per_entry(bitmap)] |= (1 << ((bit) % (bit_per_entry(bitmap)))); \
-        else \
-            (bitmap)[(bit) / bit_per_entry(bitmap)] &= ~(1 << ((bit) % (bit_per_entry(bitmap)))); \
-    } while (0)
-
 
 #endif

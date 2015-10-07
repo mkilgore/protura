@@ -11,7 +11,7 @@
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/string.h>
-#include <protura/spinlock.h>
+#include <arch/spinlock.h>
 #include <protura/atomic.h>
 #include <mm/kmalloc.h>
 
@@ -22,7 +22,7 @@
 #define INODE_HASH_SIZE 512
 
 static struct {
-    struct spinlock lock;
+    spinlock_t lock;
 
     struct hlist_head inode_hashes[INODE_HASH_SIZE];
 
@@ -53,10 +53,10 @@ static void inode_hash(struct inode *inode)
 void inode_put(struct inode *inode)
 {
     struct super_block *sb = inode->sb;
-    atomic32_dec(&inode->ref);
+    atomic_dec(&inode->ref);
 
     using_inode(inode)
-        if (inode->dirty && atomic32_get(&inode->ref) == 0)
+        if (inode->dirty && atomic_get(&inode->ref) == 0)
             sb->ops->write_inode(sb, inode);
 }
 
@@ -78,7 +78,7 @@ struct inode *inode_get(struct super_block *sb, kino_t ino)
     inode_hash(inode);
 
   return_inode:
-    atomic32_inc(&inode->ref);
+    atomic_inc(&inode->ref);
     return inode;
 }
 

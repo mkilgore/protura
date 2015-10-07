@@ -10,7 +10,6 @@
 #include <protura/debug.h>
 #include <drivers/term.h>
 #include <config/autoconf.h>
-#include <protura/skprintf.h>
 
 #include <arch/debug.h>
 #include <arch/backtrace.h>

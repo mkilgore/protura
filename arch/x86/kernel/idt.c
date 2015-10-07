@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/atomic.h>
+#include <protura/scheduler.h>
 #include <mm/memlayout.h>
 
 #include "irq_handler.h"
@@ -18,7 +19,6 @@
 #include <arch/gdt.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
-#include <arch/scheduler.h>
 #include <arch/idt.h>
 
 static struct idt_ptr idt_ptr;

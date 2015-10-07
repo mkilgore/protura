@@ -10,26 +10,11 @@
 
 #include <config/autoconf.h>
 #include <protura/types.h>
-#include <protura/spinlock.h>
+#include <arch/spinlock.h>
 #include <protura/atomic.h>
 #include <protura/char_buf.h>
 #include <arch/task.h>
-#include <arch/scheduler.h>
-
-struct keyboard {
-    uint8_t led_status;
-    uint8_t control_keys;
-
-    atomic32_t has_keys;
-
-    short buffer[CONFIG_KEYBOARD_BUFSZ];
-
-    struct char_buf buf;
-    struct spinlock buf_lock;
-    struct wakeup_list watch_list;
-};
-
-extern struct keyboard keyboard;
+#include <protura/scheduler.h>
 
 enum {
     KEY_HOME = 0x4700,

@@ -199,11 +199,13 @@ CLEAN_LIST += $$(OBJS_$(1))
 
 $$(_expand): $$(EXE_OBJ) $$(OBJS_$(1))
 	@echo " CCLD    $$@"
-	$$(Q)$$(CC) -o $$@ $$(OBJS_$(1)) $$< $$(LDFLAGS) $$(LDFLAGS_$(1)) 
+	$$(Q)$$(CC) $$(LDFLAGS) $$(LDFLAGS_$(1)) -o $$@ $$(OBJS_$(1)) $$< 
 
 endef
 
 $(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
+
+EXTRA_TARGETS += disk.img
 
 # Actual entry
 real-all: configure $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
@@ -228,8 +230,10 @@ dist: clean
 
 clean:
 	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ); do \
-		echo " RM      $$file"; \
-		rm -f $$file; \
+		if [ -e $$file ]; then \
+		    echo " RM      $$file"; \
+			rm -rf $$file; \
+		fi \
 	done
 	@echo " RM      $(objtree)/imgs"
 	$(Q)rm -fr $(objtree)/imgs

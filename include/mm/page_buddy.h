@@ -5,11 +5,9 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_ARCH_KBRK_H
-#define INCLUDE_ARCH_KBRK_H
+#ifndef INCLUDE_MM_PAGE_BUDDY_H
+#define INCLUDE_MM_PAGE_BUDDY_H
 
-#include <protura/types.h>
-
-void kmalloc_init(void);
+#include <mm/palloc.h>
 
 #endif

@@ -14,6 +14,7 @@
 #include <protura/limits.h>
 #include <mm/memlayout.h>
 
+#include <arch/spinlock.h>
 #include <arch/paging.h>
 #include <arch/pmalloc.h>
 #include <mm/slab.h>
@@ -30,7 +31,7 @@ struct slab_page_frame {
     struct page_frame_obj_empty *freelist;
 };
 
-void slab_info(struct slab_alloc *slab, char *buf, ksize_t buf_size)
+void __slab_info(struct slab_alloc *slab, char *buf, ksize_t buf_size)
 {
     struct slab_page_frame *frame;
 
@@ -39,7 +40,7 @@ void slab_info(struct slab_alloc *slab, char *buf, ksize_t buf_size)
         snprintf(buf, buf_size, "  frame (%p): %d objects\n", frame, frame->object_count);
 }
 
-static struct slab_page_frame *slab_frame_new(struct slab_alloc *slab)
+static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab)
 {
     char *obj;
     struct page_frame_obj_empty **current;
@@ -68,7 +69,7 @@ static struct slab_page_frame *slab_frame_new(struct slab_alloc *slab)
     return newframe;
 }
 
-static void slab_frame_free(struct slab_page_frame *frame)
+static void __slab_frame_free(struct slab_page_frame *frame)
 {
     if (frame->pages > 1)
         pmalloc_pages_free(V2P(frame), frame->pages);
@@ -76,7 +77,7 @@ static void slab_frame_free(struct slab_page_frame *frame)
         pmalloc_page_free(V2P(frame));
 }
 
-static void *slab_frame_object_alloc(struct slab_page_frame *frame)
+static void *__slab_frame_object_alloc(struct slab_page_frame *frame)
 {
     struct page_frame_obj_empty *obj, *next;
     if (!frame->freelist)
@@ -89,7 +90,7 @@ static void *slab_frame_object_alloc(struct slab_page_frame *frame)
     return obj;
 }
 
-static void slab_frame_object_free(struct slab_page_frame *frame, void *obj)
+static void __slab_frame_object_free(struct slab_page_frame *frame, void *obj)
 {
     struct page_frame_obj_empty *new = obj, **current;
 
@@ -102,20 +103,20 @@ static void slab_frame_object_free(struct slab_page_frame *frame, void *obj)
     }
 }
 
-void *slab_malloc(struct slab_alloc *slab)
+void *__slab_malloc(struct slab_alloc *slab)
 {
     struct slab_page_frame **frame = &slab->first_frame;
 
     for (frame = &slab->first_frame; *frame; frame = &((*frame)->next))
         if ((*frame)->freelist)
-            return slab_frame_object_alloc(*frame);
+            return __slab_frame_object_alloc(*frame);
 
-    *frame = slab_frame_new(slab);
+    *frame = __slab_frame_new(slab);
 
-    return slab_frame_object_alloc(*frame);
+    return __slab_frame_object_alloc(*frame);
 }
 
-int slab_has_addr(struct slab_alloc *slab, void *addr)
+int __slab_has_addr(struct slab_alloc *slab, void *addr)
 {
     struct slab_page_frame *frame;
     for (frame = slab->first_frame; frame; frame = frame->next)
@@ -125,12 +126,12 @@ int slab_has_addr(struct slab_alloc *slab, void *addr)
     return 1;
 }
 
-void slab_free(struct slab_alloc *slab, void *obj)
+void __slab_free(struct slab_alloc *slab, void *obj)
 {
     struct slab_page_frame *frame;
     for (frame = slab->first_frame; frame; frame = frame->next) {
         if (obj >= (void *)frame && obj < (void *)frame + PG_SIZE) {
-            slab_frame_object_free(frame, obj);
+            __slab_frame_object_free(frame, obj);
             return ;
         }
     }
@@ -138,12 +139,44 @@ void slab_free(struct slab_alloc *slab, void *obj)
     panic("slab: Error! Attempted to free address %p, not in slab %s\n", obj, slab->slab_name);
 }
 
-void slab_clear(struct slab_alloc *slab)
+void __slab_clear(struct slab_alloc *slab)
 {
     struct slab_page_frame *frame, *next;
     for (frame = slab->first_frame; frame; frame = next) {
         next = frame->next;
-        slab_frame_free(frame);
+        __slab_frame_free(frame);
     }
+}
+
+void *slab_malloc(struct slab_alloc *slab)
+{
+    void *ret;
+
+    using_spinlock(&slab->lock)
+        ret = __slab_malloc(slab);
+
+    return ret;
+}
+
+int slab_has_addr(struct slab_alloc *slab, void *addr)
+{
+    int ret;
+
+    using_spinlock(&slab->lock)
+        ret = __slab_has_addr(slab, addr);
+
+    return ret;
+}
+
+void slab_free(struct slab_alloc *slab, void *obj)
+{
+    using_spinlock(&slab->lock)
+        __slab_free(slab, obj);
+}
+
+void slab_clear(struct slab_alloc *slab)
+{
+    using_spinlock(&slab->lock)
+        __slab_clear(slab);
 }
 

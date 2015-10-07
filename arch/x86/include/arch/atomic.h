@@ -17,7 +17,6 @@ typedef struct {
 } atomic32_t;
 
 #define ATOMIC32_INIT(i) { (i) }
-#define ATOMIC64_INIT(i) { (i) }
 
 static __always_inline int32_t atomic32_get(const atomic32_t *v)
 {
@@ -26,7 +25,7 @@ static __always_inline int32_t atomic32_get(const atomic32_t *v)
 
 static __always_inline void atomic32_set(atomic32_t *v, int32_t i)
 {
-    v->counter = i;
+    *(volatile int32_t *)&v->counter = i;
 }
 
 static __always_inline void atomic32_add(atomic32_t *v, int32_t i)

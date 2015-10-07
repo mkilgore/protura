@@ -1,8 +1,8 @@
 
 #include <protura/types.h>
 #include <protura/debug.h>
-#include <protura/spinlock.h>
 
+#include <arch/spinlock.h>
 #include <arch/asm.h>
 
 void spinlock_acquire(struct spinlock *lock)

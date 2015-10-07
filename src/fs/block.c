@@ -9,13 +9,13 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/spinlock.h>
 #include <protura/list.h>
+#include <protura/scheduler.h>
 #include <mm/kmalloc.h>
 #include <drivers/ide.h>
 
+#include <arch/spinlock.h>
 #include <arch/task.h>
-#include <arch/scheduler.h>
 #include <arch/cpu.h>
 #include <fs/block.h>
 
@@ -25,7 +25,7 @@
 #define BLOCK_CACHE_SHRINK_COUNT 512
 
 static struct {
-    struct spinlock lock;
+    spinlock_t lock;
 
     /* List of cached blocks ready to be checked-out.
      *
@@ -96,7 +96,7 @@ void __block_cache_shrink(void)
 
 static struct block *block_new(void)
 {
-    struct block *b = kzmalloc(sizeof(*b), PMAL_KERNEL);
+    struct block *b = kzalloc(sizeof(*b), PMAL_KERNEL);
 
     mutex_init(&b->block_mutex);
 
@@ -117,7 +117,7 @@ static struct block *__bread(kdev_t device, ksize_t block_size, ksector_t sector
 
     b = block_new();
     b->block_size = block_size;
-    b->data = kzmalloc(block_size, PMAL_KERNEL);
+    b->data = kzalloc(block_size, PMAL_KERNEL);
     b->sector = sector;
     b->dev = device;
 

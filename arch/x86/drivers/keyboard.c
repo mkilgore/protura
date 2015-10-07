@@ -10,17 +10,29 @@
 #include <protura/bits.h>
 #include <protura/debug.h>
 #include <protura/atomic.h>
-#include <protura/spinlock.h>
+#include <protura/scheduler.h>
 
+#include <arch/spinlock.h>
 #include <arch/asm.h>
 #include <arch/idt.h>
 #include <arch/reset.h>
-#include <arch/scheduler.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/scancode.h>
 #include <arch/drivers/keyboard.h>
 
-struct keyboard keyboard = {
+
+static struct keyboard {
+    uint8_t led_status;
+    uint8_t control_keys;
+
+    atomic32_t has_keys;
+
+    short buffer[CONFIG_KEYBOARD_BUFSZ];
+
+    struct char_buf buf;
+    spinlock_t buf_lock;
+    struct wakeup_list watch_list;
+} keyboard = {
     .led_status = 0,
     .control_keys = 0,
 
@@ -134,7 +146,6 @@ static void keyboard_interrupt_handler(struct idt_frame *frame)
 
 void keyboard_init(void)
 {
-    kprintf("Enabling keyboard\n");
     char_buf_init(&keyboard.buf, keyboard.buffer, sizeof(keyboard.buffer));
     wakeup_list_init(&keyboard.watch_list);
 

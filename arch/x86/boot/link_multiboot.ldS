@@ -7,7 +7,10 @@ SECTIONS
 {
     . = KMEM_LINK;
 
+    /* multiboot gets it own section because it needs to be placed at the very
+     * top of the executable */
     .text : AT(V2P_WO(ADDR(.text))) {
+        *(.multiboot)
         *(.text)
         *(.rodata)
     }

@@ -5,10 +5,8 @@
 #include <protura/list.h>
 #include <protura/stddef.h>
 #include <protura/wait.h>
-#include <arch/paging.h>
-#include <arch/idt.h>
-#include <arch/gdt.h>
 #include <arch/context.h>
+#include <arch/paging.h>
 
 #define NOFILE 20
 
@@ -22,7 +20,9 @@ enum task_state {
 
 struct task {
     kpid_t pid;
-    enum task_state state, preempt_state;
+    enum task_state state;
+    unsigned int preempted :1;
+
     int wake_up; /* Tick number to wake-up on */
 
     struct list_node task_list_node;
@@ -30,10 +30,10 @@ struct task {
     /* If this task is sleeping in a wait_queue, then this node is attached to that wait_queue */
     struct wait_queue_node wait;
 
-    struct page_directory *page_dir;
+    pd_t *page_dir;
 
     struct task *parent;
-    struct arch_context context;
+    context_t context;
     void *kstack_bot, *kstack_top;
 
     int killed; /* If non-zero, we've been killed and need to exit() */
@@ -66,7 +66,7 @@ struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char
 struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv);
 
 void task_print(char *buf, ksize_t size, struct task *);
-void task_switch(struct arch_context *old, struct task *new);
+void task_switch(context_t *old, struct task *new);
 
 extern const char *task_states[];
 

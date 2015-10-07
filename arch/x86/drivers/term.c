@@ -11,11 +11,11 @@
 #include <protura/stdarg.h>
 #include <protura/compiler.h>
 #include <config/autoconf.h>
-#include <protura/spinlock.h>
 #include <protura/basic_printf.h>
 #include <drivers/term.h>
 #include <mm/memlayout.h>
 
+#include <arch/spinlock.h>
 #include <arch/string.h>
 
 #include <arch/asm.h>
@@ -23,7 +23,7 @@
 #define TERM_MEMLOC ((void *)(0xB8000 + KMEM_KBASE))
 
 struct term_info {
-    struct spinlock lock;
+    spinlock_t lock;
     struct term_char (*buf)[TERM_COLS];
 
     uint8_t cur_r, cur_c;

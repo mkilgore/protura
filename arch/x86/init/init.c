@@ -12,8 +12,10 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <mm/memlayout.h>
+#include <mm/palloc.h>
 #include <mm/kmalloc.h>
 #include <fs/block.h>
+#include <fs/file_system.h>
 
 #include <arch/asm.h>
 #include <drivers/term.h>
@@ -21,11 +23,11 @@
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include <arch/init.h>
+#include <arch/cpuid.h>
 #include <arch/drivers/com1_debug.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 #include <arch/drivers/keyboard.h>
-#include <arch/alloc.h>
 #include <arch/bootmem.h>
 #include <arch/paging.h>
 #include <arch/pmalloc.h>
@@ -41,6 +43,7 @@ struct sys_init arch_init_systems[] = {
     { "syscall", syscall_init },
     { "block-cache", block_cache_init },
     { "block-device", block_dev_init },
+    { "file-systems", file_systems_init },
     { NULL, NULL }
 };
 
@@ -53,6 +56,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     struct multiboot_memmap *mmap = (struct multiboot_memmap *)P2V(((struct multiboot_info*)P2V(info))->mmap_addr);
     uintptr_t high_addr = 0;
 
+    cpuid_init();
 
     /* Initalize output early for debugging */
     com1_init();
@@ -93,7 +97,12 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     }
 
     kprintf("Memory size: %dMB\n", high_addr / 1024 / 1024);
+    kprintf("Memory pages: %d\n", __PN(high_addr) + 1);
 
+    /* Initalize paging as early as we can */
+    paging_setup_kernelspace(&kern_end);
+
+#if 0
     /* This call sets the space between the end of the kernel and the end of
      * the mapped memory as 'free' so we can do some crude allocating of memory.
      * This is literally only used to allocate some memory to get our
@@ -101,13 +110,13 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
      * used and kmalloc should be used instead for allocations. */
     bootmem_init(V2P(kern_end));
 
-    /* Initalize paging as early as we can */
-    paging_init(kern_end, high_addr);
-
     pmalloc_init(kern_end, high_addr);
 
     bootmem_transfer_to_pmalloc();
 
+#else
+    palloc_init(&kern_end, __PN(high_addr) + 1);
+#endif
 
     /* Initalize our actual allocator - This also disables kbrk from every
      * being used again, since doing-so would over-write memory allocated via

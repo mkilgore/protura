@@ -16,7 +16,7 @@
 #include <arch/asm.h>
 #include <arch/cpu.h>
 #include <arch/idt.h>
-#include <arch/alloc.h>
+#include <arch/cpuid.h>
 #include <arch/bootmem.h>
 #include <arch/pmalloc.h>
 #include <arch/paging.h>
@@ -45,40 +45,74 @@ static void page_fault_handler(struct idt_frame *frame)
         hlt();
 }
 
-/* To make our lives easier, we allocate and setup empty page_tables for all of
- * the kernel memory. The reason for this is that every task is going to get
- * it's own page-directory. If we setup the entries in the page-directory now,
- * then we don't have to worry about adding new ones later when we have
- * multiple page-directory's that would need to be updated with the new
- * page-directory-entry.
+/* All of kernel-space virtual memory directly maps onto the lowest part of
+ * physical memory (Or all of physical memory, if there is less physical memory
+ * then the kernel's virtual memory space). This code sets up the kernel's page
+ * directory to map all of the addresses in kernel space in this way. The kbrk
+ * pointer is used to get pages to use as page-tables.
+ *
+ * Note that if we have PSE, we just use that and map all of kernel-space using
+ * 4MB pages, and thus avoid ever having to allocate page-tables.
+ *
+ * Since every processes's page directory will have the kernel's memory mapped,
+ * we can make all of these pages as global, if the processor supports it.
  */
-static void setup_extra_page_tables(void)
+static void setup_kernel_pagedir(void **kbrk)
 {
     int cur_table, cur_page;
     pa_t new_page;
     struct page_directory *page_dir = &kernel_dir;
     struct page_table *page_tbl;
     int table_start = KMEM_KPAGE;
+    int tbl_gbl_bit = (cpuid_has_pge())? PTE_GLOBAL: 0;
+    int dir_gbl_bit = (cpuid_has_pge())? PDE_GLOBAL: 0;
 
     /* We start at the last table from low-memory */
-    for (cur_table = table_start; cur_table < 0x3FF; cur_table++) {
-        new_page = bootmem_alloc_page();
+    /* We use 4MB pages if we're able to, since they're nicer and we're never
+     * going to be editing this map again. */
+    if (!cpuid_has_pse()) {
+        *kbrk = PG_ALIGN(*kbrk);
+        for (cur_table = table_start; cur_table < 0x3FF; cur_table++) {
+            new_page = V2P(*kbrk);
+            page_tbl = *kbrk;
 
-        page_tbl = (struct page_table *)P2V(new_page);
-        for (cur_page = 0; cur_page < 1024; cur_page++)
-            page_tbl->table[cur_page].entry = (PAGING_MAKE_DIR_INDEX(cur_table - table_start) + PAGING_MAKE_TABLE_INDEX(cur_page)) | PTE_PRESENT | PTE_WRITABLE | PTE_GLOBAL;
+            *kbrk += PG_SIZE;
 
-        page_dir->table[cur_table].entry = new_page | PDE_PRESENT | PDE_WRITABLE | PDE_GLOBAL;
+            for (cur_page = 0; cur_page < 1024; cur_page++)
+                page_tbl->table[cur_page].entry = (PAGING_MAKE_DIR_INDEX(cur_table - table_start)
+                                                  + PAGING_MAKE_TABLE_INDEX(cur_page))
+                                                  | PTE_PRESENT | PTE_WRITABLE | tbl_gbl_bit;
+
+            page_dir->table[cur_table].entry = new_page | PDE_PRESENT | PDE_WRITABLE;
+        }
+    } else {
+        for (cur_table = table_start; cur_table < 0x3FF; cur_table++)
+            page_dir->table[cur_table].entry = PAGING_MAKE_DIR_INDEX(cur_table - table_start)
+                                               | PDE_PRESENT | PDE_WRITABLE | PDE_PAGE_SIZE | dir_gbl_bit;
     }
 }
 
-void paging_init(va_t kernel_end, pa_t last_physical_address)
+void paging_setup_kernelspace(void **kbrk)
 {
+    uint32_t pse, pge;
+
     irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_INTERRUPT);
 
-    kprintf("Setting-up initial kernel page-directory\n");
+    /* We make use of both PSE and PGE if the CPU supports them. */
+    pse = (cpuid_has_pse())? CR4_PSE: 0;
+    pge = (cpuid_has_pge())? CR4_GLOBAL: 0;
 
-    setup_extra_page_tables();
+    if (pse || pge) {
+        uint32_t cr4;
+
+        asm volatile("movl %%cr4, %0": "=r" (cr4));
+        cr4 |= pse | pge;
+        kprintf("Setting CR4: %d\n", cr4);
+        asm volatile("movl %0,%%cr4": : "r" (cr4));
+    }
+
+    kprintf("Setting-up initial kernel page-directory\n");
+    setup_kernel_pagedir(kbrk);
 
     set_current_page_directory(v_to_p(&kernel_dir));
 

@@ -10,14 +10,15 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
-#include <protura/spinlock.h>
 #include <protura/snprintf.h>
 #include <mm/kmalloc.h>
 #include <mm/memlayout.h>
 #include <arch/pmalloc.h>
 #include <drivers/term.h>
 #include <protura/dump_mem.h>
+#include <protura/scheduler.h>
 
+#include <arch/spinlock.h>
 #include <arch/fake_task.h>
 #include <arch/kernel_task.h>
 #include <arch/drivers/pic8259_timer.h>
@@ -30,7 +31,6 @@
 #include <arch/paging.h>
 #include <arch/asm.h>
 #include <arch/cpu.h>
-#include <arch/scheduler.h>
 #include <arch/task.h>
 
 #define KERNEL_STACK_PAGES 2
@@ -62,7 +62,7 @@ void task_print(char *buf, ksize_t size, struct task *task)
                         );
 }
 
-void task_switch(struct arch_context *old, struct task *new)
+void task_switch(context_t *old, struct task *new)
 {
     cpu_set_kernel_stack(cpu_get_local(), new->kstack_top);
     set_current_page_directory(V2P(new->page_dir));

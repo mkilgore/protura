@@ -10,12 +10,12 @@
 
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/spinlock.h>
-#include <arch/scheduler.h>
+#include <arch/spinlock.h>
+#include <protura/scheduler.h>
 #include <protura/wait.h>
 
 struct semaphore {
-    struct spinlock lock;
+    spinlock_t lock;
 
     int count;
     struct wait_queue queue;
@@ -27,7 +27,7 @@ typedef struct semaphore mutex_t;
 #define SEM_INIT(sem, name, cnt) \
     { .lock = SPINLOCK_INIT(name), \
       .count = (cnt), \
-      .queue = WAIT_QUEUE_INIT(&(sem).queue, "SEM wait queue") }
+      .queue = WAIT_QUEUE_INIT((sem).queue, "SEM wait queue") }
 
 #define MUTEX_INIT(sem, name) SEM_INIT(sem, name, 1)
 

@@ -14,14 +14,25 @@
 #include <mm/kmalloc.h>
 #include <mm/slab.h>
 
+/* An important note to readers:
+ *
+ * kmalloc doesn't actually do any locking. This is because slab are locked
+ * individually, inside of slab_malloc/slab_free/etc. , and the relevant
+ * 'kmalloc_slabs' array information is never changed so kmalloc/kfree can all
+ * read it at the same time.
+ *
+ * Slabs can be added and removed from this list as wanted. Slab's have to have
+ * a size of a power-of-two.
+ */
+
 static struct slab_alloc kmalloc_slabs[] = {
-    { .slab_name = "kmalloc_32", .object_size = 32 },
-    { .slab_name = "kmalloc_64", .object_size = 64 },
-    { .slab_name = "kmalloc_128", .object_size = 128 },
-    { .slab_name = "kmalloc_256", .object_size = 256 },
-    { .slab_name = "kmalloc_512", .object_size = 512 },
-    { .slab_name = "kmalloc_1024", .object_size = 1024 },
-    { .slab_name = "kmalloc_2048", .object_size = 2048 },
+    SLAB_ALLOC_INIT("kmalloc_32", 32),
+    SLAB_ALLOC_INIT("kmalloc_64", 64),
+    SLAB_ALLOC_INIT("kmalloc_128", 128),
+    SLAB_ALLOC_INIT("kmalloc_256", 256),
+    SLAB_ALLOC_INIT("kmalloc_512", 512),
+    SLAB_ALLOC_INIT("kmalloc_1024", 1024),
+    SLAB_ALLOC_INIT("kmalloc_2048", 2048),
     { .slab_name = NULL }
 };
 

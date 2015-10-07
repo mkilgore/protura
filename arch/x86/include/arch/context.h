@@ -20,6 +20,8 @@ struct arch_context {
 
 void arch_context_switch(struct arch_context *new, struct arch_context *old);
 
+typedef struct arch_context context_t;
+
 #endif
 
 #endif

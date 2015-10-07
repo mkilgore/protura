@@ -1,10 +1,10 @@
 
 #include <protura/types.h>
 #include <protura/debug.h>
+#include <protura/scheduler.h>
 #include <arch/idt.h>
 #include <drivers/term.h>
 #include <arch/task.h>
-#include <arch/scheduler.h>
 #include <arch/syscall.h>
 #include <arch/cpu.h>
 #include <arch/task.h>

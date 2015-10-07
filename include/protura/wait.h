@@ -9,7 +9,7 @@
 #define INCLUDE_PROTURA_WAIT_H
 
 #include <protura/list.h>
-#include <protura/spinlock.h>
+#include <arch/spinlock.h>
 
 struct task;
 
@@ -40,7 +40,7 @@ void wakeup_list_wakeup(struct wakeup_list *);
  * When modifying the queue, 'lock' has to be held. */
 struct wait_queue {
     struct list_head queue;
-    struct spinlock lock;
+    spinlock_t lock;
 };
 
 struct wait_queue_node {
@@ -49,7 +49,7 @@ struct wait_queue_node {
 };
 
 #define WAIT_QUEUE_INIT(q, name) \
-    { .queue = LIST_HEAD_INIT(&(q).queue), \
+    { .queue = LIST_HEAD_INIT((q).queue), \
       .lock = SPINLOCK_INIT(name) }
 
 void wait_queue_init(struct wait_queue *);
@@ -60,6 +60,7 @@ void wait_queue_unregister(void);
 
 /* Called by the task that is done with whatever the tasks waiting in the queue are waiting for */
 void wait_queue_wake(struct wait_queue *);
+void wait_queue_wake_all(struct wait_queue *);
 
 
 /* For explinations of the below macros, see the 'sleep' macro in scheduler.h */

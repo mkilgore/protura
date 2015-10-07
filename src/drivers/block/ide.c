@@ -9,11 +9,11 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/spinlock.h>
+#include <protura/scheduler.h>
 #include <protura/kassert.h>
 #include <protura/wait.h>
 
-#include <arch/scheduler.h>
+#include <arch/spinlock.h>
 #include <arch/idt.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/asm.h>
@@ -179,8 +179,7 @@ static void __ide_handle_intr(struct idt_frame *frame)
     b->dirty = 0;
 
     /* Wakeup the owner of this block */
-    if (scheduler_task_get_state(b->owner) == TASK_SLEEPING)
-        scheduler_task_set_runnable(b->owner);
+    scheduler_task_wake(b->owner);
 
     if (!list_empty(&ide_state.block_queue))
         __ide_start_queue();

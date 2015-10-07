@@ -11,7 +11,7 @@
 #include <mm/memlayout.h>
 #include <arch/gdt.h>
 
-.section .text
+.section .multiboot
 multiboot:
 .align 4
 .long MULTIBOOT_HEADER_MAGIC
@@ -51,10 +51,11 @@ temp_gdt_ptr:
     .word (temp_gdt_ptr - temp_gdt - 1)
     .long temp_gdt
 
-start = _start # V2P_WO(_start)
+start = V2P_WO(_start)
 
 .section .text
 .global start
+.global _start
 .type start, @function
 .extern cmain
 .extern kern_end

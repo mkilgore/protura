@@ -29,6 +29,7 @@ struct simple_fs_super_block {
 };
 
 struct super_block *simple_fs_read_sb(kdev_t);
+void simple_fs_init(void);
 
 #endif
 
@@ -36,12 +37,19 @@ struct super_block *simple_fs_read_sb(kdev_t);
 struct simple_fs_disk_sb {
     uint32_t file_count;
     uint32_t root_ino;
+    uint32_t inode_count;
+    uint32_t inode_map_sector;
 };
 
 /* Exactly 512 bytes big. */
 struct simple_fs_disk_inode {
     uint32_t size;
     uint32_t sectors[12];
+};
+
+struct simple_fs_disk_inode_map {
+    uint32_t ino;
+    uint32_t sector;
 };
 
 #endif

@@ -1,0 +1,34 @@
+/*
+ * Copyright (C) 2015 Matt Kilgore
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License v2 as published by the
+ * Free Software Foundation.
+ */
+#ifndef INCLUDE_FS_FILE_SYSTEM_H
+#define INCLUDE_FS_FILE_SYSTEM_H
+
+#include <protura/types.h>
+#include <protura/list.h>
+
+#ifdef __KERNEL__
+
+struct super_block;
+
+struct file_system {
+    const char *name;
+    struct super_block *(*read_sb) (kdev_t dev);
+
+    struct list_node fs_list_entry;
+};
+
+void file_systems_init(void);
+
+void file_system_register(struct file_system *);
+void file_system_unregister(const char *name);
+
+struct file_system *file_system_lookup(const char *name);
+
+#endif
+
+#endif

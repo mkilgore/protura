@@ -5,9 +5,11 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_PROTURA_SPINLOCK_H
-#define INCLUDE_PROTURA_SPINLOCK_H
+#ifndef INCLUDE_ARCH_LIMITS_H
+#define INCLUDE_ARCH_LIMITS_H
 
-#include <arch/spinlock.h>
+#include <protura/types.h>
+
+#define SIZE_MAX ((ksize_t)-1)
 
 #endif

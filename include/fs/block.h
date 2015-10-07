@@ -11,7 +11,7 @@
 #include <protura/types.h>
 #include <protura/stddef.h>
 #include <protura/debug.h>
-#include <arch/scheduler.h>
+#include <protura/scheduler.h>
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/semaphore.h>

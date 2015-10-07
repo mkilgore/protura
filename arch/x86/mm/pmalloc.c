@@ -9,12 +9,11 @@
 #include <protura/types.h>
 #include <protura/string.h>
 #include <protura/debug.h>
-#include <protura/spinlock.h>
 #include <mm/memlayout.h>
 #include <mm/bitmap_alloc.h>
 
+#include <arch/spinlock.h>
 #include <arch/asm.h>
-#include <arch/alloc.h>
 #include <arch/paging.h>
 #include <arch/bootmem.h>
 #include <arch/pmalloc.h>

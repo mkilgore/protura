@@ -24,13 +24,8 @@ typedef long long int64_t;
 
 typedef uint32_t ksize_t;
 
-#define SIZE_MAX ((ksize_t)-1)
-
 typedef uint32_t uintptr_t;
 typedef int32_t   intptr_t;
-
-/* General purpose int size */
-typedef unsigned int pint __attribute__((__mode__(__word__)));
 
 typedef void *    va_t;
 typedef uintptr_t pa_t;
@@ -43,6 +38,9 @@ typedef uintptr_t pa_t;
 
 #define v_to_p(va) (pa_t)(V2P((uintptr_t)(va)))
 #define p_to_v(pa) (va_t)(P2V((uintptr_t)(pa)))
+
+/* Page number */
+typedef uint32_t pn_t;
 
 #endif
 

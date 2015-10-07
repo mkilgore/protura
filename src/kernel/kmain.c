@@ -11,9 +11,9 @@
 #include <protura/stddef.h>
 #include <protura/string.h>
 #include <protura/atomic.h>
-#include <protura/spinlock.h>
 #include <protura/strtol.h>
 #include <protura/dump_mem.h>
+#include <arch/spinlock.h>
 #include <mm/kmalloc.h>
 #include <drivers/term.h>
 #include <drivers/ide.h>
@@ -21,12 +21,13 @@
 #include <arch/reset.h>
 #include <arch/drivers/keyboard.h>
 #include <arch/task.h>
-#include <arch/scheduler.h>
+#include <protura/scheduler.h>
 #include <arch/cpu.h>
 #include <arch/idt.h>
 #include <arch/init.h>
 #include <arch/backtrace.h>
 #include <fs/simple_fs.h>
+#include <fs/file_system.h>
 
 int kernel_is_booting = 1;
 
@@ -68,7 +69,11 @@ int kernel_keyboard_thread(int argc, const char **argv)
     kprintf("Keyboard watch task started!\n");
     keyboard_wakeup_add(cpu_get_local()->current);
 
-    struct super_block *sb = simple_fs_read_sb(DEV_MAKE(DEV_IDE, 0));
+    struct file_system *fs = file_system_lookup("simple_fs");
+
+    kprintf("File system: %p\n", fs);
+
+    struct super_block *sb = (fs->read_sb) (DEV_MAKE(DEV_IDE, 0));
     struct simple_fs_super_block *simple = container_of(sb, struct simple_fs_super_block, sb);
     struct simple_fs_inode *inode;
     struct block *b;

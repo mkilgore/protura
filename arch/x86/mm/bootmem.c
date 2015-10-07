@@ -15,7 +15,6 @@
 
 #include <arch/asm.h>
 #include <arch/idt.h>
-#include <arch/alloc.h>
 #include <arch/paging.h>
 #include <arch/pmalloc.h>
 #include <arch/bootmem.h>
