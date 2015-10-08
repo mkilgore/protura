@@ -98,7 +98,7 @@ void irq_global_handler(struct idt_frame *iframe)
      * to the task when this interrupt chain finally returns. All syscalls that
      * return values have to modify *this* frame specefically. */
     t = cpu_get_local()->current;
-    if (!t->context.frame) {
+    if (t && !t->context.frame) {
         frame_flag = 1;
         t->context.frame = iframe;
     }

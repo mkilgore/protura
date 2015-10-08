@@ -96,7 +96,7 @@ void __block_cache_shrink(void)
 
 static struct block *block_new(void)
 {
-    struct block *b = kzalloc(sizeof(*b), PMAL_KERNEL);
+    struct block *b = kzalloc(sizeof(*b), PAL_KERNEL);
 
     mutex_init(&b->block_mutex);
 
@@ -117,7 +117,7 @@ static struct block *__bread(kdev_t device, ksize_t block_size, ksector_t sector
 
     b = block_new();
     b->block_size = block_size;
-    b->data = kzalloc(block_size, PMAL_KERNEL);
+    b->data = kzalloc(block_size, PAL_KERNEL);
     b->sector = sector;
     b->dev = device;
 

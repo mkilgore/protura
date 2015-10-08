@@ -165,7 +165,7 @@ void kmain(void)
     scheduler_task_add(task_fake_create());
     scheduler_task_add(task_fake_create()); */
 
-    scheduler_task_add(task_kernel_new_interruptable("Keyboard watch", kernel_keyboard_thread, 0, (const char *[]) { }));
+    scheduler_task_add(task_kernel_new_interruptable("Keyboard watch", kernel_keyboard_thread, 0, (const char *[]) { }, PAL_ATOMIC));
 
     cpu_start_scheduler();
 

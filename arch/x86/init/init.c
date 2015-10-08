@@ -28,9 +28,8 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 #include <arch/drivers/keyboard.h>
-#include <arch/bootmem.h>
 #include <arch/paging.h>
-#include <arch/pmalloc.h>
+#include <arch/pages.h>
 #include <arch/task.h>
 #include <arch/cpu.h>
 #include <arch/syscall.h>
@@ -54,7 +53,7 @@ struct sys_init arch_init_systems[] = {
 void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_info *info)
 {
     struct multiboot_memmap *mmap = (struct multiboot_memmap *)P2V(((struct multiboot_info*)P2V(info))->mmap_addr);
-    uintptr_t high_addr = 0;
+    pa_t high_addr = 0;
 
     cpuid_init();
 
@@ -78,7 +77,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     for (; V2P(mmap) < info->mmap_addr + info->mmap_length
          ; mmap = (struct multiboot_memmap *) ((uint32_t)mmap + mmap->size + sizeof(uint32_t))) {
-        kprintf("mmap: 0x%llx to 0x%llx, type: %d\n", mmap->base_addr,
+        kprintf("mmap: 0x%016llx to 0x%016llx, type: %d\n", mmap->base_addr,
                 mmap->base_addr + mmap->length, mmap->type);
 
         /* A type of non-one means it's not usable memory - just ignore it */
@@ -99,28 +98,13 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     kprintf("Memory size: %dMB\n", high_addr / 1024 / 1024);
     kprintf("Memory pages: %d\n", __PN(high_addr) + 1);
 
-    /* Initalize paging as early as we can */
+    /* Initalize paging as early as we can, so that we can make use of kernel
+     * memory - Then start the memory manager. */
     paging_setup_kernelspace(&kern_end);
 
-#if 0
-    /* This call sets the space between the end of the kernel and the end of
-     * the mapped memory as 'free' so we can do some crude allocating of memory.
-     * This is literally only used to allocate some memory to get our
-     * page-allocator up and going. Once kmalloc_init() is called, kbrk can't be
-     * used and kmalloc should be used instead for allocations. */
-    bootmem_init(V2P(kern_end));
-
-    pmalloc_init(kern_end, high_addr);
-
-    bootmem_transfer_to_pmalloc();
-
-#else
     palloc_init(&kern_end, __PN(high_addr) + 1);
-#endif
+    arch_pages_init(V2P(kern_start), V2P(kern_end), high_addr);
 
-    /* Initalize our actual allocator - This also disables kbrk from every
-     * being used again, since doing-so would over-write memory allocated via
-     * kmalloc. */
     kmalloc_init();
 
     /* Load the initial GDT and IDT setups */

@@ -12,13 +12,12 @@
 #include <protura/debug.h>
 #include <mm/memlayout.h>
 #include <drivers/term.h>
+#include <mm/palloc.h>
 
 #include <arch/asm.h>
 #include <arch/cpu.h>
 #include <arch/idt.h>
 #include <arch/cpuid.h>
-#include <arch/bootmem.h>
-#include <arch/pmalloc.h>
 #include <arch/paging.h>
 #include <arch/backtrace.h>
 
@@ -31,9 +30,9 @@ static void page_fault_handler(struct idt_frame *frame)
     uintptr_t p;
     asm volatile("movl %%cr2, %0": "=r" (p));
     term_setcurcolor(term_make_color(T_BLACK, T_RED));
-    kprintf(" PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%x\n", (void *)frame->eip, (void *)p, frame->err);
-    kprintf(" PAGE DIR INDEX: 0x%x, PAGE TABLE INDEX: 0x%x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
-    kprintf(" Current running program: %s\n", cpu_get_local()->current->name);
+    kprintf(" PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%08x\n", (void *)frame->eip, (void *)p, frame->err);
+    kprintf(" PAGE DIR INDEX: 0x%08x, PAGE TABLE INDEX: 0x%08x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
+    kprintf(" Current running program: %s\n", (cpu_get_local()->current)? cpu_get_local()->current->name: "");
 
     term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
     kprintf(" Stack backtrace:\n");
@@ -107,7 +106,6 @@ void paging_setup_kernelspace(void **kbrk)
 
         asm volatile("movl %%cr4, %0": "=r" (cr4));
         cr4 |= pse | pge;
-        kprintf("Setting CR4: %d\n", cr4);
         asm volatile("movl %0,%%cr4": : "r" (cr4));
     }
 
@@ -151,7 +149,7 @@ void paging_map_phys_to_virt(pa_t page_dir, va_t virt, pa_t phys)
     page_off = PAGING_TABLE_INDEX(virt_start);
 
     if (!(cur_dir->table[table_off].entry & PDE_PRESENT)) {
-        uintptr_t new_page = pmalloc_page_alloc(PMAL_KERNEL);
+        pa_t new_page = palloc_phys(PAL_KERNEL);
         memset((void *)P2V(new_page), 0, sizeof(struct page_table));
 
         cur_dir->table[table_off].entry = new_page | PDE_PRESENT | PDE_WRITABLE | PDE_USER;

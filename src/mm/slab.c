@@ -13,10 +13,10 @@
 #include <protura/bits.h>
 #include <protura/limits.h>
 #include <mm/memlayout.h>
+#include <mm/palloc.h>
 
 #include <arch/spinlock.h>
 #include <arch/paging.h>
-#include <arch/pmalloc.h>
 #include <mm/slab.h>
 
 struct page_frame_obj_empty {
@@ -26,7 +26,7 @@ struct page_frame_obj_empty {
 struct slab_page_frame {
     struct slab_page_frame *next;
     void *first_addr;
-    int pages;
+    int page_index_size;
     int object_count;
     struct page_frame_obj_empty *freelist;
 };
@@ -40,20 +40,30 @@ void __slab_info(struct slab_alloc *slab, char *buf, ksize_t buf_size)
         snprintf(buf, buf_size, "  frame (%p): %d objects\n", frame, frame->object_count);
 }
 
-static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab)
+static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigned int flags)
 {
     char *obj;
     struct page_frame_obj_empty **current;
     struct slab_page_frame *newframe;
-    int i, pages = 20;
 
-    newframe = P2V(pmalloc_pages_alloc(PMAL_KERNEL, pages));
-    newframe->pages = pages;
+    /* 5 is just a random size - Since it's an index, that means we grab 32
+     * pages at a time for each frame. */
+    int i, page_index = 5;
+
+
+    kprintf("Calling palloc with %d, %d\n", flags, page_index);
+    newframe = palloc_multiple(page_index, flags);
+    kprintf("New frame for slab: %p\n", newframe);
+
+    if (!newframe)
+        return NULL;
+
+    newframe->page_index_size = page_index;
 
     newframe->next = NULL;
 
     newframe->first_addr = ALIGN_2(((char *)newframe) + sizeof(*newframe), slab->object_size);
-    newframe->object_count = (((char *)newframe + PG_SIZE * newframe->pages) - (char *)newframe->first_addr) / slab->object_size;
+    newframe->object_count = (((char *)newframe + PG_SIZE * (1 << newframe->page_index_size)) - (char *)newframe->first_addr) / slab->object_size;
 
     current = &newframe->freelist;
     obj = newframe->first_addr;
@@ -71,10 +81,7 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab)
 
 static void __slab_frame_free(struct slab_page_frame *frame)
 {
-    if (frame->pages > 1)
-        pmalloc_pages_free(V2P(frame), frame->pages);
-    else
-        pmalloc_page_free(V2P(frame));
+    pfree_multiple(frame, frame->page_index_size);
 }
 
 static void *__slab_frame_object_alloc(struct slab_page_frame *frame)
@@ -103,7 +110,7 @@ static void __slab_frame_object_free(struct slab_page_frame *frame, void *obj)
     }
 }
 
-void *__slab_malloc(struct slab_alloc *slab)
+void *__slab_malloc(struct slab_alloc *slab, unsigned int flags)
 {
     struct slab_page_frame **frame = &slab->first_frame;
 
@@ -111,9 +118,12 @@ void *__slab_malloc(struct slab_alloc *slab)
         if ((*frame)->freelist)
             return __slab_frame_object_alloc(*frame);
 
-    *frame = __slab_frame_new(slab);
+    *frame = __slab_frame_new(slab, flags);
 
-    return __slab_frame_object_alloc(*frame);
+    if (*frame)
+        return __slab_frame_object_alloc(*frame);
+    else
+        return NULL;
 }
 
 int __slab_has_addr(struct slab_alloc *slab, void *addr)
@@ -148,12 +158,12 @@ void __slab_clear(struct slab_alloc *slab)
     }
 }
 
-void *slab_malloc(struct slab_alloc *slab)
+void *slab_malloc(struct slab_alloc *slab, unsigned int flags)
 {
     void *ret;
 
     using_spinlock(&slab->lock)
-        ret = __slab_malloc(slab);
+        ret = __slab_malloc(slab, flags);
 
     return ret;
 }

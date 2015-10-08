@@ -71,7 +71,7 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
     while (order < PALLOC_MAPS - 1) {
         buddy = page_get_from_pn(get_buddy_pn(cur_page, order));
 
-        if (buddy->order != order)
+        if (buddy->order != order || test_bit(&buddy->flags, PG_INVALID))
             break;
 
         /* Remove our buddy from it's current free list, then use the lower
@@ -93,7 +93,7 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
     list_add(&alloc->maps[order].free_pages, &p->page_list_node);
     alloc->maps[order].free_count++;
 
-    alloc->free_pages += 1 << order;
+    alloc->free_pages += 1 << original_order;
 
     /* Wake-up any task waiting for a page of this size or larger */
     for (i = 0; i <= original_order; i++)
@@ -111,16 +111,28 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 {
     struct page *p, *buddy;
 
+    kprintf("Breaking page of order %d\n", order);
     if (alloc->maps[order].free_count == 0) {
-        break_page(alloc, order + 1, flags);
+        if (order + 1 < alloc->map_count)
+            break_page(alloc, order + 1, flags);
+        else
+            return ;
+
+        /* It's possible 'break_page()' failed */
+        if (alloc->maps[order].free_count == 0)
+            return ;
     }
 
     p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
     alloc->maps[order].free_count--;
 
+    kprintf("Breaking page: %d\n", p->page_number);
+
     order--;
 
     buddy = page_get_from_pn(get_buddy_pn(p->page_number, order));
+
+    kprintf("Buddy: %d\n", buddy->page_number);
 
     p->order = order;
     buddy->order = order;
@@ -131,6 +143,8 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 
 static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
+    kprintf("Total free pages: %d\n", alloc->free_pages);
+    kprintf("Need: %d\n", 1 << order);
   sleep_again:
     sleep_with_wait_queue(&alloc->maps[order].wait_for_free) {
         if (alloc->free_pages < (1 << order)) {
@@ -144,14 +158,18 @@ static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int 
 
 static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
+    kprintf("Getting page of order %d\n", order);
     if (alloc->maps[order].free_count == 0) {
+        kprintf("Breaking page above order\n");
         break_page(alloc, order + 1, flags);
         if (alloc->maps[order].free_count == 0)
             return 0;
     }
 
-    struct page *p = list_take_first(&alloc->maps[order].free_pages, struct page, page_list_node);
+    struct page *p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
     p->order = -1;
+
+    kprintf("Found page: %d\n", p->page_number);
 
     return p;
 }
@@ -160,6 +178,8 @@ pa_t palloc_phys_multiple(int order, unsigned int flags)
 {
     struct page *p;
     pa_t ret;
+
+    kprintf("Getting %d pages\n", 1 << order);
 
     using_spinlock(&buddy_allocator.lock) {
         if (!(flags & __PAL_NOWAIT))
@@ -180,10 +200,14 @@ void palloc_init(void **kbrk, int pages)
     struct page *p;
     int i;
 
+    kprintf("Initalizing buddy allocator\n");
+
     *kbrk = ALIGN_2(*kbrk, alignof(struct page));
 
     buddy_allocator.page_count = pages;
     buddy_allocator.pages = *kbrk;
+
+    kprintf("Pages: %d, array: %p\n", pages, *kbrk);
 
     *kbrk += pages * sizeof(struct page);
 
@@ -192,8 +216,9 @@ void palloc_init(void **kbrk, int pages)
     /* All pages start as INVALID. As the arch init code goes, it will call
      * 'free' on any pages which are valid to use. */
     p = buddy_allocator.pages + pages;
-    while (p-- > buddy_allocator.pages) {
+    while (p-- >= buddy_allocator.pages) {
         p->order = -1;
+        p->page_number = (int)(p - buddy_allocator.pages);
         set_bit(&p->flags, PG_INVALID);
     }
 

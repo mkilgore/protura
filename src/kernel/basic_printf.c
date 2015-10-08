@@ -101,7 +101,7 @@ static void escape_hex(struct printf_backbone *backbone, const char *code, ksize
 
     i = 0;
 
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len - 1; i++) {
         switch (code[i]) {
         case '0':
             if (width == -1)
@@ -140,6 +140,7 @@ static void escape_hex(struct printf_backbone *backbone, const char *code, ksize
         ptr = 1;
         if (bytes == -1)
             bytes = 4; /* PROTURA_BITS / CHAR_BIT; */
+        zero_pad = 1;
         break;
 
     case 'X':
@@ -167,6 +168,10 @@ static void escape_hex(struct printf_backbone *backbone, const char *code, ksize
         val = val >> 4;
         *--ebuf = inttohex[caps][digit];
     }
+
+    /* Pad to width with spaces, if we're not zero-padding */
+    for (; i < width; i++)
+        *--ebuf = ' ';
 
     if (ptr) {
         *--ebuf = 'x';

@@ -4,10 +4,10 @@
 #include <protura/string.h>
 #include <protura/snprintf.h>
 #include <protura/scheduler.h>
+#include <mm/palloc.h>
 
 #include <arch/task.h>
 #include <arch/memlayout.h>
-#include <arch/pmalloc.h>
 #include <arch/asm.h>
 #include <arch/gdt.h>
 #include <arch/cpu.h>
@@ -76,7 +76,7 @@ void cpu_start_scheduler(void)
 
     snprintf(name, sizeof(name), "kidle %d", c->cpu_id);
 
-    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, c->cpu_id, NULL);
+    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, c->cpu_id, NULL, PAL_ATOMIC);
 
     scheduler();
 }

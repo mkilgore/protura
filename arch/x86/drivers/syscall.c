@@ -2,6 +2,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/scheduler.h>
+#include <mm/palloc.h>
 #include <arch/idt.h>
 #include <drivers/term.h>
 #include <arch/task.h>
@@ -34,7 +35,7 @@ static void syscall_handler(struct idt_frame *frame)
         scheduler_task_waitms(frame->ebx);
         break;
     case SYSCALL_FORK:
-        new = task_fork(current);
+        new = task_fork(current, PAL_KERNEL);
 
         kprintf("New task: %d\n", new->pid);
 

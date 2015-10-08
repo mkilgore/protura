@@ -9,8 +9,8 @@
 #define INCLUDE_MM_KMALLOC_H
 
 #include <protura/types.h>
-#include <arch/pmalloc.h>
 #include <protura/string.h>
+#include <mm/palloc.h>
 
 void kmalloc_init(void);
 

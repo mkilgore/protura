@@ -25,7 +25,7 @@ static struct inode *simple_fs_read_inode(struct super_block *sb, kino_t ino)
     struct simple_fs_disk_inode *diski;
     struct block *b;
 
-    inode = kzalloc(sizeof(*inode), PMAL_KERNEL);
+    inode = kzalloc(sizeof(*inode), PAL_KERNEL);
 
     mutex_init(&inode->i.lock);
 
@@ -109,7 +109,9 @@ struct super_block *simple_fs_read_sb(kdev_t dev)
     struct simple_fs_disk_sb *disksb;
     struct block *b;
 
-    sb = kzalloc(sizeof(*sb), PMAL_KERNEL);
+    sb = kzalloc(sizeof(*sb), PAL_KERNEL);
+
+    kprintf("kzalloc:sb: %p\n", sb);
 
     sb->sb.bdev = block_dev_get(dev);
     sb->sb.dev = dev;

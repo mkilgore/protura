@@ -15,9 +15,9 @@
 #include <protura/kassert.h>
 #include <mm/kmalloc.h>
 #include <mm/memlayout.h>
-#include <arch/pmalloc.h>
 #include <drivers/term.h>
 #include <protura/dump_mem.h>
+#include <mm/palloc.h>
 
 #include <arch/fake_task.h>
 #include <arch/kernel_task.h>
@@ -305,7 +305,7 @@ void wait_queue_register(struct wait_queue *queue)
 {
     struct task *t = cpu_get_local()->current;
 
-    kprintf("Unregister from queue\n");
+    kprintf("Unregister from queue: %p\n", t);
     wait_queue_unregister();
 
     kprintf("Register to queue\n");

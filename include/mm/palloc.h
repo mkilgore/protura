@@ -15,6 +15,7 @@
 #include <arch/align.h>
 #include <arch/memlayout.h>
 #include <arch/paging.h>
+#include <arch/log2.h>
 
 struct inode;
 
@@ -56,50 +57,30 @@ enum {
  */
 pa_t palloc_phys_multiple(int order, unsigned int flags);
 
-static inline pa_t palloc_phys(unsigned int flags)
+static inline void *palloc_multiple(int order, unsigned int flags)
 {
-    return palloc_phys_multiple(0, flags);
+    pa_t pa = palloc_phys_multiple(order, flags);
+
+    if (pa)
+        return P2V(pa);
+    else
+        return NULL;
 }
 
-
-void *palloc_multiple(int order, unsigned int flags)
-{
-    return P2V(palloc_phys_multiple(order, flags));
-}
-
-static inline void *palloc(unsigned int flags)
-{
-    return palloc_multiple(0, flags);
-}
+#define palloc_phys(flags) palloc_phys_multiple(0, (flags))
+#define palloc(flags) palloc_multiple(0, (flags))
 
 void pfree_phys_multiple(pa_t, int order);
 
-static inline void pfree_phys(pa_t pa)
-{
-    pfree_phys_multiple(pa, 0);
-}
-
-static inline void pfree_multiple(va_t addr, int order)
-{
-    pfree_phys_multiple(V2P(addr), order);
-}
-
-static inline void pfree(va_t addr)
-{
-    pfree_multiple(addr, 0);
-}
+#define pfree_phys(pa) pfree_phys_multiple(pa, 0)
+#define pfree_multiple(va, order) pfree_phys_multiple(V2P(va), (order))
+#define pfree(va) pfree_multiple(va, 0)
 
 struct page *page_get_from_pn(pn_t);
 
-static inline struct page *page_get_from_pa(pa_t pa)
-{
-    return page_get_from_pn(__PN(pa));
-}
-
-static inline struct page *page_get(void *va)
-{
-    return page_get_from_pn(__PN(V2P(va)));
-}
+#define page_get_from_pa(pa) page_get_from_pn(__PN(pa))
+#define page_get_from_va(va) page_get_from_pn(__PN(V2P(va)))
+#define page_get(va) page_get_from_va(va)
 
 static inline pa_t page_to_pa(struct page *p)
 {
