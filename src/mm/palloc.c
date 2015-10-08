@@ -111,7 +111,6 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 {
     struct page *p, *buddy;
 
-    kprintf("Breaking page of order %d\n", order);
     if (alloc->maps[order].free_count == 0) {
         if (order + 1 < alloc->map_count)
             break_page(alloc, order + 1, flags);
@@ -126,19 +125,16 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
     p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
     alloc->maps[order].free_count--;
 
-    kprintf("Breaking page: %d\n", p->page_number);
-
     order--;
 
     buddy = page_get_from_pn(get_buddy_pn(p->page_number, order));
-
-    kprintf("Buddy: %d\n", buddy->page_number);
 
     p->order = order;
     buddy->order = order;
 
     list_add(&alloc->maps[order].free_pages, &p->page_list_node);
     list_add(&alloc->maps[order].free_pages, &buddy->page_list_node);
+    alloc->maps[order].free_count += 2;
 }
 
 static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int order, unsigned int flags)
@@ -158,18 +154,16 @@ static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int 
 
 static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
-    kprintf("Getting page of order %d\n", order);
     if (alloc->maps[order].free_count == 0) {
-        kprintf("Breaking page above order\n");
         break_page(alloc, order + 1, flags);
         if (alloc->maps[order].free_count == 0)
             return 0;
     }
 
     struct page *p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
-    p->order = -1;
+    alloc->maps[order].free_count--;
 
-    kprintf("Found page: %d\n", p->page_number);
+    p->order = -1;
 
     return p;
 }

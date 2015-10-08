@@ -1,5 +1,5 @@
-#ifndef INCLUDE_PROTURA_TASK_H
-#define INCLUDE_PROTURA_TASK_H
+#ifndef INCLUDE_ARCH_TASK_H
+#define INCLUDE_ARCH_TASK_H
 
 #include <protura/types.h>
 #include <protura/list.h>
@@ -50,20 +50,20 @@ void task_init(void);
  * The caller should do any other initalization, set the state to
  * TASK_RUNNABLE, and then put the task into the scheduler list using
  * task_add. */
-struct task *task_new(unsigned int flags);
-struct task *task_fork(struct task *, unsigned int flags);
+struct task *task_new(void);
+struct task *task_fork(struct task *);
 
 /* Used when a task is already killed and dead */
 void task_free(struct task *);
 
-void task_paging_init(struct task *, unsigned int flags);
+void task_paging_init(struct task *);
 void task_paging_free(struct task *);
 
-void task_paging_copy_user(struct task *restrict new, struct task *restrict old, unsigned int flags);
-struct task *task_fake_create(unsigned int flags);
+void task_paging_copy_user(struct task *restrict new, struct task *restrict old);
+struct task *task_fake_create(void);
 
-struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, unsigned int flags);
-struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, unsigned int flags);
+struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv);
+struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv);
 
 void task_print(char *buf, ksize_t size, struct task *);
 void task_switch(context_t *old, struct task *new);

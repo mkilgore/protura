@@ -105,11 +105,11 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     palloc_init(&kern_end, __PN(high_addr) + 1);
     arch_pages_init(V2P(kern_start), V2P(kern_end), high_addr);
 
-    kmalloc_init();
-
     /* Load the initial GDT and IDT setups */
     cpu_info_init();
     idt_init();
+
+    kmalloc_init();
 
     kprintf("Kernel Start: %p\nKernel End: %p\n", kern_start, kern_end);
 

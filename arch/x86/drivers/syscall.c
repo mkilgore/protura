@@ -35,7 +35,7 @@ static void syscall_handler(struct idt_frame *frame)
         scheduler_task_waitms(frame->ebx);
         break;
     case SYSCALL_FORK:
-        new = task_fork(current, PAL_KERNEL);
+        new = task_fork(current);
 
         kprintf("New task: %d\n", new->pid);
 

@@ -76,7 +76,8 @@ void cpu_start_scheduler(void)
 
     snprintf(name, sizeof(name), "kidle %d", c->cpu_id);
 
-    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, c->cpu_id, NULL, PAL_ATOMIC);
+    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, c->cpu_id, NULL);
+    c->intr_count = 0;
 
     scheduler();
 }
@@ -87,5 +88,7 @@ void cpu_info_init(void)
     cpu_tss(&cpu);
     cpu.cpu = &cpu;
     cpu.cpu_id = 0;
+    cpu.intr_count = 1;
+    cpu.reschedule = 0;
 }
 

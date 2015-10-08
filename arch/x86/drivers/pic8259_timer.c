@@ -10,6 +10,7 @@
 #include <protura/atomic.h>
 #include <config/autoconf.h>
 
+#include <arch/cpu.h>
 #include <arch/asm.h>
 #include <arch/idt.h>
 #include <arch/task.h>
@@ -23,7 +24,7 @@ static void timer_callback(struct idt_frame *frame)
     atomic32_inc(&ticks);
 
     if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0)
-        reschedule_preempt = 1;
+        cpu_get_local()->reschedule = 1;
 }
 
 uint32_t timer_get_ticks(void)

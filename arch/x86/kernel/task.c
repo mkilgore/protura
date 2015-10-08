@@ -27,6 +27,7 @@
 #include <arch/backtrace.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
+#include <arch/int.h>
 #include "irq_handler.h"
 #include <arch/paging.h>
 #include <arch/asm.h>
@@ -98,11 +99,12 @@ static void task_user_kernel_stack_setup(struct task *t)
 
 /* Makes a copy the pages in the user memory space in one task to another
  * task */
-void task_paging_copy_user(struct task *restrict new, struct task *restrict old, unsigned int flags)
+void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
 {
     struct page_directory *restrict new_dir = new->page_dir;
     struct page_directory *restrict old_dir = old->page_dir;
     int table;
+    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
 
     kprintf("Copying user pages\n");
 
@@ -112,7 +114,7 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old,
             struct page_table *restrict old_table = (struct page_table *)P2V(PAGING_FRAME(old_dir->table[table].entry));
 
             pa_t flags = old_dir->table[table].entry & PAGING_ATTRS_MASK;
-            pa_t new_table_addr = palloc_phys(flags) | flags;
+            pa_t new_table_addr = palloc_phys(palloc_flags) | flags;
 
             /* Insert new page into the new page-table */
             new_dir->table[table].entry = new_table_addr;
@@ -125,7 +127,7 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old,
                 if (old_table->table[page].present) {
 
                     pa_t flags = old_table->table[page].entry & PAGING_ATTRS_MASK;
-                    pa_t new_page = palloc_phys(flags);
+                    pa_t new_page = palloc_phys(palloc_flags);
 
                     memcpy(P2V(new_page), P2V(PAGING_FRAME(old_table->table[page].entry)), PG_SIZE);
                     new_table->table[page].entry = new_page | flags;
@@ -137,9 +139,10 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old,
     }
 }
 
-void task_paging_init(struct task *task, unsigned int flags)
+void task_paging_init(struct task *task)
 {
-    task->page_dir = palloc(flags);
+    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
+    task->page_dir = palloc(palloc_flags);
     memcpy(task->page_dir, &kernel_dir, sizeof(kernel_dir));
 }
 
@@ -162,10 +165,10 @@ void task_paging_free(struct task *task)
     task->page_dir = NULL;
 }
 
-static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, uintptr_t task_entry, unsigned int flags)
+static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, uintptr_t task_entry)
 {
     char *ksp;
-    struct task *t = task_new(flags);
+    struct task *t = task_new();
 
     if (!t)
         return NULL;
@@ -204,22 +207,23 @@ static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc,
 /* The main difference here is that the interruptable kernel task entry
  * function will enable interrupts before calling 'kernel_task', regular kernel
  * task's won't. */
-struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, unsigned int flags)
+struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
 {
-    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_interruptable_addr, flags);
+    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_interruptable_addr);
 }
 
-struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, unsigned int flags)
+struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
 {
-    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_addr, flags);
+    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_addr);
 }
 
 /* Initializes a new allocated task */
-struct task *task_new(unsigned int flags)
+struct task *task_new(void)
 {
+    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
     struct task *task;
 
-    task = kmalloc(sizeof(*task), flags);
+    task = kmalloc(sizeof(*task), palloc_flags);
     if (!task)
         return NULL;
 
@@ -227,10 +231,10 @@ struct task *task_new(unsigned int flags)
 
     task->pid = scheduler_next_pid();
 
-    task->kstack_bot = palloc_multiple(flags, log2(KMEM_STACK_LIMIT));
+    task->kstack_bot = palloc_multiple(palloc_flags, log2(KMEM_STACK_LIMIT));
     task->kstack_top = task->kstack_bot + PG_SIZE * KMEM_STACK_LIMIT - 1;
 
-    task_paging_init(task, flags);
+    task_paging_init(task);
     task->state = TASK_RUNNABLE;
 
     kprintf("Created task %d\n", task->pid);
@@ -241,15 +245,15 @@ struct task *task_new(unsigned int flags)
 /* Creates a new processes that is a copy of 'parent'.
  * Note, the userspace code/data/etc. is copied, but not the kernel-space stuff
  * like the kernel stack. */
-struct task *task_fork(struct task *parent, unsigned int flags)
+struct task *task_fork(struct task *parent)
 {
-    struct task *new = task_new(flags);
+    struct task *new = task_new();
     if (!new)
         return NULL;
 
     snprintf(new->name, sizeof(new->name), "Chld: %s", parent->name);
 
-    task_paging_copy_user(new, parent, flags);
+    task_paging_copy_user(new, parent);
     task_user_kernel_stack_setup(new);
 
     new->parent = parent;
@@ -258,23 +262,24 @@ struct task *task_fork(struct task *parent, unsigned int flags)
     return new;
 }
 
-struct task *task_fake_create(unsigned int flags)
+struct task *task_fake_create(void)
 {
+    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
     pa_t code, sp;
     va_t code_load_addr = KMEM_PROG_LINK;
     va_t stack_load_addr = (va_t)KMEM_PROG_STACK_START;
 
-    struct task *t = task_new(flags);
+    struct task *t = task_new();
 
     snprintf(t->name, sizeof(t->name), "Fake Task %d", t->pid);
 
-    code = palloc_phys(flags);
+    code = palloc_phys(palloc_flags);
     memcpy(P2V(code), fake_task_entry, fake_task_size);
     paging_map_phys_to_virt(V2P(t->page_dir), code_load_addr, code);
 
     memset(&t->context, 0, sizeof(t->context));
 
-    sp = palloc_phys_multiple(flags, log2(KMEM_STACK_LIMIT));
+    sp = palloc_phys_multiple(palloc_flags, log2(KMEM_STACK_LIMIT));
     paging_map_phys_to_virt_multiple(V2P(t->page_dir), stack_load_addr, sp, KMEM_STACK_LIMIT);
 
     /* Setup the stack */

@@ -33,9 +33,6 @@ struct idt_identifier {
 
 static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
 
-atomic32_t intr_count = ATOMIC32_INIT(0);
-int reschedule = 0, reschedule_preempt = 0;
-
 void irq_register_callback(uint8_t irqno, void (*handler)(struct idt_frame *), const char *id, enum irq_type type)
 {
     struct idt_identifier *ident = idt_ids + irqno;
@@ -82,22 +79,22 @@ void irq_global_handler(struct idt_frame *iframe)
 {
     struct idt_identifier *ident = idt_ids + iframe->intno;
     struct task *t;
+    struct cpu_info *cpu = cpu_get_local();
     int frame_flag = 0;
 
     atomic32_inc(&ident->count);
 
-    reschedule = 0;
-    reschedule_preempt = 0;
+    cpu->reschedule = 0;
 
     /* Only actual INTERRUPT types increment the intr_count */
     if (ident->type == IRQ_INTERRUPT)
-        atomic32_inc(&intr_count);
+        cpu->intr_count++;
 
     /* If frame is NULL, then this is the first interrupt from this task - This
      * frame is special because it allows us to change the cpu state returned
      * to the task when this interrupt chain finally returns. All syscalls that
      * return values have to modify *this* frame specefically. */
-    t = cpu_get_local()->current;
+    t = cpu->current;
     if (t && !t->context.frame) {
         frame_flag = 1;
         t->context.frame = iframe;
@@ -129,7 +126,7 @@ void irq_global_handler(struct idt_frame *iframe)
     if (ident->type != IRQ_INTERRUPT)
         return ;
 
-    atomic32_dec(&intr_count);
+    cpu->intr_count--;
 
     /* If something set the reschedule flag and we're the last interrupt
      * (Meaning, we weren't fired while some other interrupt was going on, but
@@ -140,14 +137,8 @@ void irq_global_handler(struct idt_frame *iframe)
      * marked TASK_RUNNABLE so they can be resumed from where they were
      * preempted, even if they were not previously marked RUNNABLE.
      */
-    if (atomic32_get(&intr_count) == 0) {
-        if (reschedule)
-            scheduler_task_yield();
-        else if (reschedule_preempt)
+    if (cpu->intr_count == 0)
+        if (cpu->reschedule)
             scheduler_task_yield_preempt();
-
-        reschedule = 0;
-        reschedule_preempt = 0;
-    }
 }
 
