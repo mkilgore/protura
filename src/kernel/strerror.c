@@ -14,10 +14,12 @@
     [val] = #val
 
 const char *error_strings[] = {
+#include "errors.x"
+    /*
     ERR(ENOTDIR),
     ERR(ENOTSUP),
     ERR(EBADF),
     ERR(ENFILE),
-    ERR(EMFILE),
+    ERR(EMFILE), */
 };
 

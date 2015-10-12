@@ -121,6 +121,16 @@ CPPFLAGS += -I'$(objtree)/include/'
 
 make_name = $(subst /,_,$(basename $(objtree)/$1))
 
+define add_dep
+$(1): $(2)
+endef
+
+define create_rule
+$(1): $(2)
+	@echo " $(3)$$@"
+	$(4)
+endef
+
 # Traverse into tree
 define subdir_inc
 objtree := $$(objtree)/$(1)
@@ -229,14 +239,12 @@ dist: clean
 	@echo " Created $(EXE)-$(VERSION_N).tar.gz"
 
 clean:
-	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ); do \
+	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ) $(objtree)/imgs; do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
 		fi \
 	done
-	@echo " RM      $(objtree)/imgs"
-	$(Q)rm -fr $(objtree)/imgs
 
 $(EXE_OBJ): $(REAL_OBJS_y)
 	@echo " LD      $@"
