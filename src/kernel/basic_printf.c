@@ -38,25 +38,31 @@ static void basic_printf_add_str(struct printf_backbone *backbone, const char *s
 static void escape_string(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
 {
     const char *s;
+    int max_width = -1;
     int width = -1, i;
+    int *use_width = &width;
     size_t slen;
 
     for (i = 0; i < len; i++) {
         switch (code[i]) {
         case '0':
-            if (width != -1)
-                width *= 10;
+            if (*use_width != -1)
+                *use_width *= 10;
             break;
 
         case '1' ... '9':
-            if (width == -1)
-                width = code[i] - '0';
+            if (*use_width == -1)
+                *use_width = code[i] - '0';
             else
-                width = (width * 10) + (code[i] - '0');
+                *use_width = (*use_width * 10) + (code[i] - '0');
             break;
 
         case '*':
-            width = va_arg(*args, int);
+            *use_width = va_arg(*args, int);
+            break;
+
+        case '.':
+            use_width = &max_width;
             break;
 
         default:
@@ -67,6 +73,14 @@ static void escape_string(struct printf_backbone *backbone, const char *code, si
 
     s = va_arg(*args, const char *);
     slen = strlen(s);
+
+    if (max_width != -1) {
+        if (width > max_width)
+            width = max_width;
+
+        if (slen > max_width)
+            slen = max_width;
+    }
 
     basic_printf_add_str(backbone, s, slen);
 

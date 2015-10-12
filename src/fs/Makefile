@@ -6,6 +6,7 @@ objs-y += file_system.o
 
 objs-y += file.o
 objs-y += fs.o
+objs-y += namei.o
 
 subdir-y += simple_fs
 

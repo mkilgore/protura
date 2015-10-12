@@ -23,10 +23,7 @@ extern struct inode *ino_root;
 
 static inline int root_lookup(const char *path, size_t len, struct inode **result)
 {
-    if (ino_root->ops->lookup)
-        ino_root->ops->lookup(ino_root, path, len, result);
-    else
-        return -ENOTDIR;
+    return inode_lookup(ino_root, path, len, result);
 }
 
 #endif

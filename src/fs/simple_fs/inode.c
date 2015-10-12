@@ -69,6 +69,7 @@ struct inode_ops simple_fs_inode_ops = {
     .file_open = simple_fs_file_open,
     .file_close = simple_fs_file_close,
     .truncate = simple_fs_truncate,
+    .lookup = inode_lookup_generic,
     .bmap = simple_fs_bmap,
 };
 

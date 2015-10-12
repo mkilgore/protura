@@ -17,6 +17,9 @@
 #include <protura/dump_mem.h>
 #include <protura/scheduler.h>
 #include <mm/palloc.h>
+#include <fs/inode.h>
+#include <fs/file.h>
+#include <fs/fs.h>
 
 #include <arch/spinlock.h>
 #include <arch/fake_task.h>
@@ -266,6 +269,7 @@ struct task *task_new(void)
  * like the kernel stack. */
 struct task *task_fork(struct task *parent)
 {
+    int i;
     struct task *new = task_new();
     if (!new)
         return NULL;
@@ -275,6 +279,11 @@ struct task *task_fork(struct task *parent)
     task_paging_init(new);
     task_paging_copy_user(new, parent);
     task_user_kernel_stack_setup(new);
+
+    new->cwd = inode_dup(parent->cwd);
+
+    for (i = 0; i < NOFILE; i++)
+        new->files[i] = file_dup(parent->files[i]);
 
     new->parent = parent;
     memcpy(new->context.frame, parent->context.frame, sizeof(*new->context.frame));
@@ -320,6 +329,8 @@ struct task *task_fake_create(void)
     t->context.frame->eflags = EFLAGS_IF;
 
     t->state = TASK_RUNNABLE;
+
+    t->cwd = inode_dup(ino_root);
 
     return t;
 }

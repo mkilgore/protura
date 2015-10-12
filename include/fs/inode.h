@@ -51,6 +51,7 @@ struct inode_ops {
 struct inode *inode_get(struct super_block *, ino_t ino);
 struct inode *inode_dup(struct inode *);
 void inode_put(struct inode *);
+int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result);
 
 int fd_open(struct inode *inode, struct file **filp);
 int fd_close(int fd);

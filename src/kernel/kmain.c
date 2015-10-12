@@ -31,6 +31,8 @@
 #include <fs/inode.h>
 #include <fs/file.h>
 #include <fs/stat.h>
+#include <fs/namei.h>
+#include <fs/fs.h>
 
 int kernel_is_booting = 1;
 
@@ -71,7 +73,6 @@ void print_file(struct inode *inode, int indent)
         kprintf("Error opening file: %s\n", strerror(fd));
         return ;
     }
-    kprintf("FD: %d\n", fd);
 
     file_read(filp, buf, sizeof(buf));
 
@@ -126,6 +127,7 @@ void test_fs(void)
     struct super_block *sb;
     struct simple_fs_super_block *simple;
     struct simple_fs_inode *inode;
+    struct inode *i;
 
     fs = file_system_lookup("simple_fs");
 
@@ -144,6 +146,28 @@ void test_fs(void)
     kprintf("Root size: %d\n", inode->i.size);
 
     print_dir(simple->sb.root, 0);
+
+    ino_root = inode_dup(simple->sb.root);
+
+    int ret = namei("/", &i);
+
+    if (ret) {
+        kprintf("namei ret: %d\n", ret);
+    } else {
+        kprintf("Inode: %d\n", i->ino);
+        kprintf("Size: %d\n", i->size);
+        inode_put(i);
+    }
+
+    ret = namei("/test_dir/test_dir2", &i);
+
+    if (ret) {
+        kprintf("namei ret: %d\n", ret);
+    } else {
+        kprintf("Inode: %d\n", i->ino);
+        kprintf("Size: %d\n", i->size);
+        inode_put(i);
+    }
 
     sb_put(sb);
 }

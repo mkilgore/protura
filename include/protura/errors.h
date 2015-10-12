@@ -13,6 +13,7 @@
 #define EBADF   3
 #define ENFILE  4
 #define EMFILE  5
+#define ENOENT  6
 
 extern const char *error_strings[];
 

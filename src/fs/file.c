@@ -128,6 +128,12 @@ off_t fs_file_generic_lseek(struct file *filp, off_t off, int whence)
     return filp->offset;
 }
 
+struct file *file_dup(struct file *filp)
+{
+    atomic_inc(&filp->ref);
+    return filp;
+}
+
 int sys_read(int fd, void *buf, size_t len)
 {
     struct file *filp;

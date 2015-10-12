@@ -19,6 +19,7 @@
 #include <fs/block.h>
 #include <fs/super.h>
 #include <fs/file.h>
+#include <fs/stat.h>
 #include <fs/inode.h>
 
 #define INODE_HASH_SIZE 512
@@ -92,6 +93,68 @@ struct inode *inode_get(struct super_block *sb, ino_t ino)
   return_inode:
     atomic_inc(&inode->ref);
     return inode;
+}
+
+static int check_ents_in_block(struct block *b, int ents, const char *name, size_t len, struct dirent *result)
+{
+    int k;
+    struct dirent *dents = (struct dirent *)b->data;
+
+    for (k = 0; k < ents; k++) {
+        kprintf("Checking ent %s\n", dents[k].name);
+        kprintf("Len: %d\n", strlen(dents[k].name));
+        if (strlen(dents[k].name) == len) {
+            kprintf("Strncmp\n");
+            if (strncmp(dents[k].name, name, len) == 0) {
+                memcpy(result, dents + k, sizeof(struct dirent));
+                *result = dents[k];
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/* Uses bmap to implement a generic lookup - Assumes every block consists of
+ * 'struct dirent' objects. */
+int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result)
+{
+    struct block *b;
+    dev_t dev = dir->dev;
+    int sectors, i, ents;
+    size_t sector_size = dir->sb->bdev->block_size;
+    int dents_in_block = sector_size / sizeof(struct dirent);
+
+    int found_entry = 0;
+    struct dirent found;
+
+    kprintf("Looking up %.*s\n", len, name);
+    kprintf("Len: %d\n", len);
+
+    if (!S_ISDIR(dir->mode))
+        return -ENOTDIR;
+
+    ents = dir->size / sizeof(struct dirent);
+    sectors = (dir->size + sector_size - 1) / sector_size;
+
+    for (i = 0; i < sectors && !found_entry; i++) {
+        sector_t s;
+        int ents_to_check = (i * dents_in_block + dents_in_block > ents)?
+                             ents - i * dents_in_block:
+                             dents_in_block;
+
+        s = inode_bmap(dir, i);
+
+        using_block(dev, s, b)
+            found_entry = check_ents_in_block(b, ents_to_check, name, len, &found);
+    }
+
+    if (!found_entry)
+        return -ENOENT;
+
+    *result = inode_get(dir->sb, found.ino);
+
+    return 0;
 }
 
 int fd_open(struct inode *inode, struct file **filp)

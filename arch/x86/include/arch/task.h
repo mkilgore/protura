@@ -19,6 +19,7 @@
 #define NOFILE 20
 
 struct file;
+struct inode;
 
 enum task_state {
     TASK_NONE,
@@ -50,6 +51,7 @@ struct task {
     int killed; /* If non-zero, we've been killed and need to exit() */
 
     struct file *files[NOFILE];
+    struct inode *cwd;
 
     char name[20];
 };
