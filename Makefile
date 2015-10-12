@@ -263,12 +263,15 @@ $(objtree)/%.ld: $(srctree)/%.ldS
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
 $(objtree)/.%.d: $(srctree)/%.ldS
+	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
 
 $(objtree)/.%.d: $(srctree)/%.c
+	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 $(objtree)/.%.d: $(srctree)/%.S
+	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 
@@ -286,12 +289,15 @@ $(objtree)/%.ld: $(objtree)/%.ldS
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
 $(objtree)/.%.d: $(objtree)/%.ldS
+	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
 
 $(objtree)/.%.d: $(objtree)/%.c
+	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 $(objtree)/.%.d: $(objtree)/%.S
+	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 PHONY+=cscope
