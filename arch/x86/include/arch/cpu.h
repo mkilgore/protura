@@ -1,9 +1,10 @@
 #ifndef INCLUDE_ARCH_CPU_H
 #define INCLUDE_ARCH_CPU_H
 
-#include <arch/task.h>
 #include <arch/context.h>
 #include <arch/gdt.h>
+
+struct task;
 
 struct cpu_info {
     int cpu_id;
@@ -34,5 +35,6 @@ struct cpu_info {
 void cpu_set_kernel_stack(struct cpu_info *c, void *kstack);
 void cpu_start_scheduler(void);
 void cpu_info_init(void);
+void cpu_setup_idle(void);
 
 #endif

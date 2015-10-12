@@ -1,3 +1,10 @@
+/*
+ * Copyright (C) 2015 Matt Kilgore
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License v2 as published by the
+ * Free Software Foundation.
+ */
 #ifndef INCLUDE_ARCH_TASK_H
 #define INCLUDE_ARCH_TASK_H
 
@@ -7,8 +14,11 @@
 #include <protura/wait.h>
 #include <arch/context.h>
 #include <arch/paging.h>
+#include <arch/cpu.h>
 
 #define NOFILE 20
+
+struct file;
 
 enum task_state {
     TASK_NONE,
@@ -19,9 +29,10 @@ enum task_state {
 };
 
 struct task {
-    kpid_t pid;
+    pid_t pid;
     enum task_state state;
     unsigned int preempted :1;
+    unsigned int kernel :1;
 
     int wake_up; /* Tick number to wake-up on */
 
@@ -38,20 +49,27 @@ struct task {
 
     int killed; /* If non-zero, we've been killed and need to exit() */
 
+    struct file *files[NOFILE];
+
     char name[20];
 };
 
-void task_init(void);
-
 /* Allocates a new task, assigning it a PID, intializing it's kernel
  * stack for it's first run, giving it a blank page-directory, and setting the
- * state to TASK_EMBRYO.
+ * state to TASK_NONE.
  *
  * The caller should do any other initalization, set the state to
  * TASK_RUNNABLE, and then put the task into the scheduler list using
  * task_add. */
 struct task *task_new(void);
 struct task *task_fork(struct task *);
+void task_init(struct task *);
+
+/* Used for the 'fork()' syscall */
+pid_t __fork(struct task *current);
+pid_t sys_fork(void);
+pid_t sys_getpid(void);
+pid_t sys_getppid(void);
 
 /* Used when a task is already killed and dead */
 void task_free(struct task *);
@@ -62,12 +80,33 @@ void task_paging_free(struct task *);
 void task_paging_copy_user(struct task *restrict new, struct task *restrict old);
 struct task *task_fake_create(void);
 
-struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv);
-struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv);
+struct task *task_kernel_new(char *name, int (*kernel_task) (void *), void *);
+struct task *task_kernel_new_interruptable(char *name, int (*kernel_task) (void *), void *);
 
-void task_print(char *buf, ksize_t size, struct task *);
+void __task_kernel(struct task *, char *name, int (*kernel_task) (void *), void *);
+void __task_kernel_interuptable(struct task *, char *name, int (*kernel_task) (void *), void *);
+
+void task_init_start(int (*init) (void *), void *ptr);
+
+void task_print(char *buf, size_t size, struct task *);
 void task_switch(context_t *old, struct task *new);
 
 extern const char *task_states[];
+
+static inline int task_fd_get_free(struct task *task)
+{
+    int i;
+
+    for (i = 0; i < NOFILE; i++)
+        if (!task->files[i])
+            return i;
+
+    return -1;
+}
+
+static inline int fd_get_free(void)
+{
+    return task_fd_get_free(cpu_get_local()->current);
+}
 
 #endif

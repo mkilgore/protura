@@ -36,7 +36,7 @@ void block_dev_init(void)
     ide_init();
 }
 
-struct block_device *block_dev_get(kdev_t device)
+struct block_device *block_dev_get(dev_t device)
 {
     int d = DEV_MAJOR(device);
 

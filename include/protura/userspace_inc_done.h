@@ -5,11 +5,17 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_ARCH_LIMITS_H
-#define INCLUDE_ARCH_LIMITS_H
+#ifndef INCLUDE_PROTURA_USERSPACE_INC_DONE_H
+#define INCLUDE_PROTURA_USERSPACE_INC_DONE_H
 
-#include <protura/types.h>
-
-#define SIZE_MAX ((size_t)-1)
+#undef off_t
+#undef pid_t
+#undef mode_t
+#undef dev_t
+#undef sector_t
+#undef ino_t
+#undef umode_t
+#undef size_t
+#undef dirent
 
 #endif

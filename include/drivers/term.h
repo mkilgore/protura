@@ -45,7 +45,7 @@ void term_put_term_char(struct term_char);
 
 void term_putchar(char);
 void term_putstr(const char *);
-void term_putnstr(const char *, ksize_t len);
+void term_putnstr(const char *, size_t len);
 
 void term_printf(const char *, ...) __printf(1, 2);
 void term_printfv(const char *, va_list);
@@ -64,6 +64,10 @@ void term_scroll(int);
 struct term_char term_getchar(int x, int y);
 void term_getcurxy(int *x, int *y);
 uint8_t term_getcurcol(void);
+
+void sys_putchar(char);
+void sys_putint(int);
+void sys_putstr(const char *);
 
 #endif
 

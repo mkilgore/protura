@@ -21,7 +21,7 @@ static void arch_putchar(struct printf_backbone *b, char ch)
     com1_putchar(ch);
 }
 
-static void arch_putnstr(struct printf_backbone *b, const char *s, ksize_t len)
+static void arch_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     if (kernel_is_booting)
         term_putnstr(s, len);

@@ -5,7 +5,7 @@ disk.img: ./tools/gendisk
 
 ./tools/gendisk: ./tools/gendisk.c
 	@echo " CCLD    tools/gendisk"
-	$(Q)gcc -I./include -I./arch/$(ARCH)/include -o $@ $< 
+	$(Q)gcc -Wall -g -I./include -I./arch/$(ARCH)/include -o $@ $< 
 
 CLEAN_LIST += ./disk.img ./tools/gendisk
 

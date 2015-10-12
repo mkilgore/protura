@@ -12,9 +12,9 @@
 #include <protura/types.h>
 
 /* 32 bytes long, just to make it fit nicely */
-struct kdirent {
+struct dirent {
     char name[28];
-    kino_t ino;
+    ino_t ino;
 } __packed;
 
 #endif

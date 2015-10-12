@@ -7,7 +7,7 @@
 #include <protura/queue.h>
 #include <arch/cpu.h>
 
-kpid_t scheduler_next_pid(void);
+pid_t scheduler_next_pid(void);
 
 void scheduler_task_add(struct task *);
 void scheduler_task_remove(struct task *);
@@ -47,6 +47,7 @@ static inline void scheduler_task_wake(struct task *t)
 
 
 void scheduler_task_waitms(uint32_t mseconds);
+void sys_sleep(uint32_t mseconds);
 void scheduler(void);
 
 /* Entry point for all new tasks */

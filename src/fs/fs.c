@@ -5,9 +5,8 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_MM_PAGE_BUDDY_H
-#define INCLUDE_MM_PAGE_BUDDY_H
+#include <protura/types.h>
+#include <fs/fs.h>
 
-#include <mm/palloc.h>
+struct inode *ino_root;
 
-#endif

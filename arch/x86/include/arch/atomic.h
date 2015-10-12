@@ -54,13 +54,27 @@ static __always_inline void atomic32_dec(atomic32_t *v)
             : "+m" (v->counter));
 }
 
+static __always_inline int atomic32_dec_and_test(atomic32_t *v)
+{
+    asm volatile goto (LOCK_PREFIX "decl %0; jz %l[equal]"
+            :
+            : "m" (v->counter)
+            : "memory"
+            : equal);
+
+    return 0;
+  equal:
+    return 1;
+}
+
 typedef atomic32_t atomic_t;
 
-#define atomic_get(a)    atomic32_get(a)
-#define atomic_set(a, i) atomic32_set(a, i)
-#define atomic_add(a, i) atomic32_add(a, i)
-#define atomic_sub(a, i) atomic32_sub(a, i)
-#define atomic_inc(a)    atomic32_inc(a)
-#define atomic_dec(a)    atomic32_dec(a)
+#define atomic_get(a)          atomic32_get(a)
+#define atomic_set(a, i)       atomic32_set(a, i)
+#define atomic_add(a, i)       atomic32_add(a, i)
+#define atomic_sub(a, i)       atomic32_sub(a, i)
+#define atomic_inc(a)          atomic32_inc(a)
+#define atomic_dec(a)          atomic32_dec(a)
+#define atomic_dec_and_test(a) atomic32_dec_and_test(a)
 
 #endif

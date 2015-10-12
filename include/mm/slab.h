@@ -23,7 +23,7 @@ struct slab_alloc {
         .first_frame = NULL, \
     }
 
-void slab_info(struct slab_alloc *, char *buf, ksize_t buf_size);
+void slab_info(struct slab_alloc *, char *buf, size_t buf_size);
 
 void *slab_malloc(struct slab_alloc *, unsigned int flags);
 void slab_free(struct slab_alloc *, void *);

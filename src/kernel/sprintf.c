@@ -14,7 +14,7 @@
 struct printf_backbone_str {
     struct printf_backbone backbone;
     char *buf;
-    ksize_t left;
+    size_t left;
 };
 
 static void str_putchar(struct printf_backbone *b, char ch)
@@ -28,10 +28,10 @@ static void str_putchar(struct printf_backbone *b, char ch)
     str->left--;
 }
 
-static void str_putnstr(struct printf_backbone *b, const char *s, ksize_t len)
+static void str_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     struct printf_backbone_str *str = container_of(b, struct printf_backbone_str, backbone);
-    ksize_t l;
+    size_t l;
 
     if (str->left >= len) {
         for (l = 0; l < len; l++)
@@ -46,7 +46,7 @@ static void str_putnstr(struct printf_backbone *b, const char *s, ksize_t len)
     }
 }
 
-ksize_t snprintfv(char *buf, ksize_t len, const char *fmt, va_list lst)
+size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
 {
     struct printf_backbone_str str = {
         .backbone = {
@@ -65,9 +65,9 @@ ksize_t snprintfv(char *buf, ksize_t len, const char *fmt, va_list lst)
 }
 
 
-ksize_t snprintf(char *buf, ksize_t len, const char *fmt, ...)
+size_t snprintf(char *buf, size_t len, const char *fmt, ...)
 {
-    ksize_t ret;
+    size_t ret;
     va_list lst;
     va_start(lst, fmt);
     ret = snprintfv(buf, len, fmt, lst);
@@ -75,14 +75,14 @@ ksize_t snprintf(char *buf, ksize_t len, const char *fmt, ...)
     return ret;
 }
 
-ksize_t sprintfv(char *buf, const char *fmt, va_list lst)
+size_t sprintfv(char *buf, const char *fmt, va_list lst)
 {
     return snprintfv(buf, SIZE_MAX, fmt, lst);
 }
 
-ksize_t sprintf(char *buf, const char *fmt, ...)
+size_t sprintf(char *buf, const char *fmt, ...)
 {
-    ksize_t ret;
+    size_t ret;
     va_list lst;
     va_start(lst, fmt);
     ret = snprintfv(buf, SIZE_MAX, fmt, lst);

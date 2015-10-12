@@ -22,11 +22,11 @@ struct block {
     char *data;
 
     /* 'block_size' is the fundimental size for this device. */
-    ksize_t block_size;
+    size_t block_size;
 
     /* Location of the first block on the device, and the actual device it represents. */
-    ksector_t sector;
-    kdev_t dev;
+    sector_t sector;
+    dev_t dev;
 
     /* If this is set, then the contents of this block has been modified and
      * doesn't match the contents of the disk. */
@@ -88,7 +88,7 @@ static inline int block_waiting(struct block *b)
 void block_init(struct block *);
 void block_clear(struct block *);
 
-struct block *bread(kdev_t, ksector_t);
+struct block *bread(dev_t, sector_t);
 void brelease(struct block *);
 
 #define using_block(dev, sector, block) \
@@ -108,7 +108,7 @@ struct block_device {
     const char *name;
     int major;
 
-    ksize_t block_size;
+    size_t block_size;
 
     struct block_device_ops *ops;
 };
@@ -120,7 +120,7 @@ enum {
 
 void block_dev_init(void);
 
-struct block_device *block_dev_get(kdev_t device);
+struct block_device *block_dev_get(dev_t device);
 
 static inline void block_dev_sync_block(struct block_device *dev, struct block *b)
 {

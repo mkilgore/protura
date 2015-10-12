@@ -32,6 +32,11 @@ uint32_t timer_get_ticks(void)
     return atomic32_get(&ticks);
 }
 
+uint32_t sys_clock(void)
+{
+    return timer_get_ticks();
+}
+
 void pic8259_timer_init(void)
 {
     outb(PIC8259_TIMER_MODE,

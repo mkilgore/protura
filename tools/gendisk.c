@@ -6,99 +6,212 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <protura/userspace_inc.h>
+#include <fs/stat.h>
 #include <fs/simple_fs.h>
 #include <fs/dirent.h>
+#include <protura/list.h>
+#include <protura/userspace_inc_done.h>
 
-/* Root directory sector */
-int root_files = 0;
-struct kdirent root_ents[512 / sizeof(struct kdirent)];
+#define SECTOR_SIZE 512
 
-void read_dir(const char *dir)
+struct inode_desc {
+    struct list_node node;
+    struct simple_fs_disk_inode i;
+    struct simple_fs_disk_inode_map map;
+    int sectors;
+    char *data;
+};
+
+struct disk_map {
+    uint32_t inode_count;
+    uint32_t inode_map_sector;
+    uint32_t inode_root;
+    struct list_head descs;
+
+    uint32_t next_ino;
+    uint32_t next_sector;
+};
+
+struct disk_map root = {
+    .descs = LIST_HEAD_INIT(root.descs),
+};
+
+void add_inode_desc(struct disk_map *map, struct inode_desc *desc)
 {
-    struct dirent *ent;
-    DIR *d = opendir(dir);
+    map->inode_count++;
+    list_add_tail(&map->descs, &desc->node);
+}
 
-    while ((ent = readdir(d))) {
-        if (strcmp(ent->d_name, "..") == 0 || strcmp(ent->d_name, ".") == 0)
-            continue;
-        strncpy(root_ents[root_files].name, ent->d_name, sizeof(root_ents[root_files].name));
-        root_files++;
+void add_dir_entry(struct inode_desc *dir, const char *name, uint32_t ino)
+{
+    struct kdirent ent;
+    uint32_t cur;
+
+    strcpy(ent.name, name);
+    ent.ino = ino;
+
+    cur = dir->i.size;
+
+    dir->i.size += sizeof(struct kdirent);
+    dir->data = realloc(dir->data, dir->i.size);
+    memcpy(dir->data + cur, &ent, sizeof(ent));
+}
+
+void read_file(struct inode_desc *file, int fd)
+{
+    off_t len;
+
+    len = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+
+    file->i.size = len;
+    file->i.mode = S_IFREG;
+    file->map.sector = root.next_sector++;
+    file->data = malloc(len);
+
+    read(fd, file->data, len);
+
+    file->sectors = (len + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    int i;
+
+    for (i = 0; i < file->sectors; i++)
+        file->i.sectors[i] = root.next_sector++;
+}
+
+uint32_t map_dir(uint32_t parent)
+{
+    struct inode_desc *inode_dir;
+    struct dirent *ent, *prev;
+    DIR *d = opendir(".");
+
+    inode_dir = malloc(sizeof(*inode_dir));
+    memset(inode_dir, 0, sizeof(*inode_dir));
+
+    inode_dir->map.ino = root.next_ino++;
+    inode_dir->map.sector = root.next_sector++;
+    inode_dir->i.mode = S_IFDIR;
+
+    prev = malloc(offsetof(struct dirent, d_name) + 255);
+
+    while ((readdir_r(d, prev, &ent)) == 0 && ent != NULL) {
+        uint32_t ino;
+
+        if (strcmp(ent->d_name, "..") == 0) {
+            ino = parent;
+        } else if(strcmp(ent->d_name, ".") == 0) {
+            ino = inode_dir->map.ino;
+        } else if (ent->d_type == DT_REG) {
+            struct inode_desc *f;
+            int fd;
+
+            f = malloc(sizeof(*f));
+            memset(f, 0, sizeof(*f));
+
+            f->map.ino = root.next_ino++;
+
+            fd = open(ent->d_name, O_RDONLY);
+            read_file(f, fd);
+            close(fd);
+
+            add_inode_desc(&root, f);
+            ino = f->map.ino;
+        } else if (ent->d_type == DT_DIR) {
+            chdir(ent->d_name);
+            ino = map_dir(inode_dir->map.ino);
+            chdir("..");
+        }
+
+        add_dir_entry(inode_dir, ent->d_name, ino);
     }
 
     closedir(d);
+
+    free(prev);
+
+    inode_dir->sectors = (inode_dir->i.size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    int i;
+    for (i = 0; i < inode_dir->sectors; i++)
+        inode_dir->i.sectors[i] = root.next_sector++;
+
+    add_inode_desc(&root, inode_dir);
+
+    return inode_dir->map.ino;
+}
+
+void print_map(struct disk_map *map)
+{
+    struct inode_desc *d;
+
+    printf("Files: %d\n", map->inode_count);
+    printf("Inode sec: %d\n", map->inode_map_sector);
+
+    list_foreach_entry(&map->descs, d, node) {
+        printf("Desc: i:%d s:%d se:%d\n", d->map.ino, d->i.size, d->map.sector);
+    }
+}
+
+void write_dir(int fd, struct disk_map *root)
+{
+    struct inode_desc *d;
+    struct simple_fs_disk_sb sb;
+    memset(&sb, 0, sizeof(sb));
+
+    sb.inode_count = root->inode_count;
+    sb.root_ino = root->inode_root;
+    sb.inode_map_sector = root->inode_map_sector;
+
+    ftruncate(fd, root->next_sector * SECTOR_SIZE);
+
+    lseek(fd, 0, SEEK_SET);
+    write(fd, &sb, sizeof(sb));
+
+    lseek(fd, root->inode_map_sector * SECTOR_SIZE, SEEK_SET);
+    list_foreach_entry(&root->descs, d, node)
+        write(fd, &d->map, sizeof(d->map));
+
+    list_foreach_entry(&root->descs, d, node) {
+        lseek(fd, d->map.sector * SECTOR_SIZE, SEEK_SET);
+        write(fd, &d->i, sizeof(d->i));
+
+        int i;
+        for (i = 0; i < d->sectors; i++) {
+            int len;
+            lseek(fd, d->i.sectors[i] * SECTOR_SIZE, SEEK_SET);
+
+            if (d->i.size - i * SECTOR_SIZE < SECTOR_SIZE)
+                len = d->i.size - i * SECTOR_SIZE;
+
+            write(fd, d->data + i * SECTOR_SIZE, len);
+        }
+    }
 }
 
 int main(int argc, char **argv)
 {
-    char sector[512];
-    struct simple_fs_disk_sb sb;
-    struct simple_fs_disk_inode inode;
+    const char *dir;
+    const char *file;
     int fd;
 
-    fd = open("./disk.img", O_CREAT | O_TRUNC | O_WRONLY, 0644);
-
-    read_dir("./disk");
-
-    sb.file_count = root_files;
-    sb.root_ino = 1;
-
-    memset(sector, 0, sizeof(sector));
-    memcpy(sector, &sb, sizeof(sb));
-
-    write(fd, sector, sizeof(sector));
-
-    memset(sector, 0, sizeof(sector));
-    memset(&inode, 0, sizeof(inode));
-
-    inode.size = root_files * sizeof(struct kdirent);
-    inode.sectors[0] = 2;
-
-    memcpy(sector, &inode, sizeof(inode));
-    write(fd, sector, sizeof(sector));
-
-    /* Reserve space for the root directory entries */
-    memset(sector, 0, sizeof(sector));
-
-    write(fd, sector, sizeof(sector));
-
-    chdir("./disk");
-
-    int i;
-    int cur_sector = 3;
-
-    for (i = 0; i < root_files; i++) {
-        int file = open(root_ents[i].name, O_RDONLY);
-        size_t size;
-
-        memset(&inode, 0, sizeof(inode));
-
-        lseek(file, 0, SEEK_END);
-        size = lseek(file, 0, SEEK_CUR);
-        lseek(file, 0, SEEK_SET);
-
-        inode.size = size;
-        inode.sectors[0] = cur_sector + 1;
-
-        root_ents[i].ino = cur_sector;
-
-        memset(sector, 0, sizeof(sector));
-        memcpy(sector, &inode, sizeof(inode));
-        write(fd, sector, sizeof(sector));
-        cur_sector++;
-
-        memset(sector, 0, sizeof(sector));
-        read(file, sector, sizeof(sector));
-        write(fd, sector, sizeof(sector));
-        cur_sector++;
+    if (argc < 3) {
+        printf("%s: Missing arguments\n", argv[0]);
+        printf("%s <directory> <file>\n", argv[0]);
+        return 1;
     }
 
-    chdir("..");
+    dir = argv[1];
+    file = argv[2];
 
-    lseek(fd, 1024, SEEK_SET);
+    fd = open(file, O_CREAT | O_TRUNC | O_WRONLY, 0644);
 
-    memcpy(sector, root_ents, sizeof(root_ents));
-    write(fd, sector, sizeof(sector));
+    /* Sector 0 is the super-block, so we skip it */
+    root.next_sector = 1;
+    root.inode_map_sector = root.next_sector++;
 
+    chdir(dir);
+    root.inode_root = map_dir(root.next_ino);
+
+    write_dir(fd, &root);
     close(fd);
 
     return 0;

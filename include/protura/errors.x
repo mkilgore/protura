@@ -1,0 +1,4 @@
+X(ENOTDIR, 1)
+X(ENOTSUP, 2)
+X(EBADF,   3)
+X(ENFILE,  4)

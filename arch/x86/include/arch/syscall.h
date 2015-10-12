@@ -21,6 +21,8 @@
 
 #ifndef ASM
 
+#include <arch/idt.h>
+
 void syscall_init(void);
 
 #endif

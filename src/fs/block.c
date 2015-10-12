@@ -41,7 +41,7 @@ static struct {
     .lru = LIST_HEAD_INIT(block_cache.lru),
 };
 
-static inline int block_hash(kdev_t device, ksector_t sector)
+static inline int block_hash(dev_t device, sector_t sector)
 {
     return ((DEV_MAJOR(device) + DEV_MINOR(device)) ^ (sector)) % BLOCK_HASH_TABLE_SIZE;
 }
@@ -103,7 +103,7 @@ static struct block *block_new(void)
     return b;
 }
 
-static struct block *__bread(kdev_t device, ksize_t block_size, ksector_t sector)
+static struct block *__bread(dev_t device, size_t block_size, sector_t sector)
 {
     struct block *b = NULL;
     int hash = block_hash(device, sector);
@@ -131,26 +131,17 @@ static struct block *__bread(kdev_t device, ksize_t block_size, ksector_t sector
     return b;
 }
 
-struct block *bread(kdev_t device, ksector_t sector)
+struct block *bread(dev_t device, sector_t sector)
 {
     struct block *b;
     struct block_device *dev = block_dev_get(device);
-
-    kprintf("Asking for block: %d\n", sector);
-    kprintf("Dev: %p\n", dev);
-    if (dev)
-        kprintf("Dev: %s\n", dev->name);
 
     if (!dev)
         return NULL;
 
 
-    kprintf("Grabbing block_cache lock...\n");
-    using_spinlock(&block_cache.lock) {
-
-        kprintf("calling unlocked bread\n");
+    using_spinlock(&block_cache.lock)
         b = __bread(device, dev->block_size, sector);
-    }
 
     /* We can't attempt to lock the block while we have block_cache.lock, or
      * else we might sleep with the block_cache still locked, which will bring

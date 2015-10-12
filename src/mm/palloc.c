@@ -174,6 +174,7 @@ pa_t palloc_phys_multiple(int order, unsigned int flags)
     pa_t ret;
 
     kprintf("Getting %d pages\n", 1 << order);
+    kprintf("Flags: %d\n", flags);
 
     using_spinlock(&buddy_allocator.lock) {
         if (!(flags & __PAL_NOWAIT))

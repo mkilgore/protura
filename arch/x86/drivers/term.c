@@ -190,10 +190,10 @@ void term_putstr(const char *s)
     }
 }
 
-void term_putnstr(const char *s, ksize_t len)
+void term_putnstr(const char *s, size_t len)
 {
     using_spinlock(&glob_term.lock) {
-        ksize_t l;
+        size_t l;
         for (l = 0; l < len; l++)
             __term_putchar_nocur(s[l]);
 
@@ -206,7 +206,7 @@ static void term_printf_putchar(struct printf_backbone *b, char ch)
     term_putchar(ch);
 }
 
-static void term_printf_putnstr(struct printf_backbone *b, const char *s, ksize_t len)
+static void term_printf_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     term_putnstr(s, len);
 }
@@ -226,5 +226,20 @@ void term_printf(const char *s, ...)
     va_start(lst, s);
     term_printfv(s, lst);
     va_end(lst);
+}
+
+void sys_putchar(char b)
+{
+    term_putchar(b);
+}
+
+void sys_putint(int i)
+{
+    term_printf("%d", i);
+}
+
+void sys_putstr(const char *s)
+{
+    term_printf("%s", s);
 }
 

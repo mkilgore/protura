@@ -10,7 +10,7 @@
 #include <protura/debug.h>
 
 #ifndef _STRING_ARCH_MEMCMP
-int memcmp(const void *p1, const void *p2, ksize_t siz)
+int memcmp(const void *p1, const void *p2, size_t siz)
 {
     const unsigned char *s1 = p1, *s2 = p2;
     const unsigned char *end = s1 + siz + 1;
@@ -27,7 +27,7 @@ int memcmp(const void *p1, const void *p2, ksize_t siz)
 #endif
 
 #ifndef _STRING_ARCH_MEMCPY
-void *memcpy(void *restrict p1, const void *restrict p2, ksize_t len)
+void *memcpy(void *restrict p1, const void *restrict p2, size_t len)
 {
     memmove(p1, p2, len);
     return p1;
@@ -35,7 +35,7 @@ void *memcpy(void *restrict p1, const void *restrict p2, ksize_t len)
 #endif
 
 #ifndef _STRING_ARCH_MEMMOVE
-void *memmove(void *p1, const void *p2, ksize_t len)
+void *memmove(void *p1, const void *p2, size_t len)
 {
     unsigned char *s1 = p1;
     const unsigned char *s2 = p2;
@@ -56,7 +56,7 @@ void *memmove(void *p1, const void *p2, ksize_t len)
 #endif
 
 #ifndef _STRING_ARCH_MEMSET
-void *memset(void *p1, int ival, ksize_t count)
+void *memset(void *p1, int ival, size_t count)
 {
     unsigned char *s1 = p1;
     unsigned char val = ival & 0xFF;
@@ -107,20 +107,20 @@ int strcmp(const char *s1, const char *s2)
 #endif
 
 #ifndef _STRING_ARCH_STRLEN
-ksize_t strlen(const char *s)
+size_t strlen(const char *s)
 {
     const char *s1 = s;
     while (*s)
         s++;
 
-    return (ksize_t) (s - s1);
+    return (size_t) (s - s1);
 }
 #endif
 
 #ifndef _STRING_ARCH_STRNLEN
-ksize_t strnlen(const char *s, ksize_t len)
+size_t strnlen(const char *s, size_t len)
 {
-    ksize_t l = 0;
+    size_t l = 0;
 
     while (*s && l < len)
         l++;
@@ -130,9 +130,9 @@ ksize_t strnlen(const char *s, ksize_t len)
 #endif
 
 #ifndef _STRING_ARCH_STRNCPY
-char *strncpy(char *restrict s1, const char *restrict s2, ksize_t len)
+char *strncpy(char *restrict s1, const char *restrict s2, size_t len)
 {
-    ksize_t i;
+    size_t i;
 
     for (i = 0; i < len && s2[i]; i++)
         s1[i] = s2[i];
@@ -144,9 +144,9 @@ char *strncpy(char *restrict s1, const char *restrict s2, ksize_t len)
 #endif
 
 #ifndef _STRING_ARCH_STRNCAT
-char *strncat(char *restrict s1, const char *restrict s2, ksize_t len)
+char *strncat(char *restrict s1, const char *restrict s2, size_t len)
 {
-    ksize_t s1_len = strlen(s1), i;
+    size_t s1_len = strlen(s1), i;
 
     for (i = 0; i < len && s2[i]; i++)
         s1[s1_len + i] = s2[i];
@@ -157,9 +157,9 @@ char *strncat(char *restrict s1, const char *restrict s2, ksize_t len)
 #endif
 
 #ifndef _STRING_ARCH_STRNCMP
-int strncmp(const char *s1, const char *s2, ksize_t len)
+int strncmp(const char *s1, const char *s2, size_t len)
 {
-    ksize_t i;
+    size_t i;
     for (i = 0; i < len && s1[i] && s2[i]; i++)
         if (s1[i] > s2[i])
             return 1;

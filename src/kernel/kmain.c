@@ -28,6 +28,9 @@
 #include <arch/backtrace.h>
 #include <fs/simple_fs.h>
 #include <fs/file_system.h>
+#include <fs/inode.h>
+#include <fs/file.h>
+#include <fs/stat.h>
 
 int kernel_is_booting = 1;
 
@@ -42,61 +45,122 @@ void sleep_for_keyboard(void)
     }
 }
 
-void read_sector(char *buf, ksector_t sector)
+void read_sector(char *buf, sector_t sector)
 {
     struct block *b;
     kprintf("Starting IDE test!\n");
 
-    b = bread(DEV_MAKE(DEV_IDE, 0), sector);
-    memcpy(buf, b->data, b->block_size);
+    using_block(DEV_MAKE(DEV_IDE, 0), sector, b) {
+        memcpy(buf, b->data, b->block_size);
 
-    b->data[0] = '\xFF';
-
-    block_mark_dirty(b);
-
-    brelease(b);
+        block_mark_dirty(b);
+    }
 }
 
-static char output[80 * 512 / 16 + 1];
-
-int kernel_keyboard_thread(int argc, const char **argv)
+void print_file(struct inode *inode, int indent)
 {
-    char sector[512];
-    char cmd_buf[200];
-    int len = 0;
-    ksector_t s;
+    char buf[inode->size];
+    int fd;
+    struct file *filp;
 
-    kprintf("Keyboard watch task started!\n");
-    keyboard_wakeup_add(cpu_get_local()->current);
+    memset(buf, 0, sizeof(buf));
 
-    struct file_system *fs = file_system_lookup("simple_fs");
+    fd = fd_open(inode, &filp);
+
+    if (fd < 0) {
+        kprintf("Error opening file: %s\n", strerror(fd));
+        return ;
+    }
+    kprintf("FD: %d\n", fd);
+
+    file_read(filp, buf, sizeof(buf));
+
+    term_printf("%*s", indent * 2, "");
+    term_printf("Size: %d\n", inode->size);
+
+    term_printf("%*s", indent * 2, "");
+    term_printf("Contents: ");
+    int i;
+    for (i = 0; i < inode->size; i++)
+        term_putchar(buf[i]);
+    term_putchar('\n');
+
+    fd_close(fd);
+}
+
+void print_dir(struct inode *inode, int indent)
+{
+    struct dirent ent;
+    struct file *filp;
+    int fd;
+
+    fd = fd_open(inode, &filp);
+
+    if (fd < 0) {
+        kprintf("Error opening file: %s\n", strerror(fd));
+        return ;
+    }
+
+    while ((file_read(filp, &ent, sizeof(ent))) != 0) {
+        struct inode *ent_inode;
+
+        term_printf("%*s", indent * 2, "");
+        term_printf("Ent: %d, %s\n", ent.ino, ent.name);
+        if (strcmp(ent.name, ".") == 0 || strcmp(ent.name, "..") == 0)
+            continue;
+
+        using_inode(inode->sb, ent.ino, ent_inode) {
+            if (ent_inode && S_ISDIR(ent_inode->mode))
+                print_dir(ent_inode, indent + 1);
+            else
+                print_file(ent_inode, indent + 1);
+        }
+    }
+
+    fd_close(fd);
+}
+
+void test_fs(void)
+{
+    struct file_system *fs;
+    struct super_block *sb;
+    struct simple_fs_super_block *simple;
+    struct simple_fs_inode *inode;
+
+    fs = file_system_lookup("simple_fs");
 
     kprintf("File system: %p\n", fs);
 
-    struct super_block *sb = (fs->read_sb) (DEV_MAKE(DEV_IDE, 0));
-    struct simple_fs_super_block *simple = container_of(sb, struct simple_fs_super_block, sb);
-    struct simple_fs_inode *inode;
-    struct block *b;
-    int files;
+    sb = (fs->read_sb) (DEV_MAKE(DEV_IDE, 0));
+    simple  = container_of(sb, struct simple_fs_super_block, sb);
 
     kprintf("Simple: %p\n", simple);
     kprintf("Root: %p\n", simple->sb.root);
     kprintf("Root ino: %d\n", simple->sb.root->ino);
 
     inode = container_of(simple->sb.root, struct simple_fs_inode, i);
+
     kprintf("Root data sector: %d\n", inode->contents[0]);
+    kprintf("Root size: %d\n", inode->i.size);
 
-    files = inode->i.size / sizeof(struct kdirent);
+    print_dir(simple->sb.root, 0);
 
-    using_block(simple->sb.dev, inode->contents[0], b) {
-        struct kdirent *ents = (struct kdirent *)b->data;
-        int i;
+    sb_put(sb);
+}
 
-        for (i = 0; i < files; i++)
-            kprintf("File: %s, Inode: %d\n", ents[i].name, ents[i].ino);
-    }
+static char output[80 * 512 / 16 + 1];
 
-    sb->ops->put_sb(sb);
+int kernel_keyboard_thread(void *unused)
+{
+    char sector[512];
+    char cmd_buf[200];
+    int len = 0;
+    sector_t s;
+
+    kprintf("Keyboard watch task started!\n");
+    keyboard_wakeup_add(cpu_get_local()->current);
+
+    test_fs();
 
     term_printf("Sector: ");
 
@@ -144,12 +208,23 @@ int kernel_keyboard_thread(int argc, const char **argv)
     return 0;
 }
 
-void kmain(void)
+/* 
+ * We want to get to a process context as soon as possible, as not being in one
+ * complicates what we can and can't do (For example, cpu_get_local()->current
+ * is NULL until we enter a process context, so we can't sleep and we can't
+ * register for wait queues, take mutex's, etc...). This is similar to an
+ * interrupt context.
+ *
+ * To achieve this, kmain almost immedieatly calls task_init_start to create a
+ * task, and then starts the scheduler. The scheduler will then start our new
+ * task to finish the rest of the boot in a new process context.
+ */
+
+int init_second_half(void *unused)
 {
     struct sys_init *sys;
 
-    kprintf("Seting up task switching\n");
-    task_init();
+    cpu_setup_idle();
 
     /* Loop through things to initalize and start them (timer, keyboard, etc...). */
     for (sys = arch_init_systems; sys->name; sys++) {
@@ -158,15 +233,19 @@ void kmain(void)
     }
 
     kprintf("Kernel is done booting!\n");
-
     kernel_is_booting = 0;
 
-    /* scheduler_task_add(task_fake_create());
-    scheduler_task_add(task_fake_create());
-    scheduler_task_add(task_fake_create()); */
+    scheduler_task_add(task_kernel_new_interruptable("Keyboard watch", kernel_keyboard_thread, NULL));
 
-    scheduler_task_add(task_kernel_new_interruptable("Keyboard watch", kernel_keyboard_thread, 0, (const char *[]) { }));
+    return 0;
+}
 
+void kmain(void)
+{
+    kprintf("Seting up task switching\n");
+    task_init_start(init_second_half, NULL);
+
+    kprintf("Starting scheduler\n");
     cpu_start_scheduler();
 
     panic("ERROR! cpu_start_scheduler() returned!\n");

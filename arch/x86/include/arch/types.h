@@ -22,7 +22,7 @@ typedef int int32_t;
 typedef unsigned long long uint64_t;
 typedef long long int64_t;
 
-typedef uint32_t ksize_t;
+typedef uint32_t size_t;
 
 typedef uint32_t uintptr_t;
 typedef int32_t   intptr_t;

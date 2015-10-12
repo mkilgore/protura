@@ -18,32 +18,55 @@
 struct simple_fs_inode {
     struct inode i;
 
-    ksector_t contents[12];
+    sector_t contents[12];
 };
 
 struct simple_fs_super_block {
     struct super_block sb;
 
-    uint32_t file_count;
-    ksector_t root_ino;
+    uint32_t inode_count;
+    ino_t root_ino;
+    sector_t inode_map;
 };
 
-struct super_block *simple_fs_read_sb(kdev_t);
+struct super_block *simple_fs_read_sb(dev_t);
 void simple_fs_init(void);
+
+extern struct inode_ops simple_fs_inode_ops;
+extern struct file_ops simple_fs_file_ops;
 
 #endif
 
+/* Disk format:
+ *
+ * sb: ->
+ *   inode_count
+ *   root_ino
+ *   inode_map_sector
+ * 
+ * inode_map_sector ->
+ *   inode:sector -> simple_fs_disk_inode
+ *   inode:sector -> simple_fs_disk_inode
+ *   ...
+ *
+ * simple_fs_disk_inode ->
+ *   size
+ *   sectors[0] -> data
+ *   sectors[1] -> data
+ *   ...
+ */
+
 /* Super-block format on disk */
 struct simple_fs_disk_sb {
-    uint32_t file_count;
-    uint32_t root_ino;
     uint32_t inode_count;
+    uint32_t root_ino;
     uint32_t inode_map_sector;
 };
 
 /* Exactly 512 bytes big. */
 struct simple_fs_disk_inode {
     uint32_t size;
+    mode_t mode;
     uint32_t sectors[12];
 };
 

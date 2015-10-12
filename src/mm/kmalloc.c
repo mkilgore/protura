@@ -41,7 +41,7 @@ void kmalloc_init(void)
 
 }
 
-void *kmalloc(ksize_t size, int flags)
+void *kmalloc(size_t size, int flags)
 {
     struct slab_alloc *slab;
     for (slab = kmalloc_slabs; slab->slab_name; slab++)
@@ -51,7 +51,7 @@ void *kmalloc(ksize_t size, int flags)
     panic("kmalloc: Size %d is to big for kmalloc! Use palloc to get whole-pages instead\n", size);
 }
 
-ksize_t ksize(void *p)
+size_t ksize(void *p)
 {
     struct slab_alloc *slab;
     for (slab = kmalloc_slabs; slab->slab_name; slab++)

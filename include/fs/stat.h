@@ -1,7 +1,7 @@
 #ifndef INCLUDE_FS_STAT_H
 #define INCLUDE_FS_STAT_H
 
-/* Regular file */
+/* mode flags */
 #define S_IFREG 0100000
 #define S_IFDIR 0040000
 

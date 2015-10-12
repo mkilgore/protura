@@ -17,7 +17,7 @@ struct super_block;
 
 struct file_system {
     const char *name;
-    struct super_block *(*read_sb) (kdev_t dev);
+    struct super_block *(*read_sb) (dev_t dev);
 
     struct list_node fs_list_entry;
 };

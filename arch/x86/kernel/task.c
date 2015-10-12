@@ -36,11 +36,6 @@
 
 #define KERNEL_STACK_PAGES 2
 
-void task_init(void)
-{
-
-}
-
 const char *task_states[] = {
     [TASK_NONE]     = "no state",
     [TASK_SLEEPING] = "sleeping",
@@ -48,7 +43,7 @@ const char *task_states[] = {
     [TASK_RUNNING]  = "running",
 };
 
-void task_print(char *buf, ksize_t size, struct task *task)
+void task_print(char *buf, size_t size, struct task *task)
 {
     snprintf(buf, size, "Task: %s\n"
                         "Pid: %d\n"
@@ -104,7 +99,9 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
     struct page_directory *restrict new_dir = new->page_dir;
     struct page_directory *restrict old_dir = old->page_dir;
     int table;
-    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
+
+    if (old->kernel)
+        return ;
 
     kprintf("Copying user pages\n");
 
@@ -114,7 +111,7 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
             struct page_table *restrict old_table = (struct page_table *)P2V(PAGING_FRAME(old_dir->table[table].entry));
 
             pa_t flags = old_dir->table[table].entry & PAGING_ATTRS_MASK;
-            pa_t new_table_addr = palloc_phys(palloc_flags) | flags;
+            pa_t new_table_addr = palloc_phys(PAL_KERNEL) | flags;
 
             /* Insert new page into the new page-table */
             new_dir->table[table].entry = new_table_addr;
@@ -127,7 +124,7 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
                 if (old_table->table[page].present) {
 
                     pa_t flags = old_table->table[page].entry & PAGING_ATTRS_MASK;
-                    pa_t new_page = palloc_phys(palloc_flags);
+                    pa_t new_page = palloc_phys(PAL_KERNEL);
 
                     memcpy(P2V(new_page), P2V(PAGING_FRAME(old_table->table[page].entry)), PG_SIZE);
                     new_table->table[page].entry = new_page | flags;
@@ -141,14 +138,22 @@ void task_paging_copy_user(struct task *restrict new, struct task *restrict old)
 
 void task_paging_init(struct task *task)
 {
-    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
-    task->page_dir = palloc(palloc_flags);
-    memcpy(task->page_dir, &kernel_dir, sizeof(kernel_dir));
+    if (!task->kernel) {
+        task->page_dir = palloc(PAL_KERNEL);
+        memcpy(task->page_dir, &kernel_dir, sizeof(kernel_dir));
+    } else {
+        task->page_dir = &kernel_dir;
+    }
 }
 
 void task_paging_free(struct task *task)
 {
     int table, page;
+
+    if (task->kernel) {
+        task->page_dir = NULL;
+        return ;
+    }
 
     for (table= 0; table < PAGING_DIR_INDEX(KMEM_KBASE); table++) {
         if (task->page_dir->table[table].present) {
@@ -165,13 +170,12 @@ void task_paging_free(struct task *task)
     task->page_dir = NULL;
 }
 
-static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv, uintptr_t task_entry)
+static struct task *task_kernel_generic(struct task *t, char *name, int (*kernel_task)(void *), void *ptr, uintptr_t task_entry)
 {
     char *ksp;
-    struct task *t = task_new();
 
-    if (!t)
-        return NULL;
+    t->kernel = 1;
+    task_paging_init(t);
 
     strcpy(t->name, name);
 
@@ -180,12 +184,9 @@ static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc,
 
     ksp = t->kstack_top;
 
-    /* Push argv and argc onto the stack, as arguments for 'kernel_task' */
-    ksp -= sizeof(argv);
-    *(void **)ksp = argv;
-
-    ksp -= sizeof(argc);
-    *(int *)ksp = argc;
+    /* Push ptr onto the stack, as an argument for 'kernel_task' */
+    ksp -= sizeof(ptr);
+    *(void **)ksp = ptr;
 
     /* Push the address of 'kernel_task'. The task_entry function will pop it
      * off the stack and call it for us */
@@ -207,37 +208,55 @@ static struct task *task_kernel_generic(char *name, int (*kernel_task)(int argc,
 /* The main difference here is that the interruptable kernel task entry
  * function will enable interrupts before calling 'kernel_task', regular kernel
  * task's won't. */
-struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
+struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(void *), void *ptr)
 {
-    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_interruptable_addr);
+    struct task *t = task_new();
+
+    if (!t)
+        return NULL;
+
+    return task_kernel_generic(t, name, kernel_task, ptr, kernel_task_entry_interruptable_addr);
 }
 
-struct task *task_kernel_new(char *name, int (*kernel_task)(int argc, const char **argv), int argc, const char **argv)
+struct task *task_kernel_new(char *name, int (*kernel_task)(void *), void *ptr)
 {
-    return task_kernel_generic(name, kernel_task, argc, argv, kernel_task_entry_addr);
+    struct task *t = task_new();
+
+    if (!t)
+        return NULL;
+
+    return task_kernel_generic(t, name, kernel_task, ptr, kernel_task_entry_addr);
+}
+
+static void __task_init_nostack(struct task *task)
+{
+    memset(task, 0, sizeof(*task));
+
+    task->pid = scheduler_next_pid();
+
+    task->state = TASK_RUNNABLE;
+}
+
+void task_init(struct task *task)
+{
+    __task_init_nostack(task);
+
+    task->kstack_bot = palloc_multiple(PAL_KERNEL, log2(KMEM_STACK_LIMIT));
+    task->kstack_top = task->kstack_bot + PG_SIZE * KMEM_STACK_LIMIT - 1;
+
+    kprintf("Created task %d\n", task->pid);
 }
 
 /* Initializes a new allocated task */
 struct task *task_new(void)
 {
-    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
     struct task *task;
 
-    task = kmalloc(sizeof(*task), palloc_flags);
+    task = kmalloc(sizeof(*task), PAL_KERNEL);
     if (!task)
         return NULL;
 
-    memset(task, 0, sizeof(*task));
-
-    task->pid = scheduler_next_pid();
-
-    task->kstack_bot = palloc_multiple(palloc_flags, log2(KMEM_STACK_LIMIT));
-    task->kstack_top = task->kstack_bot + PG_SIZE * KMEM_STACK_LIMIT - 1;
-
-    task_paging_init(task);
-    task->state = TASK_RUNNABLE;
-
-    kprintf("Created task %d\n", task->pid);
+    task_init(task);
 
     return task;
 }
@@ -253,6 +272,7 @@ struct task *task_fork(struct task *parent)
 
     snprintf(new->name, sizeof(new->name), "Chld: %s", parent->name);
 
+    task_paging_init(new);
     task_paging_copy_user(new, parent);
     task_user_kernel_stack_setup(new);
 
@@ -264,22 +284,23 @@ struct task *task_fork(struct task *parent)
 
 struct task *task_fake_create(void)
 {
-    unsigned int palloc_flags = (in_atomic())? PAL_ATOMIC: PAL_KERNEL;
     pa_t code, sp;
     va_t code_load_addr = KMEM_PROG_LINK;
     va_t stack_load_addr = (va_t)KMEM_PROG_STACK_START;
 
     struct task *t = task_new();
 
+    task_paging_init(t);
+
     snprintf(t->name, sizeof(t->name), "Fake Task %d", t->pid);
 
-    code = palloc_phys(palloc_flags);
+    code = palloc_phys(PAL_KERNEL);
     memcpy(P2V(code), fake_task_entry, fake_task_size);
     paging_map_phys_to_virt(V2P(t->page_dir), code_load_addr, code);
 
     memset(&t->context, 0, sizeof(t->context));
 
-    sp = palloc_phys_multiple(palloc_flags, log2(KMEM_STACK_LIMIT));
+    sp = palloc_phys_multiple(PAL_KERNEL, log2(KMEM_STACK_LIMIT));
     paging_map_phys_to_virt_multiple(V2P(t->page_dir), stack_load_addr, sp, KMEM_STACK_LIMIT);
 
     /* Setup the stack */
@@ -310,5 +331,68 @@ void task_free(struct task *t)
     pfree_multiple(t->kstack_bot, log2(KERNEL_STACK_PAGES));
 
     kfree(t);
+}
+
+void task_init_start(int (*init) (void *), void *ptr)
+{
+    struct task *tinit;
+
+    kprintf("Allocing tinit\n");
+    tinit = kmalloc(sizeof(*init), PAL_ATOMIC);
+
+    memset(tinit, 0, sizeof(*tinit));
+
+    kprintf("Setting up tinit\n");
+    __task_init_nostack(tinit);
+
+    kprintf("Setting up tinit stack\n");
+    tinit->kstack_bot = palloc_multiple(PAL_ATOMIC, log2(KMEM_STACK_LIMIT));
+    tinit->kstack_top = tinit->kstack_bot + PG_SIZE * KMEM_STACK_LIMIT - 1;
+
+    kprintf("Setting up tinit kernel task\n");
+    task_kernel_generic(tinit, "init", init, ptr, kernel_task_entry_addr);
+
+    kprintf("Scheduling tinit\n");
+    scheduler_task_add(tinit);
+}
+
+pid_t __fork(struct task *current)
+{
+    struct task *new;
+    new = task_fork(current);
+
+    kprintf("New task: %d\n", new->pid);
+
+    if (new) {
+        scheduler_task_add(new);
+
+        new->context.frame->eax = 0;
+        current->context.frame->eax = new->pid;
+    } else {
+        current->context.frame->eax = -1;
+    }
+
+    return new->pid;
+}
+
+pid_t sys_fork(void)
+{
+    struct task *t = cpu_get_local()->current;
+    return __fork(t);
+}
+
+pid_t sys_getpid(void)
+{
+    struct task *t = cpu_get_local()->current;
+    return t->pid;
+}
+
+pid_t sys_getppid(void)
+{
+    struct task *t = cpu_get_local()->current;
+    if (t->parent)
+        return t->parent->pid;
+    else
+        return -1;
 }
 

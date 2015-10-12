@@ -52,7 +52,7 @@ static struct {
 
     struct list_head dead;
 
-    kpid_t next_pid;
+    pid_t next_pid;
 } ktasks = {
     .lock = SPINLOCK_INIT("Task list lock"),
     .list = LIST_HEAD_INIT(ktasks.list),
@@ -60,7 +60,7 @@ static struct {
     .next_pid = 1,
 };
 
-kpid_t scheduler_next_pid(void)
+pid_t scheduler_next_pid(void)
 {
     return ktasks.next_pid++;
 }
@@ -139,6 +139,11 @@ void scheduler_task_waitms(uint32_t mseconds)
 
     using_spinlock(&ktasks.lock)
         __yield(t);
+}
+
+void sys_sleep(uint32_t mseconds)
+{
+    scheduler_task_waitms(mseconds);
 }
 
 void scheduler_task_exit(int ret)
@@ -305,10 +310,8 @@ void wait_queue_register(struct wait_queue *queue)
 {
     struct task *t = cpu_get_local()->current;
 
-    kprintf("Unregister from queue: %p\n", t);
     wait_queue_unregister();
 
-    kprintf("Register to queue\n");
     using_spinlock(&queue->lock) {
         list_add_tail(&queue->queue, &t->wait.node);
         t->wait.queue = queue;

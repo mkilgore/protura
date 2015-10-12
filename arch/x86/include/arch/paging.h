@@ -159,7 +159,7 @@ static __always_inline void flush_tlb_single(va_t addr)
 void paging_setup_kernelspace(void **kbrk);
 
 void paging_map_phys_to_virt(pa_t page_dir, va_t virt_start, pa_t phys);
-void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, ksize_t page_count);
+void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, size_t page_count);
 
 pa_t paging_get_new_directory(void);
 

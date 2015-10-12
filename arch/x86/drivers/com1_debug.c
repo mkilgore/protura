@@ -29,9 +29,9 @@ void com1_putstr(const char *s)
         com1_putchar(*s);
 }
 
-void com1_putnstr(const char *s, ksize_t len)
+void com1_putnstr(const char *s, size_t len)
 {
-    ksize_t l;
+    size_t l;
     for (l = 0; l < len; l++)
         com1_putchar(s[l]);
 }
@@ -41,7 +41,7 @@ static void com1_printf_putchar(struct printf_backbone *b, char ch)
     com1_putchar(ch);
 }
 
-static void com1_printf_putnstr(struct printf_backbone *b, const char *s, ksize_t len)
+static void com1_printf_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     com1_putnstr(s, len);
 }

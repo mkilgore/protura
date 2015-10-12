@@ -60,25 +60,28 @@ void cpu_set_kernel_stack(struct cpu_info *c, void *kstack)
 }
 
 /* Dumb cpu idle loop - Used when we have no tasks to execute on this cpu. */
-static int cpu_idle_loop(int argc, const char **argv)
+static int cpu_idle_loop(void *cpuid)
 {
-    kprintf("kidle: %d\n", argc);
+    kprintf("kidle: %d\n", (int)cpuid);
     while (1)
         hlt();
 
     return 0;
 }
 
-void cpu_start_scheduler(void)
+void cpu_setup_idle(void)
 {
     char name[20];
     struct cpu_info *c = cpu_get_local();
 
     snprintf(name, sizeof(name), "kidle %d", c->cpu_id);
 
-    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, c->cpu_id, NULL);
+    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, (void *)c->cpu_id);
     c->intr_count = 0;
+}
 
+void cpu_start_scheduler(void)
+{
     scheduler();
 }
 

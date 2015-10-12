@@ -18,9 +18,9 @@
 
 static char inttohex[][16] = { "0123456789abcdef", "0123456789ABCDEF" };
 
-static void basic_printf_add_str(struct printf_backbone *backbone, const char *s, ksize_t len)
+static void basic_printf_add_str(struct printf_backbone *backbone, const char *s, size_t len)
 {
-    ksize_t l;
+    size_t l;
     if (!s) {
         s = "(null)";
         len = strlen("(null)");
@@ -35,10 +35,11 @@ static void basic_printf_add_str(struct printf_backbone *backbone, const char *s
         backbone->putchar(backbone, s[l]);
 }
 
-static void escape_string(struct printf_backbone *backbone, const char *code, ksize_t len, va_list *args)
+static void escape_string(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
 {
-    const char *s = va_arg(*args, const char *);
+    const char *s;
     int width = -1, i;
+    size_t slen;
 
     for (i = 0; i < len; i++) {
         switch (code[i]) {
@@ -53,19 +54,28 @@ static void escape_string(struct printf_backbone *backbone, const char *code, ks
             else
                 width = (width * 10) + (code[i] - '0');
             break;
+
+        case '*':
+            width = va_arg(*args, int);
+            break;
+
         default:
             goto after_value;
         }
     }
   after_value:
 
-    if (width != -1)
-        basic_printf_add_str(backbone, s, strnlen(s, width));
-    else
-        basic_printf_add_str(backbone, s, strlen(s));
+    s = va_arg(*args, const char *);
+    slen = strlen(s);
+
+    basic_printf_add_str(backbone, s, slen);
+
+    if (width != -1 && width > slen)
+        while (slen++ < width)
+            backbone->putchar(backbone, ' ');
 }
 
-static void escape_integer(struct printf_backbone *backbone, const char *code, ksize_t len, va_list *args)
+static void escape_integer(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
 {
     char buf[3 * sizeof(long long) + 2], *ebuf = buf + sizeof(buf) - 1;
     int digit;
@@ -79,6 +89,8 @@ static void escape_integer(struct printf_backbone *backbone, const char *code, k
 
     while (i != 0) {
         digit = i % 10;
+        if (digit < 0)
+            digit = -digit;
         i = i / 10;
         *--ebuf = inttohex[0][digit];
     }
@@ -89,7 +101,7 @@ static void escape_integer(struct printf_backbone *backbone, const char *code, k
     basic_printf_add_str(backbone, ebuf, buf + sizeof(buf) - ebuf - 1);
 }
 
-static void escape_hex(struct printf_backbone *backbone, const char *code, ksize_t len, va_list *args)
+static void escape_hex(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
 {
     int caps = 0, ptr = 0;
     int bytes = -1, width = -1;
@@ -181,7 +193,7 @@ static void escape_hex(struct printf_backbone *backbone, const char *code, ksize
     basic_printf_add_str(backbone, ebuf, buf + sizeof(buf) - ebuf - 1);
 }
 
-static void escape_char(struct printf_backbone *backbone, const char *code, ksize_t len, va_list *args)
+static void escape_char(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
 {
     int ch = va_arg(*args, int);
 
@@ -190,7 +202,7 @@ static void escape_char(struct printf_backbone *backbone, const char *code, ksiz
 
 struct printf_escape {
     char ch;
-    void (*write) (struct printf_backbone *, const char *code, ksize_t len, va_list *args);
+    void (*write) (struct printf_backbone *, const char *code, size_t len, va_list *args);
 };
 
 static struct printf_escape escape_codes[] = {

@@ -22,15 +22,15 @@ typedef int16_t s16;
 typedef int32_t s32;
 typedef int64_t s64;
 
-typedef long koff_t;
-typedef uint32_t kpid_t;
+typedef int32_t off_t;
+typedef uint32_t pid_t;
 
-typedef uint32_t kmode_t;
+typedef uint32_t mode_t;
 
-typedef uint32_t kdev_t;
-typedef uint32_t ksector_t;
+typedef uint32_t dev_t;
+typedef uint32_t sector_t;
 
-typedef uint32_t kino_t;
-typedef uint16_t kumode_t;
+typedef uint32_t ino_t;
+typedef uint16_t umode_t;
 
 #endif

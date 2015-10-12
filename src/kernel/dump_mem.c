@@ -10,8 +10,8 @@
 #include <protura/debug.h>
 #include <protura/snprintf.h>
 
-void dump_mem(char *output, ksize_t outlen,
-              const void *buf, ksize_t len, uint32_t base_addr)
+void dump_mem(char *output, size_t outlen,
+              const void *buf, size_t len, uint32_t base_addr)
 {
     int output_offset = 0;
     char strbuf[200], strbuf2[200] = { 0 };
