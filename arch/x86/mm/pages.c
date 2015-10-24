@@ -20,7 +20,7 @@ void arch_pages_init(pa_t kernel_start, pa_t kernel_end, pa_t last_physical_addr
 
     for (; first_page < last_physical_addr; first_page += PG_SIZE) {
         struct page *p = page_get_from_pa(first_page);
-        clear_bit(&p->flags, PG_INVALID);
+        bit_clear(&p->flags, PG_INVALID);
 
         pfree_phys(first_page);
     }

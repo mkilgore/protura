@@ -9,6 +9,7 @@
 #define INCLUDE_ARCH_TASK_H
 
 #include <protura/types.h>
+#include <protura/errors.h>
 #include <protura/list.h>
 #include <protura/stddef.h>
 #include <protura/wait.h>
@@ -88,27 +89,40 @@ struct task *task_kernel_new_interruptable(char *name, int (*kernel_task) (void 
 void __task_kernel(struct task *, char *name, int (*kernel_task) (void *), void *);
 void __task_kernel_interuptable(struct task *, char *name, int (*kernel_task) (void *), void *);
 
-void task_init_start(int (*init) (void *), void *ptr);
-
 void task_print(char *buf, size_t size, struct task *);
 void task_switch(context_t *old, struct task *new);
 
+int task_fd_get_empty(struct task *t);
+void task_fd_release(struct task *t, int fd);
+#define task_fd_assign(t, fd, filp) \
+    ((t)->files[(fd)] = (filp))
+#define task_fd_get(t, fd) \
+    ((t)->files[(fd)])
+
+static inline int task_fd_get_checked(struct task *t, int fd, struct file **filp)
+{
+    if (fd > NOFILE || fd < 0)
+        return -EBADF;
+
+    *filp = task_fd_get(t, fd);
+
+    if (*filp == NULL)
+        return -EBADF;
+
+    return 0;
+}
+
+#define fd_get_empty() \
+    task_fd_get_empty(cpu_get_local()->current)
+#define fd_release(fd) \
+    task_fd_release(cpu_get_local()->current, (fd));
+#define fd_assign(fd, filp) \
+    task_fd_assign(cpu_get_local()->current, (fd), (filp))
+#define fd_get(fd) \
+    task_fd_get(cpu_get_local()->current, (fd))
+#define fd_get_checked(fd, filp) \
+    task_fd_get_checked(cpu_get_local()->current, (fd), (filp))
+
 extern const char *task_states[];
-
-static inline int task_fd_get_free(struct task *task)
-{
-    int i;
-
-    for (i = 0; i < NOFILE; i++)
-        if (!task->files[i])
-            return i;
-
-    return -1;
-}
-
-static inline int fd_get_free(void)
-{
-    return task_fd_get_free(cpu_get_local()->current);
-}
 
 #endif

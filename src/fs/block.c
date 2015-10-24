@@ -68,9 +68,9 @@ void __block_cache_shrink(void)
 
         /* If we hit the first entry, then we exit the loop.
          *
-         * Note: There's probably a error somewhere else in the kernel causing
-         * lots of blocks to not be unlocked/released, because a large majority
-         * of the blocks in the cache are currently locked. */
+         * Note: If this happens there's probably a error somewhere else in the
+         * kernel causing lots of blocks to not be unlocked/released, because a
+         * large majority of the blocks in the cache are currently locked. */
         if (b == first)
             break;
 
@@ -103,7 +103,7 @@ static struct block *block_new(void)
     return b;
 }
 
-static struct block *__bread(dev_t device, size_t block_size, sector_t sector)
+static struct block *__bread(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
 {
     struct block *b = NULL;
     int hash = block_hash(device, sector);
@@ -120,6 +120,7 @@ static struct block *__bread(dev_t device, size_t block_size, sector_t sector)
     b->data = kzalloc(block_size, PAL_KERNEL);
     b->sector = sector;
     b->dev = device;
+    b->bdev = bdev;
 
     /* Insert our new block into the cache */
     hlist_add(block_cache.cache + hash, &b->cache);
@@ -141,7 +142,7 @@ struct block *bread(dev_t device, sector_t sector)
 
 
     using_spinlock(&block_cache.lock)
-        b = __bread(device, dev->block_size, sector);
+        b = __bread(device, dev, dev->block_size, sector);
 
     /* We can't attempt to lock the block while we have block_cache.lock, or
      * else we might sleep with the block_cache still locked, which will bring
@@ -165,6 +166,7 @@ struct block *bread(dev_t device, sector_t sector)
 
 void brelease(struct block *b)
 {
+    block_dev_sync_block(b->bdev, b);
     block_unlock(b);
 }
 

@@ -89,15 +89,30 @@ static __always_inline void eflags_write(uint32_t flags)
                  "popfl\n" : : "a" (flags));
 }
 
-static __always_inline uint32_t xchg(volatile uint32_t *addr, uint32_t val)
+static __always_inline uint32_t xchg(volatile void *addr, uint32_t val)
 {
+    volatile uint32_t *ptr = addr;
     uint32_t result;
 
     asm volatile(LOCK_PREFIX" xchgl %0, %1\n":
-                 "+m" (*addr), "=a" (result) :
+                 "+m" (*ptr), "=a" (result) :
                  "1" (val) :
                  "cc");
+
     return result;
+}
+
+static __always_inline uint32_t cmpxchg(volatile void *addr, uint32_t cmp, uint32_t swap)
+{
+    volatile uint32_t *ptr = addr;
+    uint32_t ret;
+
+    asm volatile(LOCK_PREFIX " cmpxchgl %2, %0\n"
+            : "+m" (*ptr), "=a" (ret)
+            : "r" (swap), "1" (cmp)
+            : "memory");
+
+    return ret;
 }
 
 #endif

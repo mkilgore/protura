@@ -67,6 +67,8 @@ struct simple_fs_disk_sb {
 struct simple_fs_disk_inode {
     uint32_t size;
     mode_t mode;
+    unsigned short major;
+    unsigned short minor;
     uint32_t sectors[12];
 };
 

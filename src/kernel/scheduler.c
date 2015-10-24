@@ -335,8 +335,9 @@ void wait_queue_unregister(void)
             list_del(&t->wait.node);
 }
 
-void wait_queue_wake(struct wait_queue *queue)
+int wait_queue_wake(struct wait_queue *queue)
 {
+    int waken = 0;
     struct task *t;
 
     /* dequeue takes the next sleeping task off of the wait queue and wakes it up.
@@ -354,14 +355,18 @@ void wait_queue_wake(struct wait_queue *queue)
             t = container_of(list_take_first(&queue->queue, struct wait_queue_node, node), struct task, wait);
             if (t->state == TASK_SLEEPING) {
                 t->state = TASK_RUNNABLE;
+                waken++;
                 break;
             }
         }
     }
+
+    return waken;
 }
 
-void wait_queue_wake_all(struct wait_queue *queue)
+int wait_queue_wake_all(struct wait_queue *queue)
 {
+    int waken = 0;
     struct wait_queue_node *node;
     struct task *t;
 
@@ -369,7 +374,10 @@ void wait_queue_wake_all(struct wait_queue *queue)
         list_foreach_take_entry(&queue->queue, node, node) {
             t = container_of(node, struct task, wait);
             scheduler_task_wake(t);
+            waken++;
         }
     }
+
+    return waken;
 }
 

@@ -13,6 +13,7 @@ SECTIONS
         *(.multiboot)
         *(.text)
         *(.rodata)
+        *(.rodata.*)
     }
 
     /* Read-write data (initialized) */
@@ -28,6 +29,9 @@ SECTIONS
         *(.bootstrap_stack)
     }
 
+    .stab : {
+        *(.stab)
+    }
     kern_end = .;
 }
 

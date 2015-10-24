@@ -14,8 +14,10 @@
 #include <protura/scheduler.h>
 #include <protura/list.h>
 #include <protura/hlist.h>
-#include <protura/semaphore.h>
+#include <protura/mutex.h>
 #include <protura/dev.h>
+
+struct block_device;
 
 struct block {
     /* The actual data for this block */
@@ -27,6 +29,8 @@ struct block {
     /* Location of the first block on the device, and the actual device it represents. */
     sector_t sector;
     dev_t dev;
+
+    struct block_device *bdev;
 
     /* If this is set, then the contents of this block has been modified and
      * doesn't match the contents of the disk. */
@@ -56,7 +60,7 @@ static inline void block_lock(struct block *b)
 
 static inline int block_try_lock(struct block *b)
 {
-    if (mutex_try_lock(&b->block_mutex) == SUCCESS) {
+    if (mutex_try_lock(&b->block_mutex)) {
         b->owner = cpu_get_local()->current;
         return SUCCESS;
     }
@@ -94,7 +98,6 @@ void brelease(struct block *);
 #define using_block(dev, sector, block) \
     using_nocheck(((block) = bread(dev, sector)), brelease(block))
 
-
 void block_cache_init(void);
 void block_cache_sync(void);
 
@@ -104,6 +107,8 @@ struct block_device_ops {
     void (*sync_block) (struct block_device *, struct block *b);
 };
 
+struct file_ops;
+
 struct block_device {
     const char *name;
     int major;
@@ -111,11 +116,17 @@ struct block_device {
     size_t block_size;
 
     struct block_device_ops *ops;
+    struct file_ops *fops;
 };
 
+extern struct file_ops block_dev_file_ops_generic;
+
+int block_dev_file_open_generic(struct inode *dev, struct file *filp);
+int block_dev_file_close_generic(struct file *);
+
 enum {
-    DEV_NONE = 0,
-    DEV_IDE = 1,
+    BLOCK_DEV_NONE = 0,
+    BLOCK_DEV_IDE = 1,
 };
 
 void block_dev_init(void);

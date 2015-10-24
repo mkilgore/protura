@@ -5,15 +5,11 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_INIT_INIT_TASH_H
+#define INCLUDE_INIT_INIT_TASH_H
 
-#include <protura/types.h>
-#include <protura/stddef.h>
-#include <protura/errors.h>
+#include <arch/task.h>
 
-#define ERR(val) \
-    [val] = #val
+extern struct task init_task;
 
-const char *error_strings[] = {
-#include "errors.x"
-};
-
+#endif

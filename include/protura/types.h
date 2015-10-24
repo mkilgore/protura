@@ -30,6 +30,8 @@ typedef uint32_t mode_t;
 typedef uint32_t dev_t;
 typedef uint32_t sector_t;
 
+#define SECTOR_INVALID ((sector_t)-1)
+
 typedef uint32_t ino_t;
 typedef uint16_t umode_t;
 

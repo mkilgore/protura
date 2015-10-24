@@ -20,5 +20,7 @@
 
 #undef S_IFREG
 #undef S_IFDIR
+#undef S_IFBLK
+#undef S_IFMT
 
 #endif

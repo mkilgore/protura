@@ -93,9 +93,9 @@ endif
 
 ifdef PROTURA_DEBUG
 	CPPFLAGS += -DPROTURA_DEBUG
-	CFLAGS += -g
-	ASFLAGS += -g
-	LDFLAGS += -g
+	CFLAGS += -ggdb
+	ASFLAGS += -ggdb
+	LDFLAGS += -ggdb
 endif
 
 ifneq ($(MAKECMDGOALS),clean)

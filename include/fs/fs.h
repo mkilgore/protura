@@ -15,15 +15,17 @@
 #include <fs/file_system.h>
 #include <fs/super.h>
 #include <fs/inode.h>
+#include <fs/inode_table.h>
 #include <fs/file.h>
 #include <fs/dirent.h>
 #include <fs/stat.h>
+#include <fs/vfs.h>
 
 extern struct inode *ino_root;
 
 static inline int root_lookup(const char *path, size_t len, struct inode **result)
 {
-    return inode_lookup(ino_root, path, len, result);
+    return vfs_lookup(ino_root, path, len, result);
 }
 
 #endif

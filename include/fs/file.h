@@ -11,7 +11,8 @@
 #include <protura/types.h>
 #include <protura/errors.h>
 #include <protura/atomic.h>
-#include <protura/semaphore.h>
+#include <protura/bits.h>
+#include <protura/mutex.h>
 #include <fs/dirent.h>
 
 struct inode;
@@ -22,6 +23,7 @@ struct file {
     mode_t mode;
     atomic_t ref;
     mutex_t lock;
+    unsigned int flags;
 
     off_t offset;
 
@@ -29,6 +31,8 @@ struct file {
 };
 
 struct file_ops {
+    int (*open) (struct inode *inode, struct file *);
+    int (*release) (struct file *);
     int (*read) (struct file *, void *, size_t);
     int (*readdir) (struct file *, struct dirent *);
     off_t (*lseek) (struct file *, off_t offset, int whence);
@@ -41,55 +45,34 @@ enum file_whence {
     SEEK_END,
 };
 
-#include <fs/inode.h>
+enum file_flags {
+    FILE_READABLE,
+    FILE_WRITABLE,
+};
+
+#define file_is_readable(file) (bit_test(&(file)->flags, FILE_READABLE))
+#define file_is_writable(file) (bit_test(&(file)->flags, FILE_WRITABLE))
+
+#define file_set_readable(file) (bit_set(&(file)->flags, FILE_READABLE))
+#define file_set_writable(file) (bit_set(&(file)->flags, FILE_WRITABLE))
+
+#define file_unset_readable(file) (bit_set(&(file)->flags, FILE_READABLE))
+#define file_unset_writable(file) (bit_set(&(file)->flags, FILE_WRITABLE))
+
+#define file_has_open(filp) ((filp)->ops && (filp)->ops->open)
+#define file_has_release(filp) ((filp)->ops && (filp)->ops->release)
+#define file_has_read(filp) ((filp)->ops && (filp)->ops->read)
+#define file_has_readdir(filp) ((filp)->ops && (filp)->ops->readdir)
+#define file_has_lseek(filp) ((filp)->ops && (filp)->ops->lseek)
+#define file_has_write(filp) ((filp)->ops && (filp)->ops->write)
 
 void file_init(struct file *);
 void file_clear(struct file *);
 
-int file_fd_get(int fd, struct file **);
-int file_fd_add(int fd, struct file *);
-int file_fd_del(int fd);
-
 struct file *file_dup(struct file *);
-
-static inline int file_read(struct file *filp, void *buf, size_t len)
-{
-    if (filp->ops && filp->ops->read)
-        return (filp->ops->read) (filp, buf, len);
-    else
-        return -ENOTSUP;
-}
-
-static inline int file_readdir(struct file *filp, struct dirent *ent)
-{
-    if (filp->ops && filp->ops->readdir)
-        return (filp->ops->readdir) (filp, ent);
-    else
-        return -ENOTSUP;
-}
-
-static inline int file_write(struct file *filp, void *buf, size_t len)
-{
-    if (filp->ops && filp->ops->write)
-        return (filp->ops->write) (filp, buf, len);
-    else
-        return -ENOTSUP;
-}
-
-static inline off_t file_lseek(struct file *filp, off_t off, int whence)
-{
-    if (filp->ops && filp->ops->lseek)
-        return (filp->ops->lseek) (filp, off, whence);
-    else
-        return -ENOTSUP;
-}
 
 int fs_file_generic_read(struct file *, void *buf, size_t len);
 int fs_file_generic_write(struct file *, void *buf, size_t len);
 off_t fs_file_generic_lseek(struct file *, off_t off, int whence);
-
-int sys_read(int fd, void *buf, size_t len);
-int sys_write(int fd, void *buf, size_t len);
-off_t sys_lseek(int fd, off_t off, int whence);
 
 #endif

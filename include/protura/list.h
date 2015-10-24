@@ -69,6 +69,12 @@ static inline void list_del(struct list_node *entry)
     entry->prev = NULL;
 }
 
+static inline void list_del_checked(struct list_node *entry)
+{
+    if (entry->next && entry->prev)
+        list_del(entry);
+}
+
 static inline void list_replace(struct list_node *new, struct list_node *old)
 {
     new->next = old->next;
@@ -86,6 +92,13 @@ static inline void list_move(struct list_head *head, struct list_node *entry)
 static inline void list_move_tail(struct list_head *head, struct list_node *entry)
 {
     __list_del_entry(entry);
+    list_add_tail(head, entry);
+}
+
+static inline void list_move_tail_checked(struct list_head *head, struct list_node *entry)
+{
+    if (entry->next && entry->prev)
+        __list_del_entry(entry);
     list_add_tail(head, entry);
 }
 

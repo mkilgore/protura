@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 Matt Kilgore
+ * Copyright (C) 2015 Matt Kilgore
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License v2 as published by the
@@ -10,11 +10,8 @@
 #include <protura/debug.h>
 #include <protura/stddef.h>
 #include <protura/string.h>
-#include <protura/atomic.h>
-#include <protura/strtol.h>
 #include <protura/dump_mem.h>
-#include <arch/spinlock.h>
-#include <mm/kmalloc.h>
+#include <protura/strtol.h>
 #include <drivers/term.h>
 #include <drivers/ide.h>
 #include <arch/asm.h>
@@ -32,11 +29,13 @@
 #include <fs/file.h>
 #include <fs/stat.h>
 #include <fs/namei.h>
+#include <fs/vfs.h>
+#include <fs/sys.h>
 #include <fs/fs.h>
 
-int kernel_is_booting = 1;
+#include <init/init_task.h>
 
-void sleep_for_keyboard(void)
+static void sleep_for_keyboard(void)
 {
   sleep_again:
     sleep {
@@ -47,19 +46,16 @@ void sleep_for_keyboard(void)
     }
 }
 
-void read_sector(char *buf, sector_t sector)
+static void read_sector(char *buf, sector_t sector)
 {
     struct block *b;
     kprintf("Starting IDE test!\n");
 
-    using_block(DEV_MAKE(DEV_IDE, 0), sector, b) {
+    using_block(DEV_MAKE(BLOCK_DEV_IDE, 0), sector, b)
         memcpy(buf, b->data, b->block_size);
-
-        block_mark_dirty(b);
-    }
 }
 
-void print_file(struct inode *inode, int indent)
+static void print_file(struct inode *inode, int indent)
 {
     char buf[inode->size];
     int fd;
@@ -67,14 +63,16 @@ void print_file(struct inode *inode, int indent)
 
     memset(buf, 0, sizeof(buf));
 
-    fd = fd_open(inode, &filp);
+    kprintf("Opening %p\n", inode);
+
+    fd = __sys_open(inode, F(FILE_READABLE), &filp);
 
     if (fd < 0) {
         kprintf("Error opening file: %s\n", strerror(fd));
         return ;
     }
 
-    file_read(filp, buf, sizeof(buf));
+    vfs_read(filp, buf, sizeof(buf));
 
     term_printf("%*s", indent * 2, "");
     term_printf("Size: %d\n", inode->size);
@@ -86,25 +84,33 @@ void print_file(struct inode *inode, int indent)
         term_putchar(buf[i]);
     term_putchar('\n');
 
-    fd_close(fd);
+    kprintf("Closing fd %d\n", fd);
+
+    sys_close(fd);
+
+    kprintf("Closed\n");
 }
 
-void print_dir(struct inode *inode, int indent)
+static void print_dir(struct inode *inode, int indent)
 {
     struct dirent ent;
     struct file *filp;
     int fd;
+    int ret;
 
-    fd = fd_open(inode, &filp);
+    fd = __sys_open(inode, F(FILE_READABLE), &filp);
 
     if (fd < 0) {
         kprintf("Error opening file: %s\n", strerror(fd));
         return ;
     }
 
-    while ((file_read(filp, &ent, sizeof(ent))) != 0) {
+    kprintf("Filp: %p\n", filp);
+
+    while ((ret = vfs_read(filp, &ent, sizeof(ent))) > 0) {
         struct inode *ent_inode;
 
+        kprintf("Ret: %d\n", ret);
         term_printf("%*s", indent * 2, "");
         term_printf("Ent: %d, %s\n", ent.ino, ent.name);
         if (strcmp(ent.name, ".") == 0 || strcmp(ent.name, "..") == 0)
@@ -113,15 +119,26 @@ void print_dir(struct inode *inode, int indent)
         using_inode(inode->sb, ent.ino, ent_inode) {
             if (ent_inode && S_ISDIR(ent_inode->mode))
                 print_dir(ent_inode, indent + 1);
-            else
+            else if (ent_inode && S_ISREG(ent_inode->mode))
                 print_file(ent_inode, indent + 1);
+            else if (ent_inode && S_ISBLK(ent_inode->mode))
+                term_printf("BLK device!\n");
+
+            kprintf("Releaseing inode\n");
         }
+
+        kprintf("Done using inode\n");
     }
 
-    fd_close(fd);
+    if (ret < 0) {
+        term_printf("Error: %s\n", strerror(ret));
+        kprintf("Error: %s\n", strerror(ret));
+    }
+
+    sys_close(fd);
 }
 
-void test_fs(void)
+static void test_fs(void)
 {
     struct file_system *fs;
     struct super_block *sb;
@@ -133,7 +150,7 @@ void test_fs(void)
 
     kprintf("File system: %p\n", fs);
 
-    sb = (fs->read_sb) (DEV_MAKE(DEV_IDE, 0));
+    sb = (fs->read_sb) (DEV_MAKE(BLOCK_DEV_IDE, 0));
     simple  = container_of(sb, struct simple_fs_super_block, sb);
 
     kprintf("Simple: %p\n", simple);
@@ -230,50 +247,5 @@ int kernel_keyboard_thread(void *unused)
     keyboard_wakeup_remove(cpu_get_local()->current);
 
     return 0;
-}
-
-/* 
- * We want to get to a process context as soon as possible, as not being in one
- * complicates what we can and can't do (For example, cpu_get_local()->current
- * is NULL until we enter a process context, so we can't sleep and we can't
- * register for wait queues, take mutex's, etc...). This is similar to an
- * interrupt context.
- *
- * To achieve this, kmain almost immedieatly calls task_init_start to create a
- * task, and then starts the scheduler. The scheduler will then start our new
- * task to finish the rest of the boot in a new process context.
- */
-
-int init_second_half(void *unused)
-{
-    struct sys_init *sys;
-
-    cpu_setup_idle();
-
-    /* Loop through things to initalize and start them (timer, keyboard, etc...). */
-    for (sys = arch_init_systems; sys->name; sys++) {
-        kprintf("Starting: %s\n", sys->name);
-        (sys->init) ();
-    }
-
-    kprintf("Kernel is done booting!\n");
-    kernel_is_booting = 0;
-
-    scheduler_task_add(task_kernel_new_interruptable("Keyboard watch", kernel_keyboard_thread, NULL));
-
-    return 0;
-}
-
-void kmain(void)
-{
-    kprintf("Seting up task switching\n");
-    task_init_start(init_second_half, NULL);
-
-    kprintf("Starting scheduler\n");
-    cpu_start_scheduler();
-
-    panic("ERROR! cpu_start_scheduler() returned!\n");
-    while (1)
-        hlt();
 }
 

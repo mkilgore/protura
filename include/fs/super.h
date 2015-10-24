@@ -19,10 +19,15 @@ struct inode;
 struct super_block;
 
 struct super_block_ops {
+
+    /* Read, write, delete may sleep */
     struct inode *(*inode_read) (struct super_block *, ino_t);
     int (*inode_write) (struct super_block *, struct inode *);
-    int (*inode_put) (struct super_block *, struct inode *);
     int (*inode_delete) (struct super_block *, struct inode *);
+
+
+    /* Release may not sleep - release also does not write */
+    int (*inode_release) (struct super_block *, struct inode *);
 
     int (*sb_write) (struct super_block *);
     int (*sb_put) (struct super_block *);
@@ -52,10 +57,10 @@ static inline int sb_inode_write(struct super_block *sb, struct inode *inode)
         return -ENOTSUP;
 }
 
-static inline int sb_inode_put(struct super_block *sb, struct inode *inode)
+static inline int sb_inode_release(struct super_block *sb, struct inode *inode)
 {
-    if (sb->ops && sb->ops->inode_put)
-        return (sb->ops->inode_put) (sb, inode);
+    if (sb->ops && sb->ops->inode_release)
+        return (sb->ops->inode_release) (sb, inode);
     else
         return -ENOTSUP;
 }

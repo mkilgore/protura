@@ -20,6 +20,7 @@
 #include <fs/super.h>
 #include <fs/file.h>
 #include <fs/inode.h>
+#include <fs/inode_table.h>
 #include <fs/namei.h>
 #include <fs/fs.h>
 
@@ -43,8 +44,7 @@ int namex(const char *path, struct inode *cwd, struct inode **result)
 
         kprintf("namex len: %d\n", len);
 
-        using_inode_lock(cwd)
-            ret = inode_lookup(cwd, path, len, &next);
+        ret = vfs_lookup(cwd, path, len, &next);
 
         if (ret)
             goto release_cwd;

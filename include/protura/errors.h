@@ -14,6 +14,9 @@
 #define ENFILE  4
 #define EMFILE  5
 #define ENOENT  6
+#define EINVAL  7
+#define EISDIR  8
+#define EFBIG   9
 
 extern const char *error_strings[];
 

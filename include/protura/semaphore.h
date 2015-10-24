@@ -22,14 +22,11 @@ struct semaphore {
 };
 
 typedef struct semaphore semaphore_t;
-typedef struct semaphore mutex_t;
 
 #define SEM_INIT(sem, name, cnt) \
     { .lock = SPINLOCK_INIT(name), \
       .count = (cnt), \
       .queue = WAIT_QUEUE_INIT((sem).queue, "SEM wait queue") }
-
-#define MUTEX_INIT(sem, name) SEM_INIT(sem, name, 1)
 
 static inline void sem_init(struct semaphore *sem, int value)
 {
@@ -38,11 +35,6 @@ static inline void sem_init(struct semaphore *sem, int value)
     spinlock_init(&sem->lock, "Sem lock");
     sem->count = value;
     wait_queue_init(&sem->queue);
-}
-
-static inline void mutex_init(mutex_t *mut)
-{
-    sem_init(mut, 1);
 }
 
 static inline void __sem_down(struct semaphore *sem)
@@ -62,16 +54,17 @@ static inline void __sem_down(struct semaphore *sem)
 
 static inline int __sem_try_down(struct semaphore *sem)
 {
+    kprintf("Sem trydown: %d\n", sem->count);
     /* We have the lock on the semaphore, so it's guarenteed sem->count won't
      * change in this context. */
     if (sem->count <= 0)
-        return 1;
+        return 0;
 
     /* Since we hold the lock, nobody can change sem->count, so we're fine to
      * decrement it and not check it. */
     sem->count--;
 
-    return 0;
+    return 1;
 }
 
 static inline void sem_down(struct semaphore *sem)
@@ -113,29 +106,5 @@ static inline int sem_waiting(struct semaphore *sem)
 
     return c;
 }
-
-static inline void mutex_lock(mutex_t *mut)
-{
-    sem_down(mut);
-}
-
-static inline int mutex_try_lock(mutex_t *mut)
-{
-    return sem_try_down(mut);
-}
-
-static inline void mutex_unlock(mutex_t *mut)
-{
-    sem_up(mut);
-}
-
-static inline int mutex_waiting(mutex_t *mut)
-{
-    return sem_waiting(mut);
-}
-
-
-#define using_mutex(mut) \
-    using_nocheck(mutex_lock(mut), mutex_unlock(mut))
 
 #endif

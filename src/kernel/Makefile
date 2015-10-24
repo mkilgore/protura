@@ -1,5 +1,4 @@
 
-objs-y += kmain.o
 objs-y += string.o
 objs-y += debug.o
 objs-y += basic_printf.o

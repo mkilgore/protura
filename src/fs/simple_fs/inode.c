@@ -16,37 +16,8 @@
 #include <fs/block.h>
 #include <fs/file_system.h>
 #include <fs/simple_fs.h>
+#include <fs/stat.h>
 #include <fs/file.h>
-
-static int simple_fs_file_open(struct inode *i, struct file **result)
-{
-    struct file *filp;
-
-    filp = kmalloc(sizeof(*filp), PAL_KERNEL);
-
-    filp->mode = i->mode;
-    filp->inode = inode_dup(i);
-    filp->offset = 0;
-    filp->ops = i->default_file_ops;
-
-    atomic_inc(&filp->ref);
-
-    *result = filp;
-
-    return 0;
-}
-
-static int simple_fs_file_close(struct inode *i, struct file *filp)
-{
-
-    if (atomic_dec_and_test(&filp->ref) != 0)
-        return 0;
-
-    inode_put(filp->inode);
-    kfree(filp);
-
-    return 0;
-}
 
 static int simple_fs_truncate(struct inode *i, off_t len)
 {
@@ -60,14 +31,12 @@ static sector_t simple_fs_bmap(struct inode *i, sector_t sec)
     struct simple_fs_inode *inode = container_of(i, struct simple_fs_inode, i);
 
     if (sec > 12)
-        return -1;
+        return SECTOR_INVALID;
 
     return inode->contents[sec];
 }
 
 struct inode_ops simple_fs_inode_ops = {
-    .file_open = simple_fs_file_open,
-    .file_close = simple_fs_file_close,
     .truncate = simple_fs_truncate,
     .lookup = inode_lookup_generic,
     .bmap = simple_fs_bmap,

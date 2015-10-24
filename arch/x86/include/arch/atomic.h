@@ -14,7 +14,7 @@
 
 typedef struct {
     int32_t counter;
-} atomic32_t;
+} __align(4) atomic32_t;
 
 #define ATOMIC32_INIT(i) { (i) }
 
@@ -67,6 +67,11 @@ static __always_inline int atomic32_dec_and_test(atomic32_t *v)
     return 1;
 }
 
+static __always_inline void atomic32_init(atomic32_t *v, int32_t value)
+{
+    v->counter = value;
+}
+
 typedef atomic32_t atomic_t;
 
 #define atomic_get(a)          atomic32_get(a)
@@ -76,5 +81,8 @@ typedef atomic32_t atomic_t;
 #define atomic_inc(a)          atomic32_inc(a)
 #define atomic_dec(a)          atomic32_dec(a)
 #define atomic_dec_and_test(a) atomic32_dec_and_test(a)
+
+#define ATOMIC_INIT(x) ATOMIC32_INIT(x)
+#define atomic_init(x, v) atomic32_init(x, v)
 
 #endif

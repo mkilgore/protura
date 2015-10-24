@@ -12,21 +12,75 @@
 #include <mm/kmalloc.h>
 #include <fs/block.h>
 #include <protura/dev.h>
+#include <fs/inode.h>
+#include <fs/file.h>
 
 #include <drivers/ide.h>
 
+
+int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
+{
+    char *buf = vbuf;
+    size_t have_read = 0;
+    struct block_device *bdev = filp->inode->bdev;
+    dev_t dev = filp->inode->dev;
+
+    if (!file_is_readable(filp))
+        return -EBADF;
+
+    /* Guard against reading past the end of the file */
+    if (filp->offset + len > filp->inode->size)
+        len = filp->inode->size - filp->offset;
+
+    /* Access the block device for this file, and get it's block size */
+    size_t block_size = bdev->block_size;
+    sector_t sec = filp->offset / block_size;
+    off_t sec_off = filp->offset - sec * block_size;
+
+    while (have_read < len) {
+        struct block *b;
+
+        off_t left = (len - have_read > block_size - sec_off)?
+                        block_size - sec_off:
+                        len - have_read;
+
+        using_block(dev, sec, b)
+            memcpy(buf + have_read, b->data + sec_off, left);
+
+        have_read += left;
+
+        sec_off = 0;
+        sec++;
+    }
+
+    filp->offset += have_read;
+
+    return have_read;
+}
+
+struct file_ops block_dev_file_ops_generic = {
+    .open = NULL,
+    .release = NULL,
+    .read = block_dev_read_generic,
+    .write = NULL,
+    .lseek = fs_file_generic_lseek,
+    .readdir = NULL,
+};
+
 static struct block_device devices[] = {
-    [DEV_NONE] = {
+    [BLOCK_DEV_NONE] = {
         .name = "",
-        .major = DEV_NONE,
+        .major = BLOCK_DEV_NONE,
         .block_size = 0,
-        .ops = NULL
+        .ops = NULL,
+        .fops = NULL,
     },
-    [DEV_IDE] = {
+    [BLOCK_DEV_IDE] = {
         .name = "ide",
-        .major = DEV_IDE,
+        .major = BLOCK_DEV_IDE,
         .block_size = 512,
-        .ops = &ide_block_device_ops
+        .ops = &ide_block_device_ops,
+        .fops = &block_dev_file_ops_generic,
     }
 };
 

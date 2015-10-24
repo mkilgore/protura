@@ -13,11 +13,19 @@
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/atomic.h>
-#include <protura/semaphore.h>
+#include <protura/mutex.h>
+#include <protura/bits.h>
 
 struct inode_ops;
 struct super_block;
 struct file;
+struct block_device;
+struct char_device;
+
+enum inode_flags {
+    INO_VALID, /* Inode's data is a valid version of the data */
+    INO_DIRTY, /* Inode's data is not the same as the disk's version */
+};
 
 struct inode {
     ino_t ino;
@@ -25,91 +33,67 @@ struct inode {
     off_t size;
     mode_t mode;
 
-    uint32_t valid :1;
-    uint32_t dirty :1;
+    flags_t flags;
 
     mutex_t lock;
 
     atomic_t ref;
+    struct hlist_node hash_entry;
+    struct list_node list_entry;
 
     struct super_block *sb;
-    struct file_ops *default_file_ops;
     struct inode_ops *ops;
+    struct file_ops *default_fops;
 
-    struct hlist_node hash_entry;
+    struct block_device *bdev;
+    struct char_device *cdev;
 };
 
 struct inode_ops {
-    int (*file_open) (struct inode *, struct file **);
-    int (*file_close) (struct inode *, struct file *);
-
     int (*truncate) (struct inode *, off_t len);
     int (*lookup) (struct inode *dir, const char *name, size_t len, struct inode **result);
     sector_t (*bmap) (struct inode *, sector_t);
 };
 
-struct inode *inode_get(struct super_block *, ino_t ino);
-struct inode *inode_dup(struct inode *);
-void inode_put(struct inode *);
+#define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
+#define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)
+
+#define inode_set_valid(inode) bit_set(&(inode)->flags, INO_VALID)
+#define inode_set_dirty(inode) bit_set(&(inode)->flags, INO_DIRTY)
+
+#define inode_clear_valid(inode) bit_clear(&(inode)->flags, INO_VALID)
+#define inode_clear_dirty(inode) bit_clear(&(inode)->flags, INO_DIRTY)
+
+static inline void inode_init(struct inode *i)
+{
+    mutex_init(&i->lock);
+    atomic_init(&i->ref, 0);
+}
+
 int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result);
 
-int fd_open(struct inode *inode, struct file **filp);
-int fd_close(int fd);
+#define using_inode_lock_read(inode) \
+    using_mutex(&(inode)->lock)
 
-static inline void inode_lock(struct inode *inode)
-{
-    mutex_lock(&inode->lock);
-}
+#define using_inode_lock_write(inode) \
+    using_mutex(&(inode)->lock)
 
-static inline void inode_unlock(struct inode *inode)
-{
-    mutex_unlock(&inode->lock);
-}
+#define inode_lock(inode) \
+    mutex_lock(&(inode)->lock)
 
-static inline int inode_file_open(struct inode *inode, struct file **filp)
-{
-    if (inode->ops && inode->ops->file_open)
-        return (inode->ops->file_open) (inode, filp);
-    else
-        return -ENOTSUP;
-}
+#define inode_unlock(inode) \
+    mutex_unlock(&(inode)->lock)
 
-static inline int inode_file_close(struct inode *inode, struct file *filp)
-{
-    if (inode->ops && inode->ops->file_close)
-        return (inode->ops->file_close) (inode, filp);
-    else
-        return -ENOTSUP;
-}
-
-static inline int inode_lookup(struct inode *inode, const char *name, size_t len, struct inode **result)
-{
-    if (inode->ops && inode->ops->lookup)
-        return (inode->ops->lookup) (inode, name, len, result);
-    else
-        return -ENOTSUP;
-}
-
-static inline int inode_truncate(struct inode *inode, off_t len)
-{
-    if (inode->ops && inode->ops->truncate)
-        return (inode->ops->truncate) (inode, len);
-    else
-        return -ENOTSUP;
-}
-
-static inline sector_t inode_bmap(struct inode *inode, sector_t sec)
-{
-    if (inode->ops && inode->ops->bmap)
-        return (inode->ops->bmap) (inode, sec);
-    else
-        return -ENOTSUP;
-}
-
-#define using_inode_lock(inode) \
-    using_nocheck(inode_lock(inode), inode_unlock(inode))
+#define inode_try_lock(inode) \
+    mutex_try_lock(&(inode)->lock)
 
 #define using_inode(sb, ino, inode) \
     using((inode = inode_get(sb, ino)) != NULL, inode_put(inode))
+
+#define inode_has_truncate(inode) ((inode)->ops && (inode)->ops->truncate)
+#define inode_has_lookup(inode) ((inode)->ops && (inode)->ops->lookup)
+#define inode_has_bmap(inode) ((inode)->ops && (inode)->ops->bmap)
+
+void inode_cache_flush(void);
 
 #endif

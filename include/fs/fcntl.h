@@ -5,15 +5,11 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_FS_FCNTL_H
+#define INCLUDE_FS_FCNTL_H
 
-#include <protura/types.h>
-#include <protura/stddef.h>
-#include <protura/errors.h>
+#define O_RDONLY 0x00
+#define O_WRONLY 0x01
+#define O_RDWR   0x04
 
-#define ERR(val) \
-    [val] = #val
-
-const char *error_strings[] = {
-#include "errors.x"
-};
-
+#endif

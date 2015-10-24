@@ -71,7 +71,7 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
     while (order < PALLOC_MAPS - 1) {
         buddy = page_get_from_pn(get_buddy_pn(cur_page, order));
 
-        if (buddy->order != order || test_bit(&buddy->flags, PG_INVALID))
+        if (buddy->order != order || bit_test(&buddy->flags, PG_INVALID))
             break;
 
         /* Remove our buddy from it's current free list, then use the lower
@@ -214,7 +214,7 @@ void palloc_init(void **kbrk, int pages)
     while (p-- >= buddy_allocator.pages) {
         p->order = -1;
         p->page_number = (int)(p - buddy_allocator.pages);
-        set_bit(&p->flags, PG_INVALID);
+        bit_set(&p->flags, PG_INVALID);
     }
 
     /* We keep using 'sizeof(*buddy_allocator.maps[0].bitmap)' because we don't

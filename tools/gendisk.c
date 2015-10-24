@@ -60,6 +60,8 @@ void add_dir_entry(struct inode_desc *dir, const char *name, uint32_t ino)
 
 void read_file(struct inode_desc *file, int fd)
 {
+    char devtype;
+    short major, minor;
     off_t len;
 
     len = lseek(fd, 0, SEEK_END);
@@ -67,10 +69,25 @@ void read_file(struct inode_desc *file, int fd)
 
     file->i.size = len;
     file->i.mode = S_IFREG;
+    file->i.major = 0;
+    file->i.minor = 0;
     file->map.sector = root.next_sector++;
-    file->data = malloc(len);
+    file->data = malloc(len + 1);
 
     read(fd, file->data, len);
+
+    file->data[len] = '\0';
+
+    if (sscanf(file->data, "Device:%c %hd,%hd", &devtype, &major, &minor) == 3) {
+        if (devtype == 'b')
+            file->i.mode = S_IFBLK;
+        file->i.major = major;
+        file->i.minor = minor;
+        free(file->data);
+        file->data = NULL;
+        file->i.size = 0;
+        len = 0;
+    }
 
     file->sectors = (len + SECTOR_SIZE - 1) / SECTOR_SIZE;
     int i;
@@ -173,6 +190,9 @@ void write_dir(int fd, struct disk_map *root)
     list_foreach_entry(&root->descs, d, node) {
         lseek(fd, d->map.sector * SECTOR_SIZE, SEEK_SET);
         write(fd, &d->i, sizeof(d->i));
+
+        if (!S_ISDIR(d->i.mode) && !S_ISREG(d->i.mode))
+            continue;
 
         int i;
         for (i = 0; i < d->sectors; i++) {

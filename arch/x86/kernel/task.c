@@ -231,18 +231,13 @@ struct task *task_kernel_new(char *name, int (*kernel_task)(void *), void *ptr)
     return task_kernel_generic(t, name, kernel_task, ptr, kernel_task_entry_addr);
 }
 
-static void __task_init_nostack(struct task *task)
+void task_init(struct task *task)
 {
     memset(task, 0, sizeof(*task));
 
     task->pid = scheduler_next_pid();
 
     task->state = TASK_RUNNABLE;
-}
-
-void task_init(struct task *task)
-{
-    __task_init_nostack(task);
 
     task->kstack_bot = palloc_multiple(PAL_KERNEL, log2(KMEM_STACK_LIMIT));
     task->kstack_top = task->kstack_bot + PG_SIZE * KMEM_STACK_LIMIT - 1;
@@ -344,27 +339,32 @@ void task_free(struct task *t)
     kfree(t);
 }
 
-void task_init_start(int (*init) (void *), void *ptr)
+/* Note that it's important that inbetween 'task_fd_get_empty()' returning an
+ * fd, and the fd being assigned a pointer value, that we don't accidentally
+ * return the same fd a second time if it is requested. IE. Two threads both
+ * requesting fd's should recieve unique fd's, even if they're calling
+ * task_fd_get_empty() at the exact same time.
+ *
+ * Thus, empty entries in the file table are marked with NULL, and we do an
+ * atomic compare-and-swap to swap the NULL with a non-null temporary value
+ * (-1). This non-null value means that subsiquent calls to task_fd_get_empty()
+ * won't return the same fd even if the returned fd's have yet to be assigned.
+ * (The caller will replace the temporary value with a valid filp after the
+ * call).
+ */
+int task_fd_get_empty(struct task *t)
 {
-    struct task *tinit;
+    int i;
+    for (i = 0; i < ARRAY_SIZE(t->files); i++)
+        if (cmpxchg(t->files + i, 0, -1) == 0)
+            return i;
 
-    kprintf("Allocing tinit\n");
-    tinit = kmalloc(sizeof(*init), PAL_ATOMIC);
+    return -1;
+}
 
-    memset(tinit, 0, sizeof(*tinit));
-
-    kprintf("Setting up tinit\n");
-    __task_init_nostack(tinit);
-
-    kprintf("Setting up tinit stack\n");
-    tinit->kstack_bot = palloc_multiple(PAL_ATOMIC, log2(KMEM_STACK_LIMIT));
-    tinit->kstack_top = tinit->kstack_bot + PG_SIZE * KMEM_STACK_LIMIT - 1;
-
-    kprintf("Setting up tinit kernel task\n");
-    task_kernel_generic(tinit, "init", init, ptr, kernel_task_entry_addr);
-
-    kprintf("Scheduling tinit\n");
-    scheduler_task_add(tinit);
+void task_fd_release(struct task *t, int fd)
+{
+    t->files[fd] = NULL;
 }
 
 pid_t __fork(struct task *current)

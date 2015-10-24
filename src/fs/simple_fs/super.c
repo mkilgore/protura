@@ -10,13 +10,15 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
-#include <protura/semaphore.h>
+#include <protura/mutex.h>
 #include <protura/dump_mem.h>
 #include <mm/kmalloc.h>
 
 #include <arch/spinlock.h>
 #include <fs/block.h>
+#include <fs/stat.h>
 #include <fs/file.h>
+#include <fs/inode_table.h>
 #include <fs/file_system.h>
 #include <fs/simple_fs.h>
 
@@ -43,34 +45,49 @@ static sector_t simple_fs_get_sector(struct simple_fs_super_block *sb, ino_t ino
 static struct inode *simple_fs_inode_read(struct super_block *super, ino_t ino)
 {
     struct simple_fs_super_block *sb = container_of(super, struct simple_fs_super_block, sb);
-    struct simple_fs_inode *inode;
-    struct simple_fs_disk_inode *diski;
+    struct simple_fs_inode *s_inode;
+    struct inode *inode;
+    struct simple_fs_disk_inode diski;
     struct block *b;
     sector_t ino_sector;
 
-    inode = kzalloc(sizeof(*inode), PAL_KERNEL);
-
-    mutex_init(&inode->i.lock);
-
-    inode->i.ino = ino;
-    inode->i.sb = super;
-    inode->i.dev = super->dev;
-    inode->i.ops = &simple_fs_inode_ops;
-    inode->i.default_file_ops = &simple_fs_file_ops;
-
     ino_sector = simple_fs_get_sector(sb, ino);
 
-    using_block(super->dev, ino_sector, b) {
-        diski = (struct simple_fs_disk_inode *)b->data;
+    using_block(super->dev, ino_sector, b)
+        memcpy(&diski, b->data, sizeof(diski));
 
-        inode->i.size = diski->size;
-        inode->i.mode = diski->mode;
-        memcpy(inode->contents, diski->sectors, sizeof(diski->sectors));
+    s_inode = kzalloc(sizeof(*s_inode), PAL_KERNEL);
+
+
+    inode = &s_inode->i;
+    inode_init(inode);
+
+    inode->dev = super->dev;
+    inode->ops = &simple_fs_inode_ops;
+
+    memcpy(s_inode->contents, diski.sectors, sizeof(diski.sectors));
+
+    switch (diski.mode & S_IFMT) {
+    case S_IFBLK:
+        inode->dev = DEV_MAKE(diski.major, diski.minor);
+        inode->bdev = block_dev_get(inode->dev);
+        inode->default_fops = inode->bdev->fops;
+        break;
+
+    default:
+        inode->default_fops = &simple_fs_file_ops;
+        break;
     }
 
-    inode->i.valid = 1;
+    inode->ino = ino;
+    inode->sb = super;
 
-    return &inode->i;
+    inode->size = diski.size;
+    inode->mode = diski.mode;
+
+    inode_set_valid(inode);
+
+    return inode;
 }
 
 static int simple_fs_inode_write(struct super_block *super, struct inode *i)
@@ -81,31 +98,31 @@ static int simple_fs_inode_write(struct super_block *super, struct inode *i)
     struct block *b;
     sector_t ino_sector;
 
-    if (!inode->i.dirty)
+    if (!inode_is_dirty(i))
         return 0;
 
-    ino_sector = simple_fs_get_sector(sb, inode->i.ino);
+    using_inode_lock_read(i) {
+        ino_sector = simple_fs_get_sector(sb, inode->i.ino);
 
-    using_block(super->dev, ino_sector, b) {
-        diski = (struct simple_fs_disk_inode *)b->data;
+        using_block(super->dev, ino_sector, b) {
+            diski = (struct simple_fs_disk_inode *)b->data;
 
-        diski->size = inode->i.size;
-        diski->mode = inode->i.mode;
-        memcpy(diski->sectors, inode->contents, sizeof(inode->contents));
+            diski->size = inode->i.size;
+            diski->mode = inode->i.mode;
+            memcpy(diski->sectors, inode->contents, sizeof(inode->contents));
 
-        block_mark_dirty(b);
+            block_mark_dirty(b);
+        }
     }
 
-    inode->i.dirty = 0;
+    inode_clear_dirty(i);
 
     return 0;
 }
 
-static int simple_fs_inode_put(struct super_block *sb, struct inode *inode)
+static int simple_fs_inode_release(struct super_block *sb, struct inode *inode)
 {
-    simple_fs_inode_write(sb, inode);
     kfree(inode);
-
     return 0;
 }
 
@@ -135,7 +152,7 @@ static int simple_fs_sb_put(struct super_block *sb)
 static struct super_block_ops simple_fs_sb_ops = {
     .inode_read = simple_fs_inode_read,
     .inode_write = simple_fs_inode_write,
-    .inode_put = simple_fs_inode_put,
+    .inode_release = simple_fs_inode_release,
     .inode_delete = simple_fs_inode_delete,
     .sb_write = simple_fs_sb_write,
     .sb_put = simple_fs_sb_put,

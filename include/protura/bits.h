@@ -25,4 +25,7 @@
 #define b16(binhigh, binlow) (((unsigned short)b8(binhigh) << 8) + b8(binlow))
 #define b32(binhigh, binmid1, binmid2, binlow) (((unsigned int)b8(binhigh) << 24) + (b8(binmid1) << 16) + (b8(binmid2) << 8) + b8(binlow))
 
+/* Sets the bit referred to by 'flag'. */
+#define F(flag) (1 << (flag))
+
 #endif

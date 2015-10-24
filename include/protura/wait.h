@@ -58,9 +58,10 @@ void wait_queue_init(struct wait_queue *);
 void wait_queue_register(struct wait_queue *);
 void wait_queue_unregister(void);
 
-/* Called by the task that is done with whatever the tasks waiting in the queue are waiting for */
-void wait_queue_wake(struct wait_queue *);
-void wait_queue_wake_all(struct wait_queue *);
+/* Called by the task that is done with whatever the tasks waiting in the queue
+ * are waiting for. Returns the number of tasks woken-up. */
+int wait_queue_wake(struct wait_queue *);
+int wait_queue_wake_all(struct wait_queue *);
 
 
 /* For explinations of the below macros, see the 'sleep' macro in scheduler.h */
