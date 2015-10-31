@@ -31,5 +31,6 @@
 #define unlikely(cond) (__builtin_expect(!!(cond), 0))
 #define likely(cond) (__builtin_expect(!!(cond), 1))
 
+#define __is_constant(x) (__builtin_constant_p(x))
 
 #endif

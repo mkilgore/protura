@@ -10,6 +10,7 @@ objs-y += backtrace.o
 objs-y += irq_handler.o
 objs-y += idt.o
 objs-y += irq_array.o
+objs-y += string.o
 
 $(objtree)/irq_array.S: $(srctree)/irq_array_gen.pl
 	@echo " PERL    $@"
