@@ -5,34 +5,45 @@
 
 /* Very similar to the Linux-kernel list.h header (GPLv2) */
 
-struct list_node {
-    struct list_node *next, *prev;
+/* Doubly-linked circular linked list */
+
+/* The design of this is such that the 'head' of a linked list, and a 'node'
+ * are actually the same thing.
+ *
+ * The 'head' is simply an entry in the list like all the rest. When doing a
+ * loop or movement that involves the head, we simply take a pointer to the
+ * 'head' node in the list, and then check the rest of them against that
+ * reference node.
+ *
+ * There are still separate 'list_node_t' and 'list_head_t' types that are
+ * equivelent, for making it easier to reconize when a node is being used as
+ * the head of a list, vs. being an entry in a list. The types themselves are
+ * equivelent.
+ */
+
+typedef struct list_node_struct list_node_t;
+typedef struct list_node_struct list_head_t;
+
+struct list_node_struct {
+    list_node_t *next, *prev;
 };
 
-struct list_head {
-    struct list_node n;
-};
-
-#define LIST_HEAD_INIT(name) { { &(name).n, &(name).n } }
+#define LIST_HEAD_INIT(name) { &(name), &(name) }
 
 #define LIST_HEAD(name) \
-    struct list_head name = LIST_HEAD_INIT(name)
+    list_head_t name = LIST_HEAD_INIT(name)
 
-static inline void INIT_LIST_HEAD(struct list_head *list)
+#define LIST_NODE_INIT(name) LIST_HEAD_INIT(name)
+#define list_node_init(node) list_head_init(node)
+
+static inline void list_head_init(list_head_t *head)
 {
-    list->n.next = &list->n;
-    list->n.prev = &list->n;
+    *head = (list_head_t)LIST_HEAD_INIT(*head);
 }
 
-/* If both are NULL, then this node isn't currently in a list */
-static inline int list_node_is_in_list(struct list_node *node)
-{
-    return node->next || node->prev;
-}
-
-static inline void __list_add(struct list_node *new,
-                              struct list_node *prev,
-                              struct list_node *next)
+static inline void __list_add(list_node_t *new,
+                              list_node_t *prev,
+                              list_node_t *next)
 {
     next->prev = new;
     new->next = next;
@@ -41,41 +52,37 @@ static inline void __list_add(struct list_node *new,
     prev->next = new;
 }
 
-static inline void list_add(struct list_head *head, struct list_node *new)
+static inline void list_add(list_head_t *head, list_node_t *new)
 {
-    __list_add(new, &head->n, head->n.next);
+    __list_add(new, head, head->next);
 }
 
-static inline void list_add_tail(struct list_head *head, struct list_node *new)
+static inline void list_add_tail(list_head_t *head, list_node_t *new)
 {
-    __list_add(new, head->n.prev, &head->n);
+    __list_add(new, head->prev, head);
 }
 
-static inline void __list_del(struct list_node *prev, struct list_node *next)
+#define list_attach(head, node) \
+    list_add_tail(node, head)
+
+static inline void __list_del(list_node_t *prev, list_node_t *next)
 {
     next->prev = prev;
     prev->next = next;
 }
 
-static inline void __list_del_entry(struct list_node *entry)
+static inline void __list_del_entry(list_node_t *entry)
 {
     __list_del(entry->prev, entry->next);
 }
 
-static inline void list_del(struct list_node *entry)
+static inline void list_del(list_node_t *entry)
 {
     __list_del_entry(entry);
-    entry->next = NULL;
-    entry->prev = NULL;
+    list_node_init(entry);
 }
 
-static inline void list_del_checked(struct list_node *entry)
-{
-    if (entry->next && entry->prev)
-        list_del(entry);
-}
-
-static inline void list_replace(struct list_node *new, struct list_node *old)
+static inline void list_replace(list_node_t *new, list_node_t *old)
 {
     new->next = old->next;
     new->next->prev = new;
@@ -83,54 +90,52 @@ static inline void list_replace(struct list_node *new, struct list_node *old)
     new->prev->next = new;
 }
 
-static inline void list_move(struct list_head *head, struct list_node *entry)
+static inline void list_move(list_head_t *head, list_node_t *entry)
 {
     __list_del_entry(entry);
     list_add(head, entry);
 }
 
-static inline void list_move_tail(struct list_head *head, struct list_node *entry)
+static inline void list_move_tail(list_head_t *head, list_node_t *entry)
 {
     __list_del_entry(entry);
     list_add_tail(head, entry);
 }
 
-static inline void list_move_tail_checked(struct list_head *head, struct list_node *entry)
+static inline int list_is_last(const list_head_t *head, const list_node_t *entry)
 {
-    if (entry->next && entry->prev)
-        __list_del_entry(entry);
-    list_add_tail(head, entry);
+    return entry->next == head;
 }
 
-static inline int list_is_last(const struct list_head *head, const struct list_node *entry)
+static inline int list_empty(const list_head_t *head)
 {
-    return entry->next == &head->n;
+    return head == head->next;
 }
+#define list_node_is_in_list(node) !list_empty(node)
 
-static inline int list_empty(const struct list_head *head)
-{
-    return &head->n == head->n.next;
-}
-
-static inline void list_rotate_left(struct list_head *head)
+static inline void list_rotate_left(list_head_t *head)
 {
     if (!list_empty(head))
-        list_move_tail(head, head->n.next);
+        list_move_tail(head, head->next);
 }
 
-static inline void list_rotate_right(struct list_head *head)
+static inline void list_rotate_right(list_head_t *head)
 {
     if (!list_empty(head))
-        list_move(head, head->n.prev);
+        list_move(head, head->prev);
 }
 
 /* Moves 'first', which is already in list 'head', to the position of the first
- * entry in 'head', by rotating the list. */
-static inline void list_new_first(struct list_head *head, struct list_node *new_first)
+ * entry in 'head', by rotating the list.
+ *
+ * The 'new_first' and 'new_last' can be thought of as doing multiple rotations
+ * at once, as you could do that to achieve the same result but it would be
+ * much less optimal. */
+static inline void list_new_first(list_head_t *head, list_node_t *new_first)
 {
-    struct list_node *last = head->n.prev;
-    struct list_node *first = head->n.next;
-    struct list_node *new_last = new_first->prev;
+    list_node_t *last = head->prev;
+    list_node_t *first = head->next;
+    list_node_t *new_last = new_first->prev;
 
     if (first == new_first)
         return ;
@@ -140,18 +145,18 @@ static inline void list_new_first(struct list_head *head, struct list_node *new_
     first->prev = last;
 
     /* Make 'new_last' and 'new_first' the first and last nodes of the list */
-    new_last->next = &head->n;
-    new_first->prev = &head->n;
+    new_last->next = head;
+    new_first->prev = head;
 
-    head->n.prev = new_last;
-    head->n.next = new_first;
+    head->prev = new_last;
+    head->next = new_first;
 }
 
-static inline void list_new_last(struct list_head *head, struct list_node *new_last)
+static inline void list_new_last(list_head_t *head, list_node_t *new_last)
 {
-    struct list_node *last = head->n.prev;
-    struct list_node *first = head->n.next;
-    struct list_node *new_first = new_last->next;
+    list_node_t *last = head->prev;
+    list_node_t *first = head->next;
+    list_node_t *new_first = new_last->next;
 
     if (last == new_last)
         return ;
@@ -159,32 +164,32 @@ static inline void list_new_last(struct list_head *head, struct list_node *new_l
     last->next = first;
     first->prev = last;
 
-    new_last->next = &head->n;
-    new_first->prev = &head->n;
+    new_last->next = head;
+    new_first->prev = head;
 
-    head->n.prev = new_last;
-    head->n.next = new_first;
+    head->prev = new_last;
+    head->next = new_first;
 }
 
-static inline struct list_node *__list_first(struct list_head *head)
+static inline list_node_t *__list_first(list_head_t *head)
 {
-    return head->n.next;
+    return head->next;
 }
 
 #define list_first(head, type, member) \
     container_of(__list_first(head), type, member)
 
-static inline struct list_node *__list_last(struct list_head *head)
+static inline list_node_t *__list_last(list_head_t *head)
 {
-    return head->n.prev;
+    return head->prev;
 }
 
 #define list_last(head, type, member) \
     container_of(__list_last(head), type, member)
 
-static inline struct list_node *__list_take_first(struct list_head *head)
+static inline list_node_t *__list_take_first(list_head_t *head)
 {
-    struct list_node *node = __list_first(head);
+    list_node_t *node = __list_first(head);
     list_del(node);
     return node;
 }
@@ -192,9 +197,9 @@ static inline struct list_node *__list_take_first(struct list_head *head)
 #define list_take_first(head, type, member) \
     container_of(__list_take_first(head), type, member)
 
-static inline struct list_node *__list_take_last(struct list_head *head)
+static inline list_node_t *__list_take_last(list_head_t *head)
 {
-    struct list_node *node = __list_last(head);
+    list_node_t *node = __list_last(head);
     list_del(node);
     return node;
 }
@@ -207,10 +212,10 @@ static inline struct list_node *__list_take_last(struct list_head *head)
     container_of(ptr, type, member)
 
 #define list_first_entry(ptr, type, member) \
-    list_entry((ptr)->n.next, type, member)
+    list_entry((ptr)->next, type, member)
 
 #define list_last_entry(ptr, type, member) \
-    list_entry((ptr)->n.prev, type, member)
+    list_entry((ptr)->prev, type, member)
 
 #define list_first_entry_or_null(ptr, type, member) \
     (!list_empty(ptr)? list_first_entry(ptr, type, member): NULL)
@@ -222,19 +227,19 @@ static inline struct list_node *__list_take_last(struct list_head *head)
     list_entry((pos)->member.prev, typeof(*(pos)), member)
 
 #define list_foreach(head, pos) \
-    for (pos = (head)->n.next; pos != &(head)->n; pos = pos->next)
+    for (pos = (head)->next; pos != (head); pos = pos->next)
 
 #define list_foreach_prev(head, pos) \
-    for (pos = (head)->n.prev; pos != &(head)->n; pos = pos->prev)
+    for (pos = (head)->prev; pos != (head); pos = pos->prev)
 
 #define list_foreach_entry(head, pos, member) \
     for (pos = list_first_entry(head, typeof(*pos), member); \
-         &pos->member != &(head)->n; \
+         &pos->member != (head); \
          pos = list_next_entry(pos, member))
 
 #define list_foreach_entry_reverse(head, pos, member) \
     for (pos = list_last_entry(head, typeof(*pos), member); \
-         &pos->member != &(head)->n; \
+         &pos->member != (head); \
          pos = list_prev_entry(pos, member))
 
 #define list_foreach_take_entry(head, pos, member)                                  \
@@ -248,6 +253,6 @@ static inline struct list_node *__list_take_last(struct list_head *head)
          pos = list_empty(head)? NULL: list_take_last(head, typeof(*pos), member))
 
 #define list_ptr_is_head(head, ptr) \
-    ((ptr) == (&(head)->n))
+    ((ptr) == (head))
 
 #endif

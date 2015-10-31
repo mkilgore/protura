@@ -19,8 +19,10 @@
 #include <fs/file.h>
 #include <fs/dirent.h>
 #include <fs/stat.h>
+#include <fs/super.h>
 #include <fs/vfs.h>
 
+extern struct super_block *sb_root;
 extern struct inode *ino_root;
 
 static inline int root_lookup(const char *path, size_t len, struct inode **result)

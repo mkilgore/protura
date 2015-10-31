@@ -73,7 +73,7 @@ enum {
 struct ide_state {
     struct spinlock lock;
 
-    struct list_head block_queue;
+    list_head_t block_queue;
 };
 
 static struct ide_state ide_state = {
@@ -144,7 +144,7 @@ static void ide_start_queue(void)
         __ide_start_queue();
 }
 
-static void __ide_handle_intr(struct idt_frame *frame)
+static void __ide_handle_intr(struct irq_frame *frame)
 {
     int sector_count = 1;
     struct block *b;
@@ -187,7 +187,7 @@ static void __ide_handle_intr(struct idt_frame *frame)
     return ;
 }
 
-static void ide_handle_intr(struct idt_frame *frame)
+static void ide_handle_intr(struct irq_frame *frame)
 {
     kprintf("IDE interrupt\n");
     using_spinlock(&ide_state.lock)

@@ -33,7 +33,7 @@ static struct {
      * process. */
     int cache_count;
     struct hlist_head cache[BLOCK_HASH_TABLE_SIZE];
-    struct list_head lru;
+    list_head_t lru;
 } block_cache = {
     .lock = SPINLOCK_INIT("Block cache"),
     .cache_count = 0,
@@ -99,6 +99,8 @@ static struct block *block_new(void)
     struct block *b = kzalloc(sizeof(*b), PAL_KERNEL);
 
     mutex_init(&b->block_mutex);
+    list_node_init(&b->block_list_node);
+    list_node_init(&b->block_lru_node);
 
     return b;
 }

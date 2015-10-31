@@ -21,7 +21,7 @@
 
 #ifndef ASM
 
-#include <arch/idt.h>
+#include <protura/irq.h>
 
 void syscall_init(void);
 

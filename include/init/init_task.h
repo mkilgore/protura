@@ -8,7 +8,7 @@
 #ifndef INCLUDE_INIT_INIT_TASH_H
 #define INCLUDE_INIT_INIT_TASH_H
 
-#include <arch/task.h>
+#include <protura/task.h>
 
 extern struct task init_task;
 

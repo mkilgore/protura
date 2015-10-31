@@ -11,6 +11,7 @@
 #include <protura/debug.h>
 #include <protura/atomic.h>
 #include <protura/scheduler.h>
+#include <protura/irq.h>
 
 #include <arch/spinlock.h>
 #include <arch/asm.h>
@@ -78,7 +79,7 @@ int keyboard_get_char(void)
     return ch;
 }
 
-static void keyboard_interrupt_handler(struct idt_frame *frame)
+static void keyboard_interrupt_handler(struct irq_frame *frame)
 {
     int scancode;
     short asc_char = 0;

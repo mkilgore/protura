@@ -27,11 +27,11 @@ struct rwlock {
 
 typedef struct rwlock rwlock_t;
 
-#define RWLOCK_INIT(lock, name) \
+#define RWLOCK_INIT(rwlock, name) \
     { .lock = SPINLOCK_INIT(name), \
       .count = 0, \
-      .readers = WAIT_QUEUE_INIT((lock).readers, "RWLOCK Readers queue"), \
-      .writers = WAIT_QUEUE_INIT((lock).writers, "RWLOCK Writers queue") }
+      .readers = WAIT_QUEUE_INIT((rwlock).readers, "RWLOCK Readers queue"), \
+      .writers = WAIT_QUEUE_INIT((rwlock).writers, "RWLOCK Writers queue") }
 
 static inline void rwlock_init(rwlock_t *rwlock)
 {
@@ -45,10 +45,6 @@ static inline void rwlock_init(rwlock_t *rwlock)
 
 static inline void __rwlock_rlock(rwlock_t *rwlock)
 {
-    kprintf("Lock: %p\n", rwlock);
-    kprintf("Current count: %d\n", rwlock->count);
-    kprintf("Readers: %p\n", &rwlock->readers);
-
   sleep_again:
     sleep_with_wait_queue(&rwlock->readers) {
         if (rwlock->count < 0) {

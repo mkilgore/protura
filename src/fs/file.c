@@ -42,7 +42,7 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
     sector_t sec = filp->offset / block_size;
     off_t sec_off = filp->offset - sec * block_size;
 
-    kprintf("Locking for read rwlock\n");
+    kprintf("Locking for read inode\n");
     using_inode_lock_read(filp->inode) {
         while (have_read < len) {
             struct block *b;
@@ -52,7 +52,7 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
                             block_size - sec_off:
                             len - have_read;
 
-            kprintf("On dev: %d\n", on_dev);
+            kprintf("Sec: %d, On dev: %d\n", sec, on_dev);
 
             /* Invalid sectors are treated as though they're a block of all zeros.
              *

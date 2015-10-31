@@ -300,6 +300,10 @@ $(objtree)/.%.d: $(objtree)/%.S
 	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
+# Compile for protura:
+# gcc -ffreestanding -nostdlib -Wl,-emain -o ./prog.o ./prog.c
+# ld -e main -o ./prog ./prog.o -Ttext 0x80000000
+
 PHONY+=cscope
 cscope:
 	@echo " Generating cscope for arch $(ARCH)" 

@@ -13,6 +13,7 @@
 #include <mm/memlayout.h>
 #include <drivers/term.h>
 #include <mm/palloc.h>
+#include <protura/task.h>
 
 #include <arch/asm.h>
 #include <arch/cpu.h>
@@ -26,7 +27,7 @@ __align(0x1000) struct page_directory kernel_dir = {
     { { .entry = 0 } }
 };
 
-static void page_fault_handler(struct idt_frame *frame)
+static void page_fault_handler(struct irq_frame *frame)
 {
     uintptr_t p;
     asm volatile("movl %%cr2, %0": "=r" (p));
@@ -79,16 +80,16 @@ static void setup_kernel_pagedir(void **kbrk)
             *kbrk += PG_SIZE;
 
             for (cur_page = 0; cur_page < 1024; cur_page++)
-                page_tbl->table[cur_page].entry = (PAGING_MAKE_DIR_INDEX(cur_table - table_start)
-                                                  + PAGING_MAKE_TABLE_INDEX(cur_page))
-                                                  | PTE_PRESENT | PTE_WRITABLE | tbl_gbl_bit;
+                page_tbl->entries[cur_page].entry = (PAGING_MAKE_DIR_INDEX(cur_table - table_start)
+                                                    + PAGING_MAKE_TABLE_INDEX(cur_page))
+                                                    | PTE_PRESENT | PTE_WRITABLE | tbl_gbl_bit;
 
-            page_dir->table[cur_table].entry = new_page | PDE_PRESENT | PDE_WRITABLE;
+            page_dir->entries[cur_table].entry = new_page | PDE_PRESENT | PDE_WRITABLE;
         }
     } else {
         for (cur_table = table_start; cur_table < 0x3FF; cur_table++)
-            page_dir->table[cur_table].entry = PAGING_MAKE_DIR_INDEX(cur_table - table_start)
-                                               | PDE_PRESENT | PDE_WRITABLE | PDE_PAGE_SIZE | dir_gbl_bit;
+            page_dir->entries[cur_table].entry = PAGING_MAKE_DIR_INDEX(cur_table - table_start)
+                                                 | PDE_PRESENT | PDE_WRITABLE | PDE_PAGE_SIZE | dir_gbl_bit;
     }
 }
 
@@ -127,69 +128,14 @@ void paging_dump_directory(pa_t page_dir)
     cur_dir = P2V(page_dir);
 
     for (table_off = 0; table_off != 1024; table_off++) {
-        if (cur_dir->table[table_off].entry & PDE_PRESENT) {
-            kprintf("Dir %d: %x\n", table_off, cur_dir->table[table_off].entry);
-            cur_page_table = (struct page_table *)P2V(cur_dir->table[table_off].entry & ~0x3FF);
+        if (cur_dir->entries[table_off].entry & PDE_PRESENT) {
+            kprintf("Dir %d: %x\n", table_off, cur_dir->entries[table_off].entry);
+            cur_page_table = (struct page_table *)P2V(cur_dir->entries[table_off].entry & ~0x3FF);
             for (page_off = 0; page_off != 1024; page_off++)
-                if (cur_page_table->table[page_off].entry & PTE_PRESENT)
-                    kprintf("  Page: %d: %x\n", page_off, cur_page_table->table[page_off].entry);
+                if (cur_page_table->entries[page_off].entry & PTE_PRESENT)
+                    kprintf("  Page: %d: %x\n", page_off, cur_page_table->entries[page_off].entry);
         }
     }
-}
-
-void paging_map_phys_to_virt(pa_t page_dir, va_t virt, pa_t phys)
-{
-    struct page_directory *cur_dir;
-    int32_t table_off, page_off;
-    struct page_table *cur_page_table;
-    uintptr_t virt_start = (uintptr_t)(virt);
-
-    cur_dir = P2V(page_dir);
-
-    table_off = PAGING_DIR_INDEX(virt_start);
-    page_off = PAGING_TABLE_INDEX(virt_start);
-
-    if (!(cur_dir->table[table_off].entry & PDE_PRESENT)) {
-        pa_t new_page = palloc_phys(PAL_KERNEL);
-        memset((void *)P2V(new_page), 0, sizeof(struct page_table));
-
-        cur_dir->table[table_off].entry = new_page | PDE_PRESENT | PDE_WRITABLE | PDE_USER;
-    }
-
-    cur_page_table = (struct page_table *)P2V(PAGING_FRAME(cur_dir->table[table_off].entry));
-
-    cur_page_table->table[page_off].entry = PAGING_FRAME(phys) | PTE_PRESENT | PTE_WRITABLE | PTE_USER;
-}
-
-void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, size_t page_count)
-{
-    uintptr_t virt_ptr = (uintptr_t)virt;
-    for (; page_count != 0; page_count--, virt_ptr += 0x1000, phys_start += 0x1000)
-        paging_map_phys_to_virt(page_dir, (va_t)(virt_ptr), phys_start);
-
-    return ;
-}
-
-void paging_unmap_virt(va_t virt)
-{
-    uintptr_t virt_val = (uintptr_t)virt;
-    int32_t table_off, page_off;
-    struct page_directory *cur_dir;
-    struct page_table *cur_page_table;
-
-    table_off = PAGING_DIR_INDEX(virt_val);
-    page_off = PAGING_TABLE_INDEX(virt_val);
-
-    cur_dir = P2V(get_current_page_directory());
-
-    cur_page_table = (struct page_table *)P2V(PAGING_FRAME(cur_dir->table[table_off].entry));
-
-    /* Turn off present bit */
-    cur_page_table->table[page_off].entry &= ~PTE_PRESENT;
-
-    kprintf("Cur page: %x\n", cur_page_table->table[page_off].entry);
-
-    flush_tlb_single(virt);
 }
 
 uintptr_t paging_get_phys(va_t virt)
@@ -204,14 +150,14 @@ uintptr_t paging_get_phys(va_t virt)
 
     cur_dir = P2V(get_current_page_directory());
 
-    if (!(cur_dir->table[table_off].entry & PDE_PRESENT))
+    if (!(cur_dir->entries[table_off].entry & PDE_PRESENT))
         return 0;
 
-    cur_page_table = (struct page_table *)P2V(cur_dir->table[table_off].entry & 0xFFFFF000);
+    cur_page_table = (struct page_table *)P2V(cur_dir->entries[table_off].entry & 0xFFFFF000);
 
-    if (!(cur_page_table->table[page_off].entry & PDE_PRESENT))
+    if (!(cur_page_table->entries[page_off].entry & PDE_PRESENT))
         return 0;
 
-    return cur_page_table->table[page_off].entry & 0xFFFFF000;
+    return cur_page_table->entries[page_off].entry & 0xFFFFF000;
 }
 

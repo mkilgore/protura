@@ -18,61 +18,65 @@
 #include <arch/task.h>
 #include <arch/drivers/pic8259_timer.h>
 
-static void sys_handler_putchar(struct idt_frame *frame)
+static void sys_handler_putchar(struct irq_frame *frame)
 {
     sys_putchar(frame->ebx);
 }
 
-static void sys_handler_clock(struct idt_frame *frame)
+static void sys_handler_clock(struct irq_frame *frame)
 {
     frame->eax = sys_clock();
 }
 
-static void sys_handler_getpid(struct idt_frame *frame)
+static void sys_handler_getpid(struct irq_frame *frame)
 {
     frame->eax = sys_getpid();
 }
 
-static void sys_handler_putint(struct idt_frame *frame)
+static void sys_handler_putint(struct irq_frame *frame)
 {
     sys_putint(frame->ebx);
 }
 
-static void sys_handler_putstr(struct idt_frame *frame)
+static void sys_handler_putstr(struct irq_frame *frame)
 {
     sys_putstr((char *)frame->ebx);
 }
 
-static void sys_handler_sleep(struct idt_frame *frame)
+static void sys_handler_sleep(struct irq_frame *frame)
 {
     sys_sleep(frame->ebx);
 }
 
-static void sys_handler_fork(struct idt_frame *frame)
+static void sys_handler_fork(struct irq_frame *frame)
 {
     frame->eax = sys_fork();
 }
 
-static void sys_handler_getppid(struct idt_frame *frame)
+static void sys_handler_getppid(struct irq_frame *frame)
 {
     frame->eax = sys_getppid();
 }
 
+
+#define SYSCALL(call, handler) \
+    [SYSCALL_##call] = { SYSCALL_##call, handler }
+
 static struct syscall_handler {
     int num;
-    void (*handler) (struct idt_frame *);
+    void (*handler) (struct irq_frame *);
 } syscall_handlers[] = {
-    { SYSCALL_PUTCHAR, sys_handler_putchar },
-    { SYSCALL_CLOCK, sys_handler_clock },
-    { SYSCALL_GETPID, sys_handler_getpid },
-    { SYSCALL_PUTINT, sys_handler_putint },
-    { SYSCALL_PUTSTR, sys_handler_putstr },
-    { SYSCALL_SLEEP, sys_handler_sleep },
-    { SYSCALL_FORK, sys_handler_fork },
-    { SYSCALL_GETPPID, sys_handler_getppid },
+    SYSCALL(PUTCHAR, sys_handler_putchar),
+    SYSCALL(CLOCK, sys_handler_clock),
+    SYSCALL(GETPID, sys_handler_getpid),
+    SYSCALL(PUTINT, sys_handler_putint),
+    SYSCALL(PUTSTR, sys_handler_putstr),
+    SYSCALL(SLEEP, sys_handler_sleep),
+    SYSCALL(FORK, sys_handler_fork),
+    SYSCALL(GETPPID, sys_handler_getppid),
 };
 
-static void syscall_handler(struct idt_frame *frame)
+static void syscall_handler(struct irq_frame *frame)
 {
     (syscall_handlers[frame->eax].handler) (frame);
 }

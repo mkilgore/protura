@@ -39,12 +39,12 @@ void wakeup_list_wakeup(struct wakeup_list *);
  *
  * When modifying the queue, 'lock' has to be held. */
 struct wait_queue {
-    struct list_head queue;
+    list_head_t queue;
     spinlock_t lock;
 };
 
 struct wait_queue_node {
-    struct list_node node;
+    list_node_t node;
     struct wait_queue *queue;
 };
 
@@ -52,7 +52,12 @@ struct wait_queue_node {
     { .queue = LIST_HEAD_INIT((q).queue), \
       .lock = SPINLOCK_INIT(name) }
 
+#define WAIT_QUEUE_NODE_INIT(q) \
+    { .node = LIST_NODE_INIT((q).name), \
+      .queue = NULL }
+
 void wait_queue_init(struct wait_queue *);
+void wait_queue_node_init(struct wait_queue_node *);
 
 /* Register or unregister the current task to wakeup from this wait-queue. */
 void wait_queue_register(struct wait_queue *);

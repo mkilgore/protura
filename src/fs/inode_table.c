@@ -34,7 +34,7 @@ static struct {
 
     /* Entries in this list have already been flushed to the disk and have no
      * references. */
-    struct list_head unused;
+    list_head_t unused;
 
     atomic_t inode_count;
 } inode_list = {
@@ -132,7 +132,7 @@ struct inode *inode_get(struct super_block *sb, ino_t ino)
         hlist_foreach_entry(&inode_list.inode_hashes[hash], inode, hash_entry) {
             if (inode->ino == ino && inode->dev == sb->dev) {
                 atomic_inc(&inode->ref);
-                list_del_checked(&inode->list_entry);
+                list_del(&inode->list_entry);
 
                 break;
             }

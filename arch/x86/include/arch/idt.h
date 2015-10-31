@@ -13,6 +13,7 @@
 #include <protura/compiler.h>
 #include <protura/types.h>
 #include <protura/atomic.h>
+#include <protura/irq.h>
 
 #include <arch/context.h>
 
@@ -49,21 +50,6 @@ struct idt_ptr {
     uint32_t base;
 } __packed;
 
-struct idt_frame {
-    uint32_t edi, esi, ebp, oesp, ebx, edx, ecx, eax;
-    uint16_t gs, pad1, fs, pad2, es, pad3, ds, pad4;
-
-    uint32_t intno;
-    uint32_t err;
-
-    uint32_t eip;
-    uint16_t cs, padding5;
-    uint32_t eflags;
-
-    uint32_t esp;
-    uint16_t ss, padding6;
-} __packed;
-
 enum irq_type {
     IRQ_INTERRUPT,
     IRQ_SYSCALL
@@ -73,8 +59,8 @@ void idt_flush(uint32_t);
 
 void idt_init(void);
 
-void irq_global_handler(struct idt_frame *);
-void irq_register_callback(uint8_t irqno, void (*callback)(struct idt_frame *), const char *id, enum irq_type);
+void irq_global_handler(struct irq_frame *);
+void irq_register_callback(uint8_t irqno, void (*callback)(struct irq_frame *), const char *id, enum irq_type);
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 

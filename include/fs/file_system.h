@@ -19,7 +19,7 @@ struct file_system {
     const char *name;
     struct super_block *(*read_sb) (dev_t dev);
 
-    struct list_node fs_list_entry;
+    list_node_t fs_list_entry;
 };
 
 void file_systems_init(void);

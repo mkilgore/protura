@@ -5,6 +5,7 @@
 
 #include <protura/types.h>
 #include <protura/compiler.h>
+#include <protura/irq.h>
 
 /* Note: Dont' change this unless you update context.S as well */
 struct x86_regs {
@@ -15,7 +16,7 @@ struct x86_regs {
  * entry */
 struct arch_context {
     struct x86_regs *esp;
-    struct idt_frame *frame;
+    struct irq_frame *frame;
 };
 
 void arch_context_switch(struct arch_context *new, struct arch_context *old);

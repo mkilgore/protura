@@ -23,7 +23,6 @@ struct task init_task = {
     .state = TASK_RUNNING,
     .kernel = 1,
 
-    .page_dir = &kernel_dir,
     .parent = NULL,
 
     /* These fields aren't important for our uses, since the init_task isn't

@@ -30,7 +30,7 @@ static sector_t simple_fs_bmap(struct inode *i, sector_t sec)
 {
     struct simple_fs_inode *inode = container_of(i, struct simple_fs_inode, i);
 
-    if (sec > 12)
+    if (sec > ARRAY_SIZE(inode->contents))
         return SECTOR_INVALID;
 
     return inode->contents[sec];

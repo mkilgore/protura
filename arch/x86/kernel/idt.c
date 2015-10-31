@@ -28,12 +28,12 @@ struct idt_identifier {
     atomic32_t count;
     const char *name;
     enum irq_type type;
-    void (*handler)(struct idt_frame *);
+    void (*handler)(struct irq_frame *);
 };
 
 static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
 
-void irq_register_callback(uint8_t irqno, void (*handler)(struct idt_frame *), const char *id, enum irq_type type)
+void irq_register_callback(uint8_t irqno, void (*handler)(struct irq_frame *), const char *id, enum irq_type type)
 {
     struct idt_identifier *ident = idt_ids + irqno;
 
@@ -75,7 +75,7 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
     }
 }
 
-void irq_global_handler(struct idt_frame *iframe)
+void irq_global_handler(struct irq_frame *iframe)
 {
     struct idt_identifier *ident = idt_ids + iframe->intno;
     struct task *t;

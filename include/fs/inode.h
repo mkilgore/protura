@@ -16,6 +16,8 @@
 #include <protura/mutex.h>
 #include <protura/bits.h>
 
+#include <fs/inode_table.h>
+
 struct inode_ops;
 struct super_block;
 struct file;
@@ -39,7 +41,7 @@ struct inode {
 
     atomic_t ref;
     struct hlist_node hash_entry;
-    struct list_node list_entry;
+    list_node_t list_entry;
 
     struct super_block *sb;
     struct inode_ops *ops;
@@ -68,6 +70,7 @@ static inline void inode_init(struct inode *i)
 {
     mutex_init(&i->lock);
     atomic_init(&i->ref, 0);
+    list_node_init(&i->list_entry);
 }
 
 int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result);

@@ -18,7 +18,7 @@
 struct simple_fs_inode {
     struct inode i;
 
-    sector_t contents[12];
+    sector_t contents[100];
 };
 
 struct simple_fs_super_block {
@@ -69,7 +69,7 @@ struct simple_fs_disk_inode {
     mode_t mode;
     unsigned short major;
     unsigned short minor;
-    uint32_t sectors[12];
+    uint32_t sectors[100];
 };
 
 struct simple_fs_disk_inode_map {

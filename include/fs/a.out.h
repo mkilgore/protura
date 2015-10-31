@@ -5,16 +5,17 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_FS_A_OUT_H
+#define INCLUDE_FS_A_OUT_H
 
 #include <protura/types.h>
-#include <protura/stddef.h>
-#include <protura/errors.h>
+#include <protura/compiler.h>
 
-#define ERR(val) \
-    [val] = #val
+struct exec {
+    
+} __packed;
 
-const char *error_strings[] = {
-    [0] = "SUCCESS",
-#include "errors.x"
-};
+void aout_register(void);
+void aout_unregister(void);
 
+#endif

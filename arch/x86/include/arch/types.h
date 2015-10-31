@@ -27,6 +27,16 @@ typedef uint32_t size_t;
 typedef uint32_t uintptr_t;
 typedef int32_t   intptr_t;
 
+/* These types are used to represent virtual and physical addresses. The fact
+ * that one is a pointer and one is not means a warning is given if an
+ * assignemt is done between the two without using a conversion function, like
+ * v_to_p or V2P.
+ *
+ * Note that GCC defines additions to void * types to be the same as though it
+ * was a char *. Thus, it's legal to add and subtract from va_t types, even
+ * though it's technically a void *. If this is a problem, it would be legal
+ * to redefine va_t as 'uintptr_t', or 'char *' without any issues besides less
+ * type guarentees. */
 typedef void *    va_t;
 typedef uintptr_t pa_t;
 

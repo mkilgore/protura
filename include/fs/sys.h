@@ -8,6 +8,7 @@
 #ifndef INCLUDE_FS_SYS_H
 #define INCLUDE_FS_SYS_H
 
+#include <protura/irq.h>
 #include <fs/inode.h>
 #include <fs/file.h>
 
@@ -23,5 +24,7 @@ int sys_truncate(const char *file, off_t length);
  * arguments relating to inode's and file's rather then a path name and
  * userspace flags. If you have to use sys_open in the kernel. */
 int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp);
+
+int sys_exec(const char *executable, char *const argv[], struct irq_frame *);
 
 #endif

@@ -186,6 +186,7 @@ struct super_block *simple_fs_read_sb(dev_t dev)
 static struct file_system simple_fs_fs = {
     .name = "simple_fs",
     .read_sb = simple_fs_read_sb,
+    .fs_list_entry = LIST_NODE_INIT(simple_fs_fs.fs_list_entry),
 };
 
 void simple_fs_init(void)

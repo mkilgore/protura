@@ -28,6 +28,9 @@ int namex(const char *path, struct inode *cwd, struct inode **result)
 {
     int ret = 0;
 
+    kprintf("Path: %p\n", path);
+    kprintf("Path: %s\n", path);
+
     if (*path == '/') {
         cwd = ino_root;
         path++;

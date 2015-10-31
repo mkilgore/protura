@@ -5,16 +5,9 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_PROTURA_IRQ_H
+#define INCLUDE_PROTURA_IRQ_H
 
-#include <protura/types.h>
-#include <protura/stddef.h>
-#include <protura/errors.h>
+#include <arch/irq.h>
 
-#define ERR(val) \
-    [val] = #val
-
-const char *error_strings[] = {
-    [0] = "SUCCESS",
-#include "errors.x"
-};
-
+#endif

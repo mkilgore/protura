@@ -8,7 +8,10 @@
 #ifndef INCLUDE_FS_INODE_TABLE_H
 #define INCLUDE_FS_INODE_TABLE_H
 
-#include <fs/inode.h>
+#include <protura/types.h>
+#include <fs/super.h>
+
+struct inode;
 
 struct inode *inode_get(struct super_block *, ino_t ino);
 struct inode *inode_dup(struct inode *);

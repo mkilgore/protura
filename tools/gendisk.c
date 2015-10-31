@@ -16,7 +16,7 @@
 #define SECTOR_SIZE 512
 
 struct inode_desc {
-    struct list_node node;
+    list_node_t node;
     struct simple_fs_disk_inode i;
     struct simple_fs_disk_inode_map map;
     int sectors;
@@ -27,7 +27,7 @@ struct disk_map {
     uint32_t inode_count;
     uint32_t inode_map_sector;
     uint32_t inode_root;
-    struct list_head descs;
+    list_head_t descs;
 
     uint32_t next_ino;
     uint32_t next_sector;
@@ -36,6 +36,12 @@ struct disk_map {
 struct disk_map root = {
     .descs = LIST_HEAD_INIT(root.descs),
 };
+
+static void inode_desc_init(struct inode_desc *desc)
+{
+    memset(desc, 0, sizeof(*desc));
+    list_node_init(&desc->node);
+}
 
 void add_inode_desc(struct disk_map *map, struct inode_desc *desc)
 {
@@ -47,6 +53,7 @@ void add_dir_entry(struct inode_desc *dir, const char *name, uint32_t ino)
 {
     struct kdirent ent;
     uint32_t cur;
+    memset(&ent, 0, sizeof(ent));
 
     strcpy(ent.name, name);
     ent.ino = ino;
@@ -90,8 +97,8 @@ void read_file(struct inode_desc *file, int fd)
     }
 
     file->sectors = (len + SECTOR_SIZE - 1) / SECTOR_SIZE;
-    int i;
 
+    int i;
     for (i = 0; i < file->sectors; i++)
         file->i.sectors[i] = root.next_sector++;
 }
@@ -103,7 +110,7 @@ uint32_t map_dir(uint32_t parent)
     DIR *d = opendir(".");
 
     inode_dir = malloc(sizeof(*inode_dir));
-    memset(inode_dir, 0, sizeof(*inode_dir));
+    inode_desc_init(inode_dir);
 
     inode_dir->map.ino = root.next_ino++;
     inode_dir->map.sector = root.next_sector++;
@@ -123,7 +130,7 @@ uint32_t map_dir(uint32_t parent)
             int fd;
 
             f = malloc(sizeof(*f));
-            memset(f, 0, sizeof(*f));
+            inode_desc_init(f);
 
             f->map.ino = root.next_ino++;
 
@@ -201,6 +208,9 @@ void write_dir(int fd, struct disk_map *root)
 
             if (d->i.size - i * SECTOR_SIZE < SECTOR_SIZE)
                 len = d->i.size - i * SECTOR_SIZE;
+            else
+                len = SECTOR_SIZE;
+
 
             write(fd, d->data + i * SECTOR_SIZE, len);
         }

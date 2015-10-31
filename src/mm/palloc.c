@@ -18,7 +18,7 @@
 #include <mm/palloc.h>
 
 struct page_buddy_map {
-    struct list_head free_pages;
+    list_head_t free_pages;
     int free_count;
     struct wait_queue wait_for_free;
 };
@@ -180,6 +180,8 @@ pa_t palloc_phys_multiple(int order, unsigned int flags)
         if (!(flags & __PAL_NOWAIT))
             __palloc_sleep_for_enough_pages(&buddy_allocator, order, flags);
         p = __palloc_phys_multiple(&buddy_allocator, order, flags);
+        if (p)
+            buddy_allocator.free_pages -= 1 << order;
     }
 
     if (p)
@@ -188,6 +190,35 @@ pa_t palloc_phys_multiple(int order, unsigned int flags)
         ret = 0;
 
     return ret;
+}
+
+struct page *palloc_pages(int count, unsigned int flags)
+{
+    struct page *head = NULL;
+
+    kprintf("Getting %d unordered pages\n", count);
+    kprintf("Flags: %d\n", flags);
+
+    using_spinlock(&buddy_allocator.lock) {
+        struct page *p;
+        int i;
+
+        for (i = 0; i < count; i++) {
+            if (!(flags & __PAL_NOWAIT))
+                __palloc_sleep_for_enough_pages(&buddy_allocator, 1, flags);
+
+            p = __palloc_phys_multiple(&buddy_allocator, 1, flags);
+
+            if (head)
+                list_add_tail(&head->page_list_node, &p->page_list_node);
+            else
+                head = p;
+        }
+    }
+
+    kprintf("Head: %p\n", head);
+
+    return head;
 }
 
 void palloc_init(void **kbrk, int pages)
@@ -214,7 +245,9 @@ void palloc_init(void **kbrk, int pages)
     while (p-- >= buddy_allocator.pages) {
         p->order = -1;
         p->page_number = (int)(p - buddy_allocator.pages);
+        list_node_init(&p->page_list_node);
         bit_set(&p->flags, PG_INVALID);
+        p->virt = P2V((p->page_number) << PG_SHIFT);
     }
 
     /* We keep using 'sizeof(*buddy_allocator.maps[0].bitmap)' because we don't
@@ -223,7 +256,7 @@ void palloc_init(void **kbrk, int pages)
      * IE. 'bitmap' could be an 'int *', or a 'char *', or a 'uint64_t *'
      * pointer, and this code works with any of them. */
     for (i = 0; i < PALLOC_MAPS; i++) {
-        INIT_LIST_HEAD(&buddy_allocator.maps[i].free_pages);
+        list_head_init(&buddy_allocator.maps[i].free_pages);
         wait_queue_init(&buddy_allocator.maps[i].wait_for_free);
         buddy_allocator.maps[i].free_count = 0;
     }

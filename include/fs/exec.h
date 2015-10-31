@@ -5,16 +5,12 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+#ifndef INCLUDE_FS_EXEC_H
+#define INCLUDE_FS_EXEC_H
 
-#include <protura/types.h>
-#include <protura/stddef.h>
-#include <protura/errors.h>
+#include <protura/irq.h>
+#include <fs/inode.h>
 
-#define ERR(val) \
-    [val] = #val
+int exec(struct inode *inode, char *const argv[], struct irq_frame *);
 
-const char *error_strings[] = {
-    [0] = "SUCCESS",
-#include "errors.x"
-};
-
+#endif

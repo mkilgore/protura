@@ -47,9 +47,9 @@ struct block {
      * that currently holds that lock */
     struct task *owner;
 
-    struct list_node block_list_node;
+    list_node_t block_list_node;
     struct hlist_node cache;
-    struct list_node block_lru_node;
+    list_node_t block_lru_node;
 };
 
 static inline void block_lock(struct block *b)

@@ -32,6 +32,7 @@
 #include <fs/vfs.h>
 #include <fs/sys.h>
 #include <fs/fs.h>
+#include <fs/binfmt.h>
 
 #include <init/init_task.h>
 
@@ -49,7 +50,6 @@ static void sleep_for_keyboard(void)
 static void read_sector(char *buf, sector_t sector)
 {
     struct block *b;
-    kprintf("Starting IDE test!\n");
 
     using_block(DEV_MAKE(BLOCK_DEV_IDE, 0), sector, b)
         memcpy(buf, b->data, b->block_size);
@@ -162,9 +162,10 @@ static void test_fs(void)
     kprintf("Root data sector: %d\n", inode->contents[0]);
     kprintf("Root size: %d\n", inode->i.size);
 
-    print_dir(simple->sb.root, 0);
+    /* print_dir(simple->sb.root, 0); */
 
     ino_root = inode_dup(simple->sb.root);
+    sb_root = sb;
 
     int ret = namei("/", &i);
 
@@ -186,7 +187,8 @@ static void test_fs(void)
         inode_put(i);
     }
 
-    sb_put(sb);
+    return ;
+
 }
 
 static char output[80 * 512 / 16 + 1];
@@ -202,6 +204,11 @@ int kernel_keyboard_thread(void *unused)
     keyboard_wakeup_add(cpu_get_local()->current);
 
     test_fs();
+
+    kprintf("Creating a user stack for /test_prog...\n");
+
+    struct task *user_task = task_user_new("/test_prog");
+    scheduler_task_add(user_task);
 
     term_printf("Sector: ");
 

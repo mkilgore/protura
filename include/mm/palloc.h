@@ -27,12 +27,11 @@ struct page {
      * with this one. Increments are powers of two, so an 'order' of 3 means
      * that this page was allocated together with 2^3 - 1 other pages */
     int order;
-    struct list_node page_list_node;
+    list_node_t page_list_node;
 
     unsigned int flags;
 
-    struct inode *inode_owner;
-    uint32_t inode_offset;
+    void *virt;
 } __align_cacheline;
 
 enum page_flag {
@@ -70,6 +69,18 @@ static inline void *palloc_multiple(int order, unsigned int flags)
 #define palloc_phys(flags) palloc_phys_multiple(0, (flags))
 #define palloc(flags) palloc_multiple(0, (flags))
 
+/* 
+ * A special call to palloc - It allocates and returns 'count' single pages.
+ * These pages are all linked together in a circular linked list
+ * (page_list_node), with the returned page being the lowest address. The pages
+ * themselves are *not* guarenteed to be linear in physical memory. This
+ * generally makes it unuseable for allocating pages for kernel usage. This is
+ * however very useful for allocating pages for a virtual mapping, as the
+ * alignment of the physical pages chosen does not matter, and multiple calls
+ * to palloc() would be unoptimal.
+ */
+struct page *palloc_pages(int count, unsigned int flags);
+
 void pfree_phys_multiple(pa_t, int order);
 
 #define pfree_phys(pa) pfree_phys_multiple(pa, 0)
@@ -85,6 +96,21 @@ struct page *page_get_from_pn(pn_t);
 static inline pa_t page_to_pa(struct page *p)
 {
     return (p->page_number) << PG_SHIFT;
+}
+
+/* Frees a circular list of pages - Note the list is assumed to have no 'head' */
+static inline void pfree_pages(struct page *head)
+{
+    struct page *end = head;
+    struct page *p = head, *next;
+
+    do {
+        next = list_next_entry(p, page_list_node);
+
+        pfree_phys(page_to_pa(p));
+
+        p = next;
+    } while (p != end);
 }
 
 void palloc_init(void **kbrk, int pages);

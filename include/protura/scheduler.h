@@ -2,7 +2,7 @@
 #define INCLUDE_ARCH_SCHEDULER_H
 
 #include <protura/stddef.h>
-#include <arch/task.h>
+#include <protura/task.h>
 #include <protura/list.h>
 #include <protura/queue.h>
 #include <arch/cpu.h>

@@ -48,9 +48,9 @@
  */
 static struct {
     struct spinlock lock;
-    struct list_head list;
+    list_head_t list;
 
-    struct list_head dead;
+    list_head_t dead;
 
     pid_t next_pid;
 } ktasks = {
@@ -302,8 +302,14 @@ void wakeup_list_wakeup(struct wakeup_list *list)
 void wait_queue_init(struct wait_queue *queue)
 {
     memset(queue, 0, sizeof(*queue));
-    INIT_LIST_HEAD(&queue->queue);
+    list_head_init(&queue->queue);
     spinlock_init(&queue->lock, "wait queue lock");
+}
+
+void wait_queue_node_init(struct wait_queue_node *node)
+{
+    memset(node, 0, sizeof(*node));
+    list_node_init(&node->node);
 }
 
 void wait_queue_register(struct wait_queue *queue)
@@ -351,7 +357,7 @@ int wait_queue_wake(struct wait_queue *queue)
      * even though it hasn't actually unregistered yet.
      */
     using_spinlock(&queue->lock) {
-        while (__list_first(&queue->queue)) {
+        while (!list_empty(&queue->queue)) {
             t = container_of(list_take_first(&queue->queue, struct wait_queue_node, node), struct task, wait);
             if (t->state == TASK_SLEEPING) {
                 t->state = TASK_RUNNABLE;

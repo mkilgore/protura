@@ -51,11 +51,17 @@
 #define ALIGN_2(v, a) ((typeof(v))(((uintptr_t)(v) + (a) - 1) & ~(a - 1)))
 #define PG_ALIGN(v) ALIGN_2(v, PG_SIZE)
 
+#define ALIGN_2_DOWN(v, a) ((typeof(v))(((uintptr_t)(v) & ~(a - 1))))
+#define PG_ALIGN_DOWN(v) ALIGN_2_DOWN(v, PG_SIZE)
+
 #define PAGING_DIR_INDEX_MASK 0x3FF
 #define PAGING_TABLE_INDEX_MASK 0x3FF
 
-#define PAGING_DIR_INDEX(val) (((val) >> 22) & PAGING_DIR_INDEX_MASK)
-#define PAGING_TABLE_INDEX(val) (((val) >> 12) & PAGING_TABLE_INDEX_MASK)
+#define PAGING_DIR_INDEX(val) (((uintptr_t)(val) >> 22) & PAGING_DIR_INDEX_MASK)
+#define PAGING_TABLE_INDEX(val) (((uintptr_t)(val) >> 12) & PAGING_TABLE_INDEX_MASK)
+
+#define PAGING_DIR_INDEX_WO(val) (((val) >> 22) & PAGING_DIR_INDEX_MASK)
+#define PAGING_TABLE_INDEX_WO(val) (((val) >> 12) & PAGING_TABLE_INDEX_MASK)
 
 #define PAGING_MAKE_DIR_INDEX(val) ((val) << 22)
 #define PAGING_MAKE_TABLE_INDEX(val) ((val) << 12)
@@ -113,14 +119,18 @@ struct page_table_entry {
 };
 
 struct page_directory {
-    struct page_directory_entry table[1024];
+    struct page_directory_entry entries[1024];
 };
 
 struct page_table {
-    struct page_table_entry table[1024];
+    struct page_table_entry entries[1024];
 };
 
-typedef struct page_directory pd_t;
+typedef struct page_directory pgd_t;
+typedef struct page_table pgt_t;
+
+typedef struct page_directory_entry pde_t;
+typedef struct page_table_entry pte_t;
 
 extern struct page_directory kernel_dir;
 
@@ -158,25 +168,8 @@ static __always_inline void flush_tlb_single(va_t addr)
 
 void paging_setup_kernelspace(void **kbrk);
 
-void paging_map_phys_to_virt(pa_t page_dir, va_t virt_start, pa_t phys);
-void paging_map_phys_to_virt_multiple(pa_t page_dir, va_t virt, pa_t phys_start, size_t page_count);
-
-pa_t paging_get_new_directory(void);
-
-void paging_unmap_virt(va_t virt);
-
 uintptr_t paging_get_phys(va_t virtaddr);
 void paging_dump_directory(pa_t dir);
-
-/* Low memory indicates the first 16M after the kernel is loaded This is mainly
- * for allcating pages who's physical addresses need to be known
- */
-pa_t      low_get_page(void);
-void      low_free_page(pa_t p);
-
-/* High memory is everything else */
-pa_t      high_get_page(void);
-void      high_free_page(pa_t p);
 
 #endif
 

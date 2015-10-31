@@ -19,7 +19,7 @@
 
 static atomic32_t ticks;
 
-static void timer_callback(struct idt_frame *frame)
+static void timer_callback(struct irq_frame *frame)
 {
     atomic32_inc(&ticks);
 

@@ -13,11 +13,12 @@
 
 #include <arch/spinlock.h>
 #include <fs/simple_fs.h>
+#include <fs/elf.h>
 #include <fs/file_system.h>
 
 static struct file_system_list {
     spinlock_t lock;
-    struct list_head list;
+    list_head_t list;
 } file_system_list = {
     .lock = SPINLOCK_INIT("file system list"),
     .list = LIST_HEAD_INIT(file_system_list.list),
@@ -65,5 +66,7 @@ struct file_system *file_system_lookup(const char *name)
 void file_systems_init(void)
 {
     simple_fs_init();
+
+    elf_register();
 }
 

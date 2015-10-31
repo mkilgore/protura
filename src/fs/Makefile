@@ -11,5 +11,9 @@ objs-y += namei.o
 objs-y += vfs.o
 objs-y += sys.o
 
+objs-y += exec.o
+objs-y += binfmt_table.o
+objs-y += binfmt_elf.o
+
 subdir-y += simple_fs
 

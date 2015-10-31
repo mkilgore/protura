@@ -1,5 +1,5 @@
 
-disk.img: ./tools/gendisk
+disk.img: ./tools/gendisk ./disk
 	@echo " GENDISK disk.img"
 	$(Q)./tools/gendisk ./disk ./disk.img
 
