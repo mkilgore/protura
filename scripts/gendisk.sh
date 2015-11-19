@@ -1,0 +1,21 @@
+#!/bin/bash
+
+rm -f ./disk.img
+
+mkdir ./disk_ext2
+
+mkfs.ext2 -b 1024 -O ^large_file ./disk.img 16384
+mount ./disk.img ./disk_ext2
+
+cp -R ./disk/* ./disk_ext2/
+
+while read device; do
+    mknod ./disk_ext2/$device
+done < ./disk/device_table.txt
+
+umount ./disk_ext2
+
+rm -r ./disk_ext2
+
+chmod 666 ./disk.img
+

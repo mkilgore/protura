@@ -31,4 +31,6 @@ void slab_free(struct slab_alloc *, void *);
 int slab_has_addr(struct slab_alloc *slab, void *addr);
 void slab_clear(struct slab_alloc *);
 
+void slab_oom(struct slab_alloc *slab);
+
 #endif

@@ -26,8 +26,10 @@ struct page_frame_obj_empty {
 struct slab_page_frame {
     struct slab_page_frame *next;
     void *first_addr;
+    void *last_addr;
     int page_index_size;
     int object_count;
+    int free_object_count;
     struct page_frame_obj_empty *freelist;
 };
 
@@ -51,9 +53,9 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
     int i, page_index = 5;
 
 
-    kprintf("Calling palloc with %d, %d\n", flags, page_index);
+    kp(KP_TRACE, "Calling palloc with %d, %d\n", flags, page_index);
     newframe = palloc_multiple(page_index, flags);
-    kprintf("New frame for slab: %p\n", newframe);
+    kp(KP_TRACE, "New frame for slab: %p\n", newframe);
 
     if (!newframe)
         return NULL;
@@ -64,18 +66,24 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
     newframe->first_addr = ALIGN_2(((char *)newframe) + sizeof(*newframe), slab->object_size);
     newframe->object_count = (((char *)newframe + PG_SIZE * (1 << newframe->page_index_size)) - (char *)newframe->first_addr) / slab->object_size;
+    newframe->last_addr = newframe->first_addr + newframe->object_count * slab->object_size;
+    newframe->free_object_count = newframe->object_count;
 
     current = &newframe->freelist;
     obj = newframe->first_addr;
+    int count = 0;
     for (i = 0; i < newframe->object_count; i++,
                                             obj = ALIGN_2(obj + slab->object_size, slab->object_size),
-                                            current = &((*current)->next))
+                                            current = &((*current)->next)) {
         *current = (struct page_frame_obj_empty *)obj;
+        count++;
+    }
 
     *current = NULL;
 
 
-    kprintf("slab: %s: New page %p, %d objects\n", slab->slab_name, newframe, newframe->object_count);
+    kp(KP_DEBUG, "slab: %s: New page %p, %d objects\n", slab->slab_name, newframe, newframe->object_count);
+    kp(KP_DEBUG, "slab: %s: Real count: %d\n", slab->slab_name, count);
     return newframe;
 }
 
@@ -93,7 +101,11 @@ static void *__slab_frame_object_alloc(struct slab_page_frame *frame)
     obj = frame->freelist;
     next = frame->freelist->next;
 
+    kp(KP_TRACE, "Obj=%p, next=%p\n", obj, next);
+
     frame->freelist = next;
+    frame->free_object_count--;
+    kp(KP_TRACE, "Slab: free-object-count=%d\n", frame->free_object_count);
     return obj;
 }
 
@@ -105,6 +117,7 @@ static void __slab_frame_object_free(struct slab_page_frame *frame, void *obj)
         if (obj <= (void *)(*current) || !*current) {
             new->next = *current;
             *current = new;
+            frame->free_object_count++;
             return ;
         }
     }
@@ -114,10 +127,14 @@ void *__slab_malloc(struct slab_alloc *slab, unsigned int flags)
 {
     struct slab_page_frame **frame = &slab->first_frame;
 
-    for (frame = &slab->first_frame; *frame; frame = &((*frame)->next))
-        if ((*frame)->freelist)
+    for (frame = &slab->first_frame; *frame; frame = &((*frame)->next)) {
+        if ((*frame)->free_object_count && !(*frame)->freelist)
+            panic("ERROR: free_object_count and freelist do not agree! %s, %d, %p\n", slab->slab_name, (*frame)->free_object_count, (*frame)->freelist);
+        if ((*frame)->free_object_count)
             return __slab_frame_object_alloc(*frame);
+    }
 
+    kp(KP_TRACE, "Getting new slab frame\n");
     *frame = __slab_frame_new(slab, flags);
 
     if (*frame)
@@ -130,7 +147,7 @@ int __slab_has_addr(struct slab_alloc *slab, void *addr)
 {
     struct slab_page_frame *frame;
     for (frame = slab->first_frame; frame; frame = frame->next)
-        if (addr >= (void *)frame && addr < (void *)frame + PG_SIZE)
+        if (addr >= frame->first_addr && addr < frame->last_addr)
             return 0;
 
     return 1;
@@ -140,7 +157,7 @@ void __slab_free(struct slab_alloc *slab, void *obj)
 {
     struct slab_page_frame *frame;
     for (frame = slab->first_frame; frame; frame = frame->next) {
-        if (obj >= (void *)frame && obj < (void *)frame + PG_SIZE) {
+        if (obj >= frame->first_addr && obj < frame->last_addr) {
             __slab_frame_object_free(frame, obj);
             return ;
         }
@@ -158,9 +175,26 @@ void __slab_clear(struct slab_alloc *slab)
     }
 }
 
+void __slab_oom(struct slab_alloc *slab)
+{
+    struct slab_page_frame **prev = &slab->first_frame, *frame, *next;
+    for (frame = slab->first_frame; frame; frame = next) {
+        next = frame->next;
+
+        if (frame->free_object_count == frame->object_count) {
+            __slab_frame_free(frame);
+            *prev = next;
+        } else {
+            prev = &frame->next;
+        }
+    }
+}
+
 void *slab_malloc(struct slab_alloc *slab, unsigned int flags)
 {
     void *ret;
+
+    kp(KP_TRACE, "slab_malloc: flags=%d\n", flags);
 
     using_spinlock(&slab->lock)
         ret = __slab_malloc(slab, flags);
@@ -188,5 +222,11 @@ void slab_clear(struct slab_alloc *slab)
 {
     using_spinlock(&slab->lock)
         __slab_clear(slab);
+}
+
+void slab_oom(struct slab_alloc *slab)
+{
+    using_spinlock(&slab->lock)
+        __slab_oom(slab);
 }
 

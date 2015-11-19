@@ -13,8 +13,6 @@
 #include <protura/list.h>
 #include <protura/userspace_inc_done.h>
 
-#define SECTOR_SIZE 512
-
 struct inode_desc {
     list_node_t node;
     struct simple_fs_disk_inode i;
@@ -88,6 +86,9 @@ void read_file(struct inode_desc *file, int fd)
     if (sscanf(file->data, "Device:%c %hd,%hd", &devtype, &major, &minor) == 3) {
         if (devtype == 'b')
             file->i.mode = S_IFBLK;
+        else if (devtype == 'c')
+            file->i.mode = S_IFCHR;
+
         file->i.major = major;
         file->i.minor = minor;
         free(file->data);
@@ -96,7 +97,7 @@ void read_file(struct inode_desc *file, int fd)
         len = 0;
     }
 
-    file->sectors = (len + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    file->sectors = (len + SIMPLE_FS_BLOCK_SIZE - 1) / SIMPLE_FS_BLOCK_SIZE;
 
     int i;
     for (i = 0; i < file->sectors; i++)
@@ -153,7 +154,7 @@ uint32_t map_dir(uint32_t parent)
 
     free(prev);
 
-    inode_dir->sectors = (inode_dir->i.size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    inode_dir->sectors = (inode_dir->i.size + SIMPLE_FS_BLOCK_SIZE - 1) / SIMPLE_FS_BLOCK_SIZE;
     int i;
     for (i = 0; i < inode_dir->sectors; i++)
         inode_dir->i.sectors[i] = root.next_sector++;
@@ -185,17 +186,17 @@ void write_dir(int fd, struct disk_map *root)
     sb.root_ino = root->inode_root;
     sb.inode_map_sector = root->inode_map_sector;
 
-    ftruncate(fd, root->next_sector * SECTOR_SIZE);
+    ftruncate(fd, root->next_sector * SIMPLE_FS_BLOCK_SIZE);
 
     lseek(fd, 0, SEEK_SET);
     write(fd, &sb, sizeof(sb));
 
-    lseek(fd, root->inode_map_sector * SECTOR_SIZE, SEEK_SET);
+    lseek(fd, root->inode_map_sector * SIMPLE_FS_BLOCK_SIZE, SEEK_SET);
     list_foreach_entry(&root->descs, d, node)
         write(fd, &d->map, sizeof(d->map));
 
     list_foreach_entry(&root->descs, d, node) {
-        lseek(fd, d->map.sector * SECTOR_SIZE, SEEK_SET);
+        lseek(fd, d->map.sector * SIMPLE_FS_BLOCK_SIZE, SEEK_SET);
         write(fd, &d->i, sizeof(d->i));
 
         if (!S_ISDIR(d->i.mode) && !S_ISREG(d->i.mode))
@@ -204,15 +205,15 @@ void write_dir(int fd, struct disk_map *root)
         int i;
         for (i = 0; i < d->sectors; i++) {
             int len;
-            lseek(fd, d->i.sectors[i] * SECTOR_SIZE, SEEK_SET);
+            lseek(fd, d->i.sectors[i] * SIMPLE_FS_BLOCK_SIZE, SEEK_SET);
 
-            if (d->i.size - i * SECTOR_SIZE < SECTOR_SIZE)
-                len = d->i.size - i * SECTOR_SIZE;
+            if (d->i.size - i * SIMPLE_FS_BLOCK_SIZE < SIMPLE_FS_BLOCK_SIZE)
+                len = d->i.size - i * SIMPLE_FS_BLOCK_SIZE;
             else
-                len = SECTOR_SIZE;
+                len = SIMPLE_FS_BLOCK_SIZE;
 
 
-            write(fd, d->data + i * SECTOR_SIZE, len);
+            write(fd, d->data + i * SIMPLE_FS_BLOCK_SIZE, len);
         }
     }
 }

@@ -1,0 +1,3 @@
+/dev/console c 1 0
+/dev/keyboard c 2 0
+/dev/ide b 1 0

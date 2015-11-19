@@ -23,11 +23,15 @@ struct super_block_ops {
     /* Read, write, delete may sleep */
     struct inode *(*inode_read) (struct super_block *, ino_t);
     int (*inode_write) (struct super_block *, struct inode *);
+
+    /* called when nlink and the in-kernel reference count of the inode drops
+     * to zero */
     int (*inode_delete) (struct super_block *, struct inode *);
 
-
-    /* Release may not sleep - release also does not write */
-    int (*inode_release) (struct super_block *, struct inode *);
+    /* Deallocates an inode given by inode_read. Note that this does *not*
+     * flush the inode to the disk first, and inode's passed to inode_delete
+     * still need to be deallocated. */
+    int (*inode_dealloc) (struct super_block *, struct inode *);
 
     int (*sb_write) (struct super_block *);
     int (*sb_put) (struct super_block *);
@@ -57,10 +61,10 @@ static inline int sb_inode_write(struct super_block *sb, struct inode *inode)
         return -ENOTSUP;
 }
 
-static inline int sb_inode_release(struct super_block *sb, struct inode *inode)
+static inline int sb_inode_dealloc(struct super_block *sb, struct inode *inode)
 {
-    if (sb->ops && sb->ops->inode_release)
-        return (sb->ops->inode_release) (sb, inode);
+    if (sb->ops && sb->ops->inode_dealloc)
+        return (sb->ops->inode_dealloc) (sb, inode);
     else
         return -ENOTSUP;
 }

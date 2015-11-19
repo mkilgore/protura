@@ -22,7 +22,7 @@ void arch_pages_init(pa_t kernel_start, pa_t kernel_end, pa_t last_physical_addr
         struct page *p = page_get_from_pa(first_page);
         bit_clear(&p->flags, PG_INVALID);
 
-        pfree_phys(first_page);
+        __mark_page_free(first_page);
     }
 }
 

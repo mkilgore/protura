@@ -26,4 +26,6 @@ static inline void *kzalloc(size_t size, int flags)
     return m;
 }
 
+void kmalloc_oom(void);
+
 #endif

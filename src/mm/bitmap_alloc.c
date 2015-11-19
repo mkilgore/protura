@@ -38,7 +38,7 @@ void bitmap_disp(struct bitmap_alloc *bitmap)
 
     buf[i] = '\0';
 
-    kprintf("Bitmap: %s\n", buf);
+    kp(KP_DEBUG, "Bitmap: %s\n", buf);
 }
 
 uintptr_t bitmap_alloc_get_pages(struct bitmap_alloc *bitmap, int pages)

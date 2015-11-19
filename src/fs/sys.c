@@ -41,15 +41,14 @@ int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp)
 
     ret = vfs_open(inode, file_flags, filp);
 
-    if (ret >= 0) {
-        fd_assign(fd, *filp);
-        goto return_result;
-    }
+    if (ret < 0)
+        goto ret_fd_release;
 
-    /* vfs_open returned an error, release the fd we acquired */
+    fd_assign(fd, *filp);
+    return fd;
+
+  ret_fd_release:
     fd_release(fd);
-
-  return_result:
     return ret;
 }
 
@@ -70,6 +69,8 @@ int sys_open(const char *path, int flags, mode_t mode)
     ret = namei(path, &inode);
     if (ret)
         goto return_result;
+
+    kp(KP_TRACE, "sys_open %s: Inode: %d, ischar=%d, isblk=%d\n", path, inode->ino, S_ISCHR(inode->mode), S_ISBLK(inode->mode));
 
     ret = __sys_open(inode, file_flags, &filp);
 

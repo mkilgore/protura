@@ -68,19 +68,21 @@ void arch_task_setup_stack_user_with_exec(struct task *t, const char *exe)
 
     ksp -= sizeof(*t->context.frame);
     t->context.frame = (struct irq_frame *)ksp;
+    memset(t->context.frame, 0, sizeof(*t->context.frame));
 
     ksp -= sizeof(uintptr_t);
     *(uintptr_t *)ksp = (uintptr_t)irq_handler_end;
 
     if (exe) {
-        kprintf("exe: %p, argv: %p, frame: %p\n", exe, NULL, t->context.frame);
+        /* Note that this code depends on the code at arch_task_user_entry.
+         * Notably, we push the arguments for sys_exec onto the stack here, and
+         * arch_task_user_entry pops them off. */
         ksp -= sizeof(struct irq_frame *);
         *(struct irq_frame **)ksp = t->context.frame;
 
         ksp -= sizeof(char *);
         *(void **)ksp = NULL;
 
-        /* Insert a call to sys_exec, to 'replace' our exec-image. */
         ksp -= sizeof(exe);
         *(const char **)ksp = exe;
 
@@ -89,8 +91,6 @@ void arch_task_setup_stack_user_with_exec(struct task *t, const char *exe)
     }
 
     ksp = setup_scheduler_entry(t, ksp);
-
-    t->kstack_bot = ksp;
 }
 
 void arch_task_setup_stack_user(struct task *t)
@@ -119,7 +119,6 @@ static void setup_kernel_stack_generic(struct task *t, int (*kernel_task) (void 
 
     ksp = setup_scheduler_entry(t, ksp);
 
-    t->kstack_bot = ksp;
     return ;
 }
 
@@ -136,12 +135,12 @@ void arch_task_setup_stack_kernel_interruptable(struct task *t, int (*kernel_tas
 void arch_task_change_address_space(struct address_space *addrspc)
 {
     struct task *current = cpu_get_local()->current;
-
-    set_current_page_directory(V2P(addrspc->page_dir));
-
-    address_space_clear(current->addrspc);
-    kfree(current->addrspc);
+    struct address_space *old = current->addrspc;
 
     current->addrspc = addrspc;
+    set_current_page_directory(V2P(addrspc->page_dir));
+
+    address_space_clear(old);
+    kfree(old);
 }
 

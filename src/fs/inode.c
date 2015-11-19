@@ -54,16 +54,12 @@ int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct
     int found_entry = 0;
     struct dirent found;
 
-    kprintf("Looking up %.*s\n", len, name);
-    kprintf("Len: %d\n", len);
-
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
 
     ents = dir->size / sizeof(struct dirent);
     sectors = (dir->size + sector_size - 1) / sector_size;
 
-    kprintf("Dir: %p\n", dir);
     using_inode_lock_read(dir) {
         for (i = 0; i < sectors && !found_entry; i++) {
             sector_t s;
@@ -85,4 +81,6 @@ int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct
 
     return 0;
 }
+
+struct inode_ops inode_ops_null = { };
 

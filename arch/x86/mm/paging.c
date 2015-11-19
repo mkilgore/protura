@@ -14,6 +14,8 @@
 #include <drivers/term.h>
 #include <mm/palloc.h>
 #include <protura/task.h>
+#include <fs/fs.h>
+#include <fs/sys.h>
 
 #include <arch/asm.h>
 #include <arch/cpu.h>
@@ -27,23 +29,103 @@ __align(0x1000) struct page_directory kernel_dir = {
     { { .entry = 0 } }
 };
 
-static void page_fault_handler(struct irq_frame *frame)
-{
-    uintptr_t p;
-    asm volatile("movl %%cr2, %0": "=r" (p));
-    term_setcurcolor(term_make_color(T_BLACK, T_RED));
-    kprintf(" PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%08x\n", (void *)frame->eip, (void *)p, frame->err);
-    kprintf(" PAGE DIR INDEX: 0x%08x, PAGE TABLE INDEX: 0x%08x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
-    kprintf(" Current running program: %s\n", (cpu_get_local()->current)? cpu_get_local()->current->name: "");
+#define PG_ERR_FLAG_TYPE 0
+#define PG_ERR_FLAG_ACCESS_TYPE 1
+#define PG_ERR_FLAG_PRIV 2
+#define PG_ERR_FLAG_RESERVE_BITS 3
 
-    term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
-    kprintf(" Stack backtrace:\n");
+#define PG_ERR_TYPE_NON_PRESENT 0x00
+#define PG_ERR_TYPE_PROTECTION  0x01
+
+#define PG_ERR_ACCESS_TYPE_WRITE 0x02
+#define PG_ERR_ACCESS_TYPE_READ  0x00
+
+#define PG_ERR_PRIV_USER   0x04
+#define PG_ERR_PRIV_KERNEL 0x00
+
+#define PG_ERR_RESERVE_BITS_WRONG 0x08
+#define PG_ERR_RESERVE_BITS_RIGHT 0x00
+
+#define pg_err_non_present_page(err) (((err) & F(PG_ERR_FLAG_TYPE)) == PG_ERR_TYPE_NON_PRESENT)
+#define pg_err_protection_fault(err) (((err) & F(PG_ERR_FLAG_TYPE)) == PG_ERR_TYPE_PROTECTION)
+
+#define pg_err_was_user(err) (((err) & F(PG_ERR_FLAG_PRIV)) == PG_ERR_PRIV_USER)
+#define pg_err_was_kernel(err) (((err) & F(PG_ERR_FLAG_PRIV)) == PG_ERR_PRIV_KERNEL)
+
+#define pg_err_was_read(err) (((err) & F(PG_ERR_FLAG_ACCESS_TYPE)) == PG_ERR_ACCESS_TYPE_READ)
+#define pg_err_was_write(err) (((err) & F(PG_ERR_FLAG_ACCESS_TYPE)) == PG_ERR_ACCESS_TYPE_WRITE)
+
+static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
+{
+    //term_setcurcolor(term_make_color(T_BLACK, T_RED));
+    kp(KP_ERROR, "PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%08x\n", (void *)frame->eip, (void *)p, frame->err);
+
+    kp(KP_ERROR, "TYPE: %s, ACCESS: %s, PRIV: %s\n",
+            pg_err_non_present_page(frame->err)? "non-present page": "protection fault",
+            pg_err_was_read(frame->err)? "read": "write",
+            pg_err_was_user(frame->err)? "user": "kernel"
+        );
+
+    kp(KP_ERROR, "PAGE DIR INDEX: 0x%08x, PAGE TABLE INDEX: 0x%08x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
+    struct task *current = cpu_get_local()->current;
+
+    kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
+        frame->eax,
+        frame->ebx,
+        frame->ecx,
+        frame->edx);
+
+    kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
+        frame->esi,
+        frame->edi,
+        frame->esp,
+        frame->ebp);
+
+
+    //term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
+    kp(KP_ERROR, "Stack backtrace:\n");
     dump_stack_ptr((void *)frame->ebp);
-    kprintf(" End of backtrace\n");
-    kprintf(" Kernel halting\n");
+    if (current && !current->kernel) {
+        kp(KP_ERROR, "Current running program: %s\n", current->name);
+        kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
+                current->context.frame->eax,
+                current->context.frame->ebx,
+                current->context.frame->ecx,
+                current->context.frame->edx);
+
+        kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
+                current->context.frame->esi,
+                current->context.frame->edi,
+                current->context.frame->esp,
+                current->context.frame->ebp);
+        kp(KP_ERROR, "User stack dump:\n");
+        dump_stack_ptr((void *)current->context.frame->ebp);
+    }
+    kp(KP_ERROR, "End of backtrace\n");
+    kp(KP_ERROR, "Kernel halting\n");
 
     while (1)
         hlt();
+}
+
+#define SEG_FAULT_MSG "Seg-fault - Program terminated\n"
+
+static void page_fault_handler(struct irq_frame *frame)
+{
+    uintptr_t p;
+
+    /* cr2 contains the address that we faulted on */
+    asm ("movl %%cr2, %0": "=r" (p));
+
+    kp(KP_DEBUG, "Page faulted: %p\n", (void *)p);
+
+    if (pg_err_was_kernel(frame->err))
+        halt_and_dump_stack(frame, p);
+
+    /* Program seg-faulted - Attempt to display message and exit. */
+    term_printf("Seg-fault - %d terminated\n", cpu_get_local()->current->pid);
+
+    cpu_get_local()->current->killed = 1;
 }
 
 /* All of kernel-space virtual memory directly maps onto the lowest part of
@@ -111,7 +193,7 @@ void paging_setup_kernelspace(void **kbrk)
         asm volatile("movl %0,%%cr4": : "r" (cr4));
     }
 
-    kprintf("Setting-up initial kernel page-directory\n");
+    kp(KP_NORMAL, "Setting-up initial kernel page-directory\n");
     setup_kernel_pagedir(kbrk);
 
     set_current_page_directory(v_to_p(&kernel_dir));
@@ -129,11 +211,11 @@ void paging_dump_directory(pa_t page_dir)
 
     for (table_off = 0; table_off != 1024; table_off++) {
         if (cur_dir->entries[table_off].entry & PDE_PRESENT) {
-            kprintf("Dir %d: %x\n", table_off, cur_dir->entries[table_off].entry);
+            kp(KP_NORMAL, "Dir %d: %x\n", table_off, cur_dir->entries[table_off].entry);
             cur_page_table = (struct page_table *)P2V(cur_dir->entries[table_off].entry & ~0x3FF);
             for (page_off = 0; page_off != 1024; page_off++)
                 if (cur_page_table->entries[page_off].entry & PTE_PRESENT)
-                    kprintf("  Page: %d: %x\n", page_off, cur_page_table->entries[page_off].entry);
+                    kp(KP_NORMAL, "  Page: %d: %x\n", page_off, cur_page_table->entries[page_off].entry);
         }
     }
 }

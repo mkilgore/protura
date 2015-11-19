@@ -34,6 +34,7 @@ struct inode {
     dev_t dev;
     off_t size;
     mode_t mode;
+    int nlinks;
 
     flags_t flags;
 
@@ -51,11 +52,25 @@ struct inode {
     struct char_device *cdev;
 };
 
+enum inode_attributes_flags {
+    INO_ATTR_SIZE,
+};
+
+struct inode_attributes {
+    flags_t change;
+
+    off_t size;
+};
+
 struct inode_ops {
-    int (*truncate) (struct inode *, off_t len);
     int (*lookup) (struct inode *dir, const char *name, size_t len, struct inode **result);
+    int (*change_attrs) (struct inode *, struct inode_attributes *);
     sector_t (*bmap) (struct inode *, sector_t);
 };
+
+#define inode_has_change_attrs(inode) ((inode)->ops && (inode)->ops->change_attrs)
+#define inode_has_lookup(inode) ((inode)->ops && (inode)->ops->lookup)
+#define inode_has_bmap(inode) ((inode)->ops && (inode)->ops->bmap)
 
 #define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
 #define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)
@@ -66,6 +81,8 @@ struct inode_ops {
 #define inode_clear_valid(inode) bit_clear(&(inode)->flags, INO_VALID)
 #define inode_clear_dirty(inode) bit_clear(&(inode)->flags, INO_DIRTY)
 
+extern struct inode_ops inode_ops_null;
+
 static inline void inode_init(struct inode *i)
 {
     mutex_init(&i->lock);
@@ -75,27 +92,52 @@ static inline void inode_init(struct inode *i)
 
 int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result);
 
+static inline void inode_lock_read(struct inode *i)
+{
+    kp(KP_LOCK, "inode %d:%d: Locking read\n", i->ino, i->dev);
+    mutex_lock(&i->lock);
+    kp(KP_LOCK, "inode %d:%d: Locked read\n", i->ino, i->dev);
+}
+
+static inline void inode_unlock_read(struct inode *i)
+{
+    kp(KP_LOCK, "inode %d:%d: Unlocking read\n", i->ino, i->dev);
+    mutex_unlock(&i->lock);
+    kp(KP_LOCK, "inode %d:%d: Unlocked read\n", i->ino, i->dev);
+}
+
+static inline void inode_lock_write(struct inode *i)
+{
+    kp(KP_LOCK, "inode %d:%d: Locking write\n", i->ino, i->dev);
+    mutex_lock(&i->lock);
+    kp(KP_LOCK, "inode %d:%d: Locked write\n", i->ino, i->dev);
+}
+
+static inline void inode_unlock_write(struct inode *i)
+{
+    kp(KP_LOCK, "inode %d:%d: Unlocking write\n", i->ino, i->dev);
+    mutex_unlock(&i->lock);
+    kp(KP_LOCK, "inode %d:%d: Unlocked write\n", i->ino, i->dev);
+}
+
+static inline int inode_try_lock_write(struct inode *i)
+{
+    kp(KP_LOCK, "inode %d:%d: Attempting Locking write\n", i->ino, i->dev);
+    if (mutex_try_lock(&i->lock)) {
+        kp(KP_LOCK, "inode %d:%d: Locked write\n", i->ino, i->dev);
+        return 1;
+    }
+    return 0;
+}
+
 #define using_inode_lock_read(inode) \
-    using_mutex(&(inode)->lock)
+    using_nocheck(inode_lock_read(inode), inode_unlock_read(inode))
 
 #define using_inode_lock_write(inode) \
-    using_mutex(&(inode)->lock)
-
-#define inode_lock(inode) \
-    mutex_lock(&(inode)->lock)
-
-#define inode_unlock(inode) \
-    mutex_unlock(&(inode)->lock)
-
-#define inode_try_lock(inode) \
-    mutex_try_lock(&(inode)->lock)
+    using_nocheck(inode_lock_write(inode), inode_unlock_write(inode))
 
 #define using_inode(sb, ino, inode) \
     using((inode = inode_get(sb, ino)) != NULL, inode_put(inode))
-
-#define inode_has_truncate(inode) ((inode)->ops && (inode)->ops->truncate)
-#define inode_has_lookup(inode) ((inode)->ops && (inode)->ops->lookup)
-#define inode_has_bmap(inode) ((inode)->ops && (inode)->ops->bmap)
 
 void inode_cache_flush(void);
 

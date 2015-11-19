@@ -33,9 +33,6 @@ int kernel_is_booting = 1;
 void kmain(void)
 {
     struct sys_init *sys;
-    /*
-    kprintf("Seting up task switching\n");
-    task_init_start(init_second_half, NULL); */
 
     cpu_get_local()->current = &init_task;
 
@@ -43,16 +40,16 @@ void kmain(void)
 
     /* Loop through things to initalize and start them (timer, keyboard, etc...). */
     for (sys = arch_init_systems; sys->name; sys++) {
-        kprintf("Starting: %s\n", sys->name);
+        kp(KP_NORMAL, "Starting: %s\n", sys->name);
         (sys->init) ();
     }
 
-    kprintf("Kernel is done booting!\n");
+    kp(KP_NORMAL, "Kernel is done booting!\n");
     kernel_is_booting = 0;
 
     scheduler_task_add(task_kernel_new_interruptable("Keyboard watch", kernel_keyboard_thread, NULL));
 
-    kprintf("Starting scheduler\n");
+    kp(KP_NORMAL, "Starting scheduler\n");
     cpu_start_scheduler();
 
     panic("ERROR! cpu_start_scheduler() returned!\n");

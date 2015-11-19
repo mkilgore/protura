@@ -61,7 +61,7 @@ static void inode_hash(struct inode *inode)
         hlist_add(inode_list.inode_hashes + hash, &inode->hash_entry);
 }
 
-void inode_cache_flush(void)
+void inode_oom(void)
 {
     struct inode *inode;
 
@@ -71,7 +71,7 @@ void inode_cache_flush(void)
         list_foreach_take_entry(&inode_list.unused, inode, list_entry) {
             struct super_block *sb = inode->sb;
             hlist_del(&inode->hash_entry);
-            sb->ops->inode_release(sb, inode);
+            sb->ops->inode_dealloc(sb, inode);
         }
     }
 }
@@ -88,7 +88,7 @@ void inode_put(struct inode *inode)
              * can't sleep with inode_list.lock.
              *
              * Note that doing inode_put while holding the lock is illegal. */
-            if (inode_try_lock(inode))
+            if (inode_try_lock_write(inode))
                 release = 1;
             else
                 panic("Inode lock error! inode_put with ref=1 while holding the lock.\n");
@@ -98,17 +98,25 @@ void inode_put(struct inode *inode)
     }
 
     if (release) {
+        /* If this inode has no hard-links to it, then we can just discard it. */
+        if (!inode->nlinks) {
+            sb->ops->inode_delete(sb, inode);
+            sb->ops->inode_dealloc(sb, inode);
+            return ;
+        }
+
         sb->ops->inode_write(sb, inode);
 
         using_spinlock(&inode_list.lock) {
+
             /* Check the reference count again. Since inode_write can sleep
              * it's possible there are more references. Note that checking the
              * inode for valid and dirty is not necessary.
              */
-            if (atomic_get(&inode->ref) == 1) {
-                atomic_dec(&inode->ref);
+            if (atomic_dec_and_test(&inode->ref))
                 list_add_tail(&inode_list.unused, &inode->list_entry);
-            }
+
+            inode_unlock_write(inode);
         }
     }
 
@@ -143,6 +151,8 @@ struct inode *inode_get(struct super_block *sb, ino_t ino)
         goto return_inode;
 
     inode = sb_inode_read(sb, ino);
+
+    kp(KP_TRACE, "Read inode: %p\n", inode);
 
     if (!inode)
         return NULL;

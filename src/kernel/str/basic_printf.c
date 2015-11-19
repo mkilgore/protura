@@ -72,7 +72,12 @@ static void escape_string(struct printf_backbone *backbone, const char *code, si
   after_value:
 
     s = va_arg(*args, const char *);
-    slen = strlen(s);
+    if (s) {
+        slen = strlen(s);
+    } else {
+        s = "(null)";
+        slen = strlen("(null)");
+    }
 
     if (max_width != -1) {
         if (width > max_width)

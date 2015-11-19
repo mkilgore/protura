@@ -9,6 +9,7 @@
 #include <protura/debug.h>
 #include <protura/atomic.h>
 #include <config/autoconf.h>
+#include <mm/palloc.h>
 
 #include <arch/cpu.h>
 #include <arch/asm.h>
@@ -23,8 +24,13 @@ static void timer_callback(struct irq_frame *frame)
 {
     atomic32_inc(&ticks);
 
-    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0)
+    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0) {
+        kp(KP_TRACE, "Reschedule\n");
         cpu_get_local()->reschedule = 1;
+    }
+
+    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / 10)) == 0)
+        kp(KP_NORMAL, "palloc: %d free pages\n", palloc_free_page_count());
 }
 
 uint32_t timer_get_ticks(void)

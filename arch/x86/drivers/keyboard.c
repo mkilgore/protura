@@ -58,7 +58,7 @@ static void set_leds(void)
         ;
 }
 
-int keyboard_has_char(void)
+int arch_keyboard_has_char(void)
 {
     if (atomic32_get(&keyboard.has_keys))
         return 1;
@@ -66,7 +66,7 @@ int keyboard_has_char(void)
         return 0;
 }
 
-int keyboard_get_char(void)
+int arch_keyboard_get_char(void)
 {
     short ch;
     if (!atomic32_get(&keyboard.has_keys))
@@ -79,7 +79,7 @@ int keyboard_get_char(void)
     return ch;
 }
 
-static void keyboard_interrupt_handler(struct irq_frame *frame)
+static void arch_keyboard_interrupt_handler(struct irq_frame *frame)
 {
     int scancode;
     short asc_char = 0;
@@ -145,18 +145,18 @@ static void keyboard_interrupt_handler(struct irq_frame *frame)
     }
 }
 
-void keyboard_init(void)
+void arch_keyboard_init(void)
 {
     char_buf_init(&keyboard.buf, keyboard.buffer, sizeof(keyboard.buffer));
     wakeup_list_init(&keyboard.watch_list);
 
-    irq_register_callback(PIC8259_IRQ0 + 1, keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT);
+    irq_register_callback(PIC8259_IRQ0 + 1, arch_keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT);
     pic8259_enable_irq(1);
 
     return ;
 }
 
-void clear_keyboard(void)
+static void clear_keyboard(void)
 {
     int test;
     do {
@@ -166,12 +166,12 @@ void clear_keyboard(void)
     } while (test & 0x02);
 }
 
-void keyboard_wakeup_add(struct task *t)
+void arch_keyboard_wakeup_add(struct task *t)
 {
     wakeup_list_add(&keyboard.watch_list, t);
 }
 
-void keyboard_wakeup_remove(struct task *t)
+void arch_keyboard_wakeup_remove(struct task *t)
 {
     wakeup_list_remove(&keyboard.watch_list, t);
 }

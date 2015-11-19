@@ -19,6 +19,6 @@ void inode_put(struct inode *);
 
 /* Called to reduce memory used by inode cache, by releasing inodes which have
  * no current users. */
-void inode_remove_unused(void);
+void inode_oom(void);
 
 #endif

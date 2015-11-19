@@ -171,34 +171,46 @@ static void __term_putchar_nocur(char ch)
     glob_term.cur_r = r;
 }
 
+void __term_putchar(char ch)
+{
+    __term_putchar_nocur(ch);
+    __term_updatecur();
+}
+
+void __term_putstr(const char *s)
+{
+    for (; *s; s++)
+        __term_putchar_nocur(*s);
+
+    __term_updatecur();
+}
+
+void __term_putnstr(const char *s, size_t len)
+{
+    size_t l;
+    for (l = 0; l < len; l++)
+        __term_putchar_nocur(s[l]);
+
+    __term_updatecur();
+}
+
 void term_putchar(char ch)
 {
-    using_spinlock(&glob_term.lock) {
-        __term_putchar_nocur(ch);
-        __term_updatecur();
-    }
+    using_spinlock(&glob_term.lock)
+        __term_putchar(ch);
 }
 
 void term_putstr(const char *s)
 {
 
-    using_spinlock(&glob_term.lock) {
-        for (; *s; s++)
-            __term_putchar_nocur(*s);
-
-        __term_updatecur();
-    }
+    using_spinlock(&glob_term.lock)
+        __term_putstr(s);
 }
 
 void term_putnstr(const char *s, size_t len)
 {
-    using_spinlock(&glob_term.lock) {
-        size_t l;
-        for (l = 0; l < len; l++)
-            __term_putchar_nocur(s[l]);
-
-        __term_updatecur();
-    }
+    using_spinlock(&glob_term.lock)
+        __term_putnstr(s, len);
 }
 
 static void term_printf_putchar(struct printf_backbone *b, char ch)
@@ -209,6 +221,16 @@ static void term_printf_putchar(struct printf_backbone *b, char ch)
 static void term_printf_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     term_putnstr(s, len);
+}
+
+static void __term_printf_putchar(struct printf_backbone *b, char ch)
+{
+    __term_putchar(ch);
+}
+
+static void __term_printf_putnstr(struct printf_backbone *b, const char *s, size_t len)
+{
+    __term_putnstr(s, len);
 }
 
 void term_printfv(const char *s, va_list lst)
@@ -225,6 +247,23 @@ void term_printf(const char *s, ...)
     va_list lst;
     va_start(lst, s);
     term_printfv(s, lst);
+    va_end(lst);
+}
+
+void __term_printfv(const char *s, va_list lst)
+{
+    struct printf_backbone backbone = {
+        .putchar = __term_printf_putchar,
+        .putnstr = __term_printf_putnstr,
+    };
+    basic_printfv(&backbone, s, lst);
+}
+
+void __term_printf(const char *s, ...)
+{
+    va_list lst;
+    va_start(lst, s);
+    __term_printfv(s, lst);
     va_end(lst);
 }
 

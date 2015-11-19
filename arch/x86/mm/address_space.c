@@ -28,13 +28,31 @@ void arch_address_space_init(struct address_space *addrspc)
 
 void arch_address_space_clear(struct address_space *addrspc)
 {
+    struct vm_map *map;
     int i;
+
+    kp(KP_TRACE, "Beginning address_space_clear\n");
+    list_foreach_take_entry(&addrspc->vm_maps, map, address_space_entry) {
+        kp(KP_TRACE, "Freeing map %p\n", map);
+        pfree_pages(&map->page_list);
+
+        kp(KP_TRACE, "Unmapping %p\n", map);
+        address_space_unmap_vm_map(addrspc, map);
+
+        kp(KP_TRACE, "Freeing map %p\n", map);
+        kfree(map);
+    }
 
     pgd_t *dir = addrspc->page_dir;
 
-    for (i = 0; i < PG_SHIFT / 4; i++)
-        if (dir->entries[i].present)
+    kp(KP_TRACE, "Kmem_kpage: %d\n", KMEM_KPAGE);
+
+    for (i = 0; i < KMEM_KPAGE; i++) {
+        if (dir->entries[i].present) {
+            kp(KP_TRACE, "Freeing page at entry %d\n", i);
             pfree_phys(PAGING_FRAME(dir->entries[i].entry));
+        }
+    }
 
     pfree(addrspc->page_dir);
 }
@@ -46,7 +64,7 @@ void arch_address_space_copy(struct address_space *new, struct address_space *ol
 
     /* Make a copy of every map */
     list_foreach_entry(&old->vm_maps, map, address_space_entry) {
-        struct page *old, *new;
+        struct page *oldp, *newp;
 
         new_map = kmalloc(sizeof(*map), PAL_KERNEL);
         vm_map_init(new_map);
@@ -55,13 +73,15 @@ void arch_address_space_copy(struct address_space *new, struct address_space *ol
         new_map->flags = map->flags;
 
         /* Make a copy of each page in this map */
-        list_foreach_entry(&map->page_list, old, page_list_node) {
-            new = page_get_from_pa(palloc_phys(PAL_KERNEL));
+        list_foreach_entry(&map->page_list, oldp, page_list_node) {
+            newp = page_get_from_pa(palloc_phys(PAL_KERNEL));
 
-            memcpy(new->virt, old->virt, PG_SIZE);
+            memcpy(newp->virt, oldp->virt, PG_SIZE);
 
-            list_add_tail(&new_map->page_list, &new->page_list_node);
+            list_add_tail(&new_map->page_list, &newp->page_list_node);
         }
+
+        address_space_add_vm_map(new, new_map);
     }
 }
 

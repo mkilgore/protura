@@ -17,14 +17,14 @@
 static void arch_putchar(struct printf_backbone *b, char ch)
 {
     if (kernel_is_booting)
-        term_putchar(ch);
+        __term_putchar(ch);
     com1_putchar(ch);
 }
 
 static void arch_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     if (kernel_is_booting)
-        term_putnstr(s, len);
+        __term_putnstr(s, len);
     com1_putnstr(s, len);
 }
 

@@ -10,6 +10,7 @@
 
 #include <fs/inode.h>
 #include <fs/file.h>
+#include <fs/dent.h>
 
 /* Note: vfs_open and vfs_close do *not* touch the file-descriptor table for
  * the current process. To do that, use sus_*.
@@ -22,9 +23,12 @@ int vfs_close(struct file *filp);
 int vfs_read(struct file *filp, void *buf, size_t len);
 int vfs_write(struct file *filp, void *buf, size_t len);
 off_t vfs_lseek(struct file *filp, off_t off, int whence);
+int vfs_read_dent(struct file *filp, struct dent *, size_t size);
 
 int vfs_lookup(struct inode *inode, const char *name, size_t len, struct inode **result);
 int vfs_truncate(struct inode *inode, off_t length);
 sector_t vfs_bmap(struct inode *inode, sector_t);
+
+int vfs_getdents(struct file *filp, struct dent *, size_t dent_buf_size);
 
 #endif

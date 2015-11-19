@@ -8,13 +8,14 @@
 #ifndef INCLUDE_ARCH_BITOPS_H
 #define INCLUDE_ARCH_BITOPS_H
 
+#include <protura/types.h>
 #include <protura/compiler.h>
 #include <arch/asm.h>
 
-typedef unsigned int flags_t;
+typedef uint32_t flags_t;
 
 /* Atomic bit-twaddles */
-static __always_inline void bit_set(volatile unsigned int *value, int bit)
+static __always_inline void bit_set(volatile void *value, int bit)
 {
     asm volatile(LOCK_PREFIX "bts %1, %0"
             : "+m" (*(volatile int *)value)
@@ -22,7 +23,7 @@ static __always_inline void bit_set(volatile unsigned int *value, int bit)
             : "memory");
 }
 
-static __always_inline void bit_clear(volatile unsigned int *value, int bit)
+static __always_inline void bit_clear(volatile void *value, int bit)
 {
     asm volatile(LOCK_PREFIX "btr %1, %0"
             : "+m" (*(volatile int *)value)
@@ -30,19 +31,12 @@ static __always_inline void bit_clear(volatile unsigned int *value, int bit)
             : "memory");
 }
 
-static __always_inline int bit_test(const volatile unsigned int *value, int bit)
+static __always_inline int bit_test(const void *value, int bit)
 {
-    int old;
-
-    asm volatile("bt %2, %1\n"
-                 "sbb %0, %0"
-                 : "=r" (old)
-                 : "m" (*(unsigned int *)value), "Ir" (bit));
-
-    return old;
+    return ((1 << (bit & 31)) & (((const uint32_t *)value)[bit >> 5])) != 0;
 }
 
-static __always_inline int bit_test_and_set(const volatile unsigned int *value, int bit)
+static __always_inline int bit_test_and_set(const volatile void *value, int bit)
 {
     int old;
 

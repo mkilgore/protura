@@ -2,7 +2,6 @@
 objs-y += cpu.o
 objs-y += cpuid.o
 objs-y += task.o
-objs-y += spinlock.o
 objs-y += kernel_task.o
 objs-y += task_user_entry.o
 objs-y += context.o

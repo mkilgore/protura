@@ -39,6 +39,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     int ret, i;
     off_t current_off;
     struct address_space *new_addrspc;
+    struct task *current;
 
     ret = vfs_read(params->exe, &head, sizeof(head));
     if (ret != sizeof(head))
@@ -50,18 +51,23 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     new_addrspc = kmalloc(sizeof(*new_addrspc), PAL_KERNEL);
     address_space_init(new_addrspc);
 
+    kp(KP_TRACE, "Parsing ELF binary... frame: %p, state: %d\n", frame, cpu_get_local()->current->state);
+
     /* The idea is that you loop over every header, and if a header's type is
      * 'LOAD' then we make a vm_map for it and load it into memory. */
     for (i = 0, current_off = head.prog_head_pos; i < head.prog_head_count; i++, current_off += sizeof(struct elf_prog_section)) {
 
+        kp(KP_TRACE, "Reading ELF section...\n");
         vfs_lseek(params->exe, current_off, SEEK_SET);
         ret = vfs_read(params->exe, &sect, sizeof(sect));
+        kp(KP_TRACE, "Reading ret: %d\n", ret);
         if (ret != sizeof(sect))
             return ret;
 
         if (sect.type != ELF_PROG_TYPE_LOAD)
             continue;
 
+        kp(KP_TRACE, "Creating new vm_map...\n");
         struct vm_map *new_sect = kmalloc(sizeof(struct vm_map), PAL_KERNEL);
         vm_map_init(new_sect);
 
@@ -77,7 +83,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
         if (sect.flags & ELF_PROG_FLAG_WRITE)
             flag_set(&new_sect->flags, VM_MAP_WRITE);
 
-        kprintf("Map from %p to %p\n", new_sect->addr.start, new_sect->addr.end);
+        kp(KP_TRACE, "Map from %p to %p\n", new_sect->addr.start, new_sect->addr.end);
 
         if (!new_addrspc->code)
             new_addrspc->code = new_sect;
@@ -115,7 +121,8 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
             if (len < PG_SIZE)
                 memset(p->virt + len, 0, PG_SIZE - len);
 
-            list_add(&new_sect->page_list, &p->page_list_node);
+            kp(KP_TRACE, "Page: %p\n", p);
+            list_add_tail(&new_sect->page_list, &p->page_list_node);
         }
 
         address_space_add_vm_map(new_addrspc, new_sect);
@@ -130,27 +137,24 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     flag_set(&stack->flags, VM_MAP_READ);
     flag_set(&stack->flags, VM_MAP_WRITE);
 
-    list_attach(&stack->page_list, &palloc_pages(KMEM_STACK_LIMIT, PAL_KERNEL)->page_list_node);
+    palloc_pages(&stack->page_list, KMEM_STACK_LIMIT, PAL_KERNEL);
 
     address_space_add_vm_map(new_addrspc, stack);
 
     new_addrspc->stack = stack;
 
-    kprintf("New code segment: %p-%p\n", new_addrspc->code->addr.start, new_addrspc->code->addr.end);
-    kprintf("New data segment: %p-%p\n", new_addrspc->data->addr.start, new_addrspc->data->addr.end);
-    kprintf("New stack segment: %p-%p\n", new_addrspc->stack->addr.start, new_addrspc->stack->addr.end);
+    kp(KP_TRACE, "New code segment: %p-%p\n", new_addrspc->code->addr.start, new_addrspc->code->addr.end);
+    kp(KP_TRACE, "New data segment: %p-%p\n", new_addrspc->data->addr.start, new_addrspc->data->addr.end);
+    kp(KP_TRACE, "New stack segment: %p-%p\n", new_addrspc->stack->addr.start, new_addrspc->stack->addr.end);
+
+    current = cpu_get_local()->current;
 
     arch_task_change_address_space(new_addrspc);
 
-    frame->esp = (uintptr_t)new_addrspc->stack->addr.end;
-    frame->eip = head.entry_vaddr;
+    irq_frame_initalize(current->context.frame);
 
-    frame->cs = _USER_CS | DPL_USER;
-
-    frame->ss = _USER_DS | DPL_USER;
-    frame->ds = _USER_DS | DPL_USER;
-
-    frame->eflags = EFLAGS_IF;
+    irq_frame_set_stack(current->context.frame, new_addrspc->stack->addr.end);
+    irq_frame_set_ip(current->context.frame, va_make(head.entry_vaddr));
 
     return 0;
 }

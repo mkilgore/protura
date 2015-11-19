@@ -39,22 +39,25 @@ static inline void sem_init(struct semaphore *sem, int value)
 
 static inline void __sem_down(struct semaphore *sem)
 {
-    sem->count--;
+    kp(KP_LOCK, "semaphore %p: down: %d\n", sem, sem->count);
 
   sleep_again:
     sleep_with_wait_queue(&sem->queue) {
-        if (sem->count < 0) {
+        if (sem->count <= 0) {
             not_using_spinlock(&sem->lock)
                 scheduler_task_yield();
 
             goto sleep_again;
         }
     }
+    sem->count--;
+
+    kp(KP_LOCK, "semaphore %p down result: %d\n", sem, sem->count);
 }
 
 static inline int __sem_try_down(struct semaphore *sem)
 {
-    kprintf("Sem trydown: %d\n", sem->count);
+    kp(KP_LOCK, "semaphore %p: Trying down: %d\n", sem, sem->count);
     /* We have the lock on the semaphore, so it's guarenteed sem->count won't
      * change in this context. */
     if (sem->count <= 0)
@@ -63,6 +66,8 @@ static inline int __sem_try_down(struct semaphore *sem)
     /* Since we hold the lock, nobody can change sem->count, so we're fine to
      * decrement it and not check it. */
     sem->count--;
+
+    kp(KP_LOCK, "semaphore %p: down result: %d\n", sem, sem->count);
 
     return 1;
 }
@@ -85,10 +90,12 @@ static inline int sem_try_down(struct semaphore *sem)
 
 static inline void __sem_up(struct semaphore *sem)
 {
+    int wake = -1;
     sem->count++;
 
-    if (sem->count <= 0)
-        wait_queue_wake(&sem->queue);
+    wake = wait_queue_wake(&sem->queue);
+
+    kp(KP_LOCK, "semaphore %p: up: %d, %d\n", sem, sem->count, wake);
 }
 
 static inline void sem_up(struct semaphore *sem)

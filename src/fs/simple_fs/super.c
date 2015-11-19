@@ -16,6 +16,7 @@
 
 #include <arch/spinlock.h>
 #include <fs/block.h>
+#include <fs/char.h>
 #include <fs/stat.h>
 #include <fs/file.h>
 #include <fs/inode_table.h>
@@ -74,6 +75,13 @@ static struct inode *simple_fs_inode_read(struct super_block *super, ino_t ino)
         inode->default_fops = inode->bdev->fops;
         break;
 
+    case S_IFCHR:
+        kp(KP_TRACE, "Creating char device inode\n");
+        inode->dev = DEV_MAKE(diski.major, diski.minor);
+        inode->cdev = char_dev_get(inode->dev);
+        inode->default_fops = inode->cdev->fops;
+        break;
+
     default:
         inode->default_fops = &simple_fs_file_ops;
         break;
@@ -120,7 +128,7 @@ static int simple_fs_inode_write(struct super_block *super, struct inode *i)
     return 0;
 }
 
-static int simple_fs_inode_release(struct super_block *sb, struct inode *inode)
+static int simple_fs_inode_dealloc(struct super_block *sb, struct inode *inode)
 {
     kfree(inode);
     return 0;
@@ -152,7 +160,7 @@ static int simple_fs_sb_put(struct super_block *sb)
 static struct super_block_ops simple_fs_sb_ops = {
     .inode_read = simple_fs_inode_read,
     .inode_write = simple_fs_inode_write,
-    .inode_release = simple_fs_inode_release,
+    .inode_dealloc = simple_fs_inode_dealloc,
     .inode_delete = simple_fs_inode_delete,
     .sb_write = simple_fs_sb_write,
     .sb_put = simple_fs_sb_put,
@@ -169,6 +177,8 @@ struct super_block *simple_fs_read_sb(dev_t dev)
     sb->sb.bdev = block_dev_get(dev);
     sb->sb.dev = dev;
     sb->sb.ops = &simple_fs_sb_ops;
+
+    block_dev_set_block_size(dev, SIMPLE_FS_BLOCK_SIZE);
 
     using_block(dev, 0, b) {
         disksb = (struct simple_fs_disk_sb *)b->data;

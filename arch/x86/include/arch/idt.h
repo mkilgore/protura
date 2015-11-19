@@ -17,9 +17,6 @@
 
 #include <arch/context.h>
 
-#define DPL_USER 3
-#define DPL_KERNEL 0
-
 #define STS_TG32 0xF
 #define STS_IG32 0xE
 

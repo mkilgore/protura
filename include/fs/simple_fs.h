@@ -77,4 +77,6 @@ struct simple_fs_disk_inode_map {
     uint32_t sector;
 };
 
+#define SIMPLE_FS_BLOCK_SIZE 1024
+
 #endif

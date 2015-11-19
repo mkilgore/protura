@@ -9,9 +9,11 @@
 #define INCLUDE_MM_PALLOC_H
 
 #include <protura/types.h>
+#include <protura/debug.h>
 #include <protura/compiler.h>
 #include <protura/atomic.h>
 #include <protura/list.h>
+#include <protura/bits.h>
 #include <arch/align.h>
 #include <arch/memlayout.h>
 #include <arch/paging.h>
@@ -29,7 +31,7 @@ struct page {
     int order;
     list_node_t page_list_node;
 
-    unsigned int flags;
+    flags_t flags;
 
     void *virt;
 } __align_cacheline;
@@ -79,13 +81,18 @@ static inline void *palloc_multiple(int order, unsigned int flags)
  * alignment of the physical pages chosen does not matter, and multiple calls
  * to palloc() would be unoptimal.
  */
-struct page *palloc_pages(int count, unsigned int flags);
+int palloc_pages(list_head_t *head, int count, unsigned int flags);
+/* struct page *palloc_pages(int count, unsigned int flags); */
 
 void pfree_phys_multiple(pa_t, int order);
 
 #define pfree_phys(pa) pfree_phys_multiple(pa, 0)
 #define pfree_multiple(va, order) pfree_phys_multiple(V2P(va), (order))
 #define pfree(va) pfree_multiple(va, 0)
+
+/* Essencially a faster version of pfree -- Note no locking is used, only
+ * useful for boot-up when marking pages as free. */
+void __mark_page_free(pa_t pa);
 
 struct page *page_get_from_pn(pn_t);
 
@@ -99,20 +106,15 @@ static inline pa_t page_to_pa(struct page *p)
 }
 
 /* Frees a circular list of pages - Note the list is assumed to have no 'head' */
-static inline void pfree_pages(struct page *head)
+static inline void pfree_pages(list_head_t *head)
 {
-    struct page *end = head;
-    struct page *p = head, *next;
-
-    do {
-        next = list_next_entry(p, page_list_node);
-
+    struct page *p;
+    list_foreach_take_entry(head, p, page_list_node)
         pfree_phys(page_to_pa(p));
-
-        p = next;
-    } while (p != end);
 }
 
 void palloc_init(void **kbrk, int pages);
+
+int palloc_free_page_count(void);
 
 #endif

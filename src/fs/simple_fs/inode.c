@@ -19,13 +19,6 @@
 #include <fs/stat.h>
 #include <fs/file.h>
 
-static int simple_fs_truncate(struct inode *i, off_t len)
-{
-    i->size = len;
-
-    return 0;
-}
-
 static sector_t simple_fs_bmap(struct inode *i, sector_t sec)
 {
     struct simple_fs_inode *inode = container_of(i, struct simple_fs_inode, i);
@@ -37,7 +30,7 @@ static sector_t simple_fs_bmap(struct inode *i, sector_t sec)
 }
 
 struct inode_ops simple_fs_inode_ops = {
-    .truncate = simple_fs_truncate,
+    .change_attrs = NULL,
     .lookup = inode_lookup_generic,
     .bmap = simple_fs_bmap,
 };

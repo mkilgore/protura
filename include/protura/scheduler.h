@@ -15,7 +15,10 @@ void scheduler_task_remove(struct task *);
 void scheduler_task_yield(void);
 void scheduler_task_yield_preempt();
 
-void scheduler_task_exit(int ret);
+/* Called after task is completely read to be removed - after sys_exit, and
+ * sys_wait */
+void scheduler_task_dead(void);
+void scheduler_task_mark_dead(struct task *t);
 
 static inline enum task_state scheduler_task_get_state(struct task *t)
 {

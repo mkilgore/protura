@@ -49,15 +49,10 @@ void idt_init(void)
     idt_ptr.limit = sizeof(idt_entries) - 1;
     idt_ptr.base  = (uintptr_t)&idt_entries;
 
-    kprintf("Limit: %d\n", idt_ptr.limit);
-    kprintf("Base:  0x%x\n", idt_ptr.base);
-
     for (i = 0; i < 256; i++)
         IDT_SET_ENT(idt_entries[i], 0, _KERNEL_CS, (uint32_t)(irq_hands[i]), DPL_KERNEL);
 
     IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
-
-    kprintf("syscall dpl: %d\n", idt_entries[INT_SYSCALL].dpl);
 
     idt_flush(((uintptr_t)&idt_ptr));
 }
@@ -84,18 +79,14 @@ void irq_global_handler(struct irq_frame *iframe)
 
     atomic32_inc(&ident->count);
 
-    cpu->reschedule = 0;
-
     /* Only actual INTERRUPT types increment the intr_count */
     if (ident->type == IRQ_INTERRUPT)
         cpu->intr_count++;
 
-    /* If frame is NULL, then this is the first interrupt from this task - This
-     * frame is special because it allows us to change the cpu state returned
-     * to the task when this interrupt chain finally returns. All syscalls that
-     * return values have to modify *this* frame specefically. */
+    /* If this is a syscall, then we just came from user-space, so we save this
+     * frame into the current task's context. */
     t = cpu->current;
-    if (t && !t->context.frame) {
+    if (ident->type == IRQ_SYSCALL && t) {
         frame_flag = 1;
         t->context.frame = iframe;
     }
@@ -123,22 +114,25 @@ void irq_global_handler(struct irq_frame *iframe)
 
     /* If this isn't an interrupt irq, then we don't do have to do the
      * stuff after this. */
-    if (ident->type != IRQ_INTERRUPT)
-        return ;
+    if (ident->type == IRQ_INTERRUPT)
+        cpu->intr_count--;
 
-    cpu->intr_count--;
+    /* Did we die? */
+    if (t->killed)
+        sys_exit(0);
 
     /* If something set the reschedule flag and we're the last interrupt
      * (Meaning, we weren't fired while some other interrupt was going on, but
-     * when a task was running), then we yield the current task, whcih
+     * when a task was running), then we yield the current task, which 
      * reschedules a new task to start running.
-     *
-     * Note the separte reschedule_preempt flag - Preempted tasks are always
-     * marked TASK_RUNNABLE so they can be resumed from where they were
-     * preempted, even if they were not previously marked RUNNABLE.
      */
-    if (cpu->intr_count == 0)
-        if (cpu->reschedule)
-            scheduler_task_yield_preempt();
+    if (cpu->intr_count == 0 && cpu->reschedule) {
+        scheduler_task_yield_preempt();
+        cpu->reschedule = 0;
+    }
+
+    /* Is he dead yet? */
+    if (t->killed)
+        sys_exit(0);
 }
 

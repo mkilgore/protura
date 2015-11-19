@@ -95,6 +95,7 @@ static int __ide_wait_ready(void)
 static void __ide_start_queue(void)
 {
     struct block *b;
+    sector_t disk_sector;
     int sector_count;
 
     /* We don't actually remove this block from the queue here. That will be
@@ -102,20 +103,21 @@ static void __ide_start_queue(void)
      */
     b = list_first(&ide_state.block_queue, struct block, block_list_node);
 
-    sector_count = 1;
+    sector_count = b->block_size / IDE_SECTOR_SIZE;
+    disk_sector = b->sector * sector_count;
     /* Start the IDE data transfer */
 
     __ide_wait_ready();
 
-    kprintf("Requesting %d sectors\n", sector_count);
+    kp(KP_TRACE, "IDE: sector=%d\n", disk_sector);
 
     outb(IDE_PORT_SECTOR_CNT, sector_count);
-    outb(IDE_PORT_LBA_LOW_8, (b->sector) & 0xFF);
-    outb(IDE_PORT_LBA_MID_8, (b->sector >> 8) & 0xFF);
-    outb(IDE_PORT_LBA_MID_8, (b->sector >> 16) & 0xFF);
+    outb(IDE_PORT_LBA_LOW_8, (disk_sector) & 0xFF);
+    outb(IDE_PORT_LBA_MID_8, (disk_sector >> 8) & 0xFF);
+    outb(IDE_PORT_LBA_HIGH_8, (disk_sector >> 16) & 0xFF);
     outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET
                                 | IDE_DH_LBA
-                                | ((b->sector >> 24) & 0x0F)
+                                | ((disk_sector >> 24) & 0x0F)
                                 );
 
     if (b->dirty) {
@@ -138,15 +140,8 @@ static void __ide_start_queue(void)
     }
 }
 
-static void ide_start_queue(void)
-{
-    using_spinlock(&ide_state.lock)
-        __ide_start_queue();
-}
-
 static void __ide_handle_intr(struct irq_frame *frame)
 {
-    int sector_count = 1;
     struct block *b;
 
     if (list_empty(&ide_state.block_queue))
@@ -161,11 +156,10 @@ static void __ide_handle_intr(struct irq_frame *frame)
      * drive (checked via __ide_wait_ready). Also, after reading every sector
      * we have to do another __ide_wait_ready().
      */
-    kprintf("B dirty: %d\n", b->dirty);
     if (!b->dirty) {
         int i;
+        int sector_count = b->block_size / IDE_SECTOR_SIZE;
 
-        kprintf("Reading data...\n");
         for (i = 0; i < sector_count; i++) {
             if ((__ide_wait_ready() & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) != 0)
                 break;
@@ -189,7 +183,6 @@ static void __ide_handle_intr(struct irq_frame *frame)
 
 static void ide_handle_intr(struct irq_frame *frame)
 {
-    kprintf("IDE interrupt\n");
     using_spinlock(&ide_state.lock)
         __ide_handle_intr(frame);
 }
@@ -208,9 +201,6 @@ void ide_sync_block(struct block_device *__unused dev, struct block *b)
     /* If the block is valid and not dirty, then there is no syncing needed */
     if (b->valid && !b->dirty)
         return ;
-
-    kassert(b->block_size == IDE_SECTOR_SIZE,
-            "IDE: Attempted to sync a block with wrong block_size: %d\n", b->block_size);
 
     /*
      * This bit seems like a weird way to structure this, but it's necessary to
@@ -237,10 +227,10 @@ void ide_sync_block(struct block_device *__unused dev, struct block *b)
         start = list_empty(&ide_state.block_queue);
 
         list_add_tail(&ide_state.block_queue, &b->block_list_node);
-    }
 
-    if (start)
-        ide_start_queue();
+        if (start)
+            __ide_start_queue();
+    }
 
     /* We already registered ourselves with the wait_queue, so we can jump
      * directly into the sleep_on_wait_queue block and skip registering a

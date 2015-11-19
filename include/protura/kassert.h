@@ -7,7 +7,7 @@
 
 #define BUG(str, ...) \
     do { \
-        kprintf("BUG: %s: %d/%s(): \"%s\"\n", __FILE__, __LINE__, __func__, str); \
+        kp(KP_ERROR, "BUG: %s: %d/%s(): \"%s\"\n", __FILE__, __LINE__, __func__, str); \
         panic(__VA_ARGS__); \
     } while (0)
 
@@ -16,7 +16,7 @@
     do { \
         int __kassert_cond = (cond); \
         if (unlikely(!__kassert_cond)) \
-            BUG(QQ(QQ(cond)), __VA_ARGS__); \
+            BUG(Q(cond), __VA_ARGS__); \
     } while (0)
 
 #endif

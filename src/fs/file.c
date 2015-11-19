@@ -31,8 +31,6 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
     if (!file_is_readable(filp))
         return -EBADF;
 
-    kprintf("Reading!\n");
-
     /* Guard against reading past the end of the file */
     if (filp->offset + len > filp->inode->size)
         len = filp->inode->size - filp->offset;
@@ -42,7 +40,6 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
     sector_t sec = filp->offset / block_size;
     off_t sec_off = filp->offset - sec * block_size;
 
-    kprintf("Locking for read inode\n");
     using_inode_lock_read(filp->inode) {
         while (have_read < len) {
             struct block *b;
@@ -51,8 +48,6 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
             off_t left = (len - have_read > block_size - sec_off)?
                             block_size - sec_off:
                             len - have_read;
-
-            kprintf("Sec: %d, On dev: %d\n", sec, on_dev);
 
             /* Invalid sectors are treated as though they're a block of all zeros.
              *
@@ -113,6 +108,7 @@ off_t fs_file_generic_lseek(struct file *filp, off_t off, int whence)
 struct file *file_dup(struct file *filp)
 {
     atomic_inc(&filp->ref);
+    kp(KP_TRACE, "File dup i:%d:%d, %d\n", filp->inode->ino, filp->inode->dev, atomic_get(&filp->ref));
     return filp;
 }
 

@@ -6,7 +6,6 @@ arch_context_switch:
     movl 8(%esp), %eax /* Old context */
 
     /* Save registers that aren't aready saved via the call in here */
-    pushf
     pushl %ebp
     pushl %ebx
     pushl %esi
@@ -21,6 +20,6 @@ arch_context_switch:
     popl %esi
     popl %ebx
     popl %ebp
-    popf
+
     ret
 

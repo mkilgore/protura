@@ -13,6 +13,7 @@
 
 #include <arch/spinlock.h>
 #include <fs/simple_fs.h>
+#include <fs/ext2.h>
 #include <fs/elf.h>
 #include <fs/file_system.h>
 
@@ -26,7 +27,7 @@ static struct file_system_list {
 
 void file_system_register(struct file_system *system)
 {
-    kprintf("Registering file system: %s\n", system->name);
+    kp(KP_NORMAL, "Registering file system: %s\n", system->name);
     using_spinlock(&file_system_list.lock)
         list_add_tail(&file_system_list.list, &system->fs_list_entry);
 }
@@ -35,7 +36,7 @@ void file_system_unregister(const char *name)
 {
     struct file_system *system;
 
-    kprintf("Unregistering file system: %s\n", name);
+    kp(KP_NORMAL, "Unregistering file system: %s\n", name);
 
     using_spinlock(&file_system_list.lock) {
         list_foreach_entry(&file_system_list.list, system, fs_list_entry) {
@@ -66,6 +67,7 @@ struct file_system *file_system_lookup(const char *name)
 void file_systems_init(void)
 {
     simple_fs_init();
+    ext2_init();
 
     elf_register();
 }

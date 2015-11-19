@@ -69,9 +69,10 @@ void cpu_set_kernel_stack(struct cpu_info *c, void *kstack)
 /* Dumb cpu idle loop - Used when we have no tasks to execute on this cpu. */
 static int cpu_idle_loop(void *cpuid)
 {
-    kprintf("kidle: %d\n", (int)cpuid);
-    while (1)
+    kp(KP_DEBUG, "kidle: %d\n", (int)cpuid);
+    while (1) {
         hlt();
+    }
 
     return 0;
 }

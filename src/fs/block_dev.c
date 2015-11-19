@@ -74,13 +74,15 @@ static struct block_device devices[] = {
         .block_size = 0,
         .ops = NULL,
         .fops = NULL,
+        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_NONE].blocks),
     },
     [BLOCK_DEV_IDE] = {
         .name = "ide",
         .major = BLOCK_DEV_IDE,
-        .block_size = 512,
+        .block_size = 0,
         .ops = &ide_block_device_ops,
         .fops = &block_dev_file_ops_generic,
+        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE].blocks),
     }
 };
 
@@ -98,5 +100,19 @@ struct block_device *block_dev_get(dev_t device)
         return devices + d;
     else
         return NULL;
+}
+
+int block_dev_set_block_size(dev_t device, size_t size)
+{
+    struct block_device *bdev = block_dev_get(device);
+
+    if (!bdev)
+        return -ENODEV;
+
+    block_dev_clear(device);
+
+    bdev->block_size = size;
+
+    return 0;
 }
 

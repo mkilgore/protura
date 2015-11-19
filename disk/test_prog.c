@@ -1,30 +1,70 @@
 
+#include <protura/types.h>
+#include "syscalls.h"
+#include <fs/stat.h>
+#include <fs/fcntl.h>
+
 int test[50];
 
-int test2 = 4;
+char test_char;
 
-#define SYSCALL_PUTCHAR 0x01
-#define SYSCALL_SLEEP 0x06
-
-static void syscall(int sys, int arg1, int arg2)
+static pid_t start_prog(const char *prog)
 {
-    asm volatile("movl %0, %%eax\n"
-                 "movl %1, %%ebx\n"
-                 "movl %2, %%ecx\n"
-                 "int $0x81\n"
-                 :
-                 : "r" (sys), "r" (arg1), "r" (arg2)
-                 : "memory", "%eax", "%ebx", "%ecx");
+    pid_t child_pid;
+
+    switch ((child_pid = fork())) {
+    case -1:
+        /* Fork error */
+        break;
+
+    case 0:
+        /* In child */
+        exec(prog);
+        break;
+
+    default:
+        /* In parent */
+        return child_pid;
+    }
 }
+
+#define console_str "Writing to /dev/console!!!!!!\n"
 
 int main(int argc, char **argv)
 {
-    while (1) {
-        syscall(SYSCALL_PUTCHAR, 'a', 0);
-        syscall(SYSCALL_SLEEP, 1000, 0);
-    }
+    int consolefd, keyboardfd;
+    int procs = 50, i;
 
-    test[2] = 20;
+    keyboardfd = open("/dev/keyboard", O_RDONLY, 0);
+    consolefd = open("/dev/console", O_WRONLY, 0);
+
+    write(consolefd, console_str, sizeof(console_str) - 1);
+
+    exec("/echo");
+
+    int ret = 0;
+    while (1) {
+        pid_t c_pid, wait_pid;
+
+        for (i = 0; i < procs; i++)
+            c_pid = start_prog("/exec_prog");
+
+        for (i = 0; i < procs; i++) {
+            wait_pid = wait(NULL);
+            putstr("Done waiting for: ");
+            putint(wait_pid);
+            putchar('\n');
+        }
+        ret++;
+        /*
+        c_pid = start_prog("/exec_prog");
+
+        wait_pid = wait(&ret);
+        putstr("PID: ");
+        putint(wait_pid);
+        putchar('\n'); */
+
+    }
 
     return 0;
 }

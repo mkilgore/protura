@@ -54,8 +54,6 @@ int sys_exec(const char *file, char *const argv[], struct irq_frame *frame)
     struct task *current = cpu_get_local()->current;
     int ret;
 
-    kprintf("EXEC file: %p, argv: %p, frame: %p\n", file, argv, frame);
-
     ret = namex(file, current->cwd, &exe);
     if (ret)
         return ret;

@@ -51,8 +51,8 @@ void arch_address_space_copy(struct address_space *new, struct address_space *ol
 void arch_address_space_init(struct address_space *addrspc);
 void arch_address_space_clear(struct address_space *addrspc);
 
-/* Note, acts on the current task - This is important because it means we have
- * to release and swap the currently loaded page directory */
+/* Note, acts on the current task - Changes current task's address_space to be
+ * 'new', and also reloads the page-directory at the same time. */
 void arch_task_change_address_space(struct address_space *new);
 
 void arch_task_switch(context_t *old, struct task *new);
@@ -60,5 +60,8 @@ void arch_task_switch(context_t *old, struct task *new);
 extern uintptr_t arch_task_user_entry_addr;
 
 #define task_switch(old, new) arch_task_switch(old, new)
+
+#define arch_address_space_switch_to_kernel() \
+    set_current_page_directory(V2P(&kernel_dir))
 
 #endif

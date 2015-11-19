@@ -14,9 +14,14 @@
 #include <protura/bits.h>
 #include <protura/mutex.h>
 #include <fs/dirent.h>
+#include <fs/dent.h>
 
 struct inode;
 struct file_ops;
+
+struct file_readdir_handler {
+    int (*readdir) (struct file_readdir_handler *, ino_t, mode_t, const char *name, size_t len);
+};
 
 struct file {
     struct inode *inode;
@@ -34,7 +39,8 @@ struct file_ops {
     int (*open) (struct inode *inode, struct file *);
     int (*release) (struct file *);
     int (*read) (struct file *, void *, size_t);
-    int (*readdir) (struct file *, struct dirent *);
+    int (*readdir) (struct file *, struct file_readdir_handler *);
+    int (*read_dent) (struct file *, struct dent *, size_t dent_size);
     off_t (*lseek) (struct file *, off_t offset, int whence);
     int (*write) (struct file *, void *, size_t);
 };
@@ -63,6 +69,7 @@ enum file_flags {
 #define file_has_release(filp) ((filp)->ops && (filp)->ops->release)
 #define file_has_read(filp) ((filp)->ops && (filp)->ops->read)
 #define file_has_readdir(filp) ((filp)->ops && (filp)->ops->readdir)
+#define file_has_read_dent(filp) ((filp)->ops && (filp)->ops->read_dent)
 #define file_has_lseek(filp) ((filp)->ops && (filp)->ops->lseek)
 #define file_has_write(filp) ((filp)->ops && (filp)->ops->write)
 

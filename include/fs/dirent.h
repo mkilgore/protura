@@ -11,9 +11,9 @@
 #include <protura/compiler.h>
 #include <protura/types.h>
 
-/* 32 bytes long, just to make it fit nicely */
+/* 256 bytes long, just to make it fit nicely */
 struct dirent {
-    char name[28];
+    char name[252];
     ino_t ino;
 } __packed;
 

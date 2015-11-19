@@ -30,12 +30,10 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
            -fno-strict-aliasing -nostdlib -fno-builtin
 
-ifdef CONFIG_FRAME_POINTER
-CFLAGS += -fno-omit-frame-pointer
-endif
-
 LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc
 ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
+
+GENEXT2FS := genext2fs
 
 # Configuration -- Uncomment lines to enable option
 # Or specify on the commandline
@@ -111,6 +109,10 @@ _tmp := $(shell mkdir -p $(objtree)/include/config)
 # This line actually runs the $(objtree)/config.mk rule and generates config.mk
 # before including it and continuing.
 -include $(objtree)/config.mk
+endif
+
+ifdef CONFIG_FRAME_POINTER
+CFLAGS += -fno-omit-frame-pointer
 endif
 
 CLEAN_LIST += $(objtree)/config.mk $(objtree)/include/config/autoconf.h
@@ -301,10 +303,8 @@ $(objtree)/.%.d: $(objtree)/%.S
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
 # Compile for protura:
-# gcc -ffreestanding -nostdlib -Wl,-emain -o ./prog.o ./prog.c
-# ld -e main -o ./prog ./prog.o -Ttext 0x80000000
 
-PHONY+=cscope
+PHONY += cscope
 cscope:
 	@echo " Generating cscope for arch $(ARCH)" 
 	$(Q)find ./ \
@@ -314,6 +314,7 @@ cscope:
 		> ./cscope.files
 	$(Q)cscope -b -q -k
 
+include ./disk/Makefile
 include ./tools/Makefile
 
 .PHONY: $(PHONY)

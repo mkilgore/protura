@@ -8,10 +8,9 @@
 #ifndef INCLUDE_TERM_H
 #define INCLUDE_TERM_H
 
-#include <stdarg.h>
-
 #include <protura/types.h>
 #include <protura/compiler.h>
+#include <protura/stdarg.h>
 
 #define TERM_ROWS 25
 #define TERM_COLS 80
@@ -47,8 +46,18 @@ void term_putchar(char);
 void term_putstr(const char *);
 void term_putnstr(const char *, size_t len);
 
+void __term_putchar(char);
+void __term_putstr(const char *);
+void __term_putnstr(const char *, size_t len);
+
 void term_printf(const char *, ...) __printf(1, 2);
 void term_printfv(const char *, va_list);
+
+/* 'unlocked' versions of the above that avoid taking any locks. Useful when
+ * dealing with debug output which can't handle taking locks, for fear of
+ * loops. */
+void __term_printf(const char *, ...) __printf(1, 2);
+void __term_printfv(const char *, va_list);
 
 void term_put_term_char_at(int row, int col, struct term_char);
 void term_put_char_at(int row, int col, char);

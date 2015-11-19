@@ -6,6 +6,13 @@
  * Free Software Foundation.
  */
 
+/* 
+ * FIX: Fix bug!!! Interrupt state is saved in the spinlock holding ktasks, but
+ * that spinlock is locked and unlocked on different processors. A different
+ * construct is necessary to protect ktasks, or the interrupt state needs to be
+ * saved *before* the lock is taken.
+ */
+
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
@@ -45,6 +52,20 @@
  * 'next_pid' is the next pid to assign to a new 'struct task'.
  *
  * 'lock' is a spinlock that needs to be held when you modify the list of tasks.
+ *
+ * Note that the locking is a little tricky to understand. In some cases, a
+ * standard using_spinlock, with the normal spinlock_acquire and
+ * spinlock_release is perfectly fine. However, when the lock is going to
+ * suround a context switch, it means that the lock itself is going to be
+ * locked and unlocked in two different contexts. Thus, the eflags value that
+ * is normally saved in the spinlock would be preserved across the context,
+ * corrupting the interrupt state.
+ *
+ * The solution is to save the contents of the eflags register into the current
+ * task's context, and then restore it on a context switch from the saved
+ * value in the new task's context. Since we're saving the eflags ourselves,
+ * it's necessary to call the 'noirq' versions of spinlock, which do nothing to
+ * change the interrupt state.
  */
 static struct {
     struct spinlock lock;
@@ -85,10 +106,12 @@ void scheduler_task_entry(void)
 
 void scheduler_task_add(struct task *task)
 {
-    /* Add this task to the beginning of the list of current tasks.
-     * Adding to the beginning means it will get the next time-slice. */
+    /* Add this task to the *end* of the list.
+     *
+     * This prevents an interesting issue that can arise from a very-quickly
+     * forking process preventing other processes from running. */
     using_spinlock(&ktasks.lock)
-        list_add(&ktasks.list, &task->task_list_node);
+        list_add_tail(&ktasks.list, &task->task_list_node);
 }
 
 void scheduler_task_remove(struct task *task)
@@ -98,9 +121,14 @@ void scheduler_task_remove(struct task *task)
         list_del(&task->task_list_node);
 }
 
+/* Interrupt state is preserved across an arch_context_switch */
 static inline void __yield(struct task *current)
 {
+    uint32_t eflags = ktasks.lock.eflags;
+
     arch_context_switch(&cpu_get_local()->scheduler, &current->context);
+
+    ktasks.lock.eflags = eflags;
 }
 
 static inline void __sleep(struct task *t)
@@ -112,6 +140,7 @@ static inline void __sleep(struct task *t)
 void scheduler_task_yield(void)
 {
     struct task *t = cpu_get_local()->current;
+
     using_spinlock(&ktasks.lock)
         __yield(t);
 }
@@ -135,7 +164,6 @@ void scheduler_task_waitms(uint32_t mseconds)
     struct task *t = cpu_get_local()->current;
     t->state = TASK_SLEEPING;
     t->wake_up = timer_get_ticks() + mseconds * (TIMER_TICKS_PER_SEC / 1000);
-    kprintf("Wake-up tick: %d\n", t->wake_up);
 
     using_spinlock(&ktasks.lock)
         __yield(t);
@@ -146,21 +174,22 @@ void sys_sleep(uint32_t mseconds)
     scheduler_task_waitms(mseconds);
 }
 
-void scheduler_task_exit(int ret)
+void scheduler_task_mark_dead(struct task *t)
 {
-    struct task *t = cpu_get_local()->current;
-
-    kprintf("Task %s exited: %d\n", t->name, ret);
-
     t->state = TASK_DEAD;
 
     using_spinlock(&ktasks.lock) {
         list_del(&t->task_list_node);
         list_add(&ktasks.dead, &t->task_list_node);
-
-        __yield(t);
-        panic("Exited task returned from __yield()!!!");
     }
+}
+
+void scheduler_task_dead(void)
+{
+    scheduler_task_mark_dead(cpu_get_local()->current);
+
+    scheduler_task_yield();
+    panic("Dead task returned from yield()!!!");
 }
 
 void scheduler(void)
@@ -174,11 +203,10 @@ void scheduler(void)
     spinlock_acquire(&ktasks.lock);
 
     while (1) {
-
         /* First we handle any dead tasks and clean them up. */
         list_foreach_take_entry(&ktasks.dead, t, task_list_node) {
-            kprintf("Task: %p\n", t);
-            kprintf("freeing dead task %p\n", t->name);
+            kp(KP_TRACE, "Task: %p\n", t);
+            kp(KP_TRACE, "freeing dead task %p\n", t->name);
             task_free(t);
         }
 
@@ -198,9 +226,11 @@ void scheduler(void)
          * keep the same ordering and ensure that the next task we run is a
          * task we haven't checked yet. */
         list_foreach_entry(&ktasks.list, t, task_list_node) {
+            kp(KP_TRACE, "Checking task %s(%d): %d\n", t->name, t->pid, t->state);
 
             /* If a task was preempted, then we start it again, reguardless of
-             * it's current state */
+             * it's current state. It's possible they aren't actually
+             * TASK_RUNNABLE, which is why this check is needed. */
             if (t->preempted) {
                 t->preempted = 0;
                 goto found_task;
@@ -221,8 +251,12 @@ void scheduler(void)
                 break;
 
             /* Dead tasks can be removed and freed - They should already be
-             * attached to ktasks.dead and not in this list. */
+             * attached to ktasks.dead and not in this list.
+             *
+             * Zombie's on the other hand, are waiting to be reaped by their
+             * parent. */
             case TASK_DEAD:
+            case TASK_ZOMBIE:
                 break;
 
             /* TASK_NONE's should really not be in the scheduler list unless
@@ -247,6 +281,8 @@ void scheduler(void)
          * Once the task_switch happens, */
         t->state = TASK_RUNNING;
         cpu_get_local()->current = t;
+
+        kp(KP_TRACE, "Scheduling: %s(%p)\n", t->name, t);
 
         task_switch(&cpu_get_local()->scheduler, t);
 
@@ -357,10 +393,11 @@ int wait_queue_wake(struct wait_queue *queue)
      * even though it hasn't actually unregistered yet.
      */
     using_spinlock(&queue->lock) {
-        while (!list_empty(&queue->queue)) {
-            t = container_of(list_take_first(&queue->queue, struct wait_queue_node, node), struct task, wait);
+        list_foreach_take_entry(&queue->queue, t, wait.node) {
+            kp(KP_TRACE, "Wait queue %p: Task %p: %d\n", queue, t, t->state);
             if (t->state == TASK_SLEEPING) {
-                t->state = TASK_RUNNABLE;
+                kp(KP_TRACE, "Wait queue %p: Waking task %s(%p)\n", queue, t->name, t);
+                scheduler_task_wake(t);
                 waken++;
                 break;
             }

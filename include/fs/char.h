@@ -20,12 +20,11 @@ struct char_device {
 
 enum {
     CHAR_DEV_NONE = 0,
+    CHAR_DEV_CONSOLE = 1,
+    CHAR_DEV_KEYBOARD = 2,
 };
 
 void char_dev_init(void);
-
-int char_dev_file_open_generic(struct inode *dev, struct file *);
-int char_dev_file_close_generic(struct inode *dev, struct file *);
 
 struct char_device *char_dev_get(dev_t device);
 

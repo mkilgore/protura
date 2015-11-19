@@ -41,6 +41,13 @@ void kmalloc_init(void)
 
 }
 
+void kmalloc_oom(void)
+{
+    struct slab_alloc *slab;
+    for (slab = kmalloc_slabs; slab->slab_name; slab++)
+        slab_oom(slab);
+}
+
 void *kmalloc(size_t size, int flags)
 {
     struct slab_alloc *slab;

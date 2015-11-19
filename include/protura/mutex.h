@@ -8,6 +8,7 @@
 #ifndef INCLUDE_PROTURA_MUTEX_H
 #define INCLUDE_PROTURA_MUTEX_H
 
+#include <protura/debug.h>
 #include <protura/semaphore.h>
 
 typedef struct semaphore mutex_t;
@@ -21,17 +22,26 @@ static inline void mutex_init(mutex_t *mut)
 
 static inline void mutex_lock(mutex_t *mut)
 {
+    kp(KP_LOCK, "Mutex %p: Locking\n", mut);
     sem_down(mut);
+    kp(KP_LOCK, "Mutex %p: Locked\n", mut);
 }
 
 static inline int mutex_try_lock(mutex_t *mut)
 {
-    return sem_try_down(mut);
+    kp(KP_LOCK, "Mutex %p: Attempting Locking\n", mut);
+    if (sem_try_down(mut)) {
+        kp(KP_LOCK, "Mutex %p: Locked\n", mut);
+        return 1;
+    }
+    return 0;
 }
 
 static inline void mutex_unlock(mutex_t *mut)
 {
+    kp(KP_LOCK, "Mutex %p: Unlocking\n", mut);
     sem_up(mut);
+    kp(KP_LOCK, "Mutex %p: Unlocked\n", mut);
 }
 
 static inline int mutex_waiting(mutex_t *mut)

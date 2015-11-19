@@ -54,7 +54,7 @@ int binary_load(struct exe_params *params, struct irq_frame *frame)
     using_rwlock_r(&binfmt_table.lock) {
         struct binfmt *fmt;
         list_foreach_entry(&binfmt_table.list, fmt, binfmt_list_entry) {
-            kprintf("Bin format: %s\n", fmt->name);
+            kp(KP_TRACE, "Bin format: %s\n", fmt->name);
             ret = (fmt->load_bin) (params, frame);
             if (ret)
                 break;

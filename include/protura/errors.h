@@ -18,6 +18,7 @@
 #define EISDIR  8
 #define EFBIG   9
 #define ENOEXEC 10
+#define ENODEV  11
 
 extern const char *error_strings[];
 

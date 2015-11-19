@@ -17,8 +17,10 @@ static void pic_set_mask(void)
     int eflags;
     eflags = eflags_read();
     cli();
+
     outb(PIC8259_IO_PIC1 + 1, irqmask);
     outb(PIC8259_IO_PIC2 + 1, irqmask >> 8);
+
     eflags_write(eflags);
 }
 

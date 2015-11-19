@@ -10,40 +10,25 @@
 #include <protura/debug.h>
 #include <drivers/term.h>
 #include <config/autoconf.h>
+#include <protura/spinlock.h>
 
 #include <arch/debug.h>
 #include <arch/backtrace.h>
 #include <arch/asm.h>
 
-void kprintfv(const char *fmt, va_list lst)
+static spinlock_t kprintf_lock = SPINLOCK_INIT(0);
+
+void kprintfv_internal(const char *fmt, va_list lst)
 {
-    arch_printfv(fmt, lst);
+    using_spinlock_nolog(&kprintf_lock)
+        arch_printfv(fmt, lst);
 }
 
-void kprintf(const char *fmt, ...)
+void kprintf_internal(const char *fmt, ...)
 {
     va_list lst;
     va_start(lst, fmt);
-    kprintfv(fmt, lst);
+    kprintfv_internal(fmt, lst);
     va_end(lst);
-}
-
-__noreturn void panicv(const char *fmt, va_list lst)
-{
-    kprintfv(fmt, lst);
-
-    dump_stack();
-
-    while (1)
-        hlt();
-}
-
-__noreturn void panic(const char *fmt, ...)
-{
-    va_list lst;
-    va_start(lst, fmt);
-    panicv(fmt, lst);
-    va_end(lst);
-    while (1);
 }
 

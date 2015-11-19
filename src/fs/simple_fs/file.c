@@ -55,7 +55,7 @@ static int simple_fs_file_write(struct file *filp, void *vbuf, size_t len)
                 using_block(dev, on_dev, b)
                     memcpy(b->data + sec_off, buf + have_written, left);
             } else {
-                kprintf("NEED TO ALLOCATE SECTOR: %d\n", sec);
+                kp(KP_ERROR, "NEED TO ALLOCATE SECTOR: %d\n", sec);
             }
         }
     }

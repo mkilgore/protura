@@ -14,6 +14,8 @@
 #include <protura/spinlock.h>
 #include <protura/scheduler.h>
 #include <protura/wait.h>
+#include <mm/kmalloc.h>
+#include <fs/inode_table.h>
 
 #include <mm/palloc.h>
 
@@ -50,6 +52,19 @@ static struct page_buddy_alloc buddy_allocator = {
     .free_pages = 0,
 };
 
+/* Called of palloc runs out of memory to hand out. Call the 'oom' routines,
+ * which attempt to free memory being used by various caches.
+ *
+ * Note that a call to __oom() doesn't necessarially mean we're completely out
+ * of memory. Reserve pages may still be aviliable. The 'oom' routines will
+ * make use of these pages if they need to do allocation (Which is not
+ * impossible). */
+void __oom(void)
+{
+    kmalloc_oom();
+    inode_oom();
+}
+
 struct page *page_get_from_pn(pn_t page_num)
 {
     return buddy_allocator.pages + page_num;
@@ -62,9 +77,10 @@ static inline pn_t get_buddy_pn(pn_t pn, int order)
     return pn ^ (1 << order);
 }
 
+
 void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
 {
-    int original_order = order, i;
+    int original_order = order;
     pn_t cur_page = __PN(pa);
     struct page *p, *buddy;
 
@@ -94,16 +110,24 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
     alloc->maps[order].free_count++;
 
     alloc->free_pages += 1 << original_order;
+}
 
-    /* Wake-up any task waiting for a page of this size or larger */
-    for (i = 0; i <= original_order; i++)
-        wait_queue_wake_all(&alloc->maps[i].wait_for_free);
+void __mark_page_free(pa_t pa)
+{
+    __pfree_add_pages(&buddy_allocator, pa, 0);
 }
 
 void pfree_phys_multiple(pa_t pa, int order)
 {
-    using_spinlock(&buddy_allocator.lock)
+    int i;
+
+    using_spinlock(&buddy_allocator.lock) {
         __pfree_add_pages(&buddy_allocator, pa, order);
+
+        /* Wake-up any task waiting for a page of this size or larger */
+        for (i = 0; i <= order; i++)
+            wait_queue_wake_all(&buddy_allocator.maps[i].wait_for_free);
+    }
 }
 
 /* Breaks apart a page of 'order' size, into to two pages of 'order - 1' size */
@@ -139,11 +163,11 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 
 static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
-    kprintf("Total free pages: %d\n", alloc->free_pages);
-    kprintf("Need: %d\n", 1 << order);
   sleep_again:
     sleep_with_wait_queue(&alloc->maps[order].wait_for_free) {
         if (alloc->free_pages < (1 << order)) {
+            kp(KP_DEBUG, "Calling __oom()!!!\n");
+            __oom();
             not_using_spinlock(&alloc->lock)
                 scheduler_task_yield();
 
@@ -154,17 +178,28 @@ static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int 
 
 static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
+    struct page *p;
+    kp(KP_TRACE, "palloc: %d pages\n", 1 << order);
+
+    if (!(flags & __PAL_NOWAIT))
+        __palloc_sleep_for_enough_pages(&buddy_allocator, order, flags);
+
     if (alloc->maps[order].free_count == 0) {
         break_page(alloc, order + 1, flags);
-        if (alloc->maps[order].free_count == 0)
-            return 0;
+        if (alloc->maps[order].free_count == 0) {
+            p = NULL;
+            goto return_page;
+        }
     }
 
-    struct page *p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
+    p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
     alloc->maps[order].free_count--;
 
     p->order = -1;
 
+    buddy_allocator.free_pages -= 1 << order;
+
+  return_page:
     return p;
 }
 
@@ -173,16 +208,8 @@ pa_t palloc_phys_multiple(int order, unsigned int flags)
     struct page *p;
     pa_t ret;
 
-    kprintf("Getting %d pages\n", 1 << order);
-    kprintf("Flags: %d\n", flags);
-
-    using_spinlock(&buddy_allocator.lock) {
-        if (!(flags & __PAL_NOWAIT))
-            __palloc_sleep_for_enough_pages(&buddy_allocator, order, flags);
+    using_spinlock(&buddy_allocator.lock)
         p = __palloc_phys_multiple(&buddy_allocator, order, flags);
-        if (p)
-            buddy_allocator.free_pages -= 1 << order;
-    }
 
     if (p)
         ret = page_to_pa(p);
@@ -192,33 +219,28 @@ pa_t palloc_phys_multiple(int order, unsigned int flags)
     return ret;
 }
 
-struct page *palloc_pages(int count, unsigned int flags)
+int palloc_pages(list_head_t *head, int count, unsigned int flags)
 {
-    struct page *head = NULL;
-
-    kprintf("Getting %d unordered pages\n", count);
-    kprintf("Flags: %d\n", flags);
-
     using_spinlock(&buddy_allocator.lock) {
         struct page *p;
         int i;
 
         for (i = 0; i < count; i++) {
-            if (!(flags & __PAL_NOWAIT))
-                __palloc_sleep_for_enough_pages(&buddy_allocator, 1, flags);
+            p = __palloc_phys_multiple(&buddy_allocator, 0, flags);
 
-            p = __palloc_phys_multiple(&buddy_allocator, 1, flags);
+            list_add_tail(head, &p->page_list_node);
 
-            if (head)
-                list_add_tail(&head->page_list_node, &p->page_list_node);
-            else
-                head = p;
+            if (!p)
+                panic("OOM!!!\n");
         }
     }
 
-    kprintf("Head: %p\n", head);
+    return 0;
+}
 
-    return head;
+int palloc_free_page_count(void)
+{
+    return buddy_allocator.free_pages;
 }
 
 void palloc_init(void **kbrk, int pages)
@@ -226,14 +248,14 @@ void palloc_init(void **kbrk, int pages)
     struct page *p;
     int i;
 
-    kprintf("Initalizing buddy allocator\n");
+    kp(KP_DEBUG, "Initalizing buddy allocator\n");
 
     *kbrk = ALIGN_2(*kbrk, alignof(struct page));
 
     buddy_allocator.page_count = pages;
     buddy_allocator.pages = *kbrk;
 
-    kprintf("Pages: %d, array: %p\n", pages, *kbrk);
+    kp(KP_DEBUG, "Pages: %d, array: %p\n", pages, *kbrk);
 
     *kbrk += pages * sizeof(struct page);
 

@@ -29,11 +29,11 @@ enum {
     KEY_DELETE = 0x5300,
 };
 
-void keyboard_init(void);
-int keyboard_has_char(void);
-int keyboard_get_char(void);
+void arch_keyboard_init(void);
+int arch_keyboard_has_char(void);
+int arch_keyboard_get_char(void);
 
-void keyboard_wakeup_add(struct task *);
-void keyboard_wakeup_remove(struct task *);
+void arch_keyboard_wakeup_add(struct task *);
+void arch_keyboard_wakeup_remove(struct task *);
 
 #endif

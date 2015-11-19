@@ -6,6 +6,15 @@
  * Free Software Foundation.
  */
 
+/* 
+ * Block cache
+ *
+ * Note that there are no 'sync' operations. This is due to us doing write-back
+ * caching for simplicity (and consistency). If a block is marked dirty on the
+ * call to brelease, it is flushed to the backing block-device before brelease
+ * returns. This does come at a performance penalty.
+ */
+
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
@@ -43,12 +52,36 @@ static struct {
 
 static inline int block_hash(dev_t device, sector_t sector)
 {
-    return ((DEV_MAJOR(device) + DEV_MINOR(device)) ^ (sector)) % BLOCK_HASH_TABLE_SIZE;
+    int hash;
+    hash = ((DEV_MAJOR(device) + DEV_MINOR(device)) ^ (sector)) % BLOCK_HASH_TABLE_SIZE;
+    kp(KP_TRACE, "block hash=%d\n", hash);
+    return hash;
 }
 
 void block_cache_init(void)
 {
 
+}
+
+static void block_delete(struct block *b)
+{
+    /* Remove this block from the cache */
+    hlist_del(&b->cache);
+    block_cache.cache_count--;
+
+    kfree(b->data);
+    kfree(b);
+}
+
+static struct block *block_new(void)
+{
+    struct block *b = kzalloc(sizeof(*b), PAL_KERNEL);
+
+    mutex_init(&b->block_mutex);
+    list_node_init(&b->block_list_node);
+    list_node_init(&b->block_lru_node);
+
+    return b;
 }
 
 void __block_cache_shrink(void)
@@ -85,24 +118,8 @@ void __block_cache_shrink(void)
             continue;
         }
 
-        /* Remove this block from the cache */
-        hlist_del(&b->cache);
-        block_cache.cache_count--;
-
-        kfree(b->data);
-        kfree(b);
+        block_delete(b);
     }
-}
-
-static struct block *block_new(void)
-{
-    struct block *b = kzalloc(sizeof(*b), PAL_KERNEL);
-
-    mutex_init(&b->block_mutex);
-    list_node_init(&b->block_list_node);
-    list_node_init(&b->block_lru_node);
-
-    return b;
 }
 
 static struct block *__bread(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
@@ -117,6 +134,12 @@ static struct block *__bread(dev_t device, struct block_device *bdev, size_t blo
     if (b)
         return b;
 
+    /* We do the shrink *before* we allocate a new block if it is necessary.
+     * This is to ensure the shrink can't remove the block we're about to add
+     * from the cache. */
+    if (block_cache.cache_count >= BLOCK_CACHE_MAX_SIZE)
+        __block_cache_shrink();
+
     b = block_new();
     b->block_size = block_size;
     b->data = kzalloc(block_size, PAL_KERNEL);
@@ -128,8 +151,7 @@ static struct block *__bread(dev_t device, struct block_device *bdev, size_t blo
     hlist_add(block_cache.cache + hash, &b->cache);
     block_cache.cache_count++;
 
-    if (block_cache.cache_count > BLOCK_CACHE_MAX_SIZE)
-        __block_cache_shrink();
+    list_add(&bdev->blocks, &b->bdev_blocks_entry);
 
     return b;
 }
@@ -142,9 +164,17 @@ struct block *bread(dev_t device, sector_t sector)
     if (!dev)
         return NULL;
 
+    kp(KP_TRACE, "Bread: dev=%d, sector=%d, block_size=%d\n", device, sector, dev->block_size);
 
-    using_spinlock(&block_cache.lock)
+    using_spinlock(&block_cache.lock) {
         b = __bread(device, dev, dev->block_size, sector);
+
+        if (list_node_is_in_list(&b->block_lru_node))
+            list_del(&b->block_lru_node);
+        list_add(&block_cache.lru, &b->block_lru_node);
+    }
+
+    kp(KP_TRACE, "Bread (%d, %d) done!\n", device, sector);
 
     /* We can't attempt to lock the block while we have block_cache.lock, or
      * else we might sleep with the block_cache still locked, which will bring
@@ -155,20 +185,11 @@ struct block *bread(dev_t device, sector_t sector)
      * empty wait_queue. */
     block_lock(b);
 
-    using_spinlock(&block_cache.lock) {
-        if (list_node_is_in_list(&b->block_lru_node))
-            list_del(&b->block_lru_node);
-        list_add(&block_cache.lru, &b->block_lru_node);
-    }
-
-    block_dev_sync_block(dev, b);
-
     return b;
 }
 
 void brelease(struct block *b)
 {
-    block_dev_sync_block(b->bdev, b);
     block_unlock(b);
 }
 
@@ -191,6 +212,18 @@ void block_cache_sync(void)
 
             block_unlock(b);
         }
+    }
+}
+
+void block_dev_clear(dev_t dev)
+{
+    struct block_device *bdev = block_dev_get(dev);
+    struct block *b;
+
+    list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
+        if (!mutex_try_lock(&b->block_mutex))
+            panic("EXT2: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
+        block_delete(b);
     }
 }
 

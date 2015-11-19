@@ -2,6 +2,7 @@
 objs-y += inode.o
 objs-y += block.o
 objs-y += block_dev.o
+objs-y += char_dev.o
 objs-y += file_system.o
 objs-y += inode_table.o
 
@@ -16,4 +17,5 @@ objs-y += binfmt_table.o
 objs-y += binfmt_elf.o
 
 subdir-y += simple_fs
+subdir-y += ext2
 

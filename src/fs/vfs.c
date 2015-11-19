@@ -32,9 +32,13 @@ int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_re
     int ret = 0;
     struct file *filp;
 
+    kp(KP_TRACE, "Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
+
     *filp_ret = NULL;
 
     filp = kzalloc(sizeof(*filp), PAL_KERNEL);
+
+    kp(KP_TRACE, "Allocated filp: %p\n", filp);
 
     filp->mode = inode->mode;
     filp->inode = inode_dup(inode);
@@ -65,13 +69,19 @@ int vfs_close(struct file *filp)
 {
     int ret = 0;
 
-    if (atomic_dec_and_test(&filp->ref) != 0)
+    kp(KP_TRACE, "closing file, inode:%d:%d, %d\n", filp->inode->ino, filp->inode->dev, atomic_get(&filp->ref));
+
+    if (!atomic_dec_and_test(&filp->ref))
         return 0;
+
+    kp(KP_TRACE, "Releasing file with inode:%d:%d!\n", filp->inode->ino, filp->inode->dev);
 
     if (file_has_release(filp))
         ret = filp->ops->release(filp);
 
     inode_put(filp->inode);
+
+    kp(KP_TRACE, "Freeing file %p\n", filp);
     kfree(filp);
 
     return ret;
@@ -79,14 +89,31 @@ int vfs_close(struct file *filp)
 
 int vfs_read(struct file *filp, void *buf, size_t len)
 {
+    if (S_ISDIR(filp->inode->mode))
+        return -EISDIR;
+
     if (file_has_read(filp))
         return filp->ops->read(filp, buf, len);
     else
         return -ENOTSUP;
 }
 
+int vfs_read_dent(struct file *filp, struct dent *dent, size_t size)
+{
+    if (!S_ISDIR(filp->inode->mode))
+        return -ENOTDIR;
+
+    if (file_has_read_dent(filp))
+        return filp->ops->read_dent(filp, dent, size);
+    else
+        return -ENOTSUP;
+}
+
 int vfs_write(struct file *filp, void *buf, size_t len)
 {
+    if (S_ISDIR(filp->inode->mode))
+        return -EISDIR;
+
     if (file_has_write(filp))
         return filp->ops->write(filp, buf, len);
     else
@@ -95,6 +122,9 @@ int vfs_write(struct file *filp, void *buf, size_t len)
 
 off_t vfs_lseek(struct file *filp, off_t off, int whence)
 {
+    if (S_ISDIR(filp->inode->mode))
+        return -EISDIR;
+
     if (file_has_lseek(filp))
         return filp->ops->lseek(filp, off, whence);
     else
@@ -103,6 +133,9 @@ off_t vfs_lseek(struct file *filp, off_t off, int whence)
 
 int vfs_lookup(struct inode *inode, const char *name, size_t len, struct inode **result)
 {
+    if (!S_ISDIR(inode->mode))
+        return -ENOTDIR;
+
     if (inode_has_lookup(inode))
         return inode->ops->lookup(inode, name, len, result);
     else
@@ -111,10 +144,15 @@ int vfs_lookup(struct inode *inode, const char *name, size_t len, struct inode *
 
 int vfs_truncate(struct inode *inode, off_t length)
 {
-    if (inode_has_truncate(inode))
-        return inode->ops->truncate(inode, length);
-    else
-        return -ENOTSUP;
+    struct inode_attributes attrs = { 0 };
+
+    attrs.change |= INO_ATTR_SIZE;
+    attrs.size = length;
+
+    if (inode_has_change_attrs(inode))
+        return inode->ops->change_attrs(inode, &attrs);
+
+    return 0;
 }
 
 sector_t vfs_bmap(struct inode *inode, sector_t s)

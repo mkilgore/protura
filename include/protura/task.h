@@ -5,6 +5,7 @@
 #include <protura/errors.h>
 #include <protura/list.h>
 #include <protura/stddef.h>
+#include <protura/compiler.h>
 #include <protura/wait.h>
 #include <mm/vm.h>
 #include <arch/context.h>
@@ -22,6 +23,7 @@ enum task_state {
     TASK_SLEEPING,
     TASK_RUNNABLE,
     TASK_RUNNING,
+    TASK_ZOMBIE,
     TASK_DEAD,
 };
 
@@ -30,6 +32,9 @@ struct task {
     enum task_state state;
     unsigned int preempted :1;
     unsigned int kernel :1;
+    unsigned int killed :1;
+
+    int ret_code;
 
     int wake_up; /* Tick number to wake-up on */
 
@@ -41,10 +46,13 @@ struct task {
     struct address_space *addrspc;
 
     struct task *parent;
+    list_node_t task_sibling_list;
+
+    spinlock_t children_list_lock;
+    list_head_t task_children;
+
     context_t context;
     void *kstack_bot, *kstack_top;
-
-    int killed; /* If non-zero, we've been killed and need to exit() */
 
     struct file *files[NOFILE];
     struct inode *cwd;
@@ -54,14 +62,15 @@ struct task {
 
 /* Allocates a new task, assigning it a PID, intializing it's kernel
  * stack for it's first run, giving it a blank address_space, and setting the
- * state to TASK_NONE.
+ * state to TASK_RUNNABLE.
  *
- * The caller should do any other initalization, set the state to
- * TASK_RUNNABLE, and then put the task into the scheduler list using
- * task_add. */
-struct task *task_new(void);
-struct task *task_fork(struct task *);
-struct task *task_user_new(const char *exe);
+ * The caller should do any other initalization, and then put the task into the
+ * scheduler list using scheduler_task_add(). */
+struct task *__must_check task_new(void);
+struct task *__must_check task_fork(struct task *);
+struct task *__must_check task_user_new_exec(const char *exe);
+struct task *__must_check task_user_new(void);
+
 void task_init(struct task *);
 
 /* Used for the 'fork()' syscall */
@@ -69,17 +78,27 @@ pid_t __fork(struct task *current);
 pid_t sys_fork(void);
 pid_t sys_getpid(void);
 pid_t sys_getppid(void);
+void sys_exit(int code);
+pid_t sys_wait(int *ret);
+int sys_dup(int oldfd);
+int sys_dup2(int olfd, int newfd);
 
 /* Used when a task is already killed and dead */
 void task_free(struct task *);
 
 /* Interruptable tasks run with interrupts enabled */
-struct task *task_kernel_new(char *name, int (*kernel_task) (void *), void *);
-struct task *task_kernel_new_interruptable(char *name, int (*kernel_task) (void *), void *);
+struct task *__must_check task_kernel_new(char *name, int (*kernel_task) (void *), void *);
+struct task *__must_check task_kernel_new_interruptable(char *name, int (*kernel_task) (void *), void *);
 
 void task_print(char *buf, size_t size, struct task *);
 void task_switch(context_t *old, struct task *new);
 
+
+/* Turns the provided task into a 'zombie' - Closes all files, releases held
+ * inode's, free's the address-space, etc... Free's everything except it's own
+ * kernel stack. Then, it sets the tasks state to TASK_ZOMBIE. Zombie's are set
+ * to be reaped by the parent. */
+void task_make_zombie(struct task *t);
 
 /* File descriptor related functions */
 

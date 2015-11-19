@@ -15,6 +15,7 @@
 #include <mm/palloc.h>
 #include <mm/kmalloc.h>
 #include <fs/block.h>
+#include <fs/char.h>
 #include <fs/file_system.h>
 
 #include <arch/asm.h>
@@ -38,10 +39,10 @@ char kernel_cmdline[2048];
 
 struct sys_init arch_init_systems[] = {
     { "pic8259_timer", pic8259_timer_init },
-    { "keyboard", keyboard_init },
     { "syscall", syscall_init },
     { "block-cache", block_cache_init },
     { "block-device", block_dev_init },
+    { "char-device", char_dev_init },
     { "file-systems", file_systems_init },
     { NULL, NULL }
 };
@@ -61,7 +62,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     com1_init();
     term_init();
 
-    kprintf("Protura booting...\n");
+    kp(KP_NORMAL, "Protura booting...\n");
 
     /* We haven't started paging, so MB 1 is identity mapped and we can safely
      * deref 'info' and 'cmdline' */
@@ -70,14 +71,14 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
         /* Make sure we don't overflow kernel_cmdline */
         info->cmdline[sizeof(kernel_cmdline) - 1] = '\0';
         strcpy(kernel_cmdline, info->cmdline);
-        kprintf("Cmdline: %s\n", kernel_cmdline);
+        kp(KP_NORMAL, "Cmdline: %s\n", kernel_cmdline);
     }
 
-    kprintf("mmap: %p\n", mmap);
+    kp(KP_NORMAL, "mmap: %p\n", mmap);
 
     for (; V2P(mmap) < info->mmap_addr + info->mmap_length
          ; mmap = (struct multiboot_memmap *) ((uint32_t)mmap + mmap->size + sizeof(uint32_t))) {
-        kprintf("mmap: 0x%016llx to 0x%016llx, type: %d\n", mmap->base_addr,
+        kp(KP_NORMAL, "mmap: 0x%016llx to 0x%016llx, type: %d\n", mmap->base_addr,
                 mmap->base_addr + mmap->length, mmap->type);
 
         /* A type of non-one means it's not usable memory - just ignore it */
@@ -95,8 +96,8 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
         break;
     }
 
-    kprintf("Memory size: %dMB\n", high_addr / 1024 / 1024);
-    kprintf("Memory pages: %d\n", __PN(high_addr) + 1);
+    kp(KP_NORMAL, "Memory size: %dMB\n", high_addr / 1024 / 1024);
+    kp(KP_NORMAL, "Memory pages: %d\n", __PN(high_addr) + 1);
 
     /* Initalize paging as early as we can, so that we can make use of kernel
      * memory - Then start the memory manager. */
@@ -111,10 +112,11 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     kmalloc_init();
 
-    kprintf("Kernel Start: %p\nKernel End: %p\n", kern_start, kern_end);
+    kp(KP_NORMAL, "Kernel Start: %p\n", kern_start);
+    kp(KP_NORMAL, "Kernel End: %p\n", kern_end);
 
     /* Initalize the 8259 PIC - This has to be initalized before we can enable interrupts on the CPU */
-    kprintf("Initalizing the 8259 PIC\n");
+    kp(KP_NORMAL, "Initalizing the 8259 PIC\n");
     pic8259_init();
 
     kmain();

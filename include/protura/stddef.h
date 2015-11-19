@@ -25,8 +25,8 @@
 #define TP2(x, y) x ## y
 #define TP(x, y) TP2(x, y)
 
-#define Q(x) #x
-#define QQ(x) Q(x)
+#define _Q(x) #x
+#define Q(x) _Q(x)
 
 /* Macro black-magic
  *
@@ -74,18 +74,19 @@
                 goto TP(__using_body_init, __LINE__);              \
             else                                                   \
                 while (1)                                          \
-                    if (1) {                                       \
-                        if (__using_cond)                          \
-                            cmd2;                                  \
-                        goto TP(__using_finished, __LINE__);       \
-                        TP(__using_body_init, __LINE__):           \
-                        __using_cond = (cond);                     \
-                        if (__using_cond)                          \
-                            cmd1;                                  \
-                        goto TP(__using_body, __LINE__);           \
-                    } else                                         \
-                        TP(__using_body, __LINE__):                \
-                        if (__using_cond)
+                    while (1)                                      \
+                        if (1) {                                   \
+                            if (__using_cond)                      \
+                                cmd2;                              \
+                            goto TP(__using_finished, __LINE__);   \
+                            TP(__using_body_init, __LINE__):       \
+                            __using_cond = (cond);                 \
+                            if (__using_cond)                      \
+                                cmd1;                              \
+                            goto TP(__using_body, __LINE__);       \
+                        } else                                     \
+                            TP(__using_body, __LINE__):            \
+                            if (__using_cond)
 
 /* The 'nocheck' version doesn't take a condition, just two commands to run.
  *
