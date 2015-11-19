@@ -233,10 +233,13 @@ void task_make_zombie(struct task *t)
         }
     }
 
-    inode_put(t->cwd);
+    if (t->cwd)
+        inode_put(t->cwd);
 
-    address_space_clear(t->addrspc);
-    kfree(t->addrspc);
+    if (!t->kernel) {
+        address_space_clear(t->addrspc);
+        kfree(t->addrspc);
+    }
 
     t->state = TASK_ZOMBIE;
 
@@ -329,12 +332,15 @@ void sys_exit(int code)
      * rescheduled. We're deleting the majority of our task information, and a
      * reschedule back to us may not work after that. */
     irq_disable();
+
     arch_address_space_switch_to_kernel();
 
     task_make_zombie(t);
-    scheduler_task_wake(t->parent);
+    if (t->parent)
+        scheduler_task_wake(t->parent);
 
     scheduler_task_yield();
+    panic("scheduler_task_yield() returned after sys_exit()!!!\n");
 }
 
 pid_t sys_wait(int *ret)

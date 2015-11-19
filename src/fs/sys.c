@@ -70,8 +70,6 @@ int sys_open(const char *path, int flags, mode_t mode)
     if (ret)
         goto return_result;
 
-    kp(KP_TRACE, "sys_open %s: Inode: %d, ischar=%d, isblk=%d\n", path, inode->ino, S_ISCHR(inode->mode), S_ISBLK(inode->mode));
-
     ret = __sys_open(inode, file_flags, &filp);
 
     inode_put(inode);

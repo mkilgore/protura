@@ -78,7 +78,7 @@ pid_t __fork(struct task *current);
 pid_t sys_fork(void);
 pid_t sys_getpid(void);
 pid_t sys_getppid(void);
-void sys_exit(int code);
+void sys_exit(int code) __noreturn;
 pid_t sys_wait(int *ret);
 int sys_dup(int oldfd);
 int sys_dup2(int olfd, int newfd);

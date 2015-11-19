@@ -83,7 +83,6 @@ static struct inode *ext2_inode_read(struct super_block *super, ino_t ino)
             } else {
                 inode->i.dev = DEV_MAKE((disk_inode->blk_ptrs[1] & 0xFFF00) >> 8, (disk_inode->blk_ptrs[1] & 0xFF) | ((disk_inode->blk_ptrs[1] >> 12) & 0xFFF00));
             }
-            kp_ext2(sb, "dev=%d\n", inode->i.dev);
         } else {
             int i;
             for (i = 0; i < ARRAY_SIZE(disk_inode->blk_ptrs); i++)
@@ -91,12 +90,10 @@ static struct inode *ext2_inode_read(struct super_block *super, ino_t ino)
         }
 
         if (S_ISBLK(disk_inode->mode)) {
-            kp_ext2(sb, "BLOCK DEVICE!!\n");
             inode->i.bdev = block_dev_get(inode->i.dev);
             inode->i.default_fops = inode->i.bdev->fops;
             inode->i.ops = &inode_ops_null;
         } else if (S_ISCHR(disk_inode->mode)) {
-            kp_ext2(sb, "CHAR DEVICE!!\n");
             inode->i.cdev = char_dev_get(inode->i.dev);
             inode->i.default_fops = inode->i.cdev->fops;
             inode->i.ops = &inode_ops_null;

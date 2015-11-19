@@ -1,4 +1,5 @@
 
+
 #include <protura/types.h>
 #include "syscalls.h"
 #include <fs/stat.h>
@@ -8,13 +9,7 @@
 
 int main(int argc, char **argv)
 {
-    write(1, begin_str, sizeof(begin_str) - 1);
-
-    char c = '\0';
-    while (c != '~') {
-        read(0, &c, 1);
-        write(1, &c, 1);
-    }
-
-    exit(0);
+    volatile char *ptr = 0;
+    *ptr = 2;
 }
+

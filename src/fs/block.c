@@ -54,7 +54,6 @@ static inline int block_hash(dev_t device, sector_t sector)
 {
     int hash;
     hash = ((DEV_MAJOR(device) + DEV_MINOR(device)) ^ (sector)) % BLOCK_HASH_TABLE_SIZE;
-    kp(KP_TRACE, "block hash=%d\n", hash);
     return hash;
 }
 
@@ -164,8 +163,6 @@ struct block *bread(dev_t device, sector_t sector)
     if (!dev)
         return NULL;
 
-    kp(KP_TRACE, "Bread: dev=%d, sector=%d, block_size=%d\n", device, sector, dev->block_size);
-
     using_spinlock(&block_cache.lock) {
         b = __bread(device, dev, dev->block_size, sector);
 
@@ -173,8 +170,6 @@ struct block *bread(dev_t device, sector_t sector)
             list_del(&b->block_lru_node);
         list_add(&block_cache.lru, &b->block_lru_node);
     }
-
-    kp(KP_TRACE, "Bread (%d, %d) done!\n", device, sector);
 
     /* We can't attempt to lock the block while we have block_cache.lock, or
      * else we might sleep with the block_cache still locked, which will bring

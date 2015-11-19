@@ -81,9 +81,6 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
     *current = NULL;
 
-
-    kp(KP_DEBUG, "slab: %s: New page %p, %d objects\n", slab->slab_name, newframe, newframe->object_count);
-    kp(KP_DEBUG, "slab: %s: Real count: %d\n", slab->slab_name, count);
     return newframe;
 }
 
@@ -101,11 +98,8 @@ static void *__slab_frame_object_alloc(struct slab_page_frame *frame)
     obj = frame->freelist;
     next = frame->freelist->next;
 
-    kp(KP_TRACE, "Obj=%p, next=%p\n", obj, next);
-
     frame->freelist = next;
     frame->free_object_count--;
-    kp(KP_TRACE, "Slab: free-object-count=%d\n", frame->free_object_count);
     return obj;
 }
 
@@ -134,7 +128,6 @@ void *__slab_malloc(struct slab_alloc *slab, unsigned int flags)
             return __slab_frame_object_alloc(*frame);
     }
 
-    kp(KP_TRACE, "Getting new slab frame\n");
     *frame = __slab_frame_new(slab, flags);
 
     if (*frame)
@@ -193,8 +186,6 @@ void __slab_oom(struct slab_alloc *slab)
 void *slab_malloc(struct slab_alloc *slab, unsigned int flags)
 {
     void *ret;
-
-    kp(KP_TRACE, "slab_malloc: flags=%d\n", flags);
 
     using_spinlock(&slab->lock)
         ret = __slab_malloc(slab, flags);

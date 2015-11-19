@@ -8,6 +8,8 @@ int test[50];
 
 char test_char;
 
+#define console_str "Writing to /dev/console!!!!!!\n"
+
 static pid_t start_prog(const char *prog)
 {
     pid_t child_pid;
@@ -27,8 +29,6 @@ static pid_t start_prog(const char *prog)
         return child_pid;
     }
 }
-
-#define console_str "Writing to /dev/console!!!!!!\n"
 
 int main(int argc, char **argv)
 {
