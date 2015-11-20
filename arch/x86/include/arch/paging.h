@@ -71,7 +71,8 @@
 
 #define PAGING_FRAME(entry) ((entry) & PAGING_FRAME_MASK)
 
-#define __PN(addr) ((uint32_t)(addr) >> PG_SHIFT)
+#define __PA_TO_PN(addr) ((pn_t)(addr) >> PG_SHIFT)
+#define __PN_TO_PA(pn) ((pa_t)((pn) << PG_SHIFT))
 
 #ifndef ASM
 

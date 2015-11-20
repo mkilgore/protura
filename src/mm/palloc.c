@@ -65,7 +65,7 @@ void __oom(void)
     inode_oom();
 }
 
-struct page *page_get_from_pn(pn_t page_num)
+struct page *page_from_pn(pn_t page_num)
 {
     return buddy_allocator.pages + page_num;
 }
@@ -78,14 +78,13 @@ static inline pn_t get_buddy_pn(pn_t pn, int order)
 }
 
 
-void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
+void __pfree_add_pages(struct page_buddy_alloc *alloc, pn_t cur_page, int order)
 {
     int original_order = order;
-    pn_t cur_page = __PN(pa);
     struct page *p, *buddy;
 
     while (order < PALLOC_MAPS - 1) {
-        buddy = page_get_from_pn(get_buddy_pn(cur_page, order));
+        buddy = page_from_pn(get_buddy_pn(cur_page, order));
 
         if (buddy->order != order || bit_test(&buddy->flags, PG_INVALID))
             break;
@@ -98,13 +97,13 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
 
         cur_page &= ~(1 << order);
 
-        p = page_get_from_pn(get_buddy_pn(cur_page, order));
+        p = page_from_pn(get_buddy_pn(cur_page, order));
         p->order = -1;
 
         order++;
     }
 
-    p = page_get_from_pn(cur_page);
+    p = page_from_pn(cur_page);
     p->order = order;
     list_add(&alloc->maps[order].free_pages, &p->page_list_node);
     alloc->maps[order].free_count++;
@@ -114,20 +113,26 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pa_t pa, int order)
 
 void __mark_page_free(pa_t pa)
 {
-    __pfree_add_pages(&buddy_allocator, pa, 0);
+    __pfree_add_pages(&buddy_allocator, __PA_TO_PN(pa), 0);
 }
 
-void pfree_phys_multiple(pa_t pa, int order)
+void pfree(struct page *p, int order)
 {
     int i;
 
     using_spinlock(&buddy_allocator.lock) {
-        __pfree_add_pages(&buddy_allocator, pa, order);
+        __pfree_add_pages(&buddy_allocator, p->page_number, order);
 
-        /* Wake-up any task waiting for a page of this size or larger */
         for (i = 0; i <= order; i++)
             wait_queue_wake_all(&buddy_allocator.maps[i].wait_for_free);
     }
+}
+
+void pfree_unordered(list_head_t *head)
+{
+    struct page *p;
+    list_foreach_take_entry(head, p, page_list_node)
+        pfree(p, 0);
 }
 
 /* Breaks apart a page of 'order' size, into to two pages of 'order - 1' size */
@@ -151,7 +156,7 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 
     order--;
 
-    buddy = page_get_from_pn(get_buddy_pn(p->page_number, order));
+    buddy = page_from_pn(get_buddy_pn(p->page_number, order));
 
     p->order = order;
     buddy->order = order;
@@ -203,23 +208,17 @@ static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int o
     return p;
 }
 
-pa_t palloc_phys_multiple(int order, unsigned int flags)
+struct page *palloc(int order, unsigned int flags)
 {
     struct page *p;
-    pa_t ret;
 
     using_spinlock(&buddy_allocator.lock)
         p = __palloc_phys_multiple(&buddy_allocator, order, flags);
 
-    if (p)
-        ret = page_to_pa(p);
-    else
-        ret = 0;
-
-    return ret;
+    return p;
 }
 
-int palloc_pages(list_head_t *head, int count, unsigned int flags)
+int palloc_unordered(list_head_t *head, int count, unsigned int flags)
 {
     using_spinlock(&buddy_allocator.lock) {
         struct page *p;

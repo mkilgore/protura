@@ -47,71 +47,67 @@ enum {
 #define PAL_ATOMIC (__PAL_NOWAIT)
 #define PAL_KERNEL (0)
 
-/*
- * The 'phys' versions of palloc return the physical address of the allocated page.
- * This is useful for the situations where the coresponding page may not have a
- * mapping in kernel space.
- *
- * When palloc returns multiple pages, they are always aligned to the order
- * size. So, if you do palloc_multiple(3, 0), you'll recieve a block of 2^3
- * pages which is aligned to 2^3.
- */
-pa_t palloc_phys_multiple(int order, unsigned int flags);
-
-static inline void *palloc_multiple(int order, unsigned int flags)
-{
-    pa_t pa = palloc_phys_multiple(order, flags);
-
-    if (pa)
-        return P2V(pa);
-    else
-        return NULL;
-}
-
-#define palloc_phys(flags) palloc_phys_multiple(0, (flags))
-#define palloc(flags) palloc_multiple(0, (flags))
-
-/* 
- * A special call to palloc - It allocates and returns 'count' single pages.
- * These pages are all linked together in a circular linked list
- * (page_list_node), with the returned page being the lowest address. The pages
- * themselves are *not* guarenteed to be linear in physical memory. This
- * generally makes it unuseable for allocating pages for kernel usage. This is
- * however very useful for allocating pages for a virtual mapping, as the
- * alignment of the physical pages chosen does not matter, and multiple calls
- * to palloc() would be unoptimal.
- */
-int palloc_pages(list_head_t *head, int count, unsigned int flags);
-/* struct page *palloc_pages(int count, unsigned int flags); */
-
-void pfree_phys_multiple(pa_t, int order);
-
-#define pfree_phys(pa) pfree_phys_multiple(pa, 0)
-#define pfree_multiple(va, order) pfree_phys_multiple(V2P(va), (order))
-#define pfree(va) pfree_multiple(va, 0)
-
 /* Essencially a faster version of pfree -- Note no locking is used, only
  * useful for boot-up when marking pages as free. */
 void __mark_page_free(pa_t pa);
 
-struct page *page_get_from_pn(pn_t);
+struct page *page_from_pn(pn_t);
 
-#define page_get_from_pa(pa) page_get_from_pn(__PN(pa))
-#define page_get_from_va(va) page_get_from_pn(__PN(V2P(va)))
-#define page_get(va) page_get_from_va(va)
+#define page_from_pa(pa) page_from_pn(__PA_TO_PN(pa))
+#define page_from_va(va) page_from_pa(V2P(va))
 
-static inline pa_t page_to_pa(struct page *p)
+
+/* Used to allocate physically-contiguous pages in physical memory. Since not
+ * all physical memory is mapped at a virual address, the standard way to
+ * access a page is via it's coresponding `struct page` entry.
+ * */
+struct page *palloc(int order, unsigned int flags);
+
+/* Useful for allocating kernel memory, which will always have a coresponding
+ * virtual address. Returns the address of the first page if you allocate
+ * multiple pages. */
+static inline void *palloc_va(int order, unsigned int flags)
 {
-    return (p->page_number) << PG_SHIFT;
+    struct page *p = palloc(order, flags);
+    if (p)
+        return p->virt;
+    else
+        return NULL;
 }
 
-/* Frees a circular list of pages - Note the list is assumed to have no 'head' */
-static inline void pfree_pages(list_head_t *head)
+/* Returns the first page's coresponding physical address */
+static inline pa_t palloc_pa(int order, unsigned int flags)
 {
-    struct page *p;
-    list_foreach_take_entry(head, p, page_list_node)
-        pfree_phys(page_to_pa(p));
+    struct page *p = palloc(order, flags);
+    if (p)
+        return __PN_TO_PA(p->page_number);
+    else
+        return 0;
 }
+
+
+/* Used for freeing addresses returned from the above palloc calls. Note that
+ * you have to provide the order. */
+void pfree(struct page *, int order);
+
+static inline void pfree_va(va_t va, int order)
+{
+    pfree(page_from_va(va), order);
+}
+
+static inline void pfree_pa(pa_t pa, int order)
+{
+    pfree(page_from_pa(pa), order);
+}
+
+/* Used to allocate 'count' pages from memory. The returned pages do *not* have
+ * contiguous physical addresses. As a consiquence, the pages are 'returned' by
+ * attaching them to the provided list_head_t.
+ *
+ * pfree_unordered free's all the pages attached to the provided list_head_t,
+ * and removes them from the list. */
+int palloc_unordered(list_head_t *head, int count, unsigned int flags);
+void pfree_unordered(list_head_t *head);
 
 void palloc_init(void **kbrk, int pages);
 
