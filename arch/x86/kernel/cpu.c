@@ -70,9 +70,9 @@ void cpu_set_kernel_stack(struct cpu_info *c, void *kstack)
 static int cpu_idle_loop(void *cpuid)
 {
     kp(KP_DEBUG, "kidle: %d\n", (int)cpuid);
-    while (1) {
+
+    while (1)
         hlt();
-    }
 
     return 0;
 }
