@@ -54,7 +54,7 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
 
     kp(KP_TRACE, "Calling palloc with %d, %d\n", flags, page_index);
-    newframe = palloc_multiple(page_index, flags);
+    newframe = palloc_va(page_index, flags);
     kp(KP_TRACE, "New frame for slab: %p\n", newframe);
 
     if (!newframe)
@@ -86,7 +86,7 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
 static void __slab_frame_free(struct slab_page_frame *frame)
 {
-    pfree_multiple(frame, frame->page_index_size);
+    pfree_va(frame, frame->page_index_size);
 }
 
 static void *__slab_frame_object_alloc(struct slab_page_frame *frame)

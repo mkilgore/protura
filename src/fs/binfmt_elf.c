@@ -104,7 +104,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
         for (k = 0; k < pages; k++) {
             off_t len;
-            struct page *p = page_get_from_pa(palloc_phys(PAL_KERNEL));
+            struct page *p = palloc(0, PAL_KERNEL);
 
             if (PG_SIZE * k + PG_SIZE < sect.f_size)
                 len = PG_SIZE;
@@ -125,7 +125,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
             list_add_tail(&new_sect->page_list, &p->page_list_node);
         }
 
-        address_space_add_vm_map(new_addrspc, new_sect);
+        address_space_vm_map_add(new_addrspc, new_sect);
     }
 
     struct vm_map *stack = kmalloc(sizeof(struct vm_map), PAL_KERNEL);
@@ -137,9 +137,9 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     flag_set(&stack->flags, VM_MAP_READ);
     flag_set(&stack->flags, VM_MAP_WRITE);
 
-    palloc_pages(&stack->page_list, KMEM_STACK_LIMIT, PAL_KERNEL);
+    palloc_unordered(&stack->page_list, KMEM_STACK_LIMIT, PAL_KERNEL);
 
-    address_space_add_vm_map(new_addrspc, stack);
+    address_space_vm_map_add(new_addrspc, stack);
 
     new_addrspc->stack = stack;
 

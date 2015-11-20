@@ -20,7 +20,7 @@
 #include <fs/super.h>
 #include <fs/file.h>
 #include <fs/inode.h>
-#include <fs/getdents.h>
+#include <fs/dent.h>
 #include <fs/vfs.h>
 #include <fs/fs.h>
 

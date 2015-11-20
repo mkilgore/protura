@@ -78,7 +78,7 @@ void task_init(struct task *task)
 
     task->state = TASK_RUNNABLE;
 
-    task->kstack_bot = palloc_multiple(log2(KERNEL_STACK_PAGES), PAL_KERNEL);
+    task->kstack_bot = palloc_va(log2(KERNEL_STACK_PAGES), PAL_KERNEL);
     task->kstack_top = task->kstack_bot + PG_SIZE * KERNEL_STACK_PAGES - 1;
 
     kp(KP_TRACE, "Created task %d\n", task->pid);
@@ -210,7 +210,7 @@ void task_free(struct task *t)
     if (t->killed == 0)
         task_make_zombie(t);
 
-    pfree_multiple(t->kstack_bot, log2(KERNEL_STACK_PAGES));
+    pfree_va(t->kstack_bot, log2(KERNEL_STACK_PAGES));
 
     kfree(t);
 }

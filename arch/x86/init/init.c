@@ -97,13 +97,13 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     }
 
     kp(KP_NORMAL, "Memory size: %dMB\n", high_addr / 1024 / 1024);
-    kp(KP_NORMAL, "Memory pages: %d\n", __PN(high_addr) + 1);
+    kp(KP_NORMAL, "Memory pages: %d\n", __PA_TO_PN(high_addr) + 1);
 
     /* Initalize paging as early as we can, so that we can make use of kernel
      * memory - Then start the memory manager. */
     paging_setup_kernelspace(&kern_end);
 
-    palloc_init(&kern_end, __PN(high_addr) + 1);
+    palloc_init(&kern_end, __PA_TO_PN(high_addr) + 1);
     arch_pages_init(V2P(kern_start), V2P(kern_end), high_addr);
 
     /* Load the initial GDT and IDT setups */
