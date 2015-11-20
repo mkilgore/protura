@@ -45,6 +45,7 @@ struct address_space {
  * done on page-sized chunks. The list of physical pages to map is 'page_list'.
   */
 struct vm_map {
+    struct address_space *owner;
     list_node_t address_space_entry;
 
     struct vm_region addr;
@@ -102,9 +103,16 @@ void address_space_map_vm_map(struct address_space *, struct vm_map *map);
 void address_space_unmap_vm_entry(struct address_space *, va_t virtual);
 void address_space_unmap_vm_map(struct address_space *, struct vm_map *map);
 
+/* Resize a vm_map.
+ *
+ * Note that if this vm_map is owned by an address_space, then it will also
+ * map/unmap the new space into that address_space. */
+void vm_map_resize(struct vm_map *map, struct vm_region new_size);
+
 /* Adds a 'vm_map' to this address_space's list of vm_map's, and maps any of
  * it's current pages */
-void address_space_add_vm_map(struct address_space *, struct vm_map *map);
+void address_space_vm_map_add(struct address_space *, struct vm_map *map);
+void address_space_vm_map_remove(struct address_space *, struct vm_map *map);
 
 void address_space_copy(struct address_space *new, struct address_space *old);
 

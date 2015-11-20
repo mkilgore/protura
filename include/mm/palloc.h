@@ -56,6 +56,8 @@ struct page *page_from_pn(pn_t);
 #define page_from_pa(pa) page_from_pn(__PA_TO_PN(pa))
 #define page_from_va(va) page_from_pa(V2P(va))
 
+#define page_to_pa(page) __PN_TO_PA((page)->page_number)
+
 
 /* Used to allocate physically-contiguous pages in physical memory. Since not
  * all physical memory is mapped at a virual address, the standard way to
