@@ -83,10 +83,10 @@ void irq_global_handler(struct irq_frame *iframe)
     if (ident->type == IRQ_INTERRUPT)
         cpu->intr_count++;
 
-    /* If this is a syscall, then we just came from user-space, so we save this
-     * frame into the current task's context. */
+    /* Check the DPL in the CS from where we came from. If it's the user's DPL,
+     * then we just came from user-space */
     t = cpu->current;
-    if (ident->type == IRQ_SYSCALL && t) {
+    if ((iframe->cs & 0x03) == DPL_USER && t) {
         frame_flag = 1;
         t->context.frame = iframe;
     }
