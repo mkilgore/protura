@@ -140,4 +140,9 @@ static inline void *sbrk(intptr_t increment)
     return (void *)syscall1(SYSCALL_SBRK, increment);
 }
 
+static inline int read_dent(int fd, void *ptr, size_t size)
+{
+    return syscall3(SYSCALL_READ_DENT, fd, (int)ptr, (int)size);
+}
+
 #endif

@@ -31,6 +31,7 @@
 #define SYSCALL_DUP2    0x13
 #define SYSCALL_BRK     0x14
 #define SYSCALL_SBRK    0x15
+#define SYSCALL_READ_DENT 0x16
 
 #ifdef __KERNEL__
 #ifndef ASM

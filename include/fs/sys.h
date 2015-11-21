@@ -17,6 +17,7 @@ int sys_close(int fd);
 int sys_read(int fd, void *buf, size_t len);
 int sys_write(int fd, void *buf, size_t len);
 off_t sys_lseek(int fd, off_t off, int whence);
+int sys_read_dent(int fd, struct dent *dent, size_t size);
 
 int sys_truncate(const char *file, off_t length);
 

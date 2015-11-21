@@ -125,6 +125,11 @@ static void sys_handler_sbrk(struct irq_frame *frame)
     frame->eax = (uint32_t)sys_sbrk(frame->ebx);
 }
 
+static void sys_handler_read_dent(struct irq_frame *frame)
+{
+    frame->eax = sys_read_dent(frame->ebx, (struct dent *)frame->ecx, frame->edx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -153,6 +158,7 @@ static struct syscall_handler {
     SYSCALL(DUP2, sys_handler_dup2),
     SYSCALL(BRK, sys_handler_brk),
     SYSCALL(SBRK, sys_handler_sbrk),
+    SYSCALL(READ_DENT, sys_handler_read_dent),
 };
 
 static void syscall_handler(struct irq_frame *frame)

@@ -106,6 +106,19 @@ int sys_read(int fd, void *buf, size_t len)
     return vfs_read(filp, buf, len);
 }
 
+int sys_read_dent(int fd, struct dent *dent, size_t size)
+{
+    struct file *filp;
+    int ret;
+
+    ret = fd_get_checked(fd, &filp);
+
+    if (ret)
+        return ret;
+
+    return vfs_read_dent(filp, dent, size);
+}
+
 int sys_write(int fd, void *buf, size_t len)
 {
     struct file *filp;
