@@ -72,7 +72,7 @@ static inline int spinlock_try_acquire(spinlock_t *lock)
 
     got_lock = xchg(&lock->locked, 1);
 
-    if (got_lock) {
+    if (got_lock == 0) {
         lock->eflags = eflags;
         kp(KP_SPINLOCK, "Spinlock %s:%p: Locked\n", lock->name, lock);
     } else {
@@ -80,7 +80,7 @@ static inline int spinlock_try_acquire(spinlock_t *lock)
         kp(KP_SPINLOCK, "Spinlock %s:%p: Not locked\n", lock->name, lock);
     }
 
-    return got_lock;
+    return got_lock == 0;
 }
 
 /* Wraps acquiring and releaseing a spinlock. Usages of 'using_spinlock' can't
