@@ -4,22 +4,17 @@
 #include <fs/stat.h>
 #include <fs/fcntl.h>
 
-int data1 = 1;
+#define INT_COUNT 128
 
 int main(int argc, char **argv)
 {
     int i;
     int *ints;
 
-    putint(data1);
-    putchar('\n');
+    ints = sbrk(INT_COUNT * sizeof(int));
 
-    sbrk(4096);
-
-    ints = sbrk(20 * sizeof(int));
-
-    for (i = 0; i < 20; i++) {
-        ints[i] = i + 50;
+    for (i = 0; i < INT_COUNT; i++) {
+        ints[i] = i;
         putint(ints[i]);
         putchar('\n');
     }
