@@ -44,8 +44,6 @@ static struct {
     .inode_count = ATOMIC_INIT(0),
 };
 
-#define INODE_LIST_GROW_COUNT 20
-
 static inline int inode_hash_get(dev_t dev, ino_t ino)
 {
     return (ino ^ (DEV_MAJOR(dev) + DEV_MINOR(dev))) % INODE_HASH_SIZE;
