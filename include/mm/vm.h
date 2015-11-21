@@ -116,4 +116,7 @@ void address_space_vm_map_remove(struct address_space *, struct vm_map *map);
 
 void address_space_copy(struct address_space *new, struct address_space *old);
 
+void *sys_sbrk(intptr_t increment);
+void sys_brk(va_t new_end);
+
 #endif

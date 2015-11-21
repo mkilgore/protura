@@ -11,6 +11,7 @@
 #include <protura/string.h>
 #include <protura/list.h>
 #include <protura/snprintf.h>
+#include <protura/task.h>
 #include <mm/palloc.h>
 #include <mm/kmalloc.h>
 #include <mm/memlayout.h>
@@ -94,7 +95,7 @@ static void vm_map_resize_end(struct vm_map *map, va_t new_end)
     if (new_end > map->addr.end) {
         int new_pages = (PG_ALIGN(new_end) - PG_ALIGN(map->addr.end)) / PG_SIZE;
         int i;
-        va_t cur_page = PG_ALIGN(map->addr.end) + PG_SIZE;
+        va_t cur_page = PG_ALIGN(map->addr.end);
 
         for (i = 0; i < new_pages; i++, cur_page += PG_SIZE) {
             struct page *p = palloc(0, PAL_KERNEL);
@@ -125,5 +126,31 @@ void vm_map_resize(struct vm_map *map, struct vm_region new_size)
 
     if (map->addr.end != new_size.end)
         vm_map_resize_end(map, new_size.end);
+}
+
+void *sys_sbrk(intptr_t increment)
+{
+    struct vm_map *data;
+    va_t old;
+    struct task *t = cpu_get_local()->current;
+
+    data = t->addrspc->data;
+
+    old = data->addr.end;
+
+    vm_map_resize(data, (struct vm_region) { .start = data->addr.start, .end = old + increment });
+
+    return old;
+}
+
+void sys_brk(va_t new_end)
+{
+    struct vm_map *data;
+    struct task *t = cpu_get_local()->current;
+
+    data = t->addrspc->data;
+
+    if (data->addr.start >= new_end)
+        vm_map_resize(data, (struct vm_region) { .start = data->addr.start, .end = new_end });
 }
 

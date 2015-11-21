@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/scheduler.h>
 #include <mm/palloc.h>
+#include <mm/vm.h>
 #include <arch/idt.h>
 #include <drivers/term.h>
 #include <arch/task.h>
@@ -114,6 +115,16 @@ static void sys_handler_dup2(struct irq_frame *frame)
     frame->eax = sys_dup2(frame->ebx, frame->ecx);
 }
 
+static void sys_handler_brk(struct irq_frame *frame)
+{
+    sys_brk((va_t)frame->ebx);
+}
+
+static void sys_handler_sbrk(struct irq_frame *frame)
+{
+    frame->eax = (uint32_t)sys_sbrk(frame->ebx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -140,6 +151,8 @@ static struct syscall_handler {
     SYSCALL(WAIT, sys_handler_wait),
     SYSCALL(DUP, sys_handler_dup),
     SYSCALL(DUP2, sys_handler_dup2),
+    SYSCALL(BRK, sys_handler_brk),
+    SYSCALL(SBRK, sys_handler_sbrk),
 };
 
 static void syscall_handler(struct irq_frame *frame)

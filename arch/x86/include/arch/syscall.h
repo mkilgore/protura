@@ -29,6 +29,8 @@
 #define SYSCALL_WAIT    0x11
 #define SYSCALL_DUP     0x12
 #define SYSCALL_DUP2    0x13
+#define SYSCALL_BRK     0x14
+#define SYSCALL_SBRK    0x15
 
 #ifdef __KERNEL__
 #ifndef ASM

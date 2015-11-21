@@ -120,4 +120,24 @@ static inline pid_t wait(int *code)
     return syscall1(SYSCALL_WAIT, (int)code);
 }
 
+static inline int dup(int oldfd)
+{
+    return syscall1(SYSCALL_DUP, oldfd);
+}
+
+static inline int dup2(int oldfd, int newfd)
+{
+    return syscall2(SYSCALL_DUP2, oldfd, newfd);
+}
+
+static inline void brk(void *new_brk)
+{
+    syscall1(SYSCALL_BRK, (int)new_brk);
+}
+
+static inline void *sbrk(intptr_t increment)
+{
+    return (void *)syscall1(SYSCALL_SBRK, increment);
+}
+
 #endif

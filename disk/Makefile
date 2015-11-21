@@ -5,6 +5,7 @@ DISK_SRCS := \
 	./disk/echo.c \
 	./disk/init.c \
 	./disk/seg_fault.c \
+	./disk/brk_test.c \
 
 DISK_OBJS := $(DISK_SRCS:.c=.o)
 DISK_PROGS := $(DISK_OBJS:.o=)

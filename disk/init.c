@@ -6,7 +6,7 @@
 
 #define hello "Hello from Init!!!\n"
 
-#define prompt "echo=e seg-fault-test=s\n"
+#define prompt "echo=e seg-fault-test=s brk-test=b\n"
 
 static pid_t start_prog(const char *prog)
 {
@@ -50,6 +50,12 @@ int main(int argc, char **argv)
 
         if (c == 's') {
             start_prog("/seg_fault");
+            wait(NULL);
+            write(consolefd, prompt, sizeof(prompt) - 1);
+        }
+
+        if (c == 'b') {
+            start_prog("/brk_test");
             wait(NULL);
             write(consolefd, prompt, sizeof(prompt) - 1);
         }
