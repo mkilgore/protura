@@ -128,13 +128,49 @@ void vm_map_resize(struct vm_map *map, struct vm_region new_size)
         vm_map_resize_end(map, new_size.end);
 }
 
+static void create_data(struct address_space *addrspc, va_t new_end)
+{
+    struct vm_map *data;
+    va_t data_start = PG_ALIGN(addrspc->code->addr.end);
+
+    if (new_end > data_start) {
+        data = kmalloc(sizeof(*data), PAL_KERNEL);
+        vm_map_init(data);
+
+        data->addr.start = data_start;
+        data->addr.end = new_end;
+
+        flag_set(&data->flags, VM_MAP_WRITE);
+        flag_set(&data->flags, VM_MAP_READ);
+
+        palloc_unordered(&data->page_list, (PG_ALIGN(new_end) - data_start) / PG_SIZE, PAL_KERNEL);
+
+        address_space_vm_map_add(addrspc, data);
+
+        addrspc->data = data;
+    }
+}
+
 void *sys_sbrk(intptr_t increment)
 {
     struct vm_map *data;
     va_t old;
     struct task *t = cpu_get_local()->current;
 
+    kp(KP_TRACE, "%p: sbrk: %d\n", t, increment);
+
     data = t->addrspc->data;
+
+    if (!data) {
+        va_t data_start = PG_ALIGN(t->addrspc->code->addr.end);
+
+        create_data(t->addrspc, data_start + increment);
+
+        if (t->addrspc->data)
+            return data_start;
+        else
+            return NULL;
+    }
 
     old = data->addr.end;
 
@@ -148,8 +184,18 @@ void sys_brk(va_t new_end)
     struct vm_map *data;
     struct task *t = cpu_get_local()->current;
 
+    kp(KP_TRACE, "%p: brk: %p\n", t, new_end);
+
     data = t->addrspc->data;
 
+    /* Check if we have a data segment, and create a new one after the end of
+     * the code segment if we don't */
+    if (!data) {
+        create_data(t->addrspc, new_end);
+        return ;
+    }
+
+    /* Else expand the current data segment */
     if (data->addr.start >= new_end)
         vm_map_resize(data, (struct vm_region) { .start = data->addr.start, .end = new_end });
 }

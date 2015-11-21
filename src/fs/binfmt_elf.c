@@ -128,6 +128,13 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
         address_space_vm_map_add(new_addrspc, new_sect);
     }
 
+    /* If we detected both the code and data segments to be the same segment,
+     * then that means we don't actually have a data segment, so we set it to
+     * NULL. This only actually matters for setting the BRK, and we'll just
+     * make a new vm_map if the data is NULL in that case. */
+    if (new_addrspc->code == new_addrspc->data)
+        new_addrspc->data = NULL;
+
     struct vm_map *stack = kmalloc(sizeof(struct vm_map), PAL_KERNEL);
     vm_map_init(stack);
 
@@ -144,7 +151,8 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     new_addrspc->stack = stack;
 
     kp(KP_TRACE, "New code segment: %p-%p\n", new_addrspc->code->addr.start, new_addrspc->code->addr.end);
-    kp(KP_TRACE, "New data segment: %p-%p\n", new_addrspc->data->addr.start, new_addrspc->data->addr.end);
+    if (new_addrspc->data)
+        kp(KP_TRACE, "New data segment: %p-%p\n", new_addrspc->data->addr.start, new_addrspc->data->addr.end);
     kp(KP_TRACE, "New stack segment: %p-%p\n", new_addrspc->stack->addr.start, new_addrspc->stack->addr.end);
 
     current = cpu_get_local()->current;
