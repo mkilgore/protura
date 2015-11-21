@@ -202,26 +202,6 @@ void ide_sync_block(struct block_device *__unused dev, struct block *b)
     if (b->valid && !b->dirty)
         return ;
 
-    /*
-     * This bit seems like a weird way to structure this, but it's necessary to
-     * prevent lost wake-ups.
-     *
-     * We have to set ourselves as sleeping on the wait_queue *before* we add
-     * ourselves to the block_queue, because there's always the chance that
-     * after we give-up the ide_state lock but before we sleep, we'll be
-     * scheduled, and then our requested sync of the block will happen before
-     * we register in the block's wait_queue and we'll miss the event.
-     *
-     * However, we also can't just move everything into a sleep_on_wait_queue
-     * block, because we may need to sleep multiple times (We can't just assume
-     * we were woke-up for the correct reason), so we'll need to register with
-     * the wait_queue again. We don't want to add ourselves to the block_queue
-     * a second time though, so we have to separate that code, so we add
-     * ourselves to the wait_quyeue and sleep manually to start, and then jump
-     * into the sleep_with_wait_queue block to continue our sleep loop.
-     */
-    scheduler_set_sleeping();
-
     int start;
     using_spinlock(&ide_state.lock) {
         start = list_empty(&ide_state.block_queue);
@@ -232,19 +212,13 @@ void ide_sync_block(struct block_device *__unused dev, struct block *b)
             __ide_start_queue();
     }
 
-    /* We already registered ourselves with the wait_queue, so we can jump
-     * directly into the sleep_on_wait_queue block and skip registering a
-     * second time. */
-    goto continue_sleep;
-
+    /* We sleep until the block is valid and not dirty. */
   sleep_again:
     sleep {
-      continue_sleep:
         if (!b->valid || b->dirty) {
             scheduler_task_yield();
             goto sleep_again;
         }
-
     }
 
     return ;
