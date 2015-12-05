@@ -8,7 +8,7 @@
 
 #include <protura/types.h>
 #include <protura/debug.h>
-#include <mm/palloc.h>
+#include <protura/mm/palloc.h>
 #include <protura/bits.h>
 
 #include <arch/paging.h>

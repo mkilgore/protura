@@ -8,7 +8,7 @@
 #ifndef INCLUDE_FS_NAMEI_H
 #define INCLUDE_FS_NAMEI_H
 
-#include <fs/inode.h>
+#include <protura/fs/inode.h>
 
 int namei(const char *path, struct inode **result);
 int namex(const char *path, struct inode *cwd, struct inode **result);

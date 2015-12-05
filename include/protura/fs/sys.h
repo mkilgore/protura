@@ -9,9 +9,9 @@
 #define INCLUDE_FS_SYS_H
 
 #include <protura/irq.h>
-#include <fs/inode.h>
-#include <fs/file.h>
-#include <mm/user_ptr.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
+#include <protura/mm/user_ptr.h>
 
 #define PATH_MAX 256
 

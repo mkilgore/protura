@@ -9,16 +9,16 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/scheduler.h>
-#include <mm/palloc.h>
-#include <mm/vm.h>
+#include <protura/mm/palloc.h>
+#include <protura/mm/vm.h>
 #include <arch/idt.h>
-#include <drivers/term.h>
+#include <protura/drivers/term.h>
 #include <arch/task.h>
 #include <arch/syscall.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
 #include <arch/drivers/pic8259_timer.h>
-#include <fs/sys.h>
+#include <protura/fs/sys.h>
 
 static void sys_handler_putchar(struct irq_frame *frame)
 {

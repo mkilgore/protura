@@ -14,12 +14,12 @@
 #include <protura/wait.h>
 
 #include <arch/spinlock.h>
-#include <drivers/console.h>
-#include <drivers/keyboard.h>
-#include <drivers/com.h>
-#include <fs/file.h>
-#include <fs/fs.h>
-#include <fs/char.h>
+#include <protura/drivers/console.h>
+#include <protura/drivers/keyboard.h>
+#include <protura/drivers/com.h>
+#include <protura/fs/file.h>
+#include <protura/fs/fs.h>
+#include <protura/fs/char.h>
 
 static struct char_device devices[] = {
     [CHAR_DEV_NONE] = {

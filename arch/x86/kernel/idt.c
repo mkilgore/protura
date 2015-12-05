@@ -10,8 +10,8 @@
 #include <protura/debug.h>
 #include <protura/atomic.h>
 #include <protura/scheduler.h>
-#include <mm/memlayout.h>
-#include <drivers/term.h>
+#include <protura/mm/memlayout.h>
+#include <protura/drivers/term.h>
 
 #include "irq_handler.h"
 #include <arch/asm.h>

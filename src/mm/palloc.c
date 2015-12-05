@@ -14,10 +14,10 @@
 #include <protura/spinlock.h>
 #include <protura/scheduler.h>
 #include <protura/wait.h>
-#include <mm/kmalloc.h>
-#include <fs/inode_table.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/fs/inode_table.h>
 
-#include <mm/palloc.h>
+#include <protura/mm/palloc.h>
 
 struct page_buddy_map {
     list_head_t free_pages;

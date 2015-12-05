@@ -10,12 +10,12 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
-#include <mm/kmalloc.h>
-#include <mm/memlayout.h>
-#include <mm/vm.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/mm/memlayout.h>
+#include <protura/mm/vm.h>
 #include <protura/scheduler.h>
 #include <protura/task.h>
-#include <mm/palloc.h>
+#include <protura/mm/palloc.h>
 
 #include <arch/paging.h>
 #include <arch/task.h>

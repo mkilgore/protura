@@ -13,14 +13,14 @@
 #include <protura/string.h>
 #include <protura/rwlock.h>
 #include <protura/atomic.h>
-#include <mm/kmalloc.h>
+#include <protura/mm/kmalloc.h>
 #include <arch/task.h>
 
-#include <fs/block.h>
-#include <fs/super.h>
-#include <fs/file.h>
-#include <fs/vfs.h>
-#include <fs/binfmt.h>
+#include <protura/fs/block.h>
+#include <protura/fs/super.h>
+#include <protura/fs/file.h>
+#include <protura/fs/vfs.h>
+#include <protura/fs/binfmt.h>
 
 static struct {
     rwlock_t lock;

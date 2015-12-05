@@ -12,10 +12,10 @@
 #include <protura/list.h>
 
 #include <arch/spinlock.h>
-#include <fs/simple_fs.h>
-#include <fs/ext2.h>
-#include <fs/elf.h>
-#include <fs/file_system.h>
+#include <protura/fs/simple_fs.h>
+#include <protura/fs/ext2.h>
+#include <protura/fs/elf.h>
+#include <protura/fs/file_system.h>
 
 static struct file_system_list {
     spinlock_t lock;

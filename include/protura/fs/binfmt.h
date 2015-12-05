@@ -11,7 +11,7 @@
 #include <protura/types.h>
 #include <protura/list.h>
 #include <protura/atomic.h>
-#include <fs/file.h>
+#include <protura/fs/file.h>
 #include <protura/irq.h>
 
 struct exe_params {

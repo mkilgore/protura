@@ -12,16 +12,16 @@
 #include <protura/list.h>
 #include <protura/mutex.h>
 #include <protura/dump_mem.h>
-#include <mm/kmalloc.h>
+#include <protura/mm/kmalloc.h>
 
 #include <arch/spinlock.h>
-#include <fs/block.h>
-#include <fs/char.h>
-#include <fs/stat.h>
-#include <fs/file.h>
-#include <fs/inode_table.h>
-#include <fs/file_system.h>
-#include <fs/ext2.h>
+#include <protura/fs/block.h>
+#include <protura/fs/char.h>
+#include <protura/fs/stat.h>
+#include <protura/fs/file.h>
+#include <protura/fs/inode_table.h>
+#include <protura/fs/file_system.h>
+#include <protura/fs/ext2.h>
 #include "ext2_internal.h"
 
 struct file_ops ext2_file_ops_file = {

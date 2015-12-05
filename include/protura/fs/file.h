@@ -13,8 +13,8 @@
 #include <protura/atomic.h>
 #include <protura/bits.h>
 #include <protura/mutex.h>
-#include <fs/dirent.h>
-#include <fs/dent.h>
+#include <protura/fs/dirent.h>
+#include <protura/fs/dent.h>
 
 struct inode;
 struct file_ops;

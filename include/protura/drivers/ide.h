@@ -8,7 +8,7 @@
 #ifndef INCLUDE_DRIVERS_IDE_H
 #define INCLUDE_DRIVERS_IDE_H
 
-#include <fs/block.h>
+#include <protura/fs/block.h>
 
 void ide_init(void);
 

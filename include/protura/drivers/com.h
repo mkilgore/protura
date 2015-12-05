@@ -9,7 +9,7 @@
 #define INCLUDE_DRIVERS_COM_H
 
 #include <protura/types.h>
-#include <fs/char.h>
+#include <protura/fs/char.h>
 
 void com_init(void);
 

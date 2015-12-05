@@ -10,10 +10,9 @@
 #include <protura/string.h>
 #include <protura/stdarg.h>
 #include <protura/compiler.h>
-#include <config/autoconf.h>
 #include <protura/basic_printf.h>
-#include <drivers/term.h>
-#include <mm/memlayout.h>
+#include <protura/drivers/term.h>
+#include <protura/mm/memlayout.h>
 
 #include <arch/spinlock.h>
 #include <arch/string.h>

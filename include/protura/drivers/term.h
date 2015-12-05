@@ -79,4 +79,3 @@ void sys_putint(int);
 void sys_putstr(const char *);
 
 #endif
-

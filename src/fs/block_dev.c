@@ -9,13 +9,13 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <mm/kmalloc.h>
-#include <fs/block.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/fs/block.h>
 #include <protura/dev.h>
-#include <fs/inode.h>
-#include <fs/file.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
 
-#include <drivers/ide.h>
+#include <protura/drivers/ide.h>
 
 
 int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)

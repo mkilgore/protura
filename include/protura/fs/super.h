@@ -12,8 +12,8 @@
 
 #include <protura/types.h>
 #include <protura/errors.h>
-#include <fs/block.h>
-#include <fs/dirent.h>
+#include <protura/fs/block.h>
+#include <protura/fs/dirent.h>
 
 struct inode;
 struct super_block;

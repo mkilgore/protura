@@ -8,7 +8,7 @@
 #ifndef INCLUDE_PROTURA_DEBUG_H
 #define INCLUDE_PROTURA_DEBUG_H
 
-#include <config/autoconf.h>
+#include <protura/config/autoconf.h>
 #include <protura/compiler.h>
 #include <protura/stdarg.h>
 #include <arch/backtrace.h>

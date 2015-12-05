@@ -1,8 +1,8 @@
 
 #include <protura/types.h>
 #include "syscalls.h"
-#include <fs/stat.h>
-#include <fs/fcntl.h>
+#include <protura/fs/stat.h>
+#include <protura/fs/fcntl.h>
 
 #define INT_COUNT 128
 

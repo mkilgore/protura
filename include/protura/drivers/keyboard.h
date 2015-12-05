@@ -5,14 +5,14 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_DRIVERS_CONSOLE_H
-#define INCLUDE_DRIVERS_CONSOLE_H
+#ifndef INCLUDE_DRIVERS_KEYBOARD_H
+#define INCLUDE_DRIVERS_KEYBOARD_H
 
 #include <protura/types.h>
-#include <fs/char.h>
+#include <protura/fs/char.h>
 
-void console_init(void);
+void keyboard_init(void);
 
-extern struct file_ops console_file_ops;
+extern struct file_ops keyboard_file_ops;
 
 #endif

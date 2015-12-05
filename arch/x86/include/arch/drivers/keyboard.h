@@ -8,7 +8,7 @@
 #ifndef INCLUDE_ARCH_DRIVERS_KEYBOARD_H
 #define INCLUDE_ARCH_DRIVERS_KEYBOARD_H
 
-#include <config/autoconf.h>
+#include <protura/config/autoconf.h>
 #include <protura/types.h>
 #include <arch/spinlock.h>
 #include <protura/atomic.h>

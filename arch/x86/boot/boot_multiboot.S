@@ -8,7 +8,7 @@
 
 #include <protura/multiboot.h>
 #include <arch/paging.h>
-#include <mm/memlayout.h>
+#include <protura/mm/memlayout.h>
 #include <arch/gdt.h>
 
 .section .multiboot

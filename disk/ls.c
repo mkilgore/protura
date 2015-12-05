@@ -2,9 +2,9 @@
 #include <protura/types.h>
 #include <protura/compiler.h>
 #include "syscalls.h"
-#include <fs/stat.h>
-#include <fs/fcntl.h>
-#include <fs/dent.h>
+#include <protura/fs/stat.h>
+#include <protura/fs/fcntl.h>
+#include <protura/fs/dent.h>
 
 #define begin_str "Echo!\n" "Type '~' to exit\n"
 

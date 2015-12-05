@@ -10,7 +10,7 @@
 
 #include <protura/types.h>
 #include <protura/string.h>
-#include <mm/palloc.h>
+#include <protura/mm/palloc.h>
 
 void kmalloc_init(void);
 

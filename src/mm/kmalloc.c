@@ -10,9 +10,9 @@
 #include <protura/string.h>
 #include <protura/debug.h>
 
-#include <mm/memlayout.h>
-#include <mm/kmalloc.h>
-#include <mm/slab.h>
+#include <protura/mm/memlayout.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/mm/slab.h>
 
 /* An important note to readers:
  *

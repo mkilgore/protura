@@ -8,8 +8,8 @@
 #ifndef INCLUDE_FS_CHAR_H
 #define INCLUDE_FS_CHAR_H
 
-#include <fs/inode.h>
-#include <fs/file.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
 
 struct char_device {
     const char *name;

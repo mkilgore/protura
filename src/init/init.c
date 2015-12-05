@@ -14,11 +14,11 @@
 #include <protura/task.h>
 #include <arch/init.h>
 #include <arch/asm.h>
-#include <fs/fs.h>
-#include <drivers/term.h>
+#include <protura/fs/fs.h>
+#include <protura/drivers/term.h>
 
-#include <init/init_task.h>
-#include <init/init_basic.h>
+#include <protura/init/init_task.h>
+#include <protura/init/init_basic.h>
 
 
 int kernel_is_booting = 1;

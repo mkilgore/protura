@@ -14,15 +14,15 @@
 #include <protura/string.h>
 #include <arch/spinlock.h>
 #include <protura/atomic.h>
-#include <mm/kmalloc.h>
+#include <protura/mm/kmalloc.h>
 
-#include <fs/block.h>
-#include <fs/super.h>
-#include <fs/file.h>
-#include <fs/inode.h>
-#include <fs/dent.h>
-#include <fs/vfs.h>
-#include <fs/fs.h>
+#include <protura/fs/block.h>
+#include <protura/fs/super.h>
+#include <protura/fs/file.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/dent.h>
+#include <protura/fs/vfs.h>
+#include <protura/fs/fs.h>
 
 struct getdents_callback {
     struct file_readdir_handler handler;

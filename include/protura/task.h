@@ -7,7 +7,7 @@
 #include <protura/stddef.h>
 #include <protura/compiler.h>
 #include <protura/wait.h>
-#include <mm/vm.h>
+#include <protura/mm/vm.h>
 #include <arch/context.h>
 #include <arch/paging.h>
 #include <arch/cpu.h>

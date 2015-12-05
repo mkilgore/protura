@@ -6,7 +6,7 @@
  * Free Software Foundation.
  */
 #include <protura/types.h>
-#include <fs/fs.h>
+#include <protura/fs/fs.h>
 
 struct super_block *sb_root;
 struct inode *ino_root;

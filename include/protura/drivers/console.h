@@ -5,12 +5,14 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_FS_EXEC_H
-#define INCLUDE_FS_EXEC_H
+#ifndef INCLUDE_DRIVERS_CONSOLE_H
+#define INCLUDE_DRIVERS_CONSOLE_H
 
-#include <protura/irq.h>
-#include <fs/inode.h>
+#include <protura/types.h>
+#include <protura/fs/char.h>
 
-int exec(struct inode *inode, char *const argv[], struct irq_frame *);
+void console_init(void);
+
+extern struct file_ops console_file_ops;
 
 #endif

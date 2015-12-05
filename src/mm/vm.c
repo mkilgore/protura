@@ -12,10 +12,10 @@
 #include <protura/list.h>
 #include <protura/snprintf.h>
 #include <protura/task.h>
-#include <mm/palloc.h>
-#include <mm/kmalloc.h>
-#include <mm/memlayout.h>
-#include <mm/vm.h>
+#include <protura/mm/palloc.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/mm/memlayout.h>
+#include <protura/mm/vm.h>
 
 
 void address_space_map_vm_entry(struct address_space *addrspc, va_t virtual, pa_t physical, flags_t vm_flags)

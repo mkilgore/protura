@@ -17,13 +17,13 @@
 #include <protura/basic_printf.h>
 
 #include <arch/spinlock.h>
-#include <drivers/term.h>
+#include <protura/drivers/term.h>
 #include <arch/drivers/keyboard.h>
 #include <arch/asm.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/idt.h>
-#include <fs/char.h>
-#include <drivers/com.h>
+#include <protura/fs/char.h>
+#include <protura/drivers/com.h>
 
 #define COM_CLOCK 115200
 

@@ -9,7 +9,7 @@
 #include <protura/types.h>
 #include <protura/string.h>
 #include <protura/debug.h>
-#include <mm/bitmap_alloc.h>
+#include <protura/mm/bitmap_alloc.h>
 
 #define bs(bitm) (sizeof(*(bitm)->bitmap) * 8)
 

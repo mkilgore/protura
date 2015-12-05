@@ -104,7 +104,7 @@ endif
 
 # We don't generate the config.mk if we're just going to delete it anyway
 ifneq ($(MAKECMDGOALS),clean)
-_tmp := $(shell mkdir -p $(objtree)/include/config)
+_tmp := $(shell mkdir -p $(objtree)/include/protura/config)
 # Note - Including a file that doesn't exist provokes make to check for a rule
 # This line actually runs the $(objtree)/config.mk rule and generates config.mk
 # before including it and continuing.
@@ -115,7 +115,7 @@ ifdef CONFIG_FRAME_POINTER
 CFLAGS += -fno-omit-frame-pointer
 endif
 
-CLEAN_LIST += $(objtree)/config.mk $(objtree)/include/config/autoconf.h
+CLEAN_LIST += $(objtree)/config.mk $(objtree)/include/protura/config/autoconf.h
 
 # This includes everything in the 'include' folder of the $(objtree)
 # This is so that the code can reference generated include files
@@ -222,13 +222,13 @@ EXTRA_TARGETS += disk.img
 # Actual entry
 real-all: configure $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
 
-configure: $(objtree)/config.mk $(objtree)/include/config/autoconf.h
+configure: $(objtree)/config.mk $(objtree)/include/protura/config/autoconf.h
 
 $(objtree)/config.mk: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
 	@echo " PERL    $@"
 	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl make < $< > $@
 
-$(objtree)/include/config/autoconf.h: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
+$(objtree)/include/protura/config/autoconf.h: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
 	@echo " PERL    $@"
 	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl cpp < $< > $@
 

@@ -9,9 +9,9 @@
 #define SRC_FS_EXT2_EXT2_INTERNAL_H
 
 #include <protura/debug.h>
-#include <fs/inode.h>
-#include <fs/file.h>
-#include <fs/ext2.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
+#include <protura/fs/ext2.h>
 
 #ifdef CONFIG_KERNEL_LOG_EXT2
 # define kp_ext2(sb, str, ...) kp(KP_DEBUG, "EXT2 (%p): " str, sb, ## __VA_ARGS__)

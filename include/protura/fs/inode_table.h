@@ -9,7 +9,7 @@
 #define INCLUDE_FS_INODE_TABLE_H
 
 #include <protura/types.h>
-#include <fs/super.h>
+#include <protura/fs/super.h>
 
 struct inode;
 

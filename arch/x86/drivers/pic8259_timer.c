@@ -8,8 +8,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/atomic.h>
-#include <config/autoconf.h>
-#include <mm/palloc.h>
+#include <protura/mm/palloc.h>
 
 #include <arch/cpu.h>
 #include <arch/asm.h>

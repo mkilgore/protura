@@ -12,12 +12,12 @@
 #include <protura/debug.h>
 #include <protura/bits.h>
 #include <protura/limits.h>
-#include <mm/memlayout.h>
-#include <mm/palloc.h>
+#include <protura/mm/memlayout.h>
+#include <protura/mm/palloc.h>
 
 #include <arch/spinlock.h>
 #include <arch/paging.h>
-#include <mm/slab.h>
+#include <protura/mm/slab.h>
 
 struct page_frame_obj_empty {
     struct page_frame_obj_empty *next;

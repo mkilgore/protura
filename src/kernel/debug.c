@@ -8,8 +8,7 @@
 
 #include <protura/stdarg.h>
 #include <protura/debug.h>
-#include <drivers/term.h>
-#include <config/autoconf.h>
+#include <protura/drivers/term.h>
 #include <protura/spinlock.h>
 
 #include <arch/backtrace.h>

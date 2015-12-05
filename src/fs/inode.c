@@ -13,16 +13,16 @@
 #include <protura/string.h>
 #include <arch/spinlock.h>
 #include <protura/atomic.h>
-#include <mm/kmalloc.h>
+#include <protura/mm/kmalloc.h>
 #include <arch/task.h>
 
-#include <fs/block.h>
-#include <fs/super.h>
-#include <fs/file.h>
-#include <fs/stat.h>
-#include <fs/inode.h>
-#include <fs/inode_table.h>
-#include <fs/vfs.h>
+#include <protura/fs/block.h>
+#include <protura/fs/super.h>
+#include <protura/fs/file.h>
+#include <protura/fs/stat.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/inode_table.h>
+#include <protura/fs/vfs.h>
 
 static int check_ents_in_block(struct block *b, int ents, const char *name, size_t len, struct dirent *result)
 {

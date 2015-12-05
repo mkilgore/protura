@@ -16,7 +16,7 @@
 #include <protura/mutex.h>
 #include <protura/bits.h>
 
-#include <fs/inode_table.h>
+#include <protura/fs/inode_table.h>
 
 struct inode_ops;
 struct super_block;

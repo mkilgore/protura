@@ -20,11 +20,11 @@
 #include <arch/spinlock.h>
 #include <protura/snprintf.h>
 #include <protura/kassert.h>
-#include <mm/kmalloc.h>
-#include <mm/memlayout.h>
-#include <drivers/term.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/mm/memlayout.h>
+#include <protura/drivers/term.h>
 #include <protura/dump_mem.h>
-#include <mm/palloc.h>
+#include <protura/mm/palloc.h>
 
 #include <arch/fake_task.h>
 #include <arch/kernel_task.h>

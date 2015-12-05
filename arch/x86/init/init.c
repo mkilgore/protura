@@ -11,17 +11,17 @@
 #include <protura/multiboot.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <mm/memlayout.h>
-#include <mm/palloc.h>
-#include <mm/kmalloc.h>
-#include <fs/block.h>
-#include <fs/char.h>
-#include <fs/file_system.h>
+#include <protura/mm/memlayout.h>
+#include <protura/mm/palloc.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/fs/block.h>
+#include <protura/fs/char.h>
+#include <protura/fs/file_system.h>
 
 #include <arch/asm.h>
-#include <drivers/term.h>
-#include <drivers/ide.h>
-#include <drivers/com.h>
+#include <protura/drivers/term.h>
+#include <protura/drivers/ide.h>
+#include <protura/drivers/com.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include <arch/init.h>

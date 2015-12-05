@@ -20,13 +20,13 @@
 #include <protura/string.h>
 #include <protura/list.h>
 #include <protura/scheduler.h>
-#include <mm/kmalloc.h>
-#include <drivers/ide.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/drivers/ide.h>
 
 #include <arch/spinlock.h>
 #include <arch/task.h>
 #include <arch/cpu.h>
-#include <fs/block.h>
+#include <protura/fs/block.h>
 
 #define BLOCK_HASH_TABLE_SIZE 256
 

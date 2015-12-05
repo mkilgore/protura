@@ -12,7 +12,7 @@
 #include <protura/string.h>
 #include <arch/paging.h>
 
-#include <init/init_task.h>
+#include <protura/init/init_task.h>
 
 /* This is the "task" that we use during boot-up. It doesn't actually get
  * scheduled, but it contains enough information to get things working and

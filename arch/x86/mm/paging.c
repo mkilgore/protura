@@ -10,12 +10,12 @@
 #include <protura/multiboot.h>
 #include <protura/string.h>
 #include <protura/debug.h>
-#include <mm/memlayout.h>
-#include <drivers/term.h>
-#include <mm/palloc.h>
+#include <protura/mm/memlayout.h>
+#include <protura/drivers/term.h>
+#include <protura/mm/palloc.h>
 #include <protura/task.h>
-#include <fs/fs.h>
-#include <fs/sys.h>
+#include <protura/fs/fs.h>
+#include <protura/fs/sys.h>
 
 #include <arch/asm.h>
 #include <arch/cpu.h>

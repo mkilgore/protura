@@ -8,9 +8,9 @@
 #ifndef INCLUDE_FS_VFS_H
 #define INCLUDE_FS_VFS_H
 
-#include <fs/inode.h>
-#include <fs/file.h>
-#include <fs/dent.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
+#include <protura/fs/dent.h>
 
 /* Note: vfs_open and vfs_close do *not* touch the file-descriptor table for
  * the current process. To do that, use sus_*.

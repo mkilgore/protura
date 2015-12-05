@@ -17,8 +17,8 @@
 #include <arch/idt.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/asm.h>
-#include <fs/block.h>
-#include <drivers/ide.h>
+#include <protura/fs/block.h>
+#include <protura/drivers/ide.h>
 
 
 enum {

@@ -5,14 +5,12 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_DRIVERS_KEYBOARD_H
-#define INCLUDE_DRIVERS_KEYBOARD_H
+#ifndef INCLUDE_FS_EXEC_H
+#define INCLUDE_FS_EXEC_H
 
-#include <protura/types.h>
-#include <fs/char.h>
+#include <protura/irq.h>
+#include <protura/fs/inode.h>
 
-void keyboard_init(void);
-
-extern struct file_ops keyboard_file_ops;
+int exec(struct inode *inode, char *const argv[], struct irq_frame *);
 
 #endif

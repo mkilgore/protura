@@ -14,11 +14,11 @@
 #include <protura/wait.h>
 
 #include <arch/spinlock.h>
-#include <drivers/term.h>
+#include <protura/drivers/term.h>
 #include <arch/drivers/keyboard.h>
 #include <arch/asm.h>
-#include <fs/char.h>
-#include <drivers/console.h>
+#include <protura/fs/char.h>
+#include <protura/drivers/console.h>
 
 void keyboard_init(void)
 {

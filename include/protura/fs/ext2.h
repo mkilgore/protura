@@ -128,9 +128,9 @@ struct ext2_disk_directory_entry {
 
 #ifdef __KERNEL__
 
-#include <fs/block.h>
-#include <fs/inode.h>
-#include <fs/super.h>
+#include <protura/fs/block.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/super.h>
 
 struct ext2_super_block {
     struct super_block sb;

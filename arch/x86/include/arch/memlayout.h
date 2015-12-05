@@ -8,7 +8,7 @@
 #ifndef INCLUDE_ARCH_MEMLAYOUT_H
 #define INCLUDE_ARCH_MEMLAYOUT_H
 
-#include <config/autoconf.h>
+#include <protura/config/autoconf.h>
 #include <arch/paging.h>
 
 #define KMEM_EXTMEM   CONFIG_KERNEL_EXTMEM

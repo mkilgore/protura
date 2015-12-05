@@ -3,8 +3,8 @@
 
 #include <protura/types.h>
 #include <protura/syscall.h>
-#include <fs/stat.h>
-#include <fs/fcntl.h>
+#include <protura/fs/stat.h>
+#include <protura/fs/fcntl.h>
 
 static inline int syscall3(int sys, int arg1, int arg2, int arg3)
 {

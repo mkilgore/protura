@@ -11,7 +11,7 @@
 #include <protura/string.h>
 #include <protura/snprintf.h>
 #include <protura/scheduler.h>
-#include <mm/palloc.h>
+#include <protura/mm/palloc.h>
 
 #include <arch/task.h>
 #include <arch/memlayout.h>

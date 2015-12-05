@@ -11,16 +11,16 @@
 #include <protura/types.h>
 #include <protura/errors.h>
 
-#include <fs/block.h>
-#include <fs/file_system.h>
-#include <fs/super.h>
-#include <fs/inode.h>
-#include <fs/inode_table.h>
-#include <fs/file.h>
-#include <fs/dirent.h>
-#include <fs/stat.h>
-#include <fs/super.h>
-#include <fs/vfs.h>
+#include <protura/fs/block.h>
+#include <protura/fs/file_system.h>
+#include <protura/fs/super.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/inode_table.h>
+#include <protura/fs/file.h>
+#include <protura/fs/dirent.h>
+#include <protura/fs/stat.h>
+#include <protura/fs/super.h>
+#include <protura/fs/vfs.h>
 
 extern struct super_block *sb_root;
 extern struct inode *ino_root;

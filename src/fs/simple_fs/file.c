@@ -10,14 +10,14 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
-#include <mm/kmalloc.h>
+#include <protura/mm/kmalloc.h>
 
 #include <arch/spinlock.h>
-#include <fs/block.h>
-#include <fs/file.h>
-#include <fs/file_system.h>
-#include <fs/simple_fs.h>
-#include <fs/vfs.h>
+#include <protura/fs/block.h>
+#include <protura/fs/file.h>
+#include <protura/fs/file_system.h>
+#include <protura/fs/simple_fs.h>
+#include <protura/fs/vfs.h>
 
 static int simple_fs_file_write(struct file *filp, void *vbuf, size_t len)
 {

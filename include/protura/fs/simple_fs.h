@@ -12,8 +12,8 @@
 
 #ifdef __KERNEL__
 
-#include <fs/inode.h>
-#include <fs/super.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/super.h>
 
 struct simple_fs_inode {
     struct inode i;

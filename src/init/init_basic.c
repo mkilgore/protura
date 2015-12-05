@@ -12,8 +12,8 @@
 #include <protura/string.h>
 #include <protura/dump_mem.h>
 #include <protura/strtol.h>
-#include <drivers/term.h>
-#include <drivers/ide.h>
+#include <protura/drivers/term.h>
+#include <protura/drivers/ide.h>
 #include <arch/asm.h>
 #include <arch/reset.h>
 #include <arch/drivers/keyboard.h>
@@ -23,19 +23,19 @@
 #include <arch/idt.h>
 #include <arch/init.h>
 #include <arch/backtrace.h>
-#include <fs/simple_fs.h>
-#include <fs/ext2.h>
-#include <fs/file_system.h>
-#include <fs/inode.h>
-#include <fs/file.h>
-#include <fs/stat.h>
-#include <fs/namei.h>
-#include <fs/vfs.h>
-#include <fs/sys.h>
-#include <fs/fs.h>
-#include <fs/binfmt.h>
+#include <protura/fs/simple_fs.h>
+#include <protura/fs/ext2.h>
+#include <protura/fs/file_system.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
+#include <protura/fs/stat.h>
+#include <protura/fs/namei.h>
+#include <protura/fs/vfs.h>
+#include <protura/fs/sys.h>
+#include <protura/fs/fs.h>
+#include <protura/fs/binfmt.h>
 
-#include <init/init_task.h>
+#include <protura/init/init_task.h>
 
 static void sleep_for_keyboard(void)
 {

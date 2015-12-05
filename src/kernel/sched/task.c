@@ -11,16 +11,16 @@
 #include <protura/string.h>
 #include <protura/list.h>
 #include <protura/snprintf.h>
-#include <mm/kmalloc.h>
-#include <mm/memlayout.h>
-#include <drivers/term.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/mm/memlayout.h>
+#include <protura/drivers/term.h>
 #include <protura/dump_mem.h>
 #include <protura/scheduler.h>
 #include <protura/task.h>
-#include <mm/palloc.h>
-#include <fs/inode.h>
-#include <fs/file.h>
-#include <fs/fs.h>
+#include <protura/mm/palloc.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
+#include <protura/fs/fs.h>
 
 #include <arch/spinlock.h>
 #include <arch/fake_task.h>
