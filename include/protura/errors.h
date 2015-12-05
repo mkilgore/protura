@@ -19,6 +19,7 @@
 #define EFBIG   9
 #define ENOEXEC 10
 #define ENODEV  11
+#define EFAULT  12
 
 extern const char *error_strings[];
 

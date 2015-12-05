@@ -61,6 +61,11 @@ static inline void irq_frame_set_syscall_ret(struct irq_frame *frame, uint32_t r
     frame->eax = ret;
 }
 
+typedef int irq_flags_t;
+
 #define irq_disable() cli()
+
+#define irq_save() eflags_read()
+#define irq_restore(flags) eflags_write(flags)
 
 #endif

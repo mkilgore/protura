@@ -33,6 +33,7 @@ struct task {
     unsigned int preempted :1;
     unsigned int kernel :1;
     unsigned int killed :1;
+    unsigned int user_ptrs :1;
 
     int ret_code;
 

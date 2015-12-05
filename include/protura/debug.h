@@ -43,11 +43,14 @@
 
 void kprintf_internal(const char *s, ...) __printf(1, 2);
 void kprintfv_internal(const char *s, va_list);
+void kp_output_register(void (*print) (const char *fmt, va_list lst), const char *name);
+void kp_output_unregister(void (*print) (const char *fmt, va_list lst));
 
 #define kp(level, str, ...) \
     do { \
-        if (level <= CONFIG_KERNEL_LOG_LEVEL) \
+        if (level <= CONFIG_KERNEL_LOG_LEVEL) { \
             kprintf_internal(TP(KP_STR, level) ":" Q(__LINE__) ":" __FILE__ ": " str, ## __VA_ARGS__); \
+        } \
     } while (0)
 
 #define panic(str, ...) \

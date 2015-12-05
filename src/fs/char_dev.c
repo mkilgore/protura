@@ -16,6 +16,7 @@
 #include <arch/spinlock.h>
 #include <drivers/console.h>
 #include <drivers/keyboard.h>
+#include <drivers/com.h>
 #include <fs/file.h>
 #include <fs/fs.h>
 #include <fs/char.h>
@@ -36,6 +37,11 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_KEYBOARD,
         .fops = &keyboard_file_ops,
     },
+    [CHAR_DEV_COM] = {
+        .name = "com",
+        .major = CHAR_DEV_COM,
+        .fops = &com_file_ops,
+    },
 };
 
 struct char_device *char_dev_get(dev_t device)
@@ -54,5 +60,6 @@ void char_dev_init(void)
 {
     console_init();
     keyboard_init();
+    com_init();
 }
 

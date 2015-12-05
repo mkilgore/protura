@@ -128,6 +128,54 @@ void vm_map_resize(struct vm_map *map, struct vm_region new_size)
         vm_map_resize_end(map, new_size.end);
 }
 
+int user_check_region(const va_t ptr, size_t size, flags_t vm_flags)
+{
+    struct task *t = cpu_get_local()->current;
+    struct address_space *addrspc = t->addrspc;
+    struct vm_map *cur;
+
+    kp(KP_TRACE, "Checking user pointer %p(%d)\n", ptr, size);
+
+    list_foreach_entry(&addrspc->vm_maps, cur, address_space_entry) {
+        kp(KP_TRACE, "Checking region %p-%p\n", cur->addr.start, cur->addr.end);
+        if (cur->addr.start <= ptr && cur->addr.end >= ptr + size) {
+            if ((cur->flags & vm_flags) == vm_flags)
+                return 0;
+            else
+                return -EFAULT;
+        }
+    }
+
+    return -EFAULT;
+}
+
+int user_check_strn(const va_t ptr, size_t size, flags_t vm_flags)
+{
+    struct task *t = cpu_get_local()->current;
+    struct address_space *addrspc = t->addrspc;
+    struct vm_map *cur;
+
+    list_foreach_entry(&addrspc->vm_maps, cur, address_space_entry) {
+        if (cur->addr.start <= ptr) {
+            va_t end = ptr + size;
+            if (end >= cur->addr.end)
+                end = cur->addr.end - 1;
+
+            if ((cur->flags & vm_flags) != vm_flags)
+                return -EFAULT;
+
+            char *c;
+            for (c = end; c >= (char *)ptr; c--)
+                if (*c == '\0')
+                    return 0;
+
+            return -EFAULT;
+        }
+    }
+
+    return -EFAULT;
+}
+
 static void create_data(struct address_space *addrspc, va_t new_end)
 {
     struct vm_map *data;

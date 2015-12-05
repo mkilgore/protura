@@ -12,9 +12,6 @@
 #include <protura/string.h>
 #include <protura/debug.h>
 #include <protura/basic_printf.h>
-#include <arch/drivers/com1_debug.h>
-
-//#define static
 
 static char inttohex[][16] = { "0123456789abcdef", "0123456789ABCDEF" };
 

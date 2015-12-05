@@ -14,6 +14,7 @@
 #include <arch/spinlock.h>
 #include <protura/atomic.h>
 #include <mm/kmalloc.h>
+#include <mm/user_ptr.h>
 #include <arch/task.h>
 
 #include <fs/block.h>
@@ -25,6 +26,11 @@
 #include <fs/inode_table.h>
 #include <fs/namei.h>
 #include <fs/vfs.h>
+#include <fs/sys.h>
+
+/* These functions connect the 'vfs_*' functions to the syscall verisons. Note
+ * that these 'sys_*' functions are responsable for checking the userspace
+ * pointers. */
 
 int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp)
 {
@@ -52,12 +58,16 @@ int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp)
     return ret;
 }
 
-int sys_open(const char *path, int flags, mode_t mode)
+int sys_open(const char *__user path, int flags, mode_t mode)
 {
     int ret;
     unsigned int file_flags = 0;
     struct inode *inode;
     struct file *filp;
+
+    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
 
     if (flags & O_RDWR)
         file_flags = F(FILE_READABLE) | F(FILE_WRITABLE);
@@ -93,10 +103,14 @@ int sys_close(int fd)
     return vfs_close(filp);
 }
 
-int sys_read(int fd, void *buf, size_t len)
+int sys_read(int fd, void *__user buf, size_t len)
 {
     struct file *filp;
     int ret;
+
+    ret = user_check_region(buf, len, F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
 
     ret = fd_get_checked(fd, &filp);
 
@@ -106,10 +120,14 @@ int sys_read(int fd, void *buf, size_t len)
     return vfs_read(filp, buf, len);
 }
 
-int sys_read_dent(int fd, struct dent *dent, size_t size)
+int sys_read_dent(int fd, struct dent *__user dent, size_t size)
 {
     struct file *filp;
     int ret;
+
+    ret = user_check_region(dent, size, F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
 
     ret = fd_get_checked(fd, &filp);
 
@@ -119,10 +137,14 @@ int sys_read_dent(int fd, struct dent *dent, size_t size)
     return vfs_read_dent(filp, dent, size);
 }
 
-int sys_write(int fd, void *buf, size_t len)
+int sys_write(int fd, void *__user buf, size_t len)
 {
     struct file *filp;
     int ret;
+
+    ret = user_check_region(buf, len, F(VM_MAP_READ));
+    if (ret)
+        return ret;
 
     ret = fd_get_checked(fd, &filp);
 

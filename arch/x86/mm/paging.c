@@ -179,8 +179,6 @@ void paging_setup_kernelspace(void **kbrk)
 {
     uint32_t pse, pge;
 
-    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_INTERRUPT);
-
     /* We make use of both PSE and PGE if the CPU supports them. */
     pse = (cpuid_has_pse())? CR4_PSE: 0;
     pge = (cpuid_has_pge())? CR4_GLOBAL: 0;
@@ -197,6 +195,8 @@ void paging_setup_kernelspace(void **kbrk)
     setup_kernel_pagedir(kbrk);
 
     set_current_page_directory(v_to_p(&kernel_dir));
+
+    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_INTERRUPT);
 
     return ;
 }

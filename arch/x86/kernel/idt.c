@@ -11,6 +11,7 @@
 #include <protura/atomic.h>
 #include <protura/scheduler.h>
 #include <mm/memlayout.h>
+#include <drivers/term.h>
 
 #include "irq_handler.h"
 #include <arch/asm.h>
@@ -37,9 +38,97 @@ void irq_register_callback(uint8_t irqno, void (*handler)(struct irq_frame *), c
 {
     struct idt_identifier *ident = idt_ids + irqno;
 
+    kp(KP_TRACE, "Registering callback %d\n", irqno);
+
+    kp(KP_TRACE, "Old handler: %p\n", ident->handler);
     ident->handler = handler;
     ident->name = id;
     ident->type = type;
+    kp(KP_TRACE, "New handler: %p\n", handler);
+    kp(KP_TRACE, "New handler assigned: %p\n", ident->handler);
+}
+
+static const char *cpu_exception_name[] = {
+    "Divide by zero",
+    "Debug",
+    "NMI",
+    "Breakpoint",
+    "Overflow",
+    "Bound Range Exceeded",
+    "Invalid OP",
+    "Device Not Available",
+    "Double Fault",
+    "",
+    "Invalid TSS",
+    "Segment Not Present",
+    "Stack-Segment Fault",
+    "General Protection Fault",
+    "Page Fault",
+    "",
+    "Floating-Point Exception",
+    "Alignment Check",
+    "Machine Check",
+    "SIMD Floating-Point Exception",
+    "Virtualization Exception",
+    "",
+    "Security Exception",
+    "",
+    "Triple Fault",
+    "",
+};
+
+void unhandled_cpu_exception(struct irq_frame *frame)
+{
+    struct task *current = cpu_get_local()->current;
+
+    kp_output_register(term_printfv, "Terminal");
+
+    kp(KP_ERROR, "Exception: %s(%d)! AT: %p, ERR: 0x%08x\n", cpu_exception_name[frame->intno], frame->intno, (void *)frame->eip, frame->err);
+
+    kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x\n",
+        frame->eax,
+        frame->ebx);
+
+    kp(KP_ERROR, "ECX: 0x%08x EDX: 0x%08x\n",
+        frame->ecx,
+        frame->edx);
+
+    kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x\n",
+        frame->esi,
+        frame->edi);
+
+    kp(KP_ERROR, "ESP: 0x%08x EBP: 0x%08x\n",
+        frame->esp,
+        frame->ebp);
+
+    kp(KP_ERROR, "Stack backtrace:\n");
+    dump_stack_ptr((void *)frame->ebp);
+    if (current && !current->kernel) {
+        kp(KP_ERROR, "Current running program: %s\n", current->name);
+        kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x\n",
+            current->context.frame->eax,
+            current->context.frame->ebx);
+
+        kp(KP_ERROR, "ECX: 0x%08x EDX: 0x%08x\n",
+            current->context.frame->ecx,
+            current->context.frame->edx);
+
+        kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x\n",
+            current->context.frame->esi,
+            current->context.frame->edi);
+
+        kp(KP_ERROR, "ESP: 0x%08x EBP: 0x%08x\n",
+            current->context.frame->esp,
+            current->context.frame->ebp);
+
+        kp(KP_ERROR, "User stack dump:\n");
+        dump_stack_ptr((void *)current->context.frame->ebp);
+    }
+    kp(KP_ERROR, "End of backtrace\n");
+    kp(KP_ERROR, "Kernel halting\n");
+
+    while (1)
+        hlt();
 }
 
 void idt_init(void)
@@ -53,6 +142,12 @@ void idt_init(void)
         IDT_SET_ENT(idt_entries[i], 0, _KERNEL_CS, (uint32_t)(irq_hands[i]), DPL_KERNEL);
 
     IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
+
+    for (i = 0; i < 0x20; i++) {
+        idt_ids[i].handler = unhandled_cpu_exception;
+        idt_ids[i].name = "Unhandled CPU Exception";
+        idt_ids[i].type = IRQ_INTERRUPT;
+    }
 
     idt_flush(((uintptr_t)&idt_ptr));
 }

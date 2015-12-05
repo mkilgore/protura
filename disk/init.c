@@ -35,6 +35,14 @@ int main(int argc, char **argv)
     keyboardfd = open("/dev/keyboard", O_RDONLY, 0);
     consolefd = open("/dev/console", O_WRONLY, 0);
 
+    start_prog("/echo");
+
+    close(keyboardfd);
+    close(consolefd);
+
+    keyboardfd = open("/dev/com2", O_RDONLY, 0);
+    consolefd = open("/dev/com2", O_WRONLY, 0);
+
     write(consolefd, hello, sizeof(hello) - 1);
 
     write(consolefd, prompt, sizeof(prompt) - 1);

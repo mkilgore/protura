@@ -15,6 +15,7 @@
 #include <arch/init.h>
 #include <arch/asm.h>
 #include <fs/fs.h>
+#include <drivers/term.h>
 
 #include <init/init_task.h>
 #include <init/init_basic.h>
@@ -63,7 +64,8 @@ void kmain(void)
     }
 
     kp(KP_NORMAL, "Kernel is done booting!\n");
-    kernel_is_booting = 0;
+
+    kp_output_unregister(term_printfv);
 
     scheduler_task_add(task_kernel_new("User Init Bootstrap", start_user_init, NULL));
 

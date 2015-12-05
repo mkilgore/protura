@@ -12,16 +12,54 @@
 #include <config/autoconf.h>
 #include <protura/spinlock.h>
 
-#include <arch/debug.h>
 #include <arch/backtrace.h>
 #include <arch/asm.h>
 
+struct kp_output {
+    void (*print) (const char *fmt, va_list lst);
+    const char *name;
+};
+
+static struct kp_output kp_output_table[CONFIG_KERNEL_LOG_MAX_OUTPUTS];
+
 static spinlock_t kprintf_lock = SPINLOCK_INIT(0);
+
+void kp_output_register(void (*print) (const char *fmt, va_list lst), const char *name)
+{
+    using_spinlock_nolog(&kprintf_lock) {
+        int i;
+        for (i = 0; i < CONFIG_KERNEL_LOG_MAX_OUTPUTS; i++) {
+            if (!kp_output_table[i].print) {
+                kp_output_table[i].print = print;
+                kp_output_table[i].name = name;
+                break;
+            }
+        }
+    }
+}
+
+void kp_output_unregister(void (*print) (const char *fmt, va_list lst))
+{
+    using_spinlock_nolog(&kprintf_lock) {
+        int i;
+        for (i = 0; i < CONFIG_KERNEL_LOG_MAX_OUTPUTS; i++) {
+            if (kp_output_table[i].print == print) {
+                kp_output_table[i].print = NULL;
+                kp_output_table[i].name = NULL;
+                break;
+            }
+        }
+    }
+}
 
 void kprintfv_internal(const char *fmt, va_list lst)
 {
-    using_spinlock_nolog(&kprintf_lock)
-        arch_printfv(fmt, lst);
+    using_spinlock_nolog(&kprintf_lock) {
+        int i;
+        for (i = 0; i < CONFIG_KERNEL_LOG_MAX_OUTPUTS; i++)
+            if (kp_output_table[i].print)
+                (kp_output_table[i].print) (fmt, lst);
+    }
 }
 
 void kprintf_internal(const char *fmt, ...)

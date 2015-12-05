@@ -21,11 +21,11 @@
 #include <arch/asm.h>
 #include <drivers/term.h>
 #include <drivers/ide.h>
+#include <drivers/com.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include <arch/init.h>
 #include <arch/cpuid.h>
-#include <arch/drivers/com1_debug.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 #include <arch/drivers/keyboard.h>
@@ -59,10 +59,20 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     cpuid_init();
 
     /* Initalize output early for debugging */
-    com1_init();
     term_init();
+    kp_output_register(term_printfv, "TERM");
+
+    com_init_early();
+    kp_output_register(com1_printfv, "COM1");
 
     kp(KP_NORMAL, "Protura booting...\n");
+
+    /* We setup the IDT fairly early - This is because the actual 'setup' is
+     * extremely simple, and things shouldn't register interrupt handlers until
+     * the IDT it setup.
+     *
+     * This does *not* enable interrupts. */
+    idt_init();
 
     /* We haven't started paging, so MB 1 is identity mapped and we can safely
      * deref 'info' and 'cmdline' */
@@ -106,16 +116,17 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     palloc_init(&kern_end, __PA_TO_PN(high_addr) + 1);
     arch_pages_init(V2P(kern_start), V2P(kern_end), high_addr);
 
-    /* Load the initial GDT and IDT setups */
-    cpu_info_init();
-    idt_init();
-
     kmalloc_init();
+
+    /* Setup the per-CPU stuff - Has to be done after kmalloc and friends are
+     * setup. */
+    cpu_info_init();
 
     kp(KP_NORMAL, "Kernel Start: %p\n", kern_start);
     kp(KP_NORMAL, "Kernel End: %p\n", kern_end);
 
-    /* Initalize the 8259 PIC - This has to be initalized before we can enable interrupts on the CPU */
+    /* Initalize the 8259 PIC - This has to be initalized before we can enable
+     * interrupts on the CPU */
     kp(KP_NORMAL, "Initalizing the 8259 PIC\n");
     pic8259_init();
 

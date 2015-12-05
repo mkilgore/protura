@@ -24,12 +24,10 @@ static void timer_callback(struct irq_frame *frame)
 {
     atomic32_inc(&ticks);
 
-    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0) {
-        kp(KP_TRACE, "Reschedule\n");
+    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0)
         cpu_get_local()->reschedule = 1;
-    }
 
-    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / 10)) == 0)
+    if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / 2)) == 0)
         kp(KP_NORMAL, "palloc: %d free pages\n", palloc_free_page_count());
 }
 

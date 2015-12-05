@@ -14,6 +14,7 @@
 #include <arch/spinlock.h>
 #include <protura/atomic.h>
 #include <mm/kmalloc.h>
+#include <mm/user_ptr.h>
 #include <arch/task.h>
 
 #include <fs/block.h>

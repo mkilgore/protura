@@ -22,6 +22,7 @@ enum {
     CHAR_DEV_NONE = 0,
     CHAR_DEV_CONSOLE = 1,
     CHAR_DEV_KEYBOARD = 2,
+    CHAR_DEV_COM = 3,
 };
 
 void char_dev_init(void);

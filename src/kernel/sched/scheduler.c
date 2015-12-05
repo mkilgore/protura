@@ -226,8 +226,6 @@ void scheduler(void)
          * keep the same ordering and ensure that the next task we run is a
          * task we haven't checked yet. */
         list_foreach_entry(&ktasks.list, t, task_list_node) {
-            kp(KP_TRACE, "Checking task %s(%d): %d\n", t->name, t->pid, t->state);
-
             /* If a task was preempted, then we start it again, reguardless of
              * it's current state. It's possible they aren't actually
              * TASK_RUNNABLE, which is why this check is needed. */
@@ -281,8 +279,6 @@ void scheduler(void)
          * Once the task_switch happens, */
         t->state = TASK_RUNNING;
         cpu_get_local()->current = t;
-
-        kp(KP_TRACE, "Scheduling: %s(%p)\n", t->name, t);
 
         task_switch(&cpu_get_local()->scheduler, t);
 
