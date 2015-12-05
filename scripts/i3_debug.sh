@@ -1,4 +1,10 @@
 #!/bin/bash
+#
+# Use with ./script work1 work2 [arguments]
+#
+# Where 'work1' is the name of the workspace to start the debugging on
+# 'work2' is the name of your current workspace (So the script can switch back to it)
+# [arguments] are any extra arguments you want to pass on to the kernel when it is run.
 
 mv ./qemu.log ./qemu.log.bak
 
