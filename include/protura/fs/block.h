@@ -17,6 +17,7 @@
 #include <protura/mutex.h>
 #include <protura/atomic.h>
 #include <protura/dev.h>
+#include <protura/crc.h>
 
 struct block_device;
 
@@ -44,6 +45,11 @@ struct block {
 
     /* To be able to modify this block, you have to acquire this lock */
     mutex_t block_mutex;
+
+#ifdef CONFIG_BLOCK_CHANGE_CRC_CHECK
+    /* Used to catch b->dirty not set errors */
+    uint16_t crc;
+#endif
 
     /* If the block_mutex is currently locked, then this points to the task
      * that currently holds that lock */
@@ -116,10 +122,33 @@ struct block_device *block_dev_get(dev_t device);
 int block_dev_set_block_size(dev_t device, size_t size);
 void block_dev_clear(dev_t dev);
 
+#define BLOCK_CRC_POLY CRC_ANSI_POLY
+
+#ifdef CONFIG_BLOCK_CHANGE_CRC_CHECK
+static inline void block_set_crc(struct block *b)
+{
+    b->crc = crc16(b->data, b->block_size, BLOCK_CRC_POLY);
+}
+
+static inline void block_check_crc(struct block *b)
+{
+    if (crc16(b->data, b->block_size, BLOCK_CRC_POLY) != b->crc)
+        panic("Block %d:%d: CRC check failed, b->dirty should be set! b->dirty=%d\n", b->dev, b->sector, b->dirty);
+}
+#else
+static inline void block_set_crc(struct block *b) { }
+static inline void block_check_crc(struct block *b) { }
+#endif
+
 static inline void block_dev_sync_block(struct block_device *dev, struct block *b)
 {
-    if (!b->valid || b->dirty)
+    if (!b->dirty && b->valid)
+        block_check_crc(b);
+
+    if (!b->valid || b->dirty) {
         (dev->ops->sync_block) (dev, b);
+        block_set_crc(b);
+    }
 }
 
 static inline void block_lock(struct block *b)
@@ -147,8 +176,8 @@ static inline int block_try_lock(struct block *b)
 static inline void block_unlock(struct block *b)
 {
     kp(KP_LOCK, "block %d:%d: Unlocking\n", b->dev, b->sector);
-    b->owner = NULL;
     block_dev_sync_block(b->bdev, b);
+    b->owner = NULL;
     mutex_unlock(&b->block_mutex);
     kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
 }

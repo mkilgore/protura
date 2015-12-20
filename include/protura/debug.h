@@ -53,17 +53,23 @@ void kp_output_unregister(void (*print) (const char *fmt, va_list lst));
         } \
     } while (0)
 
-#define panic(str, ...) \
+#define panic(str, ...) __panic("[PANIC]: " str, ## __VA_ARGS__);
+
+void __panic(const char *s, ...) __printf(1, 2) __noreturn;
+void __panicv(const char *s, va_list) __noreturn;
+
+#define BUG(str, ...) \
     do { \
-        cli(); \
-        kprintf_internal("[PANIC]: " str, ## __VA_ARGS__); \
-        dump_stack(); \
-        while (1) \
-            hlt(); \
+        kp(KP_ERROR, "BUG: %s: %d/%s(): \"%s\"\n", __FILE__, __LINE__, __func__, str); \
+        panic(__VA_ARGS__); \
     } while (0)
 
-/*
-void panic(const char *s, ...) __printf(1, 2) __noreturn;
-void panicv(const char *s, va_list) __noreturn; */
+/* Called with 'condition' and then printf-like format string + arguments */
+#define kassert(cond, ...) \
+    do { \
+        int __kassert_cond = (cond); \
+        if (unlikely(!__kassert_cond)) \
+            BUG(Q(cond), __VA_ARGS__); \
+    } while (0)
 
 #endif

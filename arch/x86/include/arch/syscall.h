@@ -23,7 +23,7 @@
 #define SYSCALL_READ    0x0B
 #define SYSCALL_WRITE   0x0C
 #define SYSCALL_LSEEK   0x0D
-#define SYSCALL_EXEC    0x0E
+#define SYSCALL_EXECVE  0x0E
 #define SYSCALL_YIELD   0x0F
 #define SYSCALL_EXIT    0x10
 #define SYSCALL_WAIT    0x11
@@ -32,6 +32,11 @@
 #define SYSCALL_BRK     0x14
 #define SYSCALL_SBRK    0x15
 #define SYSCALL_READ_DENT 0x16
+#define SYSCALL_CHDIR   0x17
+#define SYSCALL_TRUNCATE 0x18
+#define SYSCALL_FTRUNCATE 0x19
+#define SYSCALL_LINK    0x1A
+#define SYSCALL_SYNC    0x1B
 
 #ifdef __KERNEL__
 #ifndef ASM

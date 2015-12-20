@@ -100,7 +100,7 @@ struct ext2_disk_inode {
     uint32_t dtime;
     uint16_t gid;
     uint16_t links_count;
-    uint32_t blocks; /* Reocrded in number of 512 byte blocks */
+    uint32_t blocks; /* Recorded in number of 512 byte blocks */
     uint32_t flags;
     uint32_t osd1;
     uint32_t blk_ptrs[15];
@@ -126,12 +126,26 @@ struct ext2_disk_directory_entry {
     char name[];
 };
 
+/* Indexes for 'name_len_and_type' */
+#define EXT2_DENT_NAME_LEN_LOW 0
+#define EXT2_DENT_NAME_LEN_HIGH 1
+#define EXT2_DENT_TYPE 1
+
+
 #ifdef __KERNEL__
 
 #include <protura/fs/block.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/super.h>
+#include <protura/mutex.h>
 
+/* Order of locking is:
+ * super_block_lock
+ *   block_groups_lock
+ *     dirty_inodes_lock
+ *
+ * Note that in most cases, it's unnecessary to take more then one of those
+ * locks at any one time */
 struct ext2_super_block {
     struct super_block sb;
 
@@ -140,16 +154,33 @@ struct ext2_super_block {
 
     int sb_block_nr;
 
+    mutex_t super_block_lock;
     struct ext2_disk_sb disksb;
 
+    mutex_t block_groups_lock;
     struct ext2_disk_block_group *groups;
 };
+
+static inline void ext2_super_block_init(struct ext2_super_block *sb)
+{
+    memset(sb, 0, sizeof(*sb));
+    super_block_init(&sb->sb);
+    mutex_init(&sb->super_block_lock);
+    mutex_init(&sb->block_groups_lock);
+}
+
+#define using_ext2_super_block(super) \
+    using_mutex(&(super)->super_block_lock)
+
+#define using_ext2_block_groups(super) \
+    using_mutex(&(super)->block_groups_lock)
 
 struct ext2_inode {
     struct inode i;
 
     sector_t inode_group_blk_nr;
     int inode_group_blk_offset;
+    uint32_t blocks;
 
     uint32_t flags;
     union {

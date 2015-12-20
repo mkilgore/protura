@@ -33,8 +33,6 @@ CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
 LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc
 ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
 
-GENEXT2FS := genext2fs
-
 # Configuration -- Uncomment lines to enable option
 # Or specify on the commandline
 

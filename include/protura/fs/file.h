@@ -54,10 +54,12 @@ enum file_whence {
 enum file_flags {
     FILE_READABLE,
     FILE_WRITABLE,
+    FILE_APPEND,
 };
 
 #define file_is_readable(file) (bit_test(&(file)->flags, FILE_READABLE))
 #define file_is_writable(file) (bit_test(&(file)->flags, FILE_WRITABLE))
+#define file_is_append(file) (bit_test(&(file)->flags, FILE_APPEND))
 
 #define file_set_readable(file) (bit_set(&(file)->flags, FILE_READABLE))
 #define file_set_writable(file) (bit_set(&(file)->flags, FILE_WRITABLE))

@@ -12,6 +12,7 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
 #include <protura/mm/user_ptr.h>
+#include <protura/fs/sync.h>
 
 #define PATH_MAX 256
 
@@ -23,12 +24,15 @@ off_t sys_lseek(int fd, off_t off, int whence);
 int sys_read_dent(int fd, struct dent *__user dent, size_t size);
 
 int sys_truncate(const char *__user file, off_t length);
+int sys_ftruncate(int fd, off_t length);
+int sys_link(const char *old, const char *new);
+int sys_chdir(const char *__user path);
 
 /* Called internally by sys_open - Performs the same function, but takes
  * arguments relating to inode's and file's rather then a path name and
  * userspace flags. If you have to use sys_open in the kernel. */
 int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp);
 
-int sys_exec(const char *__user executable, char *const __user argv[], struct irq_frame *);
+int sys_execve(const char *__user executable, const char *const __user argv[], const char *const __user envp[], struct irq_frame *);
 
 #endif

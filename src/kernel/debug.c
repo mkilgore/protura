@@ -69,3 +69,21 @@ void kprintf_internal(const char *fmt, ...)
     va_end(lst);
 }
 
+void __panicv(const char *s, va_list lst)
+{
+    cli();
+    kprintfv_internal(s, lst);
+    dump_stack();
+    while (1)
+        hlt();
+}
+
+void __panic(const char *s, ...)
+{
+    cli();
+    va_list lst;
+    va_start(lst, s);
+    __panicv(s, lst);
+    va_end(lst);
+}
+

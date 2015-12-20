@@ -23,7 +23,7 @@ int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
     char *buf = vbuf;
     size_t have_read = 0;
     struct block_device *bdev = filp->inode->bdev;
-    dev_t dev = filp->inode->dev;
+    dev_t dev = filp->inode->dev_no;
 
     if (!file_is_readable(filp))
         return -EBADF;

@@ -5,12 +5,13 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_FS_EXEC_H
-#define INCLUDE_FS_EXEC_H
+#ifndef INCLUDE_PROTURA_CRC_H
+#define INCLUDE_PROTURA_CRC_H
 
-#include <protura/irq.h>
-#include <protura/fs/inode.h>
+#include <protura/types.h>
 
-int execve(struct inode *inode, const char *const argv[], const char *const envp[], struct irq_frame *);
+uint16_t crc16(void *data, size_t len, uint16_t poly);
+
+#define CRC_ANSI_POLY ((uint16_t)0x8005)
 
 #endif

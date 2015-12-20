@@ -26,7 +26,7 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
 {
     char *buf = vbuf;
     size_t have_read = 0;
-    dev_t dev = filp->inode->sb->dev;
+    dev_t dev = filp->inode->sb_dev;
 
     if (!file_is_readable(filp))
         return -EBADF;
@@ -71,13 +71,66 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
     return have_read;
 }
 
-int fs_file_generic_write(struct file *filp, void *buf, size_t len)
+int fs_file_generic_write(struct file *filp, void *vbuf, size_t len)
 {
+    int ret = 0;
+    char *buf = vbuf;
+    size_t have_written = 0;
+    dev_t dev = filp->inode->sb_dev;
+
     if (!file_is_writable(filp))
         return -EBADF;
 
-    /* To be implemented */
-    return 0;
+    if (flag_test(&filp->flags, FILE_APPEND)) {
+        kp(KP_TRACE, "write append: lseek(SEEK_END)\n");
+        ret = vfs_lseek(filp, 0, SEEK_END);
+        if (ret < 0)
+            return ret;
+
+        kp(KP_TRACE, "write append: truncate(%d)\n", filp->offset + len);
+        ret = vfs_truncate(filp->inode, filp->offset + len);
+        if (ret)
+            return ret;
+    }
+
+    size_t block_size = filp->inode->sb->bdev->block_size;
+    sector_t sec = filp->offset / block_size;
+    off_t sec_off = filp->offset - sec * block_size;
+
+    using_inode_lock_write(filp->inode) {
+        while (have_written < len) {
+            struct block *b;
+            sector_t on_dev = vfs_bmap_alloc(filp->inode, sec);
+
+            if (on_dev == SECTOR_INVALID) {
+                ret = -ENOSPC;
+                break;
+            }
+
+            off_t left = (len - have_written > block_size - sec_off)?
+                            block_size - sec_off:
+                            len - have_written;
+
+
+            using_block(dev, on_dev, b) {
+                kp(KP_TRACE, "Write: %d: sec_off=%d, have_written=%d, b->data=%p\n", dev, sec_off, have_written, b->data);
+                memcpy(b->data + sec_off, buf + have_written, left);
+                b->dirty = 1;
+            }
+
+            have_written += left;
+
+            sec_off = 0;
+            sec++;
+        }
+    }
+
+    if (ret == 0) {
+        filp->offset += have_written;
+        ret = have_written;
+    }
+
+    return ret;
 }
 
 off_t fs_file_generic_lseek(struct file *filp, off_t off, int whence)
@@ -108,7 +161,7 @@ off_t fs_file_generic_lseek(struct file *filp, off_t off, int whence)
 struct file *file_dup(struct file *filp)
 {
     atomic_inc(&filp->ref);
-    kp(KP_TRACE, "File dup i:%d:%d, %d\n", filp->inode->ino, filp->inode->dev, atomic_get(&filp->ref));
+    kp(KP_TRACE, "File dup i:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
     return filp;
 }
 

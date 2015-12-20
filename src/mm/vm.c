@@ -134,6 +134,9 @@ int user_check_region(const va_t ptr, size_t size, flags_t vm_flags)
     struct address_space *addrspc = t->addrspc;
     struct vm_map *cur;
 
+    if (!user_ptr_check_is_on())
+        return 0;
+
     kp(KP_TRACE, "Checking user pointer %p(%d)\n", ptr, size);
 
     list_foreach_entry(&addrspc->vm_maps, cur, address_space_entry) {
@@ -154,6 +157,9 @@ int user_check_strn(const va_t ptr, size_t size, flags_t vm_flags)
     struct task *t = cpu_get_local()->current;
     struct address_space *addrspc = t->addrspc;
     struct vm_map *cur;
+
+    if (!user_ptr_check_is_on())
+        return 0;
 
     list_foreach_entry(&addrspc->vm_maps, cur, address_space_entry) {
         if (cur->addr.start <= ptr) {

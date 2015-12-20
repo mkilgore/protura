@@ -36,12 +36,9 @@ static int ext2_dir_lookup(struct inode *dir, const char *name, size_t len, stru
     return ret;
 }
 
-static int ext2_dir_change_attrs(struct inode *dir, struct inode_attributes *attrs)
+static int ext2_dir_truncate(struct inode *dir, off_t size)
 {
-    if (attrs->change & INO_ATTR_SIZE)
-        return -EISDIR;
-
-    return -ENOTSUP;
+    return -EISDIR;
 }
 
 static int ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler)
@@ -64,6 +61,40 @@ static int ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t dent_
     return ret;
 }
 
+static int ext2_dir_link(struct inode *dir, struct inode *old, const char *name, size_t len)
+{
+    int ret;
+
+    kp_ext2(dir->sb, "link: %d -> %d(%s)\n", old->ino, dir->ino, name);
+
+    if (S_ISDIR(old->mode))
+        return -EPERM;
+
+    using_inode_lock_write(dir) {
+        int exists = __ext2_dir_entry_exists(dir, name, len);
+
+        kp_ext2(dir->sb, "Exists: %d\n", exists);
+
+        if (!exists)
+            ret = __ext2_dir_add(dir, name, len, old->ino, old->mode);
+        else
+            ret = -EEXIST;
+    }
+
+    if (ret)
+        return ret;
+
+    atomic_inc(&old->nlinks);
+    inode_set_dirty(old);
+
+    return 0;
+}
+
+static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode)
+{
+
+}
+
 struct file_ops ext2_file_ops_dir = {
     .open = NULL,
     .release = NULL,
@@ -76,7 +107,9 @@ struct file_ops ext2_file_ops_dir = {
 
 struct inode_ops ext2_inode_ops_dir = {
     .lookup = ext2_dir_lookup,
-    .change_attrs = ext2_dir_change_attrs,
+    .truncate = ext2_dir_truncate,
     .bmap = ext2_bmap,
+    .bmap_alloc = NULL,
+    .link = ext2_dir_link,
 };
 

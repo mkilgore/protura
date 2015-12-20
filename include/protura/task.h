@@ -33,7 +33,7 @@ struct task {
     unsigned int preempted :1;
     unsigned int kernel :1;
     unsigned int killed :1;
-    unsigned int user_ptrs :1;
+    unsigned int user_ptr_check :1;
 
     int ret_code;
 
@@ -41,12 +41,14 @@ struct task {
 
     list_node_t task_list_node;
 
-    /* If this task is sleeping in a wait_queue, then this node is attached to that wait_queue */
+    /* If this task is sleeping in a wait_queue, then this node is attached to
+     * that wait_queue */
     struct wait_queue_node wait;
 
     struct address_space *addrspc;
 
     struct task *parent;
+
     list_node_t task_sibling_list;
 
     spinlock_t children_list_lock;
@@ -60,6 +62,8 @@ struct task {
 
     char name[20];
 };
+
+extern struct task *task_pid1;
 
 /* Allocates a new task, assigning it a PID, intializing it's kernel
  * stack for it's first run, giving it a blank address_space, and setting the
@@ -125,15 +129,34 @@ static inline int task_fd_get_checked(struct task *t, int fd, struct file **filp
 
 #define fd_get_empty() \
     task_fd_get_empty(cpu_get_local()->current)
+
 #define fd_release(fd) \
     task_fd_release(cpu_get_local()->current, (fd));
+
 #define fd_assign(fd, filp) \
     task_fd_assign(cpu_get_local()->current, (fd), (filp))
+
 #define fd_get(fd) \
     task_fd_get(cpu_get_local()->current, (fd))
+
 #define fd_get_checked(fd, filp) \
     task_fd_get_checked(cpu_get_local()->current, (fd), (filp))
 
 extern const char *task_states[];
+
+static inline void user_ptr_check_off(void)
+{
+    cpu_get_local()->current->user_ptr_check = 1;
+}
+
+static inline void user_ptr_check_on(void)
+{
+    cpu_get_local()->current->user_ptr_check = 0;
+}
+
+static inline int user_ptr_check_is_on(void)
+{
+    return cpu_get_local()->current->user_ptr_check;
+}
 
 #endif

@@ -85,9 +85,9 @@ static void sys_handler_lseek(struct irq_frame *frame)
     frame->eax = sys_lseek(frame->ebx, frame->ecx, frame->edx);
 }
 
-static void sys_handler_exec(struct irq_frame *frame)
+static void sys_handler_execve(struct irq_frame *frame)
 {
-    sys_exec((char *)frame->ebx, (char *const *)frame->ecx, frame);
+    sys_execve((char *)frame->ebx, (const char *const *)frame->ecx, (const char *const *)frame->edx, frame);
 }
 
 static void sys_handler_yield(struct irq_frame *frame)
@@ -130,6 +130,31 @@ static void sys_handler_read_dent(struct irq_frame *frame)
     frame->eax = sys_read_dent(frame->ebx, (struct dent *)frame->ecx, frame->edx);
 }
 
+static void sys_handler_chdir(struct irq_frame *frame)
+{
+    frame->eax = sys_chdir((const char *)frame->ebx);
+}
+
+static void sys_handler_truncate(struct irq_frame *frame)
+{
+    frame->eax = sys_truncate((const char *)frame->ebx, (off_t)frame->ecx);
+}
+
+static void sys_handler_ftruncate(struct irq_frame *frame)
+{
+    frame->eax = sys_ftruncate(frame->ebx, (off_t)frame->ecx);
+}
+
+static void sys_handler_link(struct irq_frame *frame)
+{
+    frame->eax = sys_link((const char *)frame->ebx, (const char *)frame->ecx);
+}
+
+static void sys_handler_sync(struct irq_frame *frame)
+{
+    sys_sync();
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -150,7 +175,7 @@ static struct syscall_handler {
     SYSCALL(READ, sys_handler_read),
     SYSCALL(WRITE, sys_handler_write),
     SYSCALL(LSEEK, sys_handler_lseek),
-    SYSCALL(EXEC, sys_handler_exec),
+    SYSCALL(EXECVE, sys_handler_execve),
     SYSCALL(YIELD, sys_handler_yield),
     SYSCALL(EXIT, sys_handler_exit),
     SYSCALL(WAIT, sys_handler_wait),
@@ -159,6 +184,11 @@ static struct syscall_handler {
     SYSCALL(BRK, sys_handler_brk),
     SYSCALL(SBRK, sys_handler_sbrk),
     SYSCALL(READ_DENT, sys_handler_read_dent),
+    SYSCALL(CHDIR, sys_handler_chdir),
+    SYSCALL(TRUNCATE, sys_handler_truncate),
+    SYSCALL(FTRUNCATE, sys_handler_ftruncate),
+    SYSCALL(LINK, sys_handler_link),
+    SYSCALL(SYNC, sys_handler_sync),
 };
 
 static void syscall_handler(struct irq_frame *frame)

@@ -52,6 +52,25 @@ static __always_inline int bit_test_and_set(const volatile void *value, int bit)
     return old;
 }
 
+static __always_inline int bit_find_first_zero(const void *value, size_t bytes)
+{
+    const char *b = value;
+    int index = 0, i;
+
+    for (i = 0; i < bytes; i++) {
+        if (b[i] == 0xFF)
+            continue;
+
+        uint8_t c = b[i];
+        int k;
+        for (k = 0; k < 8; k++, c >>= 1)
+            if (!(c & 1))
+                return index * 8 + k;
+    }
+
+    return -1;
+}
+
 #define flag_set(flags, f) bit_set(flags, f)
 #define flag_clear(flags, f) bit_clear(flags, f)
 #define flag_test(flags, f) bit_test(flags, f)

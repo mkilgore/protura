@@ -31,10 +31,16 @@ enum inode_flags {
 
 struct inode {
     ino_t ino;
-    dev_t dev;
+
+    /* sb_dev is the block-device attached to the super-block.
+     *
+     * dev_no is the device-number this inode refers to, if it is a block or
+     * char device. */
+    dev_t sb_dev;
+    dev_t dev_no;
     off_t size;
     mode_t mode;
-    int nlinks;
+    atomic32_t nlinks;
 
     flags_t flags;
 
@@ -43,6 +49,8 @@ struct inode {
     atomic_t ref;
     struct hlist_node hash_entry;
     list_node_t list_entry;
+
+    list_node_t sb_dirty_entry;
 
     struct super_block *sb;
     struct inode_ops *ops;
@@ -56,27 +64,52 @@ enum inode_attributes_flags {
     INO_ATTR_SIZE,
 };
 
-struct inode_attributes {
-    flags_t change;
-
-    off_t size;
-};
-
 struct inode_ops {
+    /* Look-up the string 'name' of length 'len' in the provided directory
+     * inode. If found, then the coresponding inode is returned in 'result' */
     int (*lookup) (struct inode *dir, const char *name, size_t len, struct inode **result);
-    int (*change_attrs) (struct inode *, struct inode_attributes *);
+
+    /* Change the attributes of the provided inode using the provided new
+     * 'struct inode_attributes' object */
+    int (*truncate) (struct inode *, off_t size);
+
+    /* Standard bmap - Map a sector from the provided inode to a sector on the
+     * underlying block-device */
     sector_t (*bmap) (struct inode *, sector_t);
+
+    /* Allocate bmap - Same as bmap, but if the sector does not have an
+     * underlying sector on the block-device, a new one is given to the provide
+     * inode and returned. - Generally used for writing to files, as sparse
+     * files may not have blocks mapped in every inode sector. */
+    sector_t (*bmap_alloc) (struct inode *, sector_t);
+
+    int (*mkdir) (struct inode *, const char *name, size_t len, ino_t ino, mode_t mode);
+    int (*link) (struct inode *dir, struct inode *old, const char *name, size_t len);
 };
 
-#define inode_has_change_attrs(inode) ((inode)->ops && (inode)->ops->change_attrs)
+#define Pinode(i) (i)->sb_dev, (i)->ino
+#define PRinode "%d:%d"
+
+#define inode_has_truncate(inode) ((inode)->ops && (inode)->ops->truncate)
 #define inode_has_lookup(inode) ((inode)->ops && (inode)->ops->lookup)
 #define inode_has_bmap(inode) ((inode)->ops && (inode)->ops->bmap)
+#define inode_has_bmap_alloc(inode) ((inode)->ops && (inode)->ops->bmap_alloc)
+#define inode_has_link(inode) ((inode)->ops && (inode)->ops->link)
 
 #define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
 #define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)
 
 #define inode_set_valid(inode) bit_set(&(inode)->flags, INO_VALID)
-#define inode_set_dirty(inode) bit_set(&(inode)->flags, INO_DIRTY)
+#define inode_set_dirty(inode) \
+    do { \
+        using_mutex(&(inode)->sb->dirty_inodes_lock) { \
+            if (!bit_test(&(inode)->flags, INO_DIRTY)) { \
+                bit_set(&(inode)->flags, INO_DIRTY); \
+                kp(KP_TRACE, "Adding "PRinode": dirty\n", Pinode(inode)); \
+                list_add(&(inode)->sb->dirty_inodes, &(inode)->sb_dirty_entry); \
+            } \
+        } \
+    } while (0)
 
 #define inode_clear_valid(inode) bit_clear(&(inode)->flags, INO_VALID)
 #define inode_clear_dirty(inode) bit_clear(&(inode)->flags, INO_DIRTY)
@@ -88,43 +121,44 @@ static inline void inode_init(struct inode *i)
     mutex_init(&i->lock);
     atomic_init(&i->ref, 0);
     list_node_init(&i->list_entry);
+    list_node_init(&i->sb_dirty_entry);
 }
 
 int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result);
 
 static inline void inode_lock_read(struct inode *i)
 {
-    kp(KP_LOCK, "inode %d:%d: Locking read\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Locking read\n", Pinode(i));
     mutex_lock(&i->lock);
-    kp(KP_LOCK, "inode %d:%d: Locked read\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Locked read\n", Pinode(i));
 }
 
 static inline void inode_unlock_read(struct inode *i)
 {
-    kp(KP_LOCK, "inode %d:%d: Unlocking read\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Unlocking read\n", Pinode(i));
     mutex_unlock(&i->lock);
-    kp(KP_LOCK, "inode %d:%d: Unlocked read\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Unlocked read\n", Pinode(i));
 }
 
 static inline void inode_lock_write(struct inode *i)
 {
-    kp(KP_LOCK, "inode %d:%d: Locking write\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Locking write\n", Pinode(i));
     mutex_lock(&i->lock);
-    kp(KP_LOCK, "inode %d:%d: Locked write\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Locked write\n", Pinode(i));
 }
 
 static inline void inode_unlock_write(struct inode *i)
 {
-    kp(KP_LOCK, "inode %d:%d: Unlocking write\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Unlocking write\n", Pinode(i));
     mutex_unlock(&i->lock);
-    kp(KP_LOCK, "inode %d:%d: Unlocked write\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Unlocked write\n", Pinode(i));
 }
 
 static inline int inode_try_lock_write(struct inode *i)
 {
-    kp(KP_LOCK, "inode %d:%d: Attempting Locking write\n", i->ino, i->dev);
+    kp(KP_LOCK, "inode "PRinode": Attempting Locking write\n", Pinode(i));
     if (mutex_try_lock(&i->lock)) {
-        kp(KP_LOCK, "inode %d:%d: Locked write\n", i->ino, i->dev);
+        kp(KP_LOCK, "inode "PRinode": Locked write\n", Pinode(i));
         return 1;
     }
     return 0;

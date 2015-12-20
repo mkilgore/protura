@@ -1,8 +1,10 @@
 
 #include <protura/types.h>
-#include "syscalls.h"
+#include <syscalls.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/fcntl.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define INT_COUNT 128
 
@@ -19,5 +21,5 @@ int main(int argc, char **argv)
         putchar('\n');
     }
 
-    exit(0);
+    return 0;
 }

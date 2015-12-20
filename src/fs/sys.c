@@ -64,6 +64,7 @@ int sys_open(const char *__user path, int flags, mode_t mode)
     unsigned int file_flags = 0;
     struct inode *inode;
     struct file *filp;
+    struct task *current = cpu_get_local()->current;
 
     ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
     if (ret)
@@ -76,7 +77,10 @@ int sys_open(const char *__user path, int flags, mode_t mode)
     else
         file_flags = F(FILE_READABLE);
 
-    ret = namei(path, &inode);
+    if (flags & O_APPEND)
+        file_flags |= F(FILE_APPEND);
+
+    ret = namex(path, current->cwd, &inode);
     if (ret)
         goto return_result;
 
@@ -165,5 +169,66 @@ off_t sys_lseek(int fd, off_t off, int whence)
         return ret;
 
     return vfs_lseek(filp, off, whence);
+}
+
+int sys_truncate(const char *path, off_t length)
+{
+    struct task *current = cpu_get_local()->current;
+    struct inode *i;
+    int ret;
+
+    ret = namex(path, current->cwd, &i);
+    if (ret)
+        return ret;
+
+    ret = vfs_truncate(i, length);
+
+    inode_put(i);
+
+    return ret;
+}
+
+int sys_ftruncate(int fd, off_t length)
+{
+    struct file *filp;
+    int ret;
+
+    ret = fd_get_checked(fd, &filp);
+
+    if (ret)
+        return ret;
+
+    return vfs_truncate(filp->inode, length);
+}
+
+int sys_link(const char *old, const char *new)
+{
+    struct task *current = cpu_get_local()->current;
+    struct inode *dir;
+    struct inode *oldlink;
+    int ret;
+    const char *name;
+    size_t len;
+
+    ret = namex(old, current->cwd, &oldlink);
+    if (ret)
+        return ret;
+
+    ret = namexparent(new, &name, &len, current->cwd, &dir);
+    if (ret)
+        goto release_oldlink;
+
+    ret = vfs_link(dir, oldlink, name, len);
+
+
+    inode_put(dir);
+  release_oldlink:
+    inode_put(oldlink);
+    return ret;
+}
+
+int sys_chdir(const char *__user path)
+{
+    return vfs_chdir(path);
 }
 

@@ -24,7 +24,7 @@
 #include <protura/fs/namei.h>
 #include <protura/fs/fs.h>
 
-int namex(const char *path, struct inode *cwd, struct inode **result)
+static int namei_generic(const char *path, const char **name_start, size_t *name_len, int get_parent, struct inode *cwd, struct inode **result)
 {
     int ret = 0;
 
@@ -41,6 +41,12 @@ int namex(const char *path, struct inode *cwd, struct inode **result)
 
         while (path[len] && path[len] != '/')
             len++;
+
+        if (!path[len] && get_parent) {
+            *name_start = path;
+            *name_len = len;
+            break;
+        }
 
         ret = vfs_lookup(cwd, path, len, &next);
 
@@ -61,6 +67,21 @@ int namex(const char *path, struct inode *cwd, struct inode **result)
   release_cwd:
     inode_put(cwd);
     return ret;
+}
+
+int namexparent(const char *path, const char **name_start, size_t *name_len, struct inode *cwd, struct inode **result)
+{
+    return namei_generic(path, name_start, name_len, 1, cwd, result);
+}
+
+int nameiparent(const char *path, const char **name_start, size_t *name_len, struct inode **result)
+{
+    return namexparent(path, name_start, name_len, ino_root, result);
+}
+
+int namex(const char *path, struct inode *cwd, struct inode **result)
+{
+    return namei_generic(path, NULL, NULL, 0, cwd, result);
 }
 
 int namei(const char *path, struct inode **result)

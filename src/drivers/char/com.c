@@ -106,7 +106,7 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
 {
     char *buf = vbuf;
     int cur_pos = 0;
-    int com_id = DEV_MINOR(filp->inode->dev);
+    int com_id = DEV_MINOR(filp->inode->dev_no);
     struct task *current = cpu_get_local()->current;
     struct com_port *com = com_ports + com_id;
 
@@ -126,6 +126,7 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
                 buf[cur_pos] = char_buf_read_char(&com->buf);
                 cur_pos++;
                 com->buf_len--;
+                kp(KP_TRACE, "%d: Reading from COM\n", current->pid);
             }
         }
 
@@ -144,7 +145,7 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
 static int com_file_write(struct file *filp, void *vbuf, size_t len)
 {
     char *buf = vbuf;
-    int com_id = DEV_MINOR(filp->inode->dev);
+    int com_id = DEV_MINOR(filp->inode->dev_no);
     struct com_port *com = com_ports + com_id;
 
     if (com_id > ARRAY_SIZE(com_ports))

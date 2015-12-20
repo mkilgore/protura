@@ -20,6 +20,9 @@
 #define ENOEXEC 10
 #define ENODEV  11
 #define EFAULT  12
+#define ENOSPC  13
+#define EEXIST  14
+#define EPERM   15
 
 extern const char *error_strings[];
 

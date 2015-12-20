@@ -70,12 +70,12 @@ int vfs_close(struct file *filp)
 {
     int ret = 0;
 
-    kp(KP_TRACE, "closing file, inode:%d:%d, %d\n", filp->inode->ino, filp->inode->dev, atomic_get(&filp->ref));
+    kp(KP_TRACE, "closing file, inode:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
 
     if (!atomic_dec_and_test(&filp->ref))
         return 0;
 
-    kp(KP_TRACE, "Releasing file with inode:%d:%d!\n", filp->inode->ino, filp->inode->dev);
+    kp(KP_TRACE, "Releasing file with inode:"PRinode"!\n", Pinode(filp->inode));
 
     if (file_has_release(filp))
         ret = filp->ops->release(filp);
@@ -145,15 +145,13 @@ int vfs_lookup(struct inode *inode, const char *name, size_t len, struct inode *
 
 int vfs_truncate(struct inode *inode, off_t length)
 {
-    struct inode_attributes attrs = { 0 };
+    if (S_ISDIR(inode->mode))
+        return -EISDIR;
 
-    attrs.change |= INO_ATTR_SIZE;
-    attrs.size = length;
-
-    if (inode_has_change_attrs(inode))
-        return inode->ops->change_attrs(inode, &attrs);
-
-    return 0;
+    if (inode_has_truncate(inode))
+        return inode->ops->truncate(inode, length);
+    else
+        return -ENOTSUP;
 }
 
 sector_t vfs_bmap(struct inode *inode, sector_t s)
@@ -162,5 +160,42 @@ sector_t vfs_bmap(struct inode *inode, sector_t s)
         return inode->ops->bmap(inode, s);
     else
         return -ENOTSUP;
+}
+
+sector_t vfs_bmap_alloc(struct inode *inode, sector_t s)
+{
+    if (inode_has_bmap_alloc(inode))
+        return inode->ops->bmap_alloc(inode, s);
+    else
+        return vfs_bmap(inode, s);
+}
+
+int vfs_link(struct inode *dir, struct inode *old, const char *name, size_t len)
+{
+    if (!S_ISDIR(dir->mode))
+        return -ENOTDIR;
+
+    if (inode_has_link(dir))
+        return dir->ops->link(dir, old, name, len);
+    else
+        return -ENOTSUP;
+}
+
+int vfs_chdir(const char *path)
+{
+    struct task *current = cpu_get_local()->current;
+    struct inode *new_cwd = NULL;
+    int ret;
+
+    kp(KP_TRACE, "chdir: %s\n", path);
+
+    ret = namex(path, current->cwd, &new_cwd);
+    if (ret)
+        return ret;
+
+    inode_put(current->cwd);
+    current->cwd = new_cwd;
+
+    return 0;
 }
 

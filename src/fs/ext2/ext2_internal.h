@@ -24,8 +24,26 @@ extern struct inode_ops ext2_inode_ops_file;
 extern struct file_ops ext2_file_ops_dir;
 extern struct file_ops ext2_file_ops_file;
 
+sector_t ext2_block_alloc(struct ext2_super_block *);
+void ext2_block_release(struct ext2_super_block *, sector_t);
+
+/* Releases blocks associated with a paticular inode.
+ *
+ * Takes a size so it can be used to implement truncate. The ext2_inode is
+ * modified to reflect the new size. Note that if called with a larger size
+ * then the current size, this is a no-op, because the blocks will be allocated
+ * on use.
+ *
+ * Must have a write-lock on the inode.
+ */
+int __ext2_inode_truncate(struct ext2_inode *, off_t size);
+int ext2_truncate(struct inode *, off_t size);
+
 sector_t ext2_bmap(struct inode *i, sector_t inode_sector);
+sector_t ext2_bmap_alloc(struct inode *i, sector_t inode_sector);
+
 int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result);
+int __ext2_dir_entry_exists(struct inode *dir, const char *name, size_t len);
 int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, mode_t mode);
 int __ext2_dir_remove(struct inode *dir, const char *name, size_t len);
 int __ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler);

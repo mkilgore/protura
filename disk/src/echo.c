@@ -1,6 +1,6 @@
 
 #include <protura/types.h>
-#include "syscalls.h"
+#include <syscalls.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/fcntl.h>
 
@@ -16,5 +16,5 @@ int main(int argc, char **argv)
         write(1, &c, 1);
     }
 
-    exit(0);
+    return 0;
 }

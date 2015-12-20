@@ -97,7 +97,7 @@ static __always_inline uint32_t xchg(volatile void *addr, uint32_t val)
     asm volatile(LOCK_PREFIX" xchgl %0, %1\n":
                  "+m" (*ptr), "=a" (result) :
                  "1" (val) :
-                 "cc");
+                 "cc", "memory");
 
     return result;
 }
@@ -113,6 +113,13 @@ static __always_inline uint32_t cmpxchg(volatile void *addr, uint32_t cmp, uint3
             : "memory");
 
     return ret;
+}
+
+/* 'xchg' but for pointers. atomically stores the pointer value 'new' into the
+ * location pointed too by 'old'. */
+static __always_inline void *atomic_ptr_swap(volatile void *addr, void *new)
+{
+    return (void *)xchg(addr, (uint32_t)new);
 }
 
 #endif

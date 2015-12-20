@@ -20,6 +20,8 @@
 #include <protura/init/init_task.h>
 #include <protura/init/init_basic.h>
 
+/* Initial user task */
+struct task *task_pid1;
 
 int kernel_is_booting = 1;
 
@@ -29,13 +31,10 @@ static int start_user_init(void *unused)
     sb_root = (file_system_lookup("ext2")->read_sb) (DEV_MAKE(BLOCK_DEV_IDE, 0));
     ino_root = sb_root->root;
 
-    struct task *user_init;
+    task_pid1 = task_user_new_exec("/bin/init");
+    task_pid1->pid = 1;
+    scheduler_task_add(task_pid1);
 
-    user_init = task_user_new_exec("/init");
-    user_init->pid = 1;
-    scheduler_task_add(user_init);
-
-    /* sys_exit(0); */
     return 0;
 }
 

@@ -90,7 +90,7 @@ struct task *task_new(void)
     struct task *task;
 
     if (atomic_get(&total_tasks) >= CONFIG_TASK_MAX) {
-        kp(KP_ERROR, "!!!!MAX TASKS REACHED, task_new() REFUSED!!!!\n");
+        kp(KP_WARNING, "!!!!MAX TASKS REACHED, task_new() REFUSED!!!!\n");
         return NULL;
     }
 
@@ -154,6 +154,8 @@ struct task *task_user_new_exec(const char *exe)
     if (!t)
         return NULL;
 
+    t->user_ptr_check = 1;
+
     arch_task_setup_stack_user_with_exec(t, exe);
 
     t->cwd = inode_dup(ino_root);
@@ -169,6 +171,8 @@ struct task *task_user_new(void)
 
     if (!t)
         return NULL;
+
+    t->user_ptr_check = 1;
 
     arch_task_setup_stack_user(t);
 
@@ -222,9 +226,41 @@ void task_make_zombie(struct task *t)
 
     t->killed = 1;
 
-    /* Zombies are not allowed to have children */
-    list_foreach_entry(&t->task_children, child, task_sibling_list)
-        task_free(child);
+    /* Children of Zombie's are inherited by PID1. */
+    using_spinlock(&task_pid1->children_list_lock) {
+        list_foreach_entry(&t->task_children, child, task_sibling_list) {
+            /* The atomic swap guarentees consistency of the child->parent
+             * pointer.
+             *
+             * There is no actual race here, even without a lock on the
+             * 'child->parent' field, because a task will always be set to
+             * TASK_ZOMBIE *before* attempting to wake it's parent.
+             *
+             * The race would be if 'child' is in sys_exit() while we're making
+             * it's current parent a zombie. It's not an issue because
+             * sys_exit() always sets 'child->state' to TASK_ZOMBIE *before*
+             * caling scheduler_task_wake(child->parent). 
+             *
+             * Thus, by swaping in task_pid1 as the parent before checking for
+             * TASK_ZOMBIE, we guarentee that we get the correct functionality:
+             * If 'child->state' isn't TASK_ZOMBIE: 
+             *   There's no issue because even if they're in sys_exit(), they
+             *   haven't attempted to wake up the parent yet.
+             *
+             * If 'child->state' is TASK_ZOMBIE:
+             *   Then we call scheduler_task_wake(task_pid1) to ensure PID1
+             *   gets the wake-up. The worst case here is that PID1 recieves
+             *   two wake-ups - No big deal.
+             */
+            atomic_ptr_swap(&child->parent, task_pid1);
+
+            kp(KP_TRACE, "Init: Inheriting child %d\n", child->pid);
+            list_move(&task_pid1->task_children, &child->task_sibling_list);
+
+            if (child->state == TASK_ZOMBIE)
+                scheduler_task_wake(task_pid1);
+        }
+    }
 
     for (i = 0; i < NOFILE; i++) {
         if (t->files[i]) {
@@ -333,9 +369,17 @@ void sys_exit(int code)
      * reschedule back to us may not work after that. */
     irq_disable();
 
+    /* We're going to delete our address-space, including our page-table, so we
+     * need to switch to the kernel's to ensure we don't attempt to keep using
+     * the deleted page-table. */
     arch_address_space_switch_to_kernel();
 
     task_make_zombie(t);
+
+    /* Compiler barrier guarentee's that t->parent will not be read *before*
+     * t->state is set to TASK_ZOMBIE. See details in task_make_zombie(). */
+    barrier();
+
     if (t->parent)
         scheduler_task_wake(t->parent);
 
@@ -362,10 +406,10 @@ pid_t sys_wait(int *ret)
             }
 
             list_foreach_entry(&t->task_children, child, task_sibling_list) {
-                kp(KP_TRACE, "Checking child %s(%p)\n", child->name, child);
+                kp(KP_TRACE, "Checking child %s(%p, %d)\n", child->name, child, child->pid);
                 if (child->state == TASK_ZOMBIE) {
                     list_del(&child->task_sibling_list);
-                    kp(KP_TRACE, "Found zombie child\n");
+                    kp(KP_TRACE, "Found zombie child: %d\n", child->pid);
                     have_child = 1;
                     break;
                 }

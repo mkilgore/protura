@@ -85,9 +85,14 @@ static inline int read(int fd, char *buf, int len)
     return syscall3(SYSCALL_READ, fd, (int)buf, len);
 }
 
-static inline int write(int fd, char *buf, int len)
+static inline int write(int fd, const char *buf, int len)
 {
     return syscall3(SYSCALL_WRITE, fd, (int)buf, len);
+}
+
+static inline off_t lseek(int fd, off_t offset, int whence)
+{
+    return syscall3(SYSCALL_LSEEK, fd, (int)offset, whence);
 }
 
 static inline int msleep(int mseconds)
@@ -102,7 +107,17 @@ static inline int fork(void)
 
 static inline int exec(const char *prog)
 {
-    return syscall1(SYSCALL_EXEC, (int)prog);
+    return syscall3(SYSCALL_EXECVE, (int)prog, 0, 0);
+}
+
+static inline int execv(const char *prog, const char *const *argv)
+{
+    return syscall3(SYSCALL_EXECVE, (int)prog, (int)argv, 0);
+}
+
+static inline int execve(const char *prog, const char *const *argv, const char *const *envp)
+{
+    return syscall3(SYSCALL_EXECVE, (int)prog, (int)argv, (int)envp);
 }
 
 static inline void yield(void)
@@ -110,7 +125,7 @@ static inline void yield(void)
     syscall0(SYSCALL_YIELD);
 }
 
-static inline void exit(int code)
+static inline void _exit(int code)
 {
     syscall1(SYSCALL_EXIT, code);
 }
@@ -143,6 +158,31 @@ static inline void *sbrk(intptr_t increment)
 static inline int read_dent(int fd, void *ptr, size_t size)
 {
     return syscall3(SYSCALL_READ_DENT, fd, (int)ptr, (int)size);
+}
+
+static inline int chdir(const char *path)
+{
+    return syscall1(SYSCALL_CHDIR, (int)path);
+}
+
+static inline int truncate(const char *path, off_t length)
+{
+    return syscall2(SYSCALL_TRUNCATE, (int)path, (int)length);
+}
+
+static inline int ftruncate(int fd, off_t length)
+{
+    return syscall2(SYSCALL_FTRUNCATE, fd, (int)length);
+}
+
+static inline int link(const char *old, const char *new)
+{
+    return syscall2(SYSCALL_LINK, (int)old, (int)new);
+}
+
+static inline void sync(void)
+{
+    syscall0(SYSCALL_SYNC);
 }
 
 #endif

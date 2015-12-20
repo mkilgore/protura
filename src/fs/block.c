@@ -22,6 +22,7 @@
 #include <protura/scheduler.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/drivers/ide.h>
+#include <protura/crc.h>
 
 #include <arch/spinlock.h>
 #include <arch/task.h>
@@ -62,12 +63,15 @@ void block_cache_init(void)
 
 }
 
-static void block_delete(struct block *b)
+static void __block_uncache(struct block *b)
 {
     /* Remove this block from the cache */
     hlist_del(&b->cache);
     block_cache.cache_count--;
+}
 
+static void block_delete(struct block *b)
+{
     kfree(b->data);
     kfree(b);
 }
@@ -116,6 +120,9 @@ void __block_cache_shrink(void)
             block_unlock(b);
             continue;
         }
+
+        /* Remove this block from the cache */
+        __block_uncache(b);
 
         block_delete(b);
     }
@@ -188,37 +195,18 @@ void brelease(struct block *b)
     block_unlock(b);
 }
 
-void block_cache_sync(void)
-{
-    int i;
-    struct block_device *dev;
-
-    for (i = 0; i < BLOCK_HASH_TABLE_SIZE; i++) {
-        struct block *b;
-        hlist_foreach_entry(block_cache.cache + i, b, cache) {
-            /* We just skip any currently locked blocks, since we don't want to
-             * sleep and wait for them when doing a sync. */
-            if (block_try_lock(b) != SUCCESS)
-                continue;
-
-            dev = block_dev_get(b->dev);
-
-            block_dev_sync_block(dev, b);
-
-            block_unlock(b);
-        }
-    }
-}
-
 void block_dev_clear(dev_t dev)
 {
     struct block_device *bdev = block_dev_get(dev);
     struct block *b;
 
-    list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
-        if (!mutex_try_lock(&b->block_mutex))
-            panic("EXT2: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
-        block_delete(b);
+    using_spinlock(&block_cache.lock) {
+        list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
+            if (!mutex_try_lock(&b->block_mutex))
+                panic("EXT2: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
+            __block_uncache(b);
+            block_delete(b);
+        }
     }
 }
 

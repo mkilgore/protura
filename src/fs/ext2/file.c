@@ -28,14 +28,15 @@ struct file_ops ext2_file_ops_file = {
     .open = NULL,
     .release = NULL,
     .read = fs_file_generic_read,
-    .write = NULL,
+    .write = fs_file_generic_write,
     .lseek = fs_file_generic_lseek,
     .readdir = NULL,
 };
 
 struct inode_ops ext2_inode_ops_file = {
     .lookup = NULL,
-    .change_attrs = NULL,
+    .truncate = ext2_truncate,
     .bmap = ext2_bmap,
+    .bmap_alloc = ext2_bmap_alloc,
 };
 

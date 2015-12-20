@@ -5,12 +5,13 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
-#ifndef INCLUDE_FS_EXEC_H
-#define INCLUDE_FS_EXEC_H
+#ifndef INCLUDE_FS_SYNC_H
+#define INCLUDE_FS_SYNC_H
 
-#include <protura/irq.h>
-#include <protura/fs/inode.h>
+#include <protura/fs/super.h>
 
-int execve(struct inode *inode, const char *const argv[], const char *const envp[], struct irq_frame *);
+void super_sync(struct super_block *sb);
+
+void sys_sync(void);
 
 #endif

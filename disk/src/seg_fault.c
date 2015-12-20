@@ -1,7 +1,7 @@
 
 
 #include <protura/types.h>
-#include "syscalls.h"
+#include <syscalls.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/fcntl.h>
 
@@ -42,5 +42,7 @@ int main(int argc, char **argv)
     putchar('\n');
 
     *ptr = 2;
+
+    return 0;
 }
 

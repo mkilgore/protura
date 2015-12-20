@@ -4,4 +4,5 @@ objs-y += file.o
 objs-y += dir.o
 objs-y += bmap.o
 objs-y += namei.o
+objs-y += truncate.o
 

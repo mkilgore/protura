@@ -15,4 +15,12 @@
 #define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
 
+#define MODE_TO_DT(mode) (((mode) >> 12) & 15)
+
+#define DT_UNKNOWN 0
+#define DT_CHR     2
+#define DT_DIR     4
+#define DT_BLK     6
+#define DT_REG     8
+
 #endif

@@ -12,5 +12,7 @@
 
 int namei(const char *path, struct inode **result);
 int namex(const char *path, struct inode *cwd, struct inode **result);
+int nameiparent(const char *path, const char **name_start, size_t *name_len, struct inode **result);
+int namexparent(const char *path, const char **name_start, size_t *name_len, struct inode *cwd, struct inode **result);
 
 #endif

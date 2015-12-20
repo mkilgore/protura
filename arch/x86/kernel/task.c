@@ -80,9 +80,15 @@ void arch_task_setup_stack_user_with_exec(struct task *t, const char *exe)
         ksp -= sizeof(struct irq_frame *);
         *(struct irq_frame **)ksp = t->context.frame;
 
+        /* envp */
         ksp -= sizeof(char *);
-        *(void **)ksp = NULL;
+        *(const void **)ksp = (const char *const []) { NULL };
 
+        /* argv */
+        ksp -= sizeof(char *);
+        *(const void **)ksp = (const char *const []) { NULL };
+
+        /* exe */
         ksp -= sizeof(exe);
         *(const char **)ksp = exe;
 

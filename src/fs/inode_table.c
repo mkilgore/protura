@@ -28,7 +28,7 @@
 #define INODE_HASH_SIZE 512
 
 static struct {
-    spinlock_t lock;
+    mutex_t lock;
 
     struct hlist_head inode_hashes[INODE_HASH_SIZE];
 
@@ -38,7 +38,7 @@ static struct {
 
     atomic_t inode_count;
 } inode_list = {
-    .lock = SPINLOCK_INIT("Inode table lock"),
+    .lock = MUTEX_INIT(inode_list.lock, "inode-hash-list"),
     .inode_hashes = { { .first = NULL } },
     .unused = LIST_HEAD_INIT(inode_list.unused),
     .inode_count = ATOMIC_INIT(0),
@@ -49,23 +49,13 @@ static inline int inode_hash_get(dev_t dev, ino_t ino)
     return (ino ^ (DEV_MAJOR(dev) + DEV_MINOR(dev))) % INODE_HASH_SIZE;
 }
 
-static void inode_hash(struct inode *inode)
-{
-    int hash = inode_hash_get(inode->dev, inode->ino);
-    if (hlist_hashed(&inode->hash_entry))
-        hlist_del(&inode->hash_entry);
-
-    using_spinlock(&inode_list.lock)
-        hlist_add(inode_list.inode_hashes + hash, &inode->hash_entry);
-}
-
 void inode_oom(void)
 {
     struct inode *inode;
 
     /* Entries are already flushed to the disk beforehand. This just removes
      * them from the hash and frees their memory. */
-    using_spinlock(&inode_list.lock) {
+    using_mutex(&inode_list.lock) {
         list_foreach_take_entry(&inode_list.unused, inode, list_entry) {
             struct super_block *sb = inode->sb;
             hlist_del(&inode->hash_entry);
@@ -79,13 +69,12 @@ void inode_put(struct inode *inode)
     int release = 0;
     struct super_block *sb = inode->sb;
 
-    using_spinlock(&inode_list.lock) {
+    using_mutex(&inode_list.lock) {
         if (atomic_get(&inode->ref) == 1) {
             /* We hold the only reference to this inode, so a try_lock should
-             * always work. We can't risk a regular lock though, because we
-             * can't sleep with inode_list.lock.
-             *
-             * Note that doing inode_put while holding the lock is illegal. */
+             * always work. If it doesn't then someone used inode_put() on the
+             * only reference left while holding a read/write lock on it, which
+             * is illegal */
             if (inode_try_lock_write(inode))
                 release = 1;
             else
@@ -96,16 +85,22 @@ void inode_put(struct inode *inode)
     }
 
     if (release) {
+        kp(KP_TRACE, "Releasing inode "PRinode"\n", Pinode(inode));
         /* If this inode has no hard-links to it, then we can just discard it. */
-        if (!inode->nlinks) {
+        if (atomic32_get(&inode->nlinks) == 0) {
             sb->ops->inode_delete(sb, inode);
             sb->ops->inode_dealloc(sb, inode);
             return ;
         }
 
-        sb->ops->inode_write(sb, inode);
+        using_mutex(&inode->sb->dirty_inodes_lock) {
+            if (flag_test(&inode->flags, INO_DIRTY)) {
+                sb->ops->inode_write(sb, inode);
+                list_del(&inode->sb_dirty_entry);
+            }
+        }
 
-        using_spinlock(&inode_list.lock) {
+        using_mutex(&inode_list.lock) {
 
             /* Check the reference count again. Since inode_write can sleep
              * it's possible there are more references. Note that checking the
@@ -123,7 +118,7 @@ void inode_put(struct inode *inode)
 
 struct inode *inode_dup(struct inode *i)
 {
-    using_spinlock(&inode_list.lock)
+    using_mutex(&inode_list.lock)
         atomic_inc(&i->ref);
 
     return i;
@@ -134,33 +129,40 @@ struct inode *inode_get(struct super_block *sb, ino_t ino)
     int hash = inode_hash_get(sb->dev, ino);
     struct inode *inode = NULL;
 
-    using_spinlock(&inode_list.lock) {
+    using_mutex(&inode_list.lock) {
         hlist_foreach_entry(&inode_list.inode_hashes[hash], inode, hash_entry) {
-            if (inode->ino == ino && inode->dev == sb->dev) {
-                atomic_inc(&inode->ref);
+            if (inode->ino == ino && inode->sb_dev == sb->dev) {
                 list_del(&inode->list_entry);
+                atomic_inc(&inode->ref);
 
                 break;
             }
         }
+
+        if (!inode) {
+            int ret;
+
+            /* FIXME: It's necessary to call sb_inode_read while holding the
+             * inode_list.lock to avoid a race, however the race could be
+             * avoided without doing that as long as a way of handle multipel
+             * inode_get() calls for the same inode number is handled */
+            inode = sb->ops->inode_alloc(sb);
+            inode->ino = ino;
+
+            ret = sb->ops->inode_read(sb, inode);
+            kp(KP_TRACE, "Read inode: %p - "PRinode"\n", inode, Pinode(inode));
+
+            if (ret) {
+                sb->ops->inode_delete(sb, inode);
+                inode = NULL;
+            } else {
+                hlist_add(inode_list.inode_hashes + hash, &inode->hash_entry);
+                atomic_inc(&inode_list.inode_count);
+                atomic_inc(&inode->ref);
+            }
+        }
     }
 
-    if (inode)
-        goto return_inode;
-
-    inode = sb_inode_read(sb, ino);
-
-    kp(KP_TRACE, "Read inode: %p\n", inode);
-
-    if (!inode)
-        return NULL;
-
-    atomic_inc(&inode->ref);
-    atomic_inc(&inode_list.inode_count);
-
-    inode_hash(inode);
-
-  return_inode:
     return inode;
 }
 

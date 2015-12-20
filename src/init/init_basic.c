@@ -225,7 +225,7 @@ static void test_ext2(void)
         kp(KP_TRACE, "1: Inode: %d\n", i->ino);
         kp(KP_TRACE, "1: Size: %d\n", i->size);
         kp(KP_TRACE, "1: Mode: %d\n", i->mode);
-        kp(KP_TRACE, "1: Dev: %d\n", i->dev);
+        kp(KP_TRACE, "1: Dev: %d\n", i->dev_no);
         kp(KP_TRACE, "1: Nlinks: %d\n", i->nlinks);
         inode_put(i);
     }
@@ -237,7 +237,7 @@ static void test_ext2(void)
         kp(KP_TRACE, "2: Inode: %d\n", i->ino);
         kp(KP_TRACE, "2: Size: %d\n", i->size);
         kp(KP_TRACE, "2: Mode: %d\n", i->mode);
-        kp(KP_TRACE, "2: Dev: %d\n", i->dev);
+        kp(KP_TRACE, "2: Dev: %d\n", i->dev_no);
         kp(KP_TRACE, "2: Nlinks: %d\n", i->nlinks);
         inode_put(i);
     }
@@ -249,7 +249,7 @@ static void test_ext2(void)
         kp(KP_TRACE, "3: Inode: %d\n", i->ino);
         kp(KP_TRACE, "3: Size: %d\n", i->size);
         kp(KP_TRACE, "3: Mode: %d\n", i->mode);
-        kp(KP_TRACE, "3: Dev: %d\n", i->dev);
+        kp(KP_TRACE, "3: Dev: %d\n", i->dev_no);
         kp(KP_TRACE, "3: Nlinks: %d\n", i->nlinks);
         inode_put(i);
     }
@@ -279,7 +279,8 @@ int kernel_keyboard_thread(void *unused)
     struct task *user_task;
 
     user_task = task_user_new_exec("/test_prog");
-    scheduler_task_add(user_task);
+    if (user_task)
+        scheduler_task_add(user_task);
 
     while (1)
         scheduler_task_yield();

@@ -24,7 +24,7 @@ else
     kernel_cmdline="-append \"${@:2}\""
 fi
 
-qemu_line="qemu-system-i386 -serial file:./qemu.log -serial telnet:127.0.0.1:5346,nowait -curses -monitor telnet:127.0.0.1:5345,nowait -s -S -debugcon file:./qemu_debug.log -d cpu_reset -hda ./disk.img -kernel ./imgs/protura_x86_multiboot $kernel_cmdline"
+qemu_line="qemu-system-i386 -serial file:./qemu.log -serial telnet:127.0.0.1:5346,nowait -curses -monitor telnet:127.0.0.1:5345,nowait -s -S -debugcon file:./qemu_debug.log -d cpu_reset -drive format=raw,file=./disk.img,media=disk,index=0,if=ide -kernel ./imgs/protura_x86_multiboot $kernel_cmdline"
 
 urxvt -title qemu-monitor -e bash -c "echo $qemu_line; stty -icanon -echo; nc -v -l -p 5345 | tee ./qemu_monitor.log" &
 MON_PID=$!

@@ -46,7 +46,7 @@ static int check_ents_in_block(struct block *b, int ents, const char *name, size
 int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result)
 {
     struct block *b;
-    dev_t dev = dir->dev;
+    dev_t dev = dir->sb_dev;
     int sectors, i, ents;
     size_t sector_size = dir->sb->bdev->block_size;
     int dents_in_block = sector_size / sizeof(struct dirent);
