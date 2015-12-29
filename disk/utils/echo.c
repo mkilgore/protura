@@ -1,8 +1,5 @@
 
-#include <protura/types.h>
-#include <syscalls.h>
-#include <protura/fs/stat.h>
-#include <protura/fs/fcntl.h>
+#include <unistd.h>
 
 #define begin_str "Echo!\n" "Type '~' to exit\n"
 

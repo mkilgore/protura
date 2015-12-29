@@ -227,6 +227,25 @@ int sys_link(const char *old, const char *new)
     return ret;
 }
 
+int sys_unlink(const char *file)
+{
+    struct task *current = cpu_get_local()->current;
+    struct inode *dir;
+    int ret;
+    const char *name;
+    size_t len;
+
+    ret = namexparent(file, &name, &len, current->cwd, &dir);
+    if (ret)
+        return ret;
+
+    ret = vfs_unlink(dir, name, len);
+
+    inode_put(dir);
+
+    return ret;
+}
+
 int sys_chdir(const char *__user path)
 {
     return vfs_chdir(path);

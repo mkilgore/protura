@@ -101,25 +101,47 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
          * If mem_size > f_size, then the empty space is filled with zeros. */
         int pages = PG_ALIGN(sect.mem_size) / PG_SIZE;
         int k;
+        off_t starting_offset = sect.f_off - PG_ALIGN_DOWN(sect.f_off);
+        off_t file_size = sect.f_size + starting_offset;
+        off_t file_offset = sect.f_off - starting_offset;
+
+        kp(KP_TRACE,"Starting_offset: %d\n", starting_offset);
+
+        /* This could be cleaned-up. The complexity comes from the fact that
+         * sect.f_off doesn't have to be page aligned, even if the section it
+         * is in has to be page aligned - This is more then likely due to
+         * sections being stripped out, leaving the other sections at odd offsets.
+         *
+         * Thus, we handle the first page separate from the rest of the pages,
+         * and handle it's offset into virtual memory manually. Then, we loop
+         * to handle the rest of the pages, using 'file_size' and 'file_offset'
+         * which are adjusted values to skip the first part of the file that we
+         * already read.
+         */
 
         for (k = 0; k < pages; k++) {
             off_t len;
             struct page *p = palloc(0, PAL_KERNEL);
 
-            if (PG_SIZE * k + PG_SIZE < sect.f_size)
-                len = PG_SIZE;
-            else if (sect.f_size > PG_SIZE * k)
-                len = sect.f_size - PG_SIZE * k;
+            if (PG_SIZE * k + PG_SIZE < file_size)
+                len = PG_SIZE - starting_offset;
+            else if (file_size > PG_SIZE * k)
+                len = file_size - starting_offset - PG_SIZE * k;
             else
                 len = 0;
 
-            if (len > 0) {
-                vfs_lseek(params->exe, sect.f_off + k * PG_SIZE, SEEK_SET);
-                vfs_read(params->exe, p->virt, len);
+            if (len) {
+                vfs_lseek(params->exe, file_offset + starting_offset + (k * PG_SIZE), SEEK_SET);
+                vfs_read(params->exe, p->virt + starting_offset, len);
             }
+
+            len += starting_offset;
+            starting_offset = 0;
 
             if (len < PG_SIZE)
                 memset(p->virt + len, 0, PG_SIZE - len);
+
+            starting_offset = 0;
 
             kp(KP_TRACE, "Page: %p\n", p);
             list_add_tail(&new_sect->page_list, &p->page_list_node);

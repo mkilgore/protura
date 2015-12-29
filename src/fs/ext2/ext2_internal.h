@@ -42,6 +42,9 @@ int ext2_truncate(struct inode *, off_t size);
 sector_t ext2_bmap(struct inode *i, sector_t inode_sector);
 sector_t ext2_bmap_alloc(struct inode *i, sector_t inode_sector);
 
+__must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result);
+int __ext2_dir_remove_entry(struct inode *dir, struct block *b, struct ext2_disk_directory_entry *entry);
+
 int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result);
 int __ext2_dir_entry_exists(struct inode *dir, const char *name, size_t len);
 int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, mode_t mode);

@@ -37,6 +37,7 @@
 #define SYSCALL_FTRUNCATE 0x19
 #define SYSCALL_LINK    0x1A
 #define SYSCALL_SYNC    0x1B
+#define SYSCALL_UNLINK  0x1C
 
 #ifdef __KERNEL__
 #ifndef ASM

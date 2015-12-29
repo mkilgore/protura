@@ -65,15 +65,11 @@ static int ext2_dir_link(struct inode *dir, struct inode *old, const char *name,
 {
     int ret;
 
-    kp_ext2(dir->sb, "link: %d -> %d(%s)\n", old->ino, dir->ino, name);
-
     if (S_ISDIR(old->mode))
         return -EPERM;
 
     using_inode_lock_write(dir) {
         int exists = __ext2_dir_entry_exists(dir, name, len);
-
-        kp_ext2(dir->sb, "Exists: %d\n", exists);
 
         if (!exists)
             ret = __ext2_dir_add(dir, name, len, old->ino, old->mode);
@@ -88,6 +84,26 @@ static int ext2_dir_link(struct inode *dir, struct inode *old, const char *name,
     inode_set_dirty(old);
 
     return 0;
+}
+
+static int ext2_dir_unlink(struct inode *dir, const char *name, size_t len)
+{
+    struct block *b;
+    struct ext2_disk_directory_entry *entry;
+    int ret;
+
+    using_inode_lock_write(dir) {
+        b = __ext2_lookup_entry(dir, name, len, &entry);
+
+        if (entry->name_len_and_type[EXT2_DENT_TYPE] == DT_DIR)
+            ret = -EISDIR;
+        else
+            ret = __ext2_dir_remove_entry(dir, b, entry);
+
+        brelease(b);
+    }
+
+    return ret;
 }
 
 static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode)
@@ -111,5 +127,6 @@ struct inode_ops ext2_inode_ops_dir = {
     .bmap = ext2_bmap,
     .bmap_alloc = NULL,
     .link = ext2_dir_link,
+    .unlink = ext2_dir_unlink,
 };
 

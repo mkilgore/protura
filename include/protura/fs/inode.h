@@ -85,6 +85,7 @@ struct inode_ops {
 
     int (*mkdir) (struct inode *, const char *name, size_t len, ino_t ino, mode_t mode);
     int (*link) (struct inode *dir, struct inode *old, const char *name, size_t len);
+    int (*unlink) (struct inode *dir, const char *name, size_t len);
 };
 
 #define Pinode(i) (i)->sb_dev, (i)->ino
@@ -95,6 +96,7 @@ struct inode_ops {
 #define inode_has_bmap(inode) ((inode)->ops && (inode)->ops->bmap)
 #define inode_has_bmap_alloc(inode) ((inode)->ops && (inode)->ops->bmap_alloc)
 #define inode_has_link(inode) ((inode)->ops && (inode)->ops->link)
+#define inode_has_unlink(inode) ((inode)->ops && (inode)->ops->unlink)
 
 #define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
 #define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)

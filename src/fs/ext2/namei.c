@@ -39,7 +39,7 @@ static size_t ext2_disk_dir_entry_rec_len(size_t name_len)
  * '*result'. The block that *result resides in is returned by the function.
  * This block should be passed to brelease() when you're done messing with
  * *result. Note that this function may/will return NULL when a lookup fails */
-static __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result)
+__must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result)
 {
     struct block *b;
     int block_size = dir->sb->bdev->block_size;
@@ -202,19 +202,11 @@ int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, m
     return 0;
 }
 
-/* Marks the entry as empty by using inode-no zero, and combining it into the
- * previous inode entry. */
-int __ext2_dir_remove(struct inode *dir, const char *name, size_t len)
+int __ext2_dir_remove_entry(struct inode *dir, struct block *b, struct ext2_disk_directory_entry *entry)
 {
-    struct block *b;
-    struct ext2_disk_directory_entry *entry, *prev;
+    struct ext2_disk_directory_entry *prev;
     int block_size = dir->sb->bdev->block_size;
     int offset;
-
-    b = __ext2_lookup_entry(dir, name, len, &entry);
-
-    if (!b)
-        return -ENOENT;
 
     for (offset = 0, prev = NULL; offset < block_size; offset += prev->rec_len) {
         struct ext2_disk_directory_entry *new;
@@ -235,9 +227,29 @@ int __ext2_dir_remove(struct inode *dir, const char *name, size_t len)
 
     entry->ino = 0;
 
-    brelease(b);
+    b->dirty = 1;
 
     return 0;
+}
+
+/* Marks the entry as empty by using inode-no zero, and combining it into the
+ * previous inode entry. */
+int __ext2_dir_remove(struct inode *dir, const char *name, size_t len)
+{
+    int ret;
+    struct block *b;
+    struct ext2_disk_directory_entry *entry;
+
+    b = __ext2_lookup_entry(dir, name, len, &entry);
+
+    if (!b)
+        return -ENOENT;
+
+    ret = __ext2_dir_remove_entry(dir, b, entry);
+
+    brelease(b);
+
+    return ret;
 }
 
 int __ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler)

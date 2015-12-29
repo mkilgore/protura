@@ -26,6 +26,7 @@ int sys_read_dent(int fd, struct dent *__user dent, size_t size);
 int sys_truncate(const char *__user file, off_t length);
 int sys_ftruncate(int fd, off_t length);
 int sys_link(const char *old, const char *new);
+int sys_unlink(const char *name);
 int sys_chdir(const char *__user path);
 
 /* Called internally by sys_open - Performs the same function, but takes

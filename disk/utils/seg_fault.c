@@ -1,9 +1,8 @@
 
 
-#include <protura/types.h>
-#include <syscalls.h>
-#include <protura/fs/stat.h>
-#include <protura/fs/fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #define begin_str "Echo!\n" "Type '~' to exit\n"
 
@@ -25,21 +24,15 @@ int main(int argc, char **argv)
 
     ret = open(no_terminating_char, 0, 0);
 
-    putstr("ret=");
-    putint(ret);
-    putchar('\n');
+    printf("ret = %d\n", ret);
 
     ret = read(0, NULL, 40);
 
-    putstr("ret=");
-    putint(ret);
-    putchar('\n');
+    printf("ret = %d\n", ret);
 
     ret = write(1, NULL, 410000);
 
-    putstr("ret=");
-    putint(ret);
-    putchar('\n');
+    printf("ret = %d\n", ret);
 
     *ptr = 2;
 

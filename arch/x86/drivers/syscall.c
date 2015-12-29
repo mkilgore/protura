@@ -20,6 +20,11 @@
 #include <arch/drivers/pic8259_timer.h>
 #include <protura/fs/sys.h>
 
+/* 
+ * These simple functions serve as the glue between the underlying
+ * functionality used for syscalls, and the actual sys_* functions.
+ */
+
 static void sys_handler_putchar(struct irq_frame *frame)
 {
     sys_putchar(frame->ebx);
@@ -155,6 +160,11 @@ static void sys_handler_sync(struct irq_frame *frame)
     sys_sync();
 }
 
+static void sys_handler_unlink(struct irq_frame *frame)
+{
+    frame->eax = sys_unlink((const char *)frame->ebx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -189,11 +199,13 @@ static struct syscall_handler {
     SYSCALL(FTRUNCATE, sys_handler_ftruncate),
     SYSCALL(LINK, sys_handler_link),
     SYSCALL(SYNC, sys_handler_sync),
+    SYSCALL(UNLINK, sys_handler_unlink),
 };
 
 static void syscall_handler(struct irq_frame *frame)
 {
-    (syscall_handlers[frame->eax].handler) (frame);
+    if (frame->eax < ARRAY_SIZE(syscall_handlers))
+        (syscall_handlers[frame->eax].handler) (frame);
 }
 
 void syscall_init(void)

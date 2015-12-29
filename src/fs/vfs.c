@@ -181,6 +181,17 @@ int vfs_link(struct inode *dir, struct inode *old, const char *name, size_t len)
         return -ENOTSUP;
 }
 
+int vfs_unlink(struct inode *dir, const char *name, size_t len)
+{
+    if (!S_ISDIR(dir->mode))
+        return -ENOTDIR;
+
+    if (inode_has_unlink(dir))
+        return dir->ops->unlink(dir, name, len);
+    else
+        return -ENOTSUP;
+}
+
 int vfs_chdir(const char *path)
 {
     struct task *current = cpu_get_local()->current;

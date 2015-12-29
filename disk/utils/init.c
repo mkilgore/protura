@@ -1,15 +1,18 @@
 
-#include <protura/types.h>
-#include <syscalls.h>
+//#include <syscalls.h>
 #include <string.h>
-#include <protura/fs/stat.h>
-#include <protura/fs/fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define hello "Hello from Init!!!\n"
 
 #define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test\n"
 
-static pid_t start_prog(const char *prog, const char *const argv[])
+static pid_t start_prog(const char *prog, char *const argv[])
 {
     pid_t child_pid;
 
@@ -44,19 +47,17 @@ int main(int argc, char **argv)
     keyboardfd = open("/dev/com2", O_RDONLY, 0);
     consolefd = open("/dev/com2", O_WRONLY, 0);
 
-    link("/test_file", "/test_file_linked1");
-    link("/test_file", "/test_file_linked2");
-    link("/test_file", "/test_file_linked3");
-    link("/test_file", "/test_file_linked4");
-    link("/test_file", "/test_file_linked5");
-    link("/test_file", "/test_file_linked6");
-    link("/test_file", "/test_file_linked7");
-    link("/test_file", "/test_file_linked8");
-    link("/test_file", "/test_file_linked9");
+    link("/test_dir/test_dir_file", "/test_dir/new_linked_file");
+    link("/test_dir/test_dir_file", "/test_dir/new_linked_file2");
+    unlink("/test_dir/new_linked_file2");
 
     write(consolefd, hello, sizeof(hello) - 1);
 
     write(consolefd, prompt, sizeof(prompt) - 1);
+
+    fwrite("Test\n", 5, 1, stdout);
+
+    sync();
 
     while (1) {
         char c;
@@ -89,7 +90,7 @@ int main(int argc, char **argv)
         }
 
         if (c == 'a') {
-            start_prog("/bin/arg_test", (const char *const []) { "Argument 1", "Argument 2", "Argument 3", "-c", "-w2", "--make", NULL } );
+            start_prog("/bin/arg_test", (char *const [20]) { "Argument 1", "Argument 2", "Argument 3", "-c", "-w2", "--make", NULL } );
             wait(NULL);
         }
 

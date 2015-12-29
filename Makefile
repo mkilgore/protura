@@ -8,8 +8,11 @@ VERSION_N := $(VERSION).$(SUBLEVEL).$(PATCH)
 ARCH   := x86
 BITS   := 32
 
+PROTURA_DIR := $(PWD)
+
 # TARGET := i686-elf-
-TARGET :=
+TARGET := i686-protura-
+TOOLCHAIN_DIR := $(PROTURA_DIR)/toolchain
 
 # Compiler settings
 CC      := $(TARGET)gcc
@@ -17,6 +20,7 @@ CPP     := $(TARGET)gcc -E
 LD      := $(TARGET)ld
 AS      := $(TARGET)gas
 PERL    := perl -w -Mdiagnostics
+MKDIR   := mkdir
 
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
@@ -95,13 +99,15 @@ ifdef PROTURA_DEBUG
 endif
 
 ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),clean-configure)
 ifneq ($(wildcard $(CONFIG_FILE)),$(CONFIG_FILE))
 $(error Configuration file $(objtree)/protura.conf does not exist. Please create this file before running make or specify different config file via conf variable on commandline)
 endif
 endif
+endif
 
-# We don't generate the config.mk if we're just going to delete it anyway
-ifneq ($(MAKECMDGOALS),clean)
+# We don't include config.mk if we're just going to delete it anyway
+ifneq ($(MAKECMDGOALS),clean-configure)
 _tmp := $(shell mkdir -p $(objtree)/include/protura/config)
 # Note - Including a file that doesn't exist provokes make to check for a rule
 # This line actually runs the $(objtree)/config.mk rule and generates config.mk
@@ -109,11 +115,9 @@ _tmp := $(shell mkdir -p $(objtree)/include/protura/config)
 -include $(objtree)/config.mk
 endif
 
-ifdef CONFIG_FRAME_POINTER
+ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS += -fno-omit-frame-pointer
 endif
-
-CLEAN_LIST += $(objtree)/config.mk $(objtree)/include/protura/config/autoconf.h
 
 # This includes everything in the 'include' folder of the $(objtree)
 # This is so that the code can reference generated include files
@@ -192,7 +196,11 @@ DEP_LIST := $(foreach file,$(REAL_OBJS_y),$(dir $(file)).$(notdir $(file)))
 DEP_LIST := $(DEP_LIST:.o=.d)
 
 ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),configure)
+ifneq ($(MAKECMDGOALS),clean-configure)
 -include $(DEP_LIST)
+endif
+endif
 endif
 
 CLEAN_LIST += $(DEP_LIST)
@@ -215,12 +223,23 @@ endef
 
 $(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
 
-EXTRA_TARGETS += disk.img
+# Actual default entry
+real-all:
+	@echo "Please run make with one of 'configure', 'kernel', 'toolchain', or 'disk'"
+	@echo "See README.md for more information"
 
-# Actual entry
-real-all: configure $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
+PHONY += kernel
+kernel: configure $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
 
+PHONY += configure
 configure: $(objtree)/config.mk $(objtree)/include/protura/config/autoconf.h
+
+PHONY += clean-configure
+clean-configure:
+	@echo " RM      $(objtree)/config.mk"
+	$(Q)$(RM) -fr $(objtree)/config.mk
+	@echo " RM      $(objtree)/include/protura/config/autoconf.h"
+	$(Q)$(RM) -fr $(objtree)/include/protura/config/autoconf.h
 
 $(objtree)/config.mk: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
 	@echo " PERL    $@"
@@ -230,7 +249,7 @@ $(objtree)/include/protura/config/autoconf.h: $(CONFIG_FILE) $(srctree)/scripts/
 	@echo " PERL    $@"
 	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl cpp < $< > $@
 
-dist: clean
+dist: clean clean-toolchain clean-configure clean-disk
 	$(Q)mkdir -p $(EXE)-$(VERSION_N)
 	$(Q)cp -R Makefile README.md config.mk LICENSE ./doc ./include ./src ./test $(EXE)-$(VERSION_N)
 	$(Q)tar -cf $(EXE)-$(VERSION_N).tar $(EXE)-$(VERSION_N)
@@ -300,7 +319,11 @@ $(objtree)/.%.d: $(objtree)/%.S
 	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
-# Compile for protura:
+install-kernel-headers: | ./disk/root/usr/include
+	@echo " CP      include"
+	$(Q)cp -r ./include/* ./disk/root/usr/include/
+	@echo " CP      arch/$(ARCH)/include"
+	$(Q)cp -r ./arch/$(ARCH)/include/* ./disk/root/usr/include/
 
 PHONY += cscope
 cscope:
@@ -313,7 +336,6 @@ cscope:
 	$(Q)cscope -b -q -k
 
 include ./disk/Makefile
-include ./tools/Makefile
 
 .PHONY: $(PHONY)
 

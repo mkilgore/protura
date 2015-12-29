@@ -1,11 +1,24 @@
+/*
+ * Copyright (C) 2015 Matt Kilgore
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License v2 as published by the
+ * Free Software Foundation.
+ */
 
-#include <protura/types.h>
-#include <protura/compiler.h>
-#include <syscalls.h>
-#include <protura/fs/stat.h>
-#include <protura/fs/fcntl.h>
-#include <protura/fs/dent.h>
+//#include <syscalls.h>
 #include <string.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
+
+struct dent {
+    uint32_t ino;
+    uint32_t dent_len;
+    uint32_t name_len;
+    char name[];
+};
 
 #define begin_str "Echo!\n" "Type '~' to exit\n"
 
@@ -46,7 +59,7 @@ static inline void print_hex(unsigned int val)
     write(1, (str), strlen(str))
 
 
-__align(4) char dent_buffer[256];
+__attribute__((align(4))) char dent_buffer[256];
 
 const char *dir = "./";
 
@@ -60,17 +73,12 @@ int main(int argc, char **argv)
 
     dirfd = open("./", O_RDONLY, 0);
 
-    while ((ret = read_dent(dirfd, dent_buffer, sizeof(dent_buffer))) != 0) {
+    while ((ret = syscall3(SYSCALL_READ_DENT, dirfd, dent_buffer, sizeof(dent_buffer))) != 0) {
         struct dent *dent = (struct dent *)dent_buffer;
-        print(dent->name);
-        print(" ");
-        print_int(dent->ino);
-        print("\n");
+        printf("%s %d\n", dent->name, dent->ino);
     }
 
-    print("ret=");
-    print_int(ret);
-    print("\n");
+    printf("ret = %d\n", ret);
 
     close(dirfd);
 

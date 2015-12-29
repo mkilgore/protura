@@ -38,14 +38,9 @@ void irq_register_callback(uint8_t irqno, void (*handler)(struct irq_frame *), c
 {
     struct idt_identifier *ident = idt_ids + irqno;
 
-    kp(KP_TRACE, "Registering callback %d\n", irqno);
-
-    kp(KP_TRACE, "Old handler: %p\n", ident->handler);
     ident->handler = handler;
     ident->name = id;
     ident->type = type;
-    kp(KP_TRACE, "New handler: %p\n", handler);
-    kp(KP_TRACE, "New handler assigned: %p\n", ident->handler);
 }
 
 static const char *cpu_exception_name[] = {

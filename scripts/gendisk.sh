@@ -7,7 +7,8 @@ mkdir ./disk_ext2
 mkfs.ext2 -b 1024 -O ^large_file ./disk.img 16384
 mount ./disk.img ./disk_ext2
 
-cp -R ./disk/* ./disk_ext2/
+cp -R ./disk/root/* ./disk_ext2/
+mkdir ./disk_ext2/dev
 
 while read device; do
     mknod ./disk_ext2/$device

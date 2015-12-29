@@ -1,8 +1,5 @@
 
-#include <protura/types.h>
-#include <syscalls.h>
-#include <protura/fs/stat.h>
-#include <protura/fs/fcntl.h>
+#include <stdio.h>
 #include <string.h>
 
 static inline void print_int(unsigned int val)
@@ -45,21 +42,15 @@ int main(int argc, char **argv)
 {
     int i;
 
-    print("argc: ");
-    print_int(argc);
-    print("\n");
+    printf("argc: %d\n", argc);
 
     for (i = 0; i < argc; i++) {
-        print("str: ");
-        write(1, argv[i], strlen(argv[i]));
-        print("\n");
+        printf("str: %s\n", argv[i]);
     }
 
     argv[0][1] = 'k';
 
-    print("Modified arg: ");
-    write(1, argv[0], strlen(argv[0]));
-    print("\n");
+    printf("Modified arg: %s\n", argv[0]);
 
     return 0;
 }
