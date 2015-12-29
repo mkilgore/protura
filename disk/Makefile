@@ -71,8 +71,9 @@ clean-disk:
 
 PHONY += toolchain clean-toolchain
 toolchain: | ./disk/root ./disk/root/usr
-	@cd ./disk/toolchain && git submodule foreach git pull
-	$(Q)./disk/toolchain/build_toolchain.sh ./disk/root /usr $(TOOLCHAIN_DIR)
+	$(Q)git submodule update --init --depth 1
+	$(Q)cd ./disk/toolchain; git submodule update --init --depth 1
+	$(Q)cd ./disk/toolchain; ./build_toolchain.sh $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
 
 clean-toolchain:
 	@echo " RM      ./disk/root"
@@ -82,7 +83,7 @@ clean-toolchain:
 
 PHONY += rebuild-newlib
 rebuild-newlib:
-	$(Q)./disk/toolchain/build_newlib.sh ./disk/root /usr $(TOOLCHAIN_DIR)
+	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
 
 CLEAN_LIST += $(DISK_UTIL_PROGS) $(DISK_UTIL_OBJS)
 

@@ -1,6 +1,3 @@
-[submodule "disk/libc/protura-newlib"]
-	path = disk/libc/protura-newlib
-	url = https://github.com/DSMan195276/protura-newlib
 [submodule "disk/toolchain"]
 	path = disk/toolchain
 	url = https://github.com/DSMan195276/protura-toolchain

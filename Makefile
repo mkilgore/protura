@@ -195,12 +195,8 @@ $(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
 DEP_LIST := $(foreach file,$(REAL_OBJS_y),$(dir $(file)).$(notdir $(file)))
 DEP_LIST := $(DEP_LIST:.o=.d)
 
-ifneq ($(MAKECMDGOALS),clean)
-ifneq ($(MAKECMDGOALS),configure)
-ifneq ($(MAKECMDGOALS),clean-configure)
+ifeq ($(MAKECMDGOALS),kernel)
 -include $(DEP_LIST)
-endif
-endif
 endif
 
 CLEAN_LIST += $(DEP_LIST)
