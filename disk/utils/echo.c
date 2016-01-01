@@ -1,4 +1,5 @@
 
+#include <stdio.h>
 #include <unistd.h>
 
 #define begin_str "Echo!\n" "Type '~' to exit\n"

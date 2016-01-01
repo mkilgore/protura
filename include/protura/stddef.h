@@ -20,6 +20,11 @@
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
 
+#define STATIC_ASSERT3(cond, msg) typedef char msg[(cond)?1:-1]
+#define STATIC_ASSERT2(cond, line) STATIC_ASSERT3(cond, static_assertion_at_line_##line)
+#define STATIC_ASSERT1(cond, line) STATIC_ASSERT2(cond, line)
+#define STATIC_ASSERT(cond) STATIC_ASSERT1(cond, __LINE__)
+
 #define SUCCESS 0
 
 #define TP2(x, y) x ## y

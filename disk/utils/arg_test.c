@@ -1,6 +1,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+
+#include <protura/syscall.h>
 
 static inline void print_int(unsigned int val)
 {

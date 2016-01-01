@@ -1,9 +1,9 @@
 
-#include <syscalls.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <protura/syscall.h>
 
 #define INT_COUNT 128
 

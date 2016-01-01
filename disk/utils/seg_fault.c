@@ -1,7 +1,7 @@
 
-
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 
 #define begin_str "Echo!\n" "Type '~' to exit\n"

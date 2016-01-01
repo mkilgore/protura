@@ -108,11 +108,13 @@ endif
 
 # We don't include config.mk if we're just going to delete it anyway
 ifneq ($(MAKECMDGOALS),clean-configure)
+ifneq ($(MAKECMDGOALS),clean-full)
 _tmp := $(shell mkdir -p $(objtree)/include/protura/config)
 # Note - Including a file that doesn't exist provokes make to check for a rule
 # This line actually runs the $(objtree)/config.mk rule and generates config.mk
 # before including it and continuing.
 -include $(objtree)/config.mk
+endif
 endif
 
 ifeq ($(CONFIG_FRAME_POINTER),y)
@@ -245,7 +247,7 @@ $(objtree)/include/protura/config/autoconf.h: $(CONFIG_FILE) $(srctree)/scripts/
 	@echo " PERL    $@"
 	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl cpp < $< > $@
 
-dist: clean clean-toolchain clean-configure clean-disk
+dist: clean-kernel clean-toolchain clean-configure clean-disk
 	$(Q)mkdir -p $(EXE)-$(VERSION_N)
 	$(Q)cp -R Makefile README.md config.mk LICENSE ./doc ./include ./src ./test $(EXE)-$(VERSION_N)
 	$(Q)tar -cf $(EXE)-$(VERSION_N).tar $(EXE)-$(VERSION_N)
@@ -253,13 +255,21 @@ dist: clean clean-toolchain clean-configure clean-disk
 	$(Q)rm -fr $(EXE)-$(VERSION_N)
 	@echo " Created $(EXE)-$(VERSION_N).tar.gz"
 
-clean:
+PHONY += clean-kernel
+clean-kernel:
 	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ) $(objtree)/imgs; do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
 		fi \
 	done
+
+PHONY += clean-full
+clean-full: clean-toolchain clean-configure clean-disk clean-kernel
+
+clean:
+	@echo " Please use one of 'clean-configure', 'clean-toolchain',"
+	@echo " 'clean-kernel', 'clean-disk', or 'clean-full'"
 
 $(EXE_OBJ): $(REAL_OBJS_y)
 	@echo " LD      $@"
@@ -315,11 +325,19 @@ $(objtree)/.%.d: $(objtree)/%.S
 	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
-install-kernel-headers: | ./disk/root/usr/include
+install-kernel-headers: | ./disk/root/usr/i686-protura/include
 	@echo " CP      include"
-	$(Q)cp -r ./include/* ./disk/root/usr/include/
+	$(Q)cp -r ./include/* ./disk/root/usr/i686-protura/include/
 	@echo " CP      arch/$(ARCH)/include"
-	$(Q)cp -r ./arch/$(ARCH)/include/* ./disk/root/usr/include/
+	$(Q)cp -r ./arch/$(ARCH)/include/* ./disk/root/usr/i686-protura/include/
+	@echo " LN      include"
+	$(Q)ln -fs ./i686-protura/include ./disk/root/usr/include
+	@echo " LN      lib"
+	$(Q)ln -fs ./i686-protura/lib ./disk/root/usr/lib
+
+clean-kernel-headers:
+	@echo " RMDIR   include/protura"
+	$(Q)rm -fr ./disk/root/usr/i686-protura/include/protura
 
 PHONY += cscope
 cscope:

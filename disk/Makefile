@@ -5,8 +5,8 @@
 #DISK_CFLAGS := -std=gnu99 -Wall -O2 -I./disk/root/usr/include -I./include -I./arch/$(ARCH)/include -fno-asynchronous-unwind-tables -ffreestanding -nostdlib -Wl,-Ttext=$(LINK_TEXT)
 #DISK_LDFLAGS := -e _start -Ttext $(LINK_TEXT)
 
-DISK_AFLAGS := -std=gnu99 -Wall -O2 -DASM
-DISK_CFLAGS := -std=gnu99 -Wall -O2
+DISK_AFLAGS := -std=gnu99 -Wall -O2 -DASM -I./include -I./arch/$(ARCH)/include
+DISK_CFLAGS := -std=gnu99 -Wall -O2 -I./include -I./arch/$(ARCH)/include
 DISK_LDFLAGS :=
 
 #CLEAN_LIST += ./disk/lib/newlib-build ./disk/usr/newlib
@@ -25,26 +25,42 @@ DISK_UTIL_SRCS := \
 	./disk/utils/seg_fault.c \
 	./disk/utils/brk_test.c \
 	./disk/utils/ls.c \
-	./disk/utils/arg_test.c \
+	./disk/utils/arg_test.c
 
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
 DISK_UTIL_PROGS := $(patsubst ./disk/utils/%.o,./disk/root/bin/%,$(DISK_UTIL_OBJS))
 
-disk/root:
-	@echo " MKDIR   $@"
-	$(Q)$(MKDIR) $@
+define dir_rule
+$(1): | $(2)
+	@echo " MKDIR   $$@"
+	$$(Q)$$(MKDIR) $$@
+endef
 
-disk/root/bin: | ./disk/root
-	@echo " MKDIR   $@"
-	$(Q)$(MKDIR) $@
+$(eval $(call dir_rule,disk/root,))
+$(eval $(call dir_rule,disk/root/bin,disk/root))
+$(eval $(call dir_rule,disk/root/usr,disk/root))
+$(eval $(call dir_rule,disk/root/usr/i686-protura,disk/root/usr))
+$(eval $(call dir_rule,disk/root/usr/i686-protura/include,disk/root/usr/i686-protura))
 
-disk/root/usr: | ./disk/root
-	@echo " MKDIR   $@"
-	$(Q)$(MKDIR) $@
-
-disk/root/usr/include: | ./disk/root/usr
-	@echo " MKDIR   $@"
-	$(Q)$(MKDIR) $@
+#disk/root:
+#	@echo " MKDIR   $@"
+#	$(Q)$(MKDIR) $@
+#
+#disk/root/bin: | ./disk/root
+#	@echo " MKDIR   $@"
+#	$(Q)$(MKDIR) $@
+#
+#disk/root/usr: | ./disk/root
+#	@echo " MKDIR   $@"
+#	$(Q)$(MKDIR) $@
+#
+#disk/root/usr/i686-protura: | ./disk/root/usr
+#	@echo " MKDIR   $@"
+#	$(Q)$(MKDIR) $@
+#
+#disk/root/usr/i686-protura/include: | ./disk/root/usr/i686-protura
+#	@echo " MKDIR   $@"
+#	$(Q)$(MKDIR) $@
 
 disk/%.o: disk/%.S
 	@echo " CCAS    $@"
@@ -56,7 +72,7 @@ disk/%.o: disk/%.c
 
 disk/root/bin/%: disk/utils/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./disk/root/usr
 	@echo " LD      $@"
-	$(Q)$(LD) -o ./$@ ./$< $(DISK_LDFLAGS)
+	$(Q)$(CC) -o ./$@ ./$< $(DISK_LDFLAGS)
 
 PHONY += disk clean-disk
 disk: disk.img

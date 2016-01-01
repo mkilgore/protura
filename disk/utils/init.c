@@ -7,10 +7,28 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <protura/syscall.h>
 
 #define hello "Hello from Init!!!\n"
 
 #define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test\n"
+
+static inline int syscall0(int sys)
+{
+    int out;
+
+    asm volatile("int $0x81"
+                 : "=a" (out)
+                 : "0" (sys)
+                 : "memory");
+
+    return out;
+}
+
+/*pid_t fork(void)
+{
+    return syscall0(SYSCALL_FORK);
+} */
 
 static pid_t start_prog(const char *prog, char *const argv[])
 {
@@ -23,8 +41,8 @@ static pid_t start_prog(const char *prog, char *const argv[])
 
     case 0:
         /* In child */
-        execv(prog, argv);
-        _exit(0);
+        execve(prog, argv, NULL);
+        exit(0);
 
     default:
         /* In parent */
@@ -47,15 +65,15 @@ int main(int argc, char **argv)
     keyboardfd = open("/dev/com2", O_RDONLY, 0);
     consolefd = open("/dev/com2", O_WRONLY, 0);
 
-    link("/test_dir/test_dir_file", "/test_dir/new_linked_file");
-    link("/test_dir/test_dir_file", "/test_dir/new_linked_file2");
-    unlink("/test_dir/new_linked_file2");
-
     write(consolefd, hello, sizeof(hello) - 1);
 
     write(consolefd, prompt, sizeof(prompt) - 1);
 
+    printf("keyboardfd: %d\n", keyboardfd);
+    printf("consolefd: %d\n", consolefd);
+
     fwrite("Test\n", 5, 1, stdout);
+    fflush(stdout);
 
     sync();
 
@@ -64,14 +82,8 @@ int main(int argc, char **argv)
         read(keyboardfd, &c, 1);
 
         if (c == 'e') {
-            close(consolefd);
-            consolefd = open("/test_file", O_WRONLY | O_APPEND, 0);
-
             start_prog("/bin/echo", NULL);
             wait(NULL);
-
-            close(consolefd);
-            consolefd = open("/dev/com2", O_WRONLY, 0);
         }
 
         if (c == 's') {
