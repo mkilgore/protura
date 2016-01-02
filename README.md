@@ -1,4 +1,5 @@
-
+Protura
+=======
 
 build
 =====
@@ -13,13 +14,15 @@ used in the compilation of the toolchain in the next step.
     make install-kernel-headers
 
 Build i686-protura toolchain (Necessary to build kernel, libc, and utils)
-- The toolchain will be built into the ./toolchain directory - This location is
-  configurable in ./Makefile
+
+The toolchain will be built into the ./toolchain directory - This location is
+configurable in ./Makefile
 
     make toolchain
 
 After that, place the toolchain's bin directory in your PATH:
-- The command below is for the default ./toolchain directory, modify it to fit
+
+  The command below is for the default ./toolchain directory, modify it to fit
   your needs.
 
     PATH="$PATH:`pwd`/toolchain/bin"
@@ -62,3 +65,15 @@ deletes anything else inside that folder. If you're rebuilding the toolchain,
 you should rebuild everything else as well - Unless you're just rebuilding
 newlib.
 
+Testing
+=======
+
+The easiest way to test is via the simulator qemu. i3_debug.sh in the scripts
+directory includes a 'default' usage, which will write out to various logs,
+connecting up COM and IDE devices using the default disk.img, and run the
+kernel image. The qemu invocation can be customized to your needs.
+
+Noting that, besides qemu Protura could be run on real hardware, via booting
+with GRUB. Note that since the IDE driver currently does not read/understand
+the partition table, the disk itself have to be formatted as a single
+file-system, significantly reducing usability on actual hardware.
