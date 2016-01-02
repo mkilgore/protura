@@ -1,23 +1,7 @@
 
-#LINK_TEXT := 0x00800000
-
-#DISK_AFLAGS := -std=gnu99 -Wall -O2 -I./disk/root/usr/include -I./include -I./arch/$(ARCH)/include -ffreestanding -DASM -nostdlib -Wl,-Ttext=$(LINK_TEXT)
-#DISK_CFLAGS := -std=gnu99 -Wall -O2 -I./disk/root/usr/include -I./include -I./arch/$(ARCH)/include -fno-asynchronous-unwind-tables -ffreestanding -nostdlib -Wl,-Ttext=$(LINK_TEXT)
-#DISK_LDFLAGS := -e _start -Ttext $(LINK_TEXT)
-
 DISK_AFLAGS := -std=gnu99 -Wall -O2 -DASM -I./include -I./arch/$(ARCH)/include
 DISK_CFLAGS := -std=gnu99 -Wall -O2 -I./include -I./arch/$(ARCH)/include
 DISK_LDFLAGS :=
-
-#CLEAN_LIST += ./disk/lib/newlib-build ./disk/usr/newlib
-
-#./disk/root/usr/lib/libc.a: ./disk/libc/protura-newlib
-#	$(Q)./disk/libc/build_newlib.sh $(PROTURA_DIR)/disk/libc $(PROTURA_DIR)/disk/root
-
-#LIBC_DEPEND := ./disk/root/usr/lib/libc.a
-
-#DISK_LDFLAGS += -static ./disk/root/usr/lib/libc.a \
-				./disk/root/usr/lib/libm.a
 
 DISK_UTIL_SRCS := \
 	./disk/utils/echo.c \
@@ -42,26 +26,6 @@ $(eval $(call dir_rule,disk/root/usr,disk/root))
 $(eval $(call dir_rule,disk/root/usr/i686-protura,disk/root/usr))
 $(eval $(call dir_rule,disk/root/usr/i686-protura/include,disk/root/usr/i686-protura))
 
-#disk/root:
-#	@echo " MKDIR   $@"
-#	$(Q)$(MKDIR) $@
-#
-#disk/root/bin: | ./disk/root
-#	@echo " MKDIR   $@"
-#	$(Q)$(MKDIR) $@
-#
-#disk/root/usr: | ./disk/root
-#	@echo " MKDIR   $@"
-#	$(Q)$(MKDIR) $@
-#
-#disk/root/usr/i686-protura: | ./disk/root/usr
-#	@echo " MKDIR   $@"
-#	$(Q)$(MKDIR) $@
-#
-#disk/root/usr/i686-protura/include: | ./disk/root/usr/i686-protura
-#	@echo " MKDIR   $@"
-#	$(Q)$(MKDIR) $@
-
 disk/%.o: disk/%.S
 	@echo " CCAS    $@"
 	$(Q)$(CC) $(DISK_AFLAGS) -c -o ./$@ ./$<
@@ -78,7 +42,7 @@ PHONY += disk clean-disk
 disk: disk.img
 
 clean-disk:
-	$(Q)for file in $(DISK_PROGS) $(DISK_UTIL_OBJS); do \
+	$(Q)for file in $(DISK_PROGS) $(DISK_UTIL_OBJS) ./disk.img; do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
@@ -101,18 +65,13 @@ PHONY += rebuild-newlib
 rebuild-newlib:
 	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
 
-CLEAN_LIST += $(DISK_UTIL_PROGS) $(DISK_UTIL_OBJS)
-
 .SECONDARY: $(DISK_UTIL_OBJS)
 
 DISK_PROGS += $(DISK_UTIL_PROGS)
 
-
 disk.img: $(DISK_PROGS)
 	@echo " GENDISK $@"
 	$(Q)sudo ./scripts/gendisk.sh
-
-CLEAN_LIST += ./disk.img
 
 gendisk: disk.img
 
