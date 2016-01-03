@@ -82,11 +82,11 @@ void arch_task_setup_stack_user_with_exec(struct task *t, const char *exe)
 
         /* envp */
         ksp -= sizeof(char *);
-        *(const void **)ksp = (const char *const []) { NULL };
+        *(const void **)ksp = NULL;
 
         /* argv */
         ksp -= sizeof(char *);
-        *(const void **)ksp = (const char *const []) { NULL };
+        *(const void **)ksp = NULL;
 
         /* exe */
         ksp -= sizeof(exe);
