@@ -115,65 +115,87 @@ static int count_args(const char *const args[])
     return argc;
 }
 
-static size_t create_arg_copy(char *sp, const char *const argv[], int argc, const char *const envp[], int envc)
+static char *push_strings(const char *const strs[], int strs_count, char *strv, char *stack, char *stack_top)
 {
-    char *stack_top = sp;
     int i;
-    char *user_argv;
 
-    user_argv = sp;
-
-    sp -= (argc + 1) * sizeof(char *);
-
-    stack_push(user_argv, NULL);
-
-    for (i = argc - 1; i >= 0; i--) {
-        const char *s = argv[i];
+    for (i = strs_count - 1; i >= 0; i--) {
+        const char *s = strs[i];
 
         if (!s) {
-            stack_push(user_argv, NULL);
+            stack_push(strv, NULL);
             continue;
         }
 
         size_t s_len = strlen(s);
 
         /* Remove space from the stack for the string and the null terminator */
-        sp -= s_len + 1;
+        stack -= s_len + 1;
 
         /* Put the offset to the start of this string into the argv array */
-        stack_push(user_argv, stack_top - sp);
+        stack_push(strv, stack_top - stack);
 
         /* Put the string into memory */
-        memcpy(sp, s, s_len + 1);
+        memcpy(stack, s, s_len + 1);
     }
+
+    return stack;
+}
+
+static size_t create_arg_copy(char *sp, const char *const argv[], int argc, const char *const envp[], int envc)
+{
+    char *stack_top = sp;
+    char *user_argv;
+    char *user_envp;
+
+    /* envp comes before argv in the memory layout detailed above, so we
+     * reserve space for both of them before we start copying our strings */
+    user_envp = sp;
+    sp -= (envc + 1) * sizeof(char *);
+    stack_push(user_envp, NULL);
+
+    user_argv = sp;
+    sp -= (argc + 1) * sizeof(char *);
+    stack_push(user_argv, NULL);
+
+    sp = push_strings(envp, envc, user_envp, sp, stack_top);
+    sp = push_strings(argv, argc, user_argv, sp, stack_top);
 
     /* Strings can be an odd length, so we have to manually align the stack
      * pointer to the alignment of the argv pointer */
     sp = ALIGN_2_DOWN(sp, alignof(char **));
 
-    /* The first 'zero' is the argv pointer - It will be filled in by
-     * copy_to_userspace */
-    stack_push(sp, (int)0);
+    /* The first two zeros are the argv and envp pointers - they will be filled
+     * in by copy_to_userspace */
+    stack_push(sp, NULL);
+    stack_push(sp, NULL);
     stack_push(sp, argc);
 
     return stack_top - sp;
 }
 
-static char *copy_to_userspace(char *sp, char *copy, size_t len, int argc)
+static char *copy_to_userspace(char *sp, char *copy, size_t len, int argc, int envc)
 {
     char *stack_top = sp;
+    char **envp;
     char **argv;
     int i;
 
     memcpy(sp - len, copy - len, len);
 
-    argv = (char **)sp - (argc + 1);
+    envp = (char **)sp - (envc + 1);
+    argv = envp - (argc + 1);
+
+    for (i = 0; i < envc + 1; i++)
+        if (envp[i])
+            envp[i] = stack_top - (size_t)envp[i];
 
     for (i = 0; i < argc + 1; i++)
         if (argv[i])
             argv[i] = stack_top - (size_t)argv[i];
 
     /* Store the pointer to 'argv' on the stack */
+    *(char ***)(sp - len + sizeof(int) * 2) = envp;
     *(char ***)(sp - len + sizeof(int)) = argv;
 
     return sp - len;
@@ -213,7 +235,7 @@ int execve(struct inode *inode, const char *const argv[], const char *const envp
         goto close_fd;
 
     user_stack_end = cpu_get_local()->current->addrspc->stack->addr.end;
-    sp = copy_to_userspace(user_stack_end, saved_args + PG_SIZE * CONFIG_KERNEL_ARG_PAGES, arg_len, argc);
+    sp = copy_to_userspace(user_stack_end, saved_args + PG_SIZE * CONFIG_KERNEL_ARG_PAGES, arg_len, argc, envc);
 
     irq_frame_set_stack(frame, sp);
 

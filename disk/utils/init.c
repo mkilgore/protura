@@ -13,24 +13,7 @@
 
 #define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test\n"
 
-static inline int syscall0(int sys)
-{
-    int out;
-
-    asm volatile("int $0x81"
-                 : "=a" (out)
-                 : "0" (sys)
-                 : "memory");
-
-    return out;
-}
-
-/*pid_t fork(void)
-{
-    return syscall0(SYSCALL_FORK);
-} */
-
-static pid_t start_prog(const char *prog, char *const argv[])
+static pid_t start_prog(const char *prog, char *const argv[], char *const envp[])
 {
     pid_t child_pid;
 
@@ -41,7 +24,7 @@ static pid_t start_prog(const char *prog, char *const argv[])
 
     case 0:
         /* In child */
-        execve(prog, argv, NULL);
+        execve(prog, argv, envp);
         exit(0);
 
     default:
@@ -57,7 +40,7 @@ int main(int argc, char **argv)
     keyboardfd = open("/dev/keyboard", O_RDONLY, 0);
     consolefd = open("/dev/console", O_WRONLY, 0);
 
-    start_prog("/bin/echo", NULL);
+    start_prog("/bin/echo", NULL, NULL);
 
     close(keyboardfd);
     close(consolefd);
@@ -82,27 +65,27 @@ int main(int argc, char **argv)
         read(keyboardfd, &c, 1);
 
         if (c == 'e') {
-            start_prog("/bin/echo", NULL);
+            start_prog("/bin/echo", NULL, NULL);
             wait(NULL);
         }
 
         if (c == 's') {
-            start_prog("/bin/seg_fault", NULL);
+            start_prog("/bin/seg_fault", NULL, NULL);
             wait(NULL);
         }
 
         if (c == 'b') {
-            start_prog("/bin/brk_test", NULL);
+            start_prog("/bin/brk_test", NULL, NULL);
             wait(NULL);
         }
 
         if (c == 'l') {
-            start_prog("/bin/ls", NULL);
+            start_prog("/bin/ls", NULL, NULL);
             wait(NULL);
         }
 
         if (c == 'a') {
-            start_prog("/bin/arg_test", (char *const [20]) { "Argument 1", "Argument 2", "Argument 3", "-c", "-w2", "--make", NULL } );
+            start_prog("/bin/arg_test", (char *const []) { "Argument 1", "Argument 2", "Argument 3", "-c", "-w2", "--make", NULL }, (char *const[]) { "PATH=/usr/bin", "test=200", NULL } );
             wait(NULL);
         }
 
