@@ -38,6 +38,8 @@
 #define SYSCALL_LINK    0x1A
 #define SYSCALL_SYNC    0x1B
 #define SYSCALL_UNLINK  0x1C
+#define SYSCALL_STAT    0x1E
+#define SYSCALL_FSTAT   0x1F
 
 #ifdef __KERNEL__
 #ifndef ASM

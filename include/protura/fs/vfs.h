@@ -8,6 +8,7 @@
 #ifndef INCLUDE_FS_VFS_H
 #define INCLUDE_FS_VFS_H
 
+#include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
 #include <protura/fs/dent.h>
@@ -39,5 +40,7 @@ int vfs_unlink(struct inode *dir, const char *name, size_t len);
 int vfs_chdir(const char *path);
 
 int vfs_getdents(struct file *filp, struct dent *, size_t dent_buf_size);
+
+int vfs_stat(struct inode *inode, struct stat *buf);
 
 #endif

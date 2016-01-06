@@ -251,3 +251,35 @@ int sys_chdir(const char *__user path)
     return vfs_chdir(path);
 }
 
+int sys_stat(const char *path, struct stat *buf)
+{
+    struct task *current = cpu_get_local()->current;
+    struct inode *inode;
+    int ret;
+
+    ret = namex(path, current->cwd, &inode);
+    if (ret)
+        return ret;
+
+    ret = vfs_stat(inode, buf);
+
+    inode_put(inode);
+
+    return ret;
+}
+
+int sys_fstat(int fd, struct stat *buf)
+{
+    struct file *filp;
+    int ret;
+
+    ret = fd_get_checked(fd, &filp);
+
+    if (ret)
+        return ret;
+
+    ret = vfs_stat(filp->inode, buf);
+
+    return ret;
+}
+

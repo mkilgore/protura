@@ -9,6 +9,7 @@
 #define INCLUDE_FS_SYS_H
 
 #include <protura/irq.h>
+#include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
 #include <protura/mm/user_ptr.h>
@@ -28,6 +29,8 @@ int sys_ftruncate(int fd, off_t length);
 int sys_link(const char *old, const char *new);
 int sys_unlink(const char *name);
 int sys_chdir(const char *__user path);
+int sys_stat(const char *__user path, struct stat *buf);
+int sys_fstat(int fd, struct stat *buf);
 
 /* Called internally by sys_open - Performs the same function, but takes
  * arguments relating to inode's and file's rather then a path name and

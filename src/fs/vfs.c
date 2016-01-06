@@ -210,3 +210,24 @@ int vfs_chdir(const char *path)
     return 0;
 }
 
+int vfs_stat(struct inode *inode, struct stat *buf)
+{
+    buf->st_dev = inode->sb_dev;
+    buf->st_ino = inode->ino;
+    buf->st_mode = inode->mode;
+    buf->st_nlink = atomic32_get(&inode->nlinks);
+    buf->st_size = inode->size;
+    buf->st_rdev = inode->dev_no;
+
+    buf->st_uid = 0;
+    buf->st_gid = 0;
+
+    buf->st_atime = 0;
+    buf->st_ctime = 0;
+    buf->st_mtime = 0;
+    buf->st_blksize = 0;
+    buf->st_blocks = 0;
+
+    return 0;
+}
+
