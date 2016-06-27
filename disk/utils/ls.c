@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <dirent.h>
 
 int main(int argc, char **argv)
@@ -27,8 +28,13 @@ int main(int argc, char **argv)
 
     struct dirent *dent;
 
-    while ((dent = readdir(dir)))
-        printf("%d - %s\n", dent->d_ino, dent->d_name);
+    while ((dent = readdir(dir))) {
+        struct stat st;
+
+        stat(dent->d_name, &st);
+
+        printf("%d %d %s\n", dent->d_ino, st.st_size, dent->d_name);
+    }
 
     closedir(dir);
 
