@@ -7,11 +7,12 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include <protura/syscall.h>
 
 #define hello "Hello from Init!!!\n"
 
-#define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test\n"
+#define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test p=pipe_test\n"
 
 static pid_t start_prog(const char *prog, char *const argv[], char *const envp[])
 {
@@ -86,6 +87,11 @@ int main(int argc, char **argv)
 
         if (c == 'a') {
             start_prog("/bin/arg_test", (char *const []) { "Argument 1", "Argument 2", "Argument 3", "-c", "-w2", "--make", NULL }, (char *const[]) { "PATH=/usr/bin", "test=200", NULL } );
+            wait(NULL);
+        }
+
+        if (c == 'p') {
+            start_prog("/bin/pipe_test", NULL, NULL);
             wait(NULL);
         }
 

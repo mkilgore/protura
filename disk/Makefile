@@ -9,7 +9,8 @@ DISK_UTIL_SRCS := \
 	./disk/utils/seg_fault.c \
 	./disk/utils/brk_test.c \
 	./disk/utils/ls.c \
-	./disk/utils/arg_test.c
+	./disk/utils/arg_test.c \
+	./disk/utils/pipe_test.c
 
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
 DISK_UTIL_PROGS := $(patsubst ./disk/utils/%.o,./disk/root/bin/%,$(DISK_UTIL_OBJS))
@@ -69,7 +70,7 @@ rebuild-newlib:
 
 DISK_PROGS += $(DISK_UTIL_PROGS)
 
-disk.img: $(DISK_PROGS)
+disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS)
 	@echo " GENDISK $@"
 	$(Q)sudo ./scripts/gendisk.sh
 
