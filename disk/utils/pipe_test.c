@@ -8,23 +8,6 @@
 #include <errno.h>
 #include <protura/syscall.h>
 
-#define INT_COUNT 128
-
-#define Q(x) QQ(x)
-#define QQ(x) #x
-
-static int pipe(int *fds)
-{
-    int ret;
-
-    asm volatile("int $" Q(INT_SYSCALL) "\n"
-                 : "=a" (ret)
-                 : "0" (SYSCALL_PIPE), "b" ((int)fds)
-                 : "memory");
-
-    return ret;
-}
-
 int main(int argc, char **argv)
 {
     int k = 0;
