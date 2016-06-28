@@ -17,6 +17,7 @@
 #include <protura/fs/block.h>
 #include <protura/fs/char.h>
 #include <protura/fs/file_system.h>
+#include <protura/fs/pipe.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/term.h>
@@ -44,6 +45,7 @@ struct sys_init arch_init_systems[] = {
     { "block-device", block_dev_init },
     { "char-device", char_dev_init },
     { "file-systems", file_systems_init },
+    { "pipe", pipe_init },
     { NULL, NULL }
 };
 

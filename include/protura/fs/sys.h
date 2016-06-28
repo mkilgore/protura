@@ -23,6 +23,7 @@ int sys_read(int fd, void *__user buf, size_t len);
 int sys_write(int fd, void *__user buf, size_t len);
 off_t sys_lseek(int fd, off_t off, int whence);
 int sys_read_dent(int fd, struct dent *__user dent, size_t size);
+int sys_pipe(int *fds);
 
 int sys_truncate(const char *__user file, off_t length);
 int sys_ftruncate(int fd, off_t length);

@@ -175,6 +175,11 @@ static void sys_handler_fstat(struct irq_frame *frame)
     frame->eax = sys_fstat(frame->ebx, (struct stat *)frame->ecx);
 }
 
+static void sys_handler_pipe(struct irq_frame *frame)
+{
+    frame->eax = sys_pipe((int *)frame->ebx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -212,6 +217,7 @@ static struct syscall_handler {
     SYSCALL(UNLINK, sys_handler_unlink),
     SYSCALL(STAT, sys_handler_stat),
     SYSCALL(FSTAT, sys_handler_fstat),
+    SYSCALL(PIPE, sys_handler_pipe),
 };
 
 static void syscall_handler(struct irq_frame *frame)

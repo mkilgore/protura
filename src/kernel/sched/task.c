@@ -228,7 +228,7 @@ void task_make_zombie(struct task *t)
 
     /* Children of Zombie's are inherited by PID1. */
     using_spinlock(&task_pid1->children_list_lock) {
-        list_foreach_entry(&t->task_children, child, task_sibling_list) {
+        list_foreach_take_entry(&t->task_children, child, task_sibling_list) {
             /* The atomic swap guarentees consistency of the child->parent
              * pointer.
              *
@@ -424,7 +424,7 @@ pid_t sys_wait(int *ret)
     }
 
     if (!child)
-        return -1;
+        return -ECHILD;
 
     if (ret)
         *ret = child->ret_code;

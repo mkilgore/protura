@@ -88,7 +88,8 @@ void inode_put(struct inode *inode)
         kp(KP_TRACE, "Releasing inode "PRinode"\n", Pinode(inode));
         /* If this inode has no hard-links to it, then we can just discard it. */
         if (atomic32_get(&inode->nlinks) == 0) {
-            sb->ops->inode_delete(sb, inode);
+            if (sb->ops->inode_delete)
+                sb->ops->inode_delete(sb, inode);
             sb->ops->inode_dealloc(sb, inode);
             return ;
         }

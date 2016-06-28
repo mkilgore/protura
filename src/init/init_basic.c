@@ -226,7 +226,7 @@ static void test_ext2(void)
         kp(KP_TRACE, "1: Size: %d\n", i->size);
         kp(KP_TRACE, "1: Mode: %d\n", i->mode);
         kp(KP_TRACE, "1: Dev: %d\n", i->dev_no);
-        kp(KP_TRACE, "1: Nlinks: %d\n", i->nlinks);
+        kp(KP_TRACE, "1: Nlinks: %d\n", atomic32_get(&i->nlinks));
         inode_put(i);
     }
 
@@ -238,7 +238,7 @@ static void test_ext2(void)
         kp(KP_TRACE, "2: Size: %d\n", i->size);
         kp(KP_TRACE, "2: Mode: %d\n", i->mode);
         kp(KP_TRACE, "2: Dev: %d\n", i->dev_no);
-        kp(KP_TRACE, "2: Nlinks: %d\n", i->nlinks);
+        kp(KP_TRACE, "2: Nlinks: %d\n", atomic32_get(&i->nlinks));
         inode_put(i);
     }
 
@@ -250,7 +250,7 @@ static void test_ext2(void)
         kp(KP_TRACE, "3: Size: %d\n", i->size);
         kp(KP_TRACE, "3: Mode: %d\n", i->mode);
         kp(KP_TRACE, "3: Dev: %d\n", i->dev_no);
-        kp(KP_TRACE, "3: Nlinks: %d\n", i->nlinks);
+        kp(KP_TRACE, "3: Nlinks: %d\n", atomic32_get(&i->nlinks));
         inode_put(i);
     }
 

@@ -40,6 +40,7 @@
 #define SYSCALL_UNLINK  0x1C
 #define SYSCALL_STAT    0x1E
 #define SYSCALL_FSTAT   0x1F
+#define SYSCALL_PIPE    0x20
 
 #ifdef __KERNEL__
 #ifndef ASM

@@ -14,6 +14,7 @@
 #include <protura/dev.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
+#include <protura/fs/pipe.h>
 
 #include <protura/drivers/ide.h>
 
@@ -83,7 +84,15 @@ static struct block_device devices[] = {
         .ops = &ide_block_device_ops,
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE].blocks),
-    }
+    },
+    [BLOCK_DEV_PIPE] = {
+        .name = "pipe",
+        .major = BLOCK_DEV_PIPE,
+        .block_size = 0,
+        .ops = NULL,
+        .fops = &pipe_default_file_ops,
+        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_PIPE].blocks),
+    },
 };
 
 

@@ -53,4 +53,7 @@ static inline int mutex_waiting(mutex_t *mut)
 #define using_mutex(mut) \
     using_nocheck(mutex_lock(mut), mutex_unlock(mut))
 
+#define not_using_mutex(mut) \
+    using_nocheck(mutex_unlock(mut), mutex_lock(mut))
+
 #endif

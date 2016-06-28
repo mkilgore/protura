@@ -12,6 +12,7 @@ objs-y += fs.o
 objs-y += namei.o
 objs-y += vfs.o
 objs-y += sys.o
+objs-y += pipe.o
 
 objs-y += exec.o
 objs-y += binfmt_table.o

@@ -63,7 +63,7 @@ static void com_int_handler(struct com_port *com)
 
             char_buf_write_char(&com->buf, b);
             com->buf_len++;
-            kp(KP_TRACE, "Buf sz: %d, buf_len: %d\n", sizeof(com->buffer), com->buf_len);
+            kp(KP_TRACE, "Buf sz: %d, buf_len: %d\n", (int)sizeof(com->buffer), com->buf_len);
             wakeup_list_wakeup(&com->watch_list);
         } while (inb(com->ioport + UART_LSR) & UART_LSR_DR);
     }

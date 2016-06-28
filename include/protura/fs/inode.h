@@ -17,6 +17,7 @@
 #include <protura/bits.h>
 
 #include <protura/fs/inode_table.h>
+#include <protura/fs/pipe.h>
 
 struct inode_ops;
 struct super_block;
@@ -58,6 +59,8 @@ struct inode {
 
     struct block_device *bdev;
     struct char_device *cdev;
+
+    struct pipe_info pipe_info;
 };
 
 enum inode_attributes_flags {
@@ -124,6 +127,8 @@ static inline void inode_init(struct inode *i)
     atomic_init(&i->ref, 0);
     list_node_init(&i->list_entry);
     list_node_init(&i->sb_dirty_entry);
+
+    pipe_info_init(&i->pipe_info);
 }
 
 int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result);

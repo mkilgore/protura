@@ -61,7 +61,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
             disk_inode = (struct ext2_disk_inode *)b->data;
             disk_inode += inode_offset;
 
-            kp_ext2(sb, "inode per block: %d\n", (sb->block_size / sizeof(struct ext2_disk_inode)));
+            kp_ext2(sb, "inode per block: %d\n", (int)(sb->block_size / sizeof(struct ext2_disk_inode)));
             kp_ext2(sb, "Using block %d\n", inode_group_blk_nr);
 
             inode->i.mode = disk_inode->mode;

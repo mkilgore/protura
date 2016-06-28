@@ -31,6 +31,11 @@ struct page {
     int order;
     list_node_t page_list_node;
 
+    /* The starting and length of the data contained - used for caches and
+     * such. Has no set use and can be used for anything by the owner of this
+     * page */
+    size_t startb, lenb;
+
     flags_t flags;
 
     void *virt;
