@@ -93,6 +93,29 @@
                             TP(__using_body, __LINE__):            \
                             if (__using_cond)
 
+#define scoped_using_cond(cond, cmd1, cmd2, arg) \
+    if (0) { \
+        TP(__using_finished, __LINE__): \
+        ; \
+    } else \
+        if (1) { \
+            int __using_cond = (cond); \
+            if (!__using_cond) \
+                goto TP(__using_finished, __LINE__); \
+            cmd1(arg); \
+            goto TP(__using_temp_declare, __LINE__); \
+        } else \
+            TP(__using_temp_declare, __LINE__): \
+            for (typeof(arg) __using_temp __cleanup(cmd2) = arg;;) \
+                if (1) \
+                    goto TP(__using_body, __LINE__); \
+                else \
+                    while (1) \
+                        if (1) { \
+                            goto TP(__using_finished, __LINE__); \
+                        } else \
+                            TP(__using_body, __LINE__):
+
 /* The 'nocheck' version doesn't take a condition, just two commands to run.
  *
  * As a note, gcc is smart enough to turn this usage into two direct calls to

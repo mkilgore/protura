@@ -33,4 +33,6 @@
 
 #define __is_constant(x) (__builtin_constant_p(x))
 
+#define __cleanup(func) __attribute__((__cleanup__(func)))
+
 #endif
