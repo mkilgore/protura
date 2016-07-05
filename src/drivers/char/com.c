@@ -116,6 +116,9 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
     if (!com->exists)
         return -ENODEV;
 
+    if (!vbuf)
+        return -EFAULT;
+
     kp(KP_TRACE, "Registering %d for COM%d\n", current->pid, com_id);
     wakeup_list_add(&com->watch_list, current);
 
@@ -130,7 +133,8 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
             }
         }
 
-        if (cur_pos != len) {
+        /* Sleep if there was no data in the buffer */
+        if (!cur_pos) {
             scheduler_task_yield();
             goto sleep_again;
         }

@@ -9,6 +9,7 @@
 #define INCLUDE_PROTURA_WAIT_H
 
 #include <protura/list.h>
+#include <protura/time.h>
 #include <arch/spinlock.h>
 
 struct task;
@@ -86,5 +87,11 @@ int wait_queue_wake_all(struct wait_queue *);
 #define sleep_with_wait_queue(queue) \
     using_nocheck(sleep_with_wait_queue_begin(queue), \
             (sleep_with_wait_queue_end()))
+
+#define WNOHANG 1
+
+pid_t sys_waitpid(pid_t pid, int *wstatus, int options);
+
+pid_t sys_wait(int *ret);
 
 #endif

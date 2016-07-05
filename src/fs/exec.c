@@ -60,7 +60,7 @@
  * ... Usable stack space ...
  * ----- Stack beginning -----
  *
- * Because the arguments are passed in from user-spaced, however, we can't
+ * Because the arguments are passed in from user-space, however, we can't
  * simply copy from the old stack to the new stack - By the time the new stack
  * is created, the old program's memory is gone. Thus, we make a simple
  * temporary copy of all the arguments into kernel memory before loading the
@@ -255,7 +255,7 @@ int sys_execve(const char *file, const char *const argv[], const char *const env
     if (ret)
         return ret;
 
-    execve(exe, argv, envp, frame);
+    ret = execve(exe, argv, envp, frame);
 
     inode_put(exe);
 

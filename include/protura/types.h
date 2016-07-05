@@ -36,5 +36,6 @@ typedef uint32_t ino_t;
 typedef uint16_t umode_t;
 
 typedef uint32_t time_t;
+typedef long     suseconds_t;
 
 #endif

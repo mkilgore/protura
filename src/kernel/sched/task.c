@@ -21,6 +21,7 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
 #include <protura/fs/fs.h>
+#include <protura/wait.h>
 
 #include <arch/spinlock.h>
 #include <arch/fake_task.h>
@@ -389,7 +390,12 @@ void sys_exit(int code)
 
 pid_t sys_wait(int *ret)
 {
-    int have_child = 0;
+    return sys_waitpid(-1, ret, 0);
+}
+
+pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
+{
+    int have_child = 0, have_no_children = 0;
     struct task *child = NULL;
     struct task *t = cpu_get_local()->current;
 
@@ -398,15 +404,19 @@ pid_t sys_wait(int *ret)
      * which will wake us up. */
   sleep_again:
     sleep {
-        kp(KP_TRACE, "Task %s: Locking child list for wait\n", t->name);
+        kp(KP_TRACE, "Task %s: Locking child list for wait4\n", t->name);
         using_spinlock(&t->children_list_lock) {
             if (list_empty(&t->task_children)) {
-                have_child = 1;
+                have_no_children = 1;
                 break;
             }
 
             list_foreach_entry(&t->task_children, child, task_sibling_list) {
                 kp(KP_TRACE, "Checking child %s(%p, %d)\n", child->name, child, child->pid);
+                if (childpid != -1 && child->pid != childpid) {
+                    kp(KP_TRACE, "Looking for %d, skipping child\n", childpid);
+                    continue;
+                }
                 if (child->state == TASK_ZOMBIE) {
                     list_del(&child->task_sibling_list);
                     kp(KP_TRACE, "Found zombie child: %d\n", child->pid);
@@ -415,19 +425,22 @@ pid_t sys_wait(int *ret)
                 }
             }
         }
-        kp(KP_TRACE, "Task %s: Unlocking child list for wait\n", t->name);
+        kp(KP_TRACE, "Task %s: Unlocking child list for wait4\n", t->name);
 
-        if (!have_child) {
+        if (!have_no_children && !have_child && !(options & WNOHANG)) {
             scheduler_task_yield();
             goto sleep_again;
         }
     }
 
+    if (!have_no_children && options & WNOHANG)
+        return 0;
+
     if (!child)
         return -ECHILD;
 
-    if (ret)
-        *ret = child->ret_code;
+    if (wstatus)
+        *wstatus = child->ret_code;
 
     scheduler_task_mark_dead(child);
     return child->pid;

@@ -61,6 +61,6 @@ int binary_load(struct exe_params *params, struct irq_frame *frame)
         }
     }
 
-    return 0;
+    return ret;
 }
 

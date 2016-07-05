@@ -42,7 +42,8 @@ static int keyboard_file_read(struct file *filp, void *vbuf, size_t len)
             cur_pos++;
         }
 
-        if (cur_pos != len) {
+        /* Only sleep if there was no data to be gotten */
+        if (!cur_pos) {
             scheduler_task_yield();
             goto sleep_again;
         }

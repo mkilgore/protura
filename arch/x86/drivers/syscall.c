@@ -180,6 +180,11 @@ static void sys_handler_pipe(struct irq_frame *frame)
     frame->eax = sys_pipe((int *)frame->ebx);
 }
 
+static void sys_handler_waitpid(struct irq_frame *frame)
+{
+    frame->eax = sys_waitpid((pid_t)frame->ebx, (int *)frame->ecx, frame->edx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -218,6 +223,7 @@ static struct syscall_handler {
     SYSCALL(STAT, sys_handler_stat),
     SYSCALL(FSTAT, sys_handler_fstat),
     SYSCALL(PIPE, sys_handler_pipe),
+    SYSCALL(WAITPID, sys_handler_waitpid),
 };
 
 static void syscall_handler(struct irq_frame *frame)

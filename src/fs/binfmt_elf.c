@@ -43,7 +43,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
     ret = vfs_read(params->exe, &head, sizeof(head));
     if (ret != sizeof(head))
-        return ret;
+        return -ENOEXEC;
 
     if (head.magic != ELF_MAGIC)
         return -ENOEXEC;
@@ -62,7 +62,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
         ret = vfs_read(params->exe, &sect, sizeof(sect));
         kp(KP_TRACE, "Reading ret: %d\n", ret);
         if (ret != sizeof(sect))
-            return ret;
+            return -ENOEXEC;
 
         if (sect.type != ELF_PROG_TYPE_LOAD)
             continue;

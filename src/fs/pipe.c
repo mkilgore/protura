@@ -247,7 +247,7 @@ static int pipe_write(struct file *filp, void *data, size_t size)
                 data += cpysize;
                 size -= cpysize;
 
-                list_add(&pinfo->bufs, &p->page_list_node);
+                list_add_tail(&pinfo->bufs, &p->page_list_node);
 
                 wake_readers = 1;
 

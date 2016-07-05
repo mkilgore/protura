@@ -28,6 +28,9 @@ static int namei_generic(const char *path, const char **name_start, size_t *name
 {
     int ret = 0;
 
+    if (!path)
+        return -EFAULT;
+
     if (*path == '/') {
         cwd = ino_root;
         path++;
