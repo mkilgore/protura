@@ -10,10 +10,19 @@ DISK_UTIL_SRCS := \
 	./disk/utils/brk_test.c \
 	./disk/utils/ls.c \
 	./disk/utils/arg_test.c \
-	./disk/utils/pipe_test.c
+	./disk/utils/pipe_test.c \
+	./disk/utils/head.c \
+	./disk/utils/dsh.c
 
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
+DISK_UTIL_EXTRA_OBJS :=
+
+include ./disk/utils/sh/Makefile
+
 DISK_UTIL_PROGS := $(patsubst ./disk/utils/%.o,./disk/root/bin/%,$(DISK_UTIL_OBJS))
+
+DISK_DEP := $(DISK_UTIL_OBJS:.o=.d) $(DISK_UTIL_EXTRA_OBJS:.o=.d)
+DISK_DEP := $(foreach file,$(DISK_DEP),$(dir $(file)).$(notdir $(file)))
 
 define dir_rule
 $(1): | $(2)
@@ -35,6 +44,10 @@ disk/%.o: disk/%.c
 	@echo " CC      $@"
 	$(Q)$(CC) $(DISK_CFLAGS) -c -o ./$@ ./$<
 
+disk/.%.d: disk/%.c
+	@echo " CCDEP   $@"
+	$(Q)$(CC) -MM -MP -MF $@ $(DISK_CFLAGS) $< -MT disk/$*.o -MT $@
+
 disk/root/bin/%: disk/utils/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./disk/root/usr
 	@echo " LD      $@"
 	$(Q)$(CC) -o ./$@ ./$< $(DISK_LDFLAGS)
@@ -43,7 +56,7 @@ PHONY += disk clean-disk
 disk: disk.img
 
 clean-disk:
-	$(Q)for file in $(DISK_PROGS) $(DISK_UTIL_OBJS) ./disk.img; do \
+	$(Q)for file in $(DISK_PROGS) $(DISK_UTIL_OBJS) $(DISK_UTIL_EXTRA_OBJS) $(DISK_DEP) ./disk.img; do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
@@ -75,4 +88,8 @@ disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS)
 	$(Q)sudo ./scripts/gendisk.sh
 
 gendisk: disk.img
+
+ifeq ($(MAKECMDGOALS),disk)
+-include $(DISK_DEP)
+endif
 

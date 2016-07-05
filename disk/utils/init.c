@@ -12,7 +12,7 @@
 
 #define hello "Hello from Init!!!\n"
 
-#define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test p=pipe_test\n"
+#define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test p=pipe_test h=sh\n"
 
 static pid_t start_prog(const char *prog, char *const argv[], char *const envp[])
 {
@@ -92,6 +92,11 @@ int main(int argc, char **argv)
 
         if (c == 'p') {
             start_prog("/bin/pipe_test", NULL, NULL);
+            wait(NULL);
+        }
+
+        if (c == 'h') {
+            start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
             wait(NULL);
         }
 

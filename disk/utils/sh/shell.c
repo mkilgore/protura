@@ -1,0 +1,157 @@
+
+#include "common.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#include "input_lexer.h"
+#include "prog.h"
+
+static void close_prog(struct prog_desc *prog)
+{
+    char **arg;
+    if (prog->argv)
+        for (arg = prog->argv; *arg != NULL; arg++)
+            free(*arg);
+
+    free(prog->argv);
+
+    free(prog->file);
+}
+
+static void prog_init(struct prog_desc *prog)
+{
+    memset(prog, 0, sizeof(*prog));
+    prog->stdin_fd = STDIN_FILENO;
+    prog->stdout_fd = STDOUT_FILENO;
+    prog->stderr_fd = STDERR_FILENO;
+}
+
+static void prog_add_arg(struct prog_desc *prog, const char *str)
+{
+    prog->argc++;
+    prog->argv = realloc(prog->argv, (prog->argc + 1) * sizeof(*prog->argv));
+    prog->argv[prog->argc - 1] = strdup(str);
+    prog->argv[prog->argc] = NULL;
+}
+
+static void parse_line(const char *line)
+{
+    int i;
+    pid_t child;
+    struct prog_desc prog = { 0 };
+    enum input_token token;
+    struct input_lexer state = { 0 };
+
+    state.input = line;
+
+    prog_init(&prog);
+
+    while ((token = lexer_next_token(&state)) != TOK_EOF) {
+        enum input_token tok2;
+
+        switch (token) {
+        case TOK_COMMENT:
+            while ((token = lexer_next_token(&state)), token != TOK_NEWLINE || token != TOK_EOF)
+                ;
+            break;
+
+        case TOK_STRING:
+            if (!prog.file) {
+                prog.file = strndup(state.str, state.len);
+                prog.argc = 0;
+            }
+            prog_add_arg(&prog, state.str);
+            break;
+
+        case TOK_REDIRECT_OUT:
+        case TOK_REDIRECT_IN:
+            tok2 = lexer_next_token(&state);
+
+            if (tok2 == TOK_STRING) {
+                if (token == TOK_REDIRECT_OUT)
+                    prog.stdout_fd = open(state.str, O_WRONLY | O_CREAT, 0777);
+                else
+                    prog.stdin_fd = open(state.str, O_RDONLY);
+            } else {
+                printf("Error: Redirect requires filename\n");
+                goto cleanup;
+            }
+            break;
+
+        case TOK_NEWLINE:
+            prog_start(&prog, &child);
+            /* HACK: close-on-exec is not implemented yet - just close
+             * everything except standard streams and hope for the best.
+             *
+             * This works as long as the program doesn't make use of any extra
+             * files. */
+            for (i = 3; i < 20; i++)
+                close(i);
+
+            printf("Program is running...\n");
+            waitpid(child, NULL, 0);
+            /* wait(NULL); */
+            close_prog(&prog);
+            prog_init(&prog);
+            break;
+
+        case TOK_PIPE:
+        {
+            int pipefd[2];
+            pipe(pipefd);
+
+            prog.stdout_fd = pipefd[1];
+            prog_start(&prog, &child);
+
+            close_prog(&prog);
+            prog_init(&prog);
+            prog.stdin_fd = pipefd[0];
+        }
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    if (prog.file) {
+        prog_start(&prog, &child);
+        /* HACK: close-on-exec is not implemented yet - just close
+         * everything except standard streams and hope for the best.
+         *
+         * This works as long as the program doesn't make use of any extra
+         * files. */
+        for (i = 3; i < 20; i++)
+            close(i);
+
+        waitpid(child, NULL, 0);
+        /* wait(NULL); */
+    }
+
+cleanup:
+    close_prog(&prog);
+    return ;
+}
+
+void shell_run_line(char *line)
+{
+    /*
+    struct yy_buffer_state *state;
+
+    state = yy_scan_string(line);
+     */
+    parse_line(line);
+    /*
+    yy_delete_buffer(state);
+     */
+
+    return ;
+}
+

@@ -10,7 +10,8 @@ int main(int argc, char **argv)
 
     char c = '\0';
     while (c != '~') {
-        read(0, &c, 1);
+        c = getchar();
+        /* read(0, &c, 1); */
         write(1, &c, 1);
     }
 
