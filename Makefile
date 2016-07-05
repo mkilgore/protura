@@ -267,6 +267,8 @@ clean-kernel:
 PHONY += clean-full
 clean-full: clean-toolchain clean-configure clean-disk clean-kernel
 
+full: configure install-kernel-headers toolchain kernel disk
+
 clean:
 	@echo " Please use one of 'clean-configure', 'clean-toolchain',"
 	@echo " 'clean-kernel', 'clean-disk', or 'clean-full'"
