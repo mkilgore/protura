@@ -30,7 +30,7 @@ void address_space_map_vm_map(struct address_space *addrspc, struct vm_map *map)
 
 void address_space_unmap_vm_entry(struct address_space *addrspc, va_t virtual)
 {
-    arch_address_space_unmap_vm_map(addrspc, virtual);
+    arch_address_space_unmap_vm_entry(addrspc, virtual);
 }
 
 void address_space_unmap_vm_map(struct address_space *addrspc, struct vm_map *map)
