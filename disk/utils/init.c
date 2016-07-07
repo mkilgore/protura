@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     keyboardfd = open("/dev/keyboard", O_RDONLY, 0);
     consolefd = open("/dev/console", O_WRONLY, 0);
 
-    start_prog("/bin/echo", NULL, NULL);
+    start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 
     close(keyboardfd);
     close(consolefd);
