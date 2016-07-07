@@ -128,7 +128,7 @@ void vm_map_resize(struct vm_map *map, struct vm_region new_size)
         vm_map_resize_end(map, new_size.end);
 }
 
-int user_check_region(const va_t ptr, size_t size, flags_t vm_flags)
+int user_check_region(const void *ptr, size_t size, flags_t vm_flags)
 {
     struct task *t = cpu_get_local()->current;
     struct address_space *addrspc = t->addrspc;
@@ -152,7 +152,7 @@ int user_check_region(const va_t ptr, size_t size, flags_t vm_flags)
     return -EFAULT;
 }
 
-int user_check_strn(const va_t ptr, size_t size, flags_t vm_flags)
+int user_check_strn(const void *ptr, size_t size, flags_t vm_flags)
 {
     struct task *t = cpu_get_local()->current;
     struct address_space *addrspc = t->addrspc;
@@ -163,7 +163,7 @@ int user_check_strn(const va_t ptr, size_t size, flags_t vm_flags)
 
     list_foreach_entry(&addrspc->vm_maps, cur, address_space_entry) {
         if (cur->addr.start <= ptr) {
-            va_t end = ptr + size;
+            va_t end = (va_t)ptr + size;
             if (end >= cur->addr.end)
                 end = cur->addr.end - 1;
 
