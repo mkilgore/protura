@@ -347,6 +347,7 @@ cscope:
 	$(Q)find ./ \
 		-path "./arch/*" ! -path "./arch/$(ARCH)/*" -prune -o \
 		-path "./scripts/*" -prune -o \
+		-path "./disk/*" -prune -o \
 		-name "*.[chsS]" -print \
 		> ./cscope.files
 	$(Q)cscope -b -q -k
