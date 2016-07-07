@@ -170,8 +170,8 @@ int user_check_strn(const void *ptr, size_t size, flags_t vm_flags)
             if ((cur->flags & vm_flags) != vm_flags)
                 return -EFAULT;
 
-            char *c;
-            for (c = end; c >= (char *)ptr; c--)
+            const char *c;
+            for (c = end; c >= (const char *)ptr; c--)
                 if (*c == '\0')
                     return 0;
 
