@@ -25,6 +25,7 @@
 #include <protura/drivers/term.h>
 #include <protura/dump_mem.h>
 #include <protura/mm/palloc.h>
+#include <protura/signal.h>
 
 #include <arch/fake_task.h>
 #include <arch/kernel_task.h>
@@ -192,6 +193,53 @@ void scheduler_task_dead(void)
     panic("Dead task returned from yield()!!!");
 }
 
+int scheduler_task_exists(pid_t pid)
+{
+    struct task *t;
+    int ret = -ESRCH;
+
+    using_spinlock(&ktasks.lock) {
+        list_foreach_entry(&ktasks.list, t, task_list_node) {
+            if (t->pid == pid) {
+                ret = 0;
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+int scheduler_task_send_signal(pid_t pid, int signal, int force)
+{
+    int ret = 0;
+    struct task *t, *found = NULL;
+
+    if (signal < 1 || signal > NSIG)
+        return -EINVAL;
+
+    using_spinlock(&ktasks.lock) {
+        list_foreach_entry(&ktasks.list, t, task_list_node) {
+            if (t->pid == pid) {
+                found = t;
+                break;
+            }
+        }
+
+        if (found) {
+            SIGSET_SET(&found->sig_pending, signal);
+            if (force)
+                SIGSET_UNSET(&found->sig_blocked, signal);
+
+            scheduler_task_intr_wake(found);
+        } else {
+            ret = -ESRCH;
+        }
+    }
+
+    return ret;
+}
+
 void scheduler(void)
 {
     struct task *t;
@@ -238,6 +286,7 @@ void scheduler(void)
             case TASK_RUNNABLE:
                 goto found_task;
 
+            case TASK_INTR_SLEEPING:
             case TASK_SLEEPING:
                 if (t->wake_up <= ticks && t->wake_up > 0) {
                     t->wake_up = 0;

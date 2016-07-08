@@ -11,6 +11,8 @@ int sys_sigprocmask(int how, const sigset_t *__user set, sigset_t *__user oldset
 int sys_sigpending(sigset_t *__user set);
 int sys_sigaction(int signum, const struct sigaction *__user act, struct sigaction *__user oldact);
 sighandler_t sys_signal(int signum, sighandler_t handler);
+int sys_kill(pid_t pid, int sig);
+int sys_sigwait(const sigset_t *__user set, int *__user sig);
 
 #endif
 

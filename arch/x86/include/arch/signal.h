@@ -39,6 +39,10 @@
 #ifdef __KERNEL__
 #define SIG_BIT(x) (F((x) - 1))
 #define SIG_UNBLOCKABLE (SIG_BIT(SIGKILL) | SIG_BIT(SIGSTOP))
+
+#include <protura/bits.h>
+#define SIGSET_SET(set, sig) bit_set(set, sig - 1)
+#define SIGSET_UNSET(set, sig) bit_clear(set, sig - 1)
 #endif
 
 #define NSIG        32

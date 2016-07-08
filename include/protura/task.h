@@ -19,9 +19,21 @@
 struct file;
 struct inode;
 
+/* Indicates the current state of a task. It should be noted that these states
+ * are separate from preemption. Tasks can be preempted and restarted at any
+ * time preemption is enabled, reguardless of task_sate. When a task explicetly
+ * calls scheduler_yield(), the state is applied.
+ *
+ * TASK_INTR_SLEEPING is interruptible sleep. The different from TASK_SLEEPING
+ * is that interruptible sleep can be ended by the process receiving a signal
+ * or similar - which would ideally be handled immedieatly instead of
+ * completing the current syscall. Without interuptible sleep, sleeping
+ * processes would never handle signals until they are woken-up.
+ */
 enum task_state {
     TASK_NONE,
     TASK_SLEEPING,
+    TASK_INTR_SLEEPING,
     TASK_RUNNABLE,
     TASK_RUNNING,
     TASK_ZOMBIE,
@@ -61,6 +73,7 @@ struct task {
     struct file *files[NOFILE];
     struct inode *cwd;
 
+    /* When modifying the sets, this lock must be taken */
     sigset_t sig_pending, sig_blocked;
 
     struct sigaction sig_actions[NSIG];
@@ -161,6 +174,13 @@ static inline void user_ptr_check_on(void)
 static inline int user_ptr_check_is_on(void)
 {
     return cpu_get_local()->current->user_ptr_check;
+}
+
+static inline int signals_pending(void)
+{
+    struct task *t = cpu_get_local()->current;
+
+    return t->sig_pending & ~t->sig_blocked;
 }
 
 #endif

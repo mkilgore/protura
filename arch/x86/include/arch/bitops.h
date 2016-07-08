@@ -71,6 +71,20 @@ static __always_inline int bit_find_first_zero(const void *value, size_t bytes)
     return -1;
 }
 
+static __always_inline int bit32_find_first_set(uint32_t value)
+{
+    int position;
+
+    asm volatile("bsfl %1, %0;"
+            "jnz 1f;"
+            "movl $-1, %0;"
+            "1:"
+            : "=r" (position)
+            : "rm" (value));
+
+    return position;
+}
+
 #define flag_set(flags, f) bit_set(flags, f)
 #define flag_clear(flags, f) bit_clear(flags, f)
 #define flag_test(flags, f) bit_test(flags, f)

@@ -93,6 +93,10 @@
 #define ENOTRECOVERABLE 141	/* State not recoverable */
 #define EOWNERDEAD 142	/* Previous owner died */
 
+#ifdef __KERNEL__
+
+#define ERESTARTSYS 512
+
 #define __ELASTERROR 2000	/* Users can add values starting here */
 
 extern const char *error_strings[];
@@ -101,5 +105,7 @@ static inline const char *strerror(int err)
 {
     return error_strings[-err];
 }
+
+#endif
 
 #endif

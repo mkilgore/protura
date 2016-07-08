@@ -20,6 +20,9 @@ void scheduler_task_yield_preempt();
 void scheduler_task_dead(void);
 void scheduler_task_mark_dead(struct task *t);
 
+int scheduler_task_send_signal(pid_t pid, int signal, int force);
+int scheduler_task_exists(pid_t pid);
+
 static inline enum task_state scheduler_task_get_state(struct task *t)
 {
     return t->state;
@@ -38,13 +41,22 @@ static inline void scheduler_set_state(enum task_state state)
 #define scheduler_task_set_sleeping(t) scheduler_task_set_state(t, TASK_SLEEPING)
 #define scheduler_task_set_runnable(t) scheduler_task_set_state(t, TASK_RUNNABLE)
 
+#define scheduler_task_set_intr_sleeping(t) scheduler_task_set_state(t, TASK_INTR_SLEEPING)
+
 /* These macros are used to set the current task's state */
 #define scheduler_set_sleeping() scheduler_set_state(TASK_SLEEPING)
 #define scheduler_set_running()  scheduler_set_state(TASK_RUNNING)
+#define scheduler_set_intr_sleeping() scheduler_set_state(TASK_INTR_SLEEPING)
 
 static inline void scheduler_task_wake(struct task *t)
 {
-    if (t->state == TASK_SLEEPING)
+    if (t->state == TASK_SLEEPING || t->state == TASK_INTR_SLEEPING)
+        t->state = TASK_RUNNABLE;
+}
+
+static inline void scheduler_task_intr_wake(struct task *t)
+{
+    if (t->state == TASK_INTR_SLEEPING)
         t->state = TASK_RUNNABLE;
 }
 
@@ -103,6 +115,7 @@ void scheduler_task_entry(void);
  * NOTE: It's important to understand that these blocks are *not* loops. 
  */
 #define sleep using_nocheck(scheduler_set_sleeping(), scheduler_set_running())
+#define sleep_intr using_nocheck(scheduler_set_intr_sleeping(), scheduler_set_running())
 
 
 #endif
