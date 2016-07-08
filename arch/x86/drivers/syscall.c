@@ -19,6 +19,7 @@
 #include <arch/task.h>
 #include <arch/drivers/pic8259_timer.h>
 #include <protura/fs/sys.h>
+#include <protura/signal.h>
 
 /* 
  * These simple functions serve as the glue between the underlying
@@ -185,6 +186,36 @@ static void sys_handler_waitpid(struct irq_frame *frame)
     frame->eax = sys_waitpid((pid_t)frame->ebx, (int *)frame->ecx, frame->edx);
 }
 
+static void sys_handler_sigprocmask(struct irq_frame *frame)
+{
+    frame->eax = sys_sigprocmask(frame->ebx, (const sigset_t *)frame->ecx, (sigset_t *)frame->edx);
+}
+
+static void sys_handler_sigpending(struct irq_frame *frame)
+{
+    frame->eax = sys_sigpending((sigset_t *)frame->ebx);
+}
+
+static void sys_handler_sigaction(struct irq_frame *frame)
+{
+    frame->eax = sys_sigaction(frame->ebx, (const struct sigaction *)frame->ecx, (struct sigaction *)frame->edx);
+}
+
+static void sys_handler_signal(struct irq_frame *frame)
+{
+    frame->eax = (int)sys_signal(frame->ebx, (sighandler_t)frame->ecx);
+}
+
+static void sys_handler_kill(struct irq_frame *frame)
+{
+    frame->eax = sys_kill((pid_t)frame->ebx, frame->ecx);
+}
+
+static void sys_handler_sigwait(struct irq_frame *frame)
+{
+    frame->eax = sys_sigwait((const sigset_t *)frame->ebx, (int *)frame->ecx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -224,6 +255,12 @@ static struct syscall_handler {
     SYSCALL(FSTAT, sys_handler_fstat),
     SYSCALL(PIPE, sys_handler_pipe),
     SYSCALL(WAITPID, sys_handler_waitpid),
+    SYSCALL(SIGPROCMASK, sys_handler_sigprocmask),
+    SYSCALL(SIGPENDING, sys_handler_sigpending),
+    SYSCALL(SIGACTION, sys_handler_sigaction),
+    SYSCALL(SIGNAL, sys_handler_signal),
+    SYSCALL(KILL, sys_handler_kill),
+    SYSCALL(SIGWAIT, sys_handler_sigwait),
 };
 
 static void syscall_handler(struct irq_frame *frame)

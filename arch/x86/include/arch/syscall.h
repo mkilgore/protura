@@ -43,6 +43,13 @@
 #define SYSCALL_PIPE    0x20
 #define SYSCALL_WAITPID 0x21
 
+#define SYSCALL_SIGPROCMASK 0x22
+#define SYSCALL_SIGPENDING  0x23
+#define SYSCALL_SIGACTION   0x24
+#define SYSCALL_SIGNAL      0x25
+#define SYSCALL_KILL        0x26
+#define SYSCALL_SIGWAIT     0x27
+
 #ifdef __KERNEL__
 #ifndef ASM
 
