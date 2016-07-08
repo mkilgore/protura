@@ -15,6 +15,7 @@
 #include <protura/mutex.h>
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/signal.h>
 #include <arch/task.h>
 
 #include <protura/fs/block.h>
@@ -211,6 +212,7 @@ int execve(struct inode *inode, const char *const argv[], const char *const envp
     char *saved_args, *sp;
     char *user_stack_end;
     size_t arg_len;
+    struct task *current = cpu_get_local()->current;
 
     if (argv == NULL)
         argv = (const char *[]) { NULL };
@@ -238,6 +240,17 @@ int execve(struct inode *inode, const char *const argv[], const char *const envp
     sp = copy_to_userspace(user_stack_end, saved_args + PG_SIZE * CONFIG_KERNEL_ARG_PAGES, arg_len, argc, envc);
 
     irq_frame_set_stack(frame, sp);
+
+    int i;
+    for (i = 0; i < NSIG; i++) {
+        if (current->sig_actions[i].sa_handler != SIG_IGN)
+            current->sig_actions[i].sa_handler = SIG_DFL;
+
+        current->sig_actions[i].sa_mask = 0;
+        current->sig_actions[i].sa_flags = 0;
+    }
+
+    current->sig_pending = 0;
 
   close_fd:
     pfree_va(saved_args, log2(CONFIG_KERNEL_ARG_PAGES));

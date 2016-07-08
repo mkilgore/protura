@@ -8,6 +8,7 @@
 #include <protura/compiler.h>
 #include <protura/wait.h>
 #include <protura/mm/vm.h>
+#include <protura/signal.h>
 #include <arch/context.h>
 #include <arch/paging.h>
 #include <arch/cpu.h>
@@ -59,6 +60,10 @@ struct task {
 
     struct file *files[NOFILE];
     struct inode *cwd;
+
+    sigset_t sig_pending, sig_blocked;
+
+    struct sigaction sig_actions[NSIG];
 
     char name[20];
 };

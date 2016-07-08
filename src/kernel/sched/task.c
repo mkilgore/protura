@@ -22,6 +22,7 @@
 #include <protura/fs/file.h>
 #include <protura/fs/fs.h>
 #include <protura/wait.h>
+#include <protura/signal.h>
 
 #include <arch/spinlock.h>
 #include <arch/fake_task.h>
