@@ -69,6 +69,13 @@ void arch_address_space_copy(struct address_space *new, struct address_space *ol
         new_map = kmalloc(sizeof(*map), PAL_KERNEL);
         vm_map_init(new_map);
 
+        if (old->code == map)
+            new->code = new_map;
+        else if (old->data == map)
+            new->data = new_map;
+        else if (old->stack == map)
+            new->stack = new_map;
+
         new_map->addr = map->addr;
         new_map->flags = map->flags;
 
