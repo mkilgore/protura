@@ -12,7 +12,8 @@ DISK_UTIL_SRCS := \
 	./disk/utils/arg_test.c \
 	./disk/utils/pipe_test.c \
 	./disk/utils/head.c \
-	./disk/utils/dsh.c
+	./disk/utils/dsh.c \
+	./disk/utils/signal_test.c
 
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
 DISK_UTIL_EXTRA_OBJS :=
