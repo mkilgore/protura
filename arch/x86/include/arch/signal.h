@@ -43,6 +43,9 @@
 #include <protura/bits.h>
 #define SIGSET_SET(set, sig) bit_set(set, sig - 1)
 #define SIGSET_UNSET(set, sig) bit_clear(set, sig - 1)
+
+typedef void (*sighandler_t) (int);
+
 #endif
 
 #define NSIG        32
@@ -51,10 +54,8 @@
 
 typedef uint32_t sigset_t;
 
-typedef void (*sighandler_t) (int);
-
 struct sigaction {
-    sighandler_t sa_handler;
+    void (*sa_handler) (int);
     sigset_t sa_mask;
     int sa_flags;
 };
