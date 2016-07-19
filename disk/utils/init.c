@@ -8,6 +8,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <signal.h>
+#include <unistd.h>
 #include <protura/syscall.h>
 
 /* Reap children */
