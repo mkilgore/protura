@@ -1,5 +1,4 @@
 
-//#include <syscalls.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,11 +7,18 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <signal.h>
 #include <protura/syscall.h>
 
-#define hello "Hello from Init!!!\n"
+/* Reap children */
+static void handle_children(int sig)
+{
+    pid_t child;
+    printf("Waiting on children!\n");
 
-#define prompt "echo=e seg-fault-test=s brk-test=b ls=l a=arg_test p=pipe_test h=sh\n"
+    while ((child = waitpid(-1, NULL, WNOHANG)) > 0)
+        printf("Reaped %d\n", child);
+}
 
 static pid_t start_prog(const char *prog, char *const argv[], char *const envp[])
 {
@@ -37,6 +43,12 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 int main(int argc, char **argv)
 {
     int consolefd, keyboardfd;
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+
+    action.sa_handler = handle_children;
+    sigaction(SIGCHLD, &action, NULL);
 
     keyboardfd = open("/dev/keyboard", O_RDONLY, 0);
     consolefd = open("/dev/console", O_WRONLY, 0);
@@ -49,61 +61,11 @@ int main(int argc, char **argv)
     keyboardfd = open("/dev/com2", O_RDONLY, 0);
     consolefd = open("/dev/com2", O_WRONLY, 0);
 
-    write(consolefd, hello, sizeof(hello) - 1);
+    start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 
-    write(consolefd, prompt, sizeof(prompt) - 1);
-
-    printf("keyboardfd: %d\n", keyboardfd);
-    printf("consolefd: %d\n", consolefd);
-
-    fwrite("Test\n", 5, 1, stdout);
-    fflush(stdout);
-
-    sync();
-
-    while (1) {
-        char c;
-        read(keyboardfd, &c, 1);
-
-        if (c == 'e') {
-            start_prog("/bin/echo", NULL, NULL);
-            wait(NULL);
-        }
-
-        if (c == 's') {
-            start_prog("/bin/seg_fault", NULL, NULL);
-            wait(NULL);
-        }
-
-        if (c == 'b') {
-            start_prog("/bin/brk_test", NULL, NULL);
-            wait(NULL);
-        }
-
-        if (c == 'l') {
-            start_prog("/bin/ls", NULL, NULL);
-            wait(NULL);
-        }
-
-        if (c == 'a') {
-            start_prog("/bin/arg_test", (char *const []) { "Argument 1", "Argument 2", "Argument 3", "-c", "-w2", "--make", NULL }, (char *const[]) { "PATH=/usr/bin", "test=200", NULL } );
-            wait(NULL);
-        }
-
-        if (c == 'p') {
-            start_prog("/bin/pipe_test", NULL, NULL);
-            wait(NULL);
-        }
-
-        if (c == 'h') {
-            start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
-            wait(NULL);
-        }
-
-        sync();
-
-        write(consolefd, prompt, sizeof(prompt) - 1);
-    }
+    /* Sleep forever */
+    while (1)
+        pause();
 
     return 0;
 }
