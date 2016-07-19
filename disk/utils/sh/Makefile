@@ -5,7 +5,8 @@ SH_SRCS := \
 	./disk/utils/sh/shell.c \
 	./disk/utils/sh/input.c \
 	./disk/utils/sh/input_lexer.c \
-	./disk/utils/sh/arg_parser.c
+	./disk/utils/sh/arg_parser.c \
+	./disk/utils/sh/builtin.c
 
 SH_OBJS := $(SH_SRCS:.c=.o)
 

@@ -45,12 +45,6 @@ static void start_child(const struct prog_desc *prog)
 
 int prog_start(const struct prog_desc *prog, pid_t *child_pid)
 {
-    int i;
-    printf("Starting program: %s\n", prog->file);
-    printf("argc: %d\n", prog->argc);
-    for (i = 0; i < prog->argc; i++)
-        printf("argv: %s\n", prog->argv[0]);
-
     pid_t pid = fork();
 
     if (pid == -1)

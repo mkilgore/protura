@@ -11,6 +11,7 @@
 #include <fcntl.h>
 
 #include "input_lexer.h"
+#include "builtin.h"
 #include "prog.h"
 
 static void close_prog(struct prog_desc *prog)
@@ -33,11 +34,11 @@ static void prog_init(struct prog_desc *prog)
     prog->stderr_fd = STDERR_FILENO;
 }
 
-static void prog_add_arg(struct prog_desc *prog, const char *str)
+static void prog_add_arg(struct prog_desc *prog, const char *str, size_t len)
 {
     prog->argc++;
     prog->argv = realloc(prog->argv, (prog->argc + 1) * sizeof(*prog->argv));
-    prog->argv[prog->argc - 1] = strdup(str);
+    prog->argv[prog->argc - 1] = strndup(str, len);
     prog->argv[prog->argc] = NULL;
 }
 
@@ -67,7 +68,7 @@ static void parse_line(const char *line)
                 prog.file = strndup(state.str, state.len);
                 prog.argc = 0;
             }
-            prog_add_arg(&prog, state.str);
+            prog_add_arg(&prog, state.str, state.len);
             break;
 
         case TOK_REDIRECT_OUT:
@@ -86,6 +87,12 @@ static void parse_line(const char *line)
             break;
 
         case TOK_NEWLINE:
+            if (!prog.file)
+                goto done_exec;
+
+            if (builtin_exec(&prog, NULL) == 0)
+                goto done_exec;
+
             prog_start(&prog, &child);
             /* HACK: close-on-exec is not implemented yet - just close
              * everything except standard streams and hope for the best.
@@ -95,9 +102,9 @@ static void parse_line(const char *line)
             for (i = 3; i < 20; i++)
                 close(i);
 
-            printf("Program is running...\n");
             waitpid(child, NULL, 0);
-            /* wait(NULL); */
+
+         done_exec:
             close_prog(&prog);
             prog_init(&prog);
             break;
@@ -132,7 +139,6 @@ static void parse_line(const char *line)
             close(i);
 
         waitpid(child, NULL, 0);
-        /* wait(NULL); */
     }
 
 cleanup:
@@ -142,15 +148,7 @@ cleanup:
 
 void shell_run_line(char *line)
 {
-    /*
-    struct yy_buffer_state *state;
-
-    state = yy_scan_string(line);
-     */
     parse_line(line);
-    /*
-    yy_delete_buffer(state);
-     */
 
     return ;
 }

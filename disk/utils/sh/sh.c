@@ -9,20 +9,16 @@
 
 void handle_child(int sig)
 {
-    pid_t pid = 1;
-    do {
-        /* pid = waitpid(-1, NULL, WNOHANG); */
-    } while (pid == 0);
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
 }
-
-void ignore_sig(int sig);
 
 void handle_sigint(int sig)
 {
     pid_t pid = getpid();
     /* "disable" SIGINT on the main thread so we don't kill the shell when we
      * kill our children */
-    signal(SIGINT, ignore_sig);
+    signal(SIGINT, SIG_IGN);
     kill(-pid, SIGINT);
 }
 

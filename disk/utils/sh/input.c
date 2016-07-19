@@ -44,7 +44,6 @@ void input_loop(void)
     char line[INPUT_MAX + 1];
 
     do {
-        putchar('\n');
         input_new_line(prompt, line, sizeof(line));
         /*
         line = readline(prompt);
