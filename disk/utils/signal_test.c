@@ -1,34 +1,38 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
 
-void signal_thread(void)
+sig_atomic_t volatile quit = 0;
+
+void handle_sig(int sig)
 {
-    sigset_t newset;
-
-    sigfillset(&newset);
-
-    sigprocmask(SIG_BLOCK, &newset, NULL);
-
-    while (1) {
-        int sig = 0, ret;
-        ret = sigwait(&newset, &sig);
-
-        printf("Sigwait: %d\n", ret);
-        printf("Received signal: %d\n", sig);
-    }
+    printf("Signal: %d\n", sig);
+    quit = 1;
 }
 
 pid_t start_signal_prog(void)
 {
-    pid_t child;
+    pid_t child, parent;
     switch ((child = fork())) {
     case 0:
         /* child */
-        signal_thread();
+        parent = getppid();
+        kill(parent, SIGINT);
+        kill(parent, SIGINT);
+        kill(parent, SIGINT);
+        kill(parent, SIGINT);
+        kill(parent, SIGINT);
+        kill(parent, SIGINT);
+        kill(parent, SIGINT);
+
+        printf("Sleeping...\n");
+        sleep(10);
+
+        kill(parent, SIGUSR1);
         exit(0);
 
     case -1:
@@ -36,28 +40,38 @@ pid_t start_signal_prog(void)
         return -1;
 
     default:
-        return child;
+        break;
     }
+
+    return child;
 }
 
 int main(int argc, char **argv)
 {
+    int ret;
     pid_t child;
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = handle_sig;
+
+    ret = sigaction(SIGUSR1, &action, NULL);
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = SIG_IGN;
+
+    sigaction(SIGUSR2, &action, NULL);
+    sigaction(SIGINT, &action, NULL);
 
     child = start_signal_prog();
 
-    int i;
-    for (i = 1; i <= NSIG; i++) {
-        if (i != SIGKILL && i != SIGSTOP) {
-            printf("Sending signal: %d\n", i);
-            kill(child, i);
-        }
-    }
+    printf("Pausing...\n");
+    pause();
 
-    printf("Sending SIGKILL...\n");
-    /* kill(child, SIGKILL); */
+    printf("Pause exited!!!\n");
+    printf("Quit=%d\n", quit);
 
-    wait(NULL);
+    waitpid(child, NULL, 0);
 
     return 0;
 }
