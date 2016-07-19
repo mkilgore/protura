@@ -21,8 +21,14 @@ struct x86_regs {
 struct arch_context {
     struct x86_regs *esp;
     uint32_t eflags;
+    uint32_t prev_syscall;
     struct irq_frame *frame;
 };
+
+static inline void arch_context_set_return(struct arch_context *context, int ret)
+{
+    context->frame->eax = ret;
+}
 
 void arch_context_switch(struct arch_context *new, struct arch_context *old);
 

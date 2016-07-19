@@ -36,6 +36,28 @@
 #define SIGWINCH    28
 #define SIGIO       29
 
+#define NSIG        32
+#define _NSIG NSIG
+
+typedef uint32_t sigset_t;
+
+struct sigaction {
+    void (*sa_handler) (int);
+    sigset_t sa_mask;
+    int sa_flags;
+};
+
+#define SA_RESTART 0x10000000
+#define SA_ONESHOT 0x80000000
+
+#define SIG_DFL ((void (*)(int)) 0)
+#define SIG_IGN ((void (*)(int)) 1)
+#define SIG_ERR ((void (*)(int)) -1)
+
+#define SIG_BLOCK 0
+#define SIG_UNBLOCK 1
+#define SIG_SETMASK 2
+
 #ifdef __KERNEL__
 #define SIG_BIT(x) (F((x) - 1))
 #define SIG_UNBLOCKABLE (SIG_BIT(SIGKILL) | SIG_BIT(SIGSTOP))
@@ -46,26 +68,16 @@
 
 typedef void (*sighandler_t) (int);
 
+struct irq_frame;
+struct task;
+
+/* Handles any pending signals on the current task */
+int signal_handle(struct task *current, struct irq_frame *iframe);
+void sys_sigreturn(struct irq_frame *iframe);
+
+extern char *x86_trampoline_code;
+extern uint32_t x86_trampoline_len;
+
 #endif
-
-#define NSIG        32
-#define _NSIG NSIG
-
-
-typedef uint32_t sigset_t;
-
-struct sigaction {
-    void (*sa_handler) (int);
-    sigset_t sa_mask;
-    int sa_flags;
-};
-
-#define SIG_DFL ((void (*)(int)) 0)
-#define SIG_IGN ((void (*)(int)) 1)
-#define SIG_ERR ((void (*)(int)) -1)
-
-#define SIG_BLOCK 0
-#define SIG_UNBLOCK 1
-#define SIG_SETMASK 2
 
 #endif

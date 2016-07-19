@@ -49,6 +49,9 @@
 #define SYSCALL_SIGNAL      0x25
 #define SYSCALL_KILL        0x26
 #define SYSCALL_SIGWAIT     0x27
+#define SYSCALL_SIGRETURN   0x28
+#define SYSCALL_PAUSE       0x29
+#define SYSCALL_SIGSUSPEND  0x30
 
 #ifdef __KERNEL__
 #ifndef ASM

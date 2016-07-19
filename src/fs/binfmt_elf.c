@@ -165,6 +165,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
     flag_set(&stack->flags, VM_MAP_READ);
     flag_set(&stack->flags, VM_MAP_WRITE);
+    flag_set(&stack->flags, VM_MAP_EXE);
 
     palloc_unordered(&stack->page_list, KMEM_STACK_LIMIT, PAL_KERNEL);
 

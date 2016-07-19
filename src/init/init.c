@@ -33,6 +33,7 @@ static int start_user_init(void *unused)
 
     task_pid1 = task_user_new_exec("/bin/init");
     task_pid1->pid = 1;
+
     scheduler_task_add(task_pid1);
 
     return 0;

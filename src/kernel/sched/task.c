@@ -191,7 +191,7 @@ struct task *task_fork(struct task *parent)
     if (!new)
         return NULL;
 
-    snprintf(new->name, sizeof(new->name), "Chld: %s", parent->name);
+    snprintf(new->name, sizeof(new->name), "Chld: %d", parent->pid);
 
     arch_task_setup_stack_user(new);
     address_space_copy(new->addrspc, parent->addrspc);
@@ -260,7 +260,7 @@ void task_make_zombie(struct task *t)
             list_move(&task_pid1->task_children, &child->task_sibling_list);
 
             if (child->state == TASK_ZOMBIE)
-                scheduler_task_wake(task_pid1);
+                scheduler_task_send_signal(1, SIGCHLD, 0);
         }
     }
 
@@ -280,6 +280,9 @@ void task_make_zombie(struct task *t)
     }
 
     t->state = TASK_ZOMBIE;
+
+    if (t->parent)
+        scheduler_task_send_signal(t->parent->pid, SIGCHLD, 0);
 
     kp(KP_TRACE, "Task %s(%p): zombie\n", t->name, t);
 }
@@ -434,10 +437,10 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
         }
     }
 
-    if (!have_no_children && options & WNOHANG)
+    if (!have_child && options & WNOHANG)
         return 0;
 
-    if (!child)
+    if (!have_child)
         return -ECHILD;
 
     if (wstatus)

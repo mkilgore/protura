@@ -13,6 +13,8 @@ int sys_sigaction(int signum, const struct sigaction *__user act, struct sigacti
 sighandler_t sys_signal(int signum, sighandler_t handler);
 int sys_kill(pid_t pid, int sig);
 int sys_sigwait(const sigset_t *__user set, int *__user sig);
+int sys_pause(void);
+int sys_sigsuspend(const sigset_t *__user mask);
 
 #endif
 

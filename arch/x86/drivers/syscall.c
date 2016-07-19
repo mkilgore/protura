@@ -53,7 +53,7 @@ static void sys_handler_putstr(struct irq_frame *frame)
 
 static void sys_handler_sleep(struct irq_frame *frame)
 {
-    sys_sleep(frame->ebx);
+    frame->eax = sys_sleep(frame->ebx);
 }
 
 static void sys_handler_fork(struct irq_frame *frame)
@@ -216,6 +216,21 @@ static void sys_handler_sigwait(struct irq_frame *frame)
     frame->eax = sys_sigwait((const sigset_t *)frame->ebx, (int *)frame->ecx);
 }
 
+static void sys_handler_sigreturn(struct irq_frame *frame)
+{
+    sys_sigreturn(frame);
+}
+
+static void sys_handler_pause(struct irq_frame *frame)
+{
+    frame->eax = sys_pause();
+}
+
+static void sys_handler_sigsuspend(struct irq_frame *frame)
+{
+    frame->eax = sys_sigsuspend((const sigset_t *)frame->ebx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -261,6 +276,9 @@ static struct syscall_handler {
     SYSCALL(SIGNAL, sys_handler_signal),
     SYSCALL(KILL, sys_handler_kill),
     SYSCALL(SIGWAIT, sys_handler_sigwait),
+    SYSCALL(SIGRETURN, sys_handler_sigreturn),
+    SYSCALL(PAUSE, sys_handler_pause),
+    SYSCALL(SIGSUSPEND, sys_handler_sigsuspend),
 };
 
 static void syscall_handler(struct irq_frame *frame)

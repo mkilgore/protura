@@ -163,16 +163,29 @@ void scheduler_task_yield_preempt(void)
 void scheduler_task_waitms(uint32_t mseconds)
 {
     struct task *t = cpu_get_local()->current;
-    t->state = TASK_SLEEPING;
+    t->state = TASK_INTR_SLEEPING;
     t->wake_up = timer_get_ticks() + mseconds * (TIMER_TICKS_PER_SEC / 1000);
 
     using_spinlock(&ktasks.lock)
         __yield(t);
 }
 
-void sys_sleep(uint32_t mseconds)
+int sys_sleep(int seconds)
 {
-    scheduler_task_waitms(mseconds);
+    int ticks;
+    struct task *t = cpu_get_local()->current;
+
+    scheduler_task_waitms(seconds * 1000);
+
+    if (t->wake_up == 0)
+        return 0;
+
+    ticks = (t->wake_up - timer_get_ticks()) / TIMER_TICKS_PER_SEC;
+
+    if (ticks < 0)
+        ticks = 0;
+
+    return ticks;
 }
 
 void scheduler_task_mark_dead(struct task *t)
@@ -217,6 +230,8 @@ int scheduler_task_send_signal(pid_t pid, int signal, int force)
 
     if (signal < 1 || signal > NSIG)
         return -EINVAL;
+
+    kp(KP_TRACE, "signal: %d to %d\n", signal, pid);
 
     using_spinlock(&ktasks.lock) {
         list_foreach_entry(&ktasks.list, t, task_list_node) {

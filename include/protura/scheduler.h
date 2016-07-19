@@ -62,7 +62,7 @@ static inline void scheduler_task_intr_wake(struct task *t)
 
 
 void scheduler_task_waitms(uint32_t mseconds);
-void sys_sleep(uint32_t mseconds);
+int sys_sleep(int seconds);
 void scheduler(void);
 
 /* Entry point for all new tasks */

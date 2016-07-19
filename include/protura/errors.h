@@ -95,7 +95,12 @@
 
 #ifdef __KERNEL__
 
+/* Restart unless a handler is run */
 #define ERESTARTSYS 512
+/* Restart only if a handler isn't run */
+#define ERESTARTNOHAND 513
+/* Restart every time */
+#define ERESTARTNOINTR 514
 
 #define __ELASTERROR 2000	/* Users can add values starting here */
 

@@ -10,6 +10,8 @@ objs-y += irq_handler.o
 objs-y += idt.o
 objs-y += irq_array.o
 objs-y += string.o
+objs-y += signal.o
+objs-y += signal_trampoline.o
 
 $(objtree)/irq_array.S: $(srctree)/irq_array_gen.pl
 	@echo " PERL    $@"

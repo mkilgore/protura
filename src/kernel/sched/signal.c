@@ -91,12 +91,15 @@ int sys_sigaction(int signum, const struct sigaction *__user act, struct sigacti
         if (ret)
             return ret;
 
+
         tmp = *act;
 
         tmp.sa_mask |= SIG_BIT(signum);
         tmp.sa_mask &= ~SIG_UNBLOCKABLE;
 
         *action = tmp;
+
+        kp(KP_TRACE, "signal: Adding handler %p for %d on %d\n", action->sa_handler, signum, cpu_get_local()->current->pid);
     }
 
     return 0;
@@ -162,12 +165,52 @@ int sys_sigwait(const sigset_t *__user set, int *__user sig)
     }
 
     if ((test + 1) == SIGKILL || (test + 1) == SIGSTOP)
-        return -ERESTARTSYS; /* FIXME: ERESTARTSYS functionality not implemented yet */
+        return -ERESTARTSYS;
 
     *sig = test + 1;
 
     SIGSET_UNSET(&current->sig_pending, test + 1);
 
     return 0;
+}
+
+int sys_pause(void)
+{
+    sleep_intr
+        scheduler_task_yield();
+
+    return -ERESTARTNOHAND;
+}
+
+int sys_sigsuspend(const sigset_t *__user mask)
+{
+    int ret;
+    struct task *current = cpu_get_local()->current;
+    sigset_t tempmask;
+
+    ret = user_check_region(mask, sizeof(*mask), F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    arch_context_set_return(&current->context, -EINTR);
+
+    tempmask = current->sig_blocked;
+    current->sig_blocked = *mask & ~SIG_UNBLOCKABLE;
+
+  sleep_again:
+    sleep_intr {
+        if (!(current->sig_pending & ~current->sig_blocked)) {
+            scheduler_task_yield();
+            goto sleep_again;
+        }
+
+        /* If signal_handle returns zero, then no signal handler was executed */
+        if (!signal_handle(current, current->context.frame))
+            goto sleep_again;
+    }
+
+    current->sig_blocked = tempmask;
+
+    return -EINTR;
 }
 
