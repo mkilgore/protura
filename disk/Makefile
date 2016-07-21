@@ -1,6 +1,6 @@
 
-DISK_AFLAGS := -std=gnu99 -Wall -O2 -DASM -I./include -I./arch/$(ARCH)/include
-DISK_CFLAGS := -std=gnu99 -Wall -O2 -I./include -I./arch/$(ARCH)/include
+DISK_AFLAGS := -std=gnu99 -Wall -O2 -DASM
+DISK_CFLAGS := -std=gnu99 -Wall -O2
 DISK_LDFLAGS :=
 
 DISK_UTIL_SRCS := \
