@@ -454,9 +454,11 @@ int sys_dup(int oldfd)
 {
     struct file *filp = fd_get(oldfd);
     int newfd;
+    int ret;
 
-    if (!filp)
-        return -EBADF;
+    ret = fd_get_checked(oldfd, &filp);
+    if (ret)
+        return ret;
 
     newfd = fd_get_empty();
 
@@ -467,10 +469,15 @@ int sys_dup(int oldfd)
 
 int sys_dup2(int oldfd, int newfd)
 {
-    struct file *old_filp = fd_get(oldfd);
+    struct file *old_filp;
     struct file *new_filp;
+    int ret;
 
-    if (!old_filp)
+    ret = fd_get_checked(oldfd, &old_filp);
+    if (ret)
+        return ret;
+
+    if (newfd > NOFILE || newfd < 0)
         return -EBADF;
 
     new_filp = fd_get(newfd);
