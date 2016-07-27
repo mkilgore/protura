@@ -52,23 +52,33 @@ static __always_inline int bit_test_and_set(const volatile void *value, int bit)
     return old;
 }
 
-static __always_inline int bit_find_first_zero(const void *value, size_t bytes)
+static __always_inline int bit_find_next_zero(const void *value, size_t bytes, int start_loc)
 {
-    const char *b = value;
-    int index = 0, i;
+    const uint8_t *b = value;
+    int i;
 
-    for (i = 0; i < bytes; i++) {
+    int start_byte = start_loc / CHAR_BIT;
+    int start_bit = start_loc % CHAR_BIT;
+
+    for (i = start_byte; i < bytes; i++) {
         if (b[i] == 0xFF)
             continue;
 
         uint8_t c = b[i];
         int k;
-        for (k = 0; k < 8; k++, c >>= 1)
+        for (k = start_bit; k < CHAR_BIT; k++, c >>= 1)
             if (!(c & 1))
-                return index * 8 + k;
+                return i * CHAR_BIT + k;
+
+        start_bit = 0;
     }
 
     return -1;
+}
+
+static __always_inline int bit_find_first_zero(const void *value, size_t bytes)
+{
+    return bit_find_next_zero(value, bytes, 0);
 }
 
 static __always_inline int bit32_find_first_set(uint32_t value)
