@@ -144,7 +144,9 @@ static void __term_putchar_nocur(char ch)
         break;
 
     case '\t':
-        c += ((c + 2) % 8);
+        if ((c % 8) == 0)
+            c += 8;
+        c += 8 - (c % 8);
         break;
 
     case '\b':
