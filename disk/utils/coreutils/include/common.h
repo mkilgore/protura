@@ -1,10 +1,3 @@
-/*
- * Copyright (C) 2013 Matt Kilgore
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License v2 as published by the
- * Free Software Foundation.
- */
 #ifndef INCLUDE_COMMON_H
 #define INCLUDE_COMMON_H
 
@@ -25,5 +18,20 @@
 
 #define TP2(x, y) x ## y
 #define TP(x, y) TP2(x, y)
+
+#ifndef UTILITY_NAME
+# error "Please define UTILITY_NAME macro before including common.h!"
+#endif
+
+#define IU_VERSION_MAJOR 0
+#define IU_VERSION_MINOR 1
+#define IU_VERSION IU_VERSION_MAJOR.IU_VERSION_MINOR
+
+#define version_text (UTILITY_NAME " (iu-coreutils) " Q(IU_VERSION) "\n")
+
+#if 0
+static const char *version_text =
+    UTILITY_NAME " (iu-coreutils) " Q(IU_VERSION) "\n";
+#endif
 
 #endif

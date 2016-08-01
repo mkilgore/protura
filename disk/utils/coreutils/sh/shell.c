@@ -1,3 +1,13 @@
+/*
+ * Copyright (C) 2016 Matt Kilgore
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License v2 as published by the
+ * Free Software Foundation.
+ */
+
+// sh - shell, command line interpreter
+#define UTILITY_NAME "sh"
 
 #include "common.h"
 
@@ -49,6 +59,7 @@ static void parse_line(const char *line)
     struct prog_desc prog = { 0 };
     enum input_token token;
     struct input_lexer state = { 0 };
+    char *tmp;
 
     state.input = line;
 
@@ -76,10 +87,14 @@ static void parse_line(const char *line)
             tok2 = lexer_next_token(&state);
 
             if (tok2 == TOK_STRING) {
+                tmp = strndup(state.str, state.len);
+
                 if (token == TOK_REDIRECT_OUT)
-                    prog.stdout_fd = open(state.str, O_WRONLY | O_CREAT, 0777);
+                    prog.stdout_fd = open(tmp, O_WRONLY | O_CREAT, 0777);
                 else
-                    prog.stdin_fd = open(state.str, O_RDONLY);
+                    prog.stdin_fd = open(tmp, O_RDONLY);
+
+                free(tmp);
             } else {
                 printf("Error: Redirect requires filename\n");
                 goto cleanup;

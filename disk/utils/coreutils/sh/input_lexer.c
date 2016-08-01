@@ -5,6 +5,10 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+
+// sh - shell, command line interpreter
+#define UTILITY_NAME "sh"
+
 #include "common.h"
 
 #include <stdlib.h>
@@ -69,7 +73,11 @@ enum input_token lexer_next_token(struct input_lexer *lex)
         while (tok = lex->input[lex->location],
                (tok >= 'a' && tok <= 'z')
                || (tok >= 'A' && tok <= 'Z')
-               || tok == '_' || tok == '.' || tok == '/') {
+               || (tok >= '0' && tok <= '9')
+               || tok == '_'
+               || tok == '.'
+               || tok == '/'
+               || tok == '-') {
             lex->len++;
             lex->location++;
         }

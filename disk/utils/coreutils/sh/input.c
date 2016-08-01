@@ -5,6 +5,10 @@
  * under the terms of the GNU General Public License v2 as published by the
  * Free Software Foundation.
  */
+
+// sh - shell, command line interpreter
+#define UTILITY_NAME "sh"
+
 #include "common.h"
 
 #include <stdio.h>
