@@ -53,6 +53,9 @@
 #define SYSCALL_PAUSE       0x29
 #define SYSCALL_SIGSUSPEND  0x30
 
+#define SYSCALL_MKDIR 0x31
+#define SYSCALL_MKNOD 0x32
+
 #ifdef __KERNEL__
 #ifndef ASM
 

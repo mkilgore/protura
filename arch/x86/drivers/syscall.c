@@ -231,6 +231,16 @@ static void sys_handler_sigsuspend(struct irq_frame *frame)
     frame->eax = sys_sigsuspend((const sigset_t *)frame->ebx);
 }
 
+static void sys_handler_mkdir(struct irq_frame *frame)
+{
+    frame->eax = sys_mkdir((const char *)frame->ebx, (mode_t)frame->ecx);
+}
+
+static void sys_handler_mknod(struct irq_frame *frame)
+{
+    frame->eax = sys_mknod((const char *)frame->ebx, (mode_t)frame->ecx, (dev_t)frame->edx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -279,6 +289,8 @@ static struct syscall_handler {
     SYSCALL(SIGRETURN, sys_handler_sigreturn),
     SYSCALL(PAUSE, sys_handler_pause),
     SYSCALL(SIGSUSPEND, sys_handler_sigsuspend),
+    SYSCALL(MKDIR, sys_handler_mkdir),
+    SYSCALL(MKNOD, sys_handler_mknod),
 };
 
 static void syscall_handler(struct irq_frame *frame)
