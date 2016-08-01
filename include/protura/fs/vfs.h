@@ -43,4 +43,8 @@ int vfs_getdents(struct file *filp, struct dent *, size_t dent_buf_size);
 
 int vfs_stat(struct inode *inode, struct stat *buf);
 
+int vfs_create(struct inode *dir, const char *name, size_t len, mode_t mode, struct inode **result);
+int vfs_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode);
+int vfs_mknod(struct inode *dir, const char *name, size_t len, mode_t mode, dev_t dev);
+
 #endif

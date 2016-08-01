@@ -131,6 +131,7 @@ struct ext2_disk_directory_entry {
 #define EXT2_DENT_NAME_LEN_HIGH 1
 #define EXT2_DENT_TYPE 1
 
+#define EXT2_LINK_MAX  32000
 
 #ifdef __KERNEL__
 
@@ -145,7 +146,8 @@ struct ext2_disk_directory_entry {
  *     dirty_inodes_lock
  *
  * Note that in most cases, it's unnecessary to take more then one of those
- * locks at any one time */
+ * locks at any one time - you just have to ensure that if you do, this is the
+ * order you do it in. */
 struct ext2_super_block {
     struct super_block sb;
 

@@ -31,7 +31,9 @@ struct super_block_ops {
     int (*inode_write) (struct super_block *, struct inode *);
 
     /* called when nlink and the in-kernel reference count of the inode drops
-     * to zero */
+     * to zero.
+     *
+     * Note that the passed inode is already locked for writing. */
     int (*inode_delete) (struct super_block *, struct inode *);
 
     int (*sb_write) (struct super_block *);

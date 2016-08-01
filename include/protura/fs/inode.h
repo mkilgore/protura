@@ -86,9 +86,13 @@ struct inode_ops {
      * files may not have blocks mapped in every inode sector. */
     sector_t (*bmap_alloc) (struct inode *, sector_t);
 
-    int (*mkdir) (struct inode *, const char *name, size_t len, ino_t ino, mode_t mode);
+    int (*create) (struct inode *dir, const char *name, size_t len, mode_t mode, struct inode **result);
+    int (*mkdir) (struct inode *, const char *name, size_t len, mode_t mode);
     int (*link) (struct inode *dir, struct inode *old, const char *name, size_t len);
+    int (*mknod) (struct inode *dir, const char *name, size_t len, mode_t mode, dev_t dev);
+
     int (*unlink) (struct inode *dir, const char *name, size_t len);
+    int (*rmdir) (struct inode *dir, const char *name, size_t len);
 };
 
 #define Pinode(i) (i)->sb_dev, (i)->ino
@@ -100,6 +104,9 @@ struct inode_ops {
 #define inode_has_bmap_alloc(inode) ((inode)->ops && (inode)->ops->bmap_alloc)
 #define inode_has_link(inode) ((inode)->ops && (inode)->ops->link)
 #define inode_has_unlink(inode) ((inode)->ops && (inode)->ops->unlink)
+#define inode_has_create(inode) ((inode)->ops && (inode)->ops->create)
+#define inode_has_mkdir(inode) ((inode)->ops && (inode)->ops->mkdir)
+#define inode_has_mknod(inode) ((inode)->ops && (inode)->ops->mknod)
 
 #define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
 #define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)
@@ -169,6 +176,18 @@ static inline int inode_try_lock_write(struct inode *i)
         return 1;
     }
     return 0;
+}
+
+static inline void inode_inc_nlinks(struct inode *inode)
+{
+    atomic_inc(&inode->nlinks);
+    inode_set_dirty(inode);
+}
+
+static inline void inode_dec_nlinks(struct inode *inode)
+{
+    atomic_dec(&inode->nlinks);
+    inode_set_dirty(inode);
 }
 
 #define using_inode_lock_read(inode) \

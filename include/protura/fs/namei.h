@@ -10,9 +10,28 @@
 
 #include <protura/fs/inode.h>
 
+struct nameidata {
+    const char *path;
+    struct inode *cwd;
+
+    struct inode *found;
+    struct inode *parent;
+    const char *name_start;
+    size_t name_len;
+};
+
+enum {
+    NAMEI_GET_INODE,
+    NAMEI_GET_PARENT,
+};
+
+int namei_full(struct nameidata *data, flags_t flags);
+
 int namei(const char *path, struct inode **result);
 int namex(const char *path, struct inode *cwd, struct inode **result);
+/*
 int nameiparent(const char *path, const char **name_start, size_t *name_len, struct inode **result);
 int namexparent(const char *path, const char **name_start, size_t *name_len, struct inode *cwd, struct inode **result);
+*/
 
 #endif

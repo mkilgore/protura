@@ -16,6 +16,7 @@ struct inode;
 struct inode *inode_get(struct super_block *, ino_t ino);
 struct inode *inode_dup(struct inode *);
 void inode_put(struct inode *);
+void inode_add(struct inode *i);
 
 /* Called to reduce memory used by inode cache, by releasing inodes which have
  * no current users. */
