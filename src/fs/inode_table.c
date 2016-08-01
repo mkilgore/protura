@@ -88,6 +88,7 @@ void inode_put(struct inode *inode)
         kp(KP_TRACE, "Releasing inode "PRinode"\n", Pinode(inode));
         /* If this inode has no hard-links to it, then we can just discard it. */
         if (atomic32_get(&inode->nlinks) == 0) {
+            kp(KP_TRACE, "inode "PRinode" has no hark links, deleting...\n", Pinode(inode));
             if (sb->ops->inode_delete)
                 sb->ops->inode_delete(sb, inode);
             sb->ops->inode_dealloc(sb, inode);
@@ -95,7 +96,9 @@ void inode_put(struct inode *inode)
         }
 
         using_mutex(&inode->sb->dirty_inodes_lock) {
+            kp(KP_TRACE, "inode "PRinode" dirty flag: %d \n", Pinode(inode), flag_test(&inode->flags, INO_DIRTY));
             if (flag_test(&inode->flags, INO_DIRTY)) {
+                kp(KP_TRACE, "inode "PRinode" being written...\n", Pinode(inode));
                 sb->ops->inode_write(sb, inode);
                 list_del(&inode->sb_dirty_entry);
             }
@@ -165,5 +168,20 @@ struct inode *inode_get(struct super_block *sb, ino_t ino)
     }
 
     return inode;
+}
+
+void inode_add(struct inode *i)
+{
+    int hash = inode_hash_get(i->sb_dev, i->ino);
+    struct inode *inode;
+
+    using_mutex(&inode_list.lock) {
+        hlist_foreach_entry(&inode_list.inode_hashes[hash], inode, hash_entry)
+            if (inode->ino == i->ino && inode->sb_dev == i->sb_dev)
+                panic("Attempting to inode_add() an inode already in the table!\n");
+
+        hlist_add(inode_list.inode_hashes + hash, &i->hash_entry);
+        atomic_inc(&inode_list.inode_count);
+    }
 }
 

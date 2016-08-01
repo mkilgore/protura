@@ -62,9 +62,9 @@ int sys_open(const char *__user path, int flags, mode_t mode)
 {
     int ret;
     unsigned int file_flags = 0;
-    struct inode *inode;
     struct file *filp;
     struct task *current = cpu_get_local()->current;
+    struct nameidata name;
 
     ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
     if (ret)
@@ -80,15 +80,31 @@ int sys_open(const char *__user path, int flags, mode_t mode)
     if (flags & O_APPEND)
         file_flags |= F(FILE_APPEND);
 
-    ret = namex(path, current->cwd, &inode);
-    if (ret)
-        goto return_result;
+    memset(&name, 0, sizeof(name));
+    name.path = path;
+    name.cwd = current->cwd;
 
-    ret = __sys_open(inode, file_flags, &filp);
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
 
-    inode_put(inode);
+    if (!name.found) {
+        if (!(flags & O_CREAT) || !name.parent)
+            goto cleanup_namei;
 
-  return_result:
+        kp(KP_TRACE, "Did not find %s, creating %s\n", path, name.name_start);
+        ret = vfs_create(name.parent, name.name_start, name.name_len, mode, &name.found);
+        kp(KP_TRACE, "Result: %d, name.found: %p\n", ret, name.found);
+        if (ret)
+            goto cleanup_namei;
+    }
+
+    kp(KP_TRACE, "Result: %d, name.found: %p, name.parent: %p\n", ret, name.found, name.parent);
+
+    ret = __sys_open(name.found, file_flags, &filp);
+
+    inode_put(name.found);
+  cleanup_namei:
+    if (name.parent)
+        inode_put(name.parent);
     return ret;
 }
 
@@ -151,9 +167,15 @@ int sys_write(int fd, void *__user buf, size_t len)
         return ret;
 
     ret = fd_get_checked(fd, &filp);
-
     if (ret)
         return ret;
+
+    kp(KP_NORMAL, "Writing to %d: %p: i:%p\n", fd, filp, filp->inode);
+    kp(KP_NORMAL, "Writing to %d: %p: m:%d\n", fd, filp, filp->mode);
+    kp(KP_NORMAL, "Writing to %d: %p: f:%d\n", fd, filp, filp->flags);
+    kp(KP_NORMAL, "Writing to %d: %p: o:%d\n", fd, filp, filp->offset);
+    if (filp->inode)
+        kp(KP_NORMAL, "Writing to %d: %p: i:"PRinode"\n", fd, filp, Pinode(filp->inode));
 
     return vfs_write(filp, buf, len);
 }
@@ -171,7 +193,7 @@ off_t sys_lseek(int fd, off_t off, int whence)
     return vfs_lseek(filp, off, whence);
 }
 
-int sys_truncate(const char *path, off_t length)
+int sys_truncate(const char *__user path, off_t length)
 {
     struct task *current = cpu_get_local()->current;
     struct inode *i;
@@ -201,48 +223,112 @@ int sys_ftruncate(int fd, off_t length)
     return vfs_truncate(filp->inode, length);
 }
 
-int sys_link(const char *old, const char *new)
+int sys_mkdir(const char *__user name, mode_t mode)
 {
     struct task *current = cpu_get_local()->current;
-    struct inode *dir;
-    struct inode *oldlink;
     int ret;
-    const char *name;
-    size_t len;
+
+    ret = user_check_strn(name, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    return vfs_mkdir(current->cwd, name, strlen(name), mode);
+}
+
+int sys_link(const char *__user old, const char *__user new)
+{
+    struct task *current = cpu_get_local()->current;
+    struct inode *oldlink;
+    struct nameidata newname;
+    int ret;
 
     ret = namex(old, current->cwd, &oldlink);
     if (ret)
         return ret;
 
-    ret = namexparent(new, &name, &len, current->cwd, &dir);
-    if (ret)
+    memset(&newname, 0, sizeof(newname));
+
+    newname.path = new;
+    newname.cwd = current->cwd;
+
+    ret = namei_full(&newname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    if (!newname.parent)
         goto release_oldlink;
 
-    ret = vfs_link(dir, oldlink, name, len);
+    if (newname.found) {
+        ret = -EEXIST;
+        goto release_namei;
+    }
 
+    ret = vfs_link(newname.parent, oldlink, newname.name_start, newname.name_len);
 
-    inode_put(dir);
+  release_namei:
+    if (newname.found)
+        inode_put(newname.found);
+    inode_put(newname.parent);
   release_oldlink:
     inode_put(oldlink);
     return ret;
 }
 
-int sys_unlink(const char *file)
+int sys_mknod(const char *__user node, mode_t mode, dev_t dev)
 {
     struct task *current = cpu_get_local()->current;
-    struct inode *dir;
+    struct nameidata name;
     int ret;
-    const char *name;
-    size_t len;
 
-    ret = namexparent(file, &name, &len, current->cwd, &dir);
-    if (ret)
+    memset(&name, 0, sizeof(name));
+    name.path = node;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+
+    if (!name.parent)
+        goto cleanup;
+
+    if (name.found) {
+        ret = -EEXIST;
+        goto cleanup_namei;
+    }
+
+    ret = vfs_mknod(name.parent, name.name_start, name.name_len, mode, DEV_FROM_USERSPACE(dev));
+
+  cleanup_namei:
+    if (name.parent)
+        inode_put(name.parent);
+
+    if (name.found)
+        inode_put(name.found);
+
+  cleanup:
+    return ret;
+}
+
+int sys_unlink(const char *__user file)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata name;
+    int ret;
+
+    memset(&name, 0, sizeof(name));
+    name.path = file;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    if (!name.parent)
         return ret;
 
-    ret = vfs_unlink(dir, name, len);
+    if (!name.found) {
+        ret = -ENOENT;
+        goto cleanup_namei;
+    }
 
-    inode_put(dir);
+    ret = vfs_unlink(name.parent, name.name_start, name.name_len);
 
+  cleanup_namei:
+    if (name.found)
+        inode_put(name.found);
+    inode_put(name.parent);
     return ret;
 }
 

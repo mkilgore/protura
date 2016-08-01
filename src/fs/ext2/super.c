@@ -27,6 +27,26 @@
 
 static struct super_block_ops ext2_sb_ops;
 
+
+void ext2_inode_setup_ops(struct inode *inode)
+{
+    if (S_ISBLK(inode->mode)) {
+        inode->bdev = block_dev_get(inode->dev_no);
+        inode->default_fops = inode->bdev->fops;
+        inode->ops = &inode_ops_null;
+    } else if (S_ISCHR(inode->mode)) {
+        inode->cdev = char_dev_get(inode->dev_no);
+        inode->default_fops = inode->cdev->fops;
+        inode->ops = &inode_ops_null;
+    } else if (S_ISDIR(inode->mode)) {
+        inode->default_fops = &ext2_file_ops_dir;
+        inode->ops = &ext2_inode_ops_dir;
+    } else if (S_ISREG(inode->mode)) {
+        inode->default_fops = &ext2_file_ops_file;
+        inode->ops = &ext2_inode_ops_file;
+    }
+}
+
 static int ext2_inode_read(struct super_block *super, struct inode *i)
 {
     struct ext2_super_block *sb = container_of(super, struct ext2_super_block, sb);
@@ -51,6 +71,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
 
         kp_ext2(sb, "Inode group block: %d\n", sb->groups[inode_group].block_nr_inode_table);
         kp_ext2(sb, "Inode group block number: %d\n", inode_group_blk_nr);
+        kp_ext2(sb, "Inode group block offset: %d\n", inode_offset);
 
         inode->i.sb = super;
         inode->i.sb_dev = super->dev;
@@ -89,21 +110,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
                     inode->blk_ptrs[i] = disk_inode->blk_ptrs[i];
             }
 
-            if (S_ISBLK(disk_inode->mode)) {
-                inode->i.bdev = block_dev_get(inode->i.dev_no);
-                inode->i.default_fops = inode->i.bdev->fops;
-                inode->i.ops = &inode_ops_null;
-            } else if (S_ISCHR(disk_inode->mode)) {
-                inode->i.cdev = char_dev_get(inode->i.dev_no);
-                inode->i.default_fops = inode->i.cdev->fops;
-                inode->i.ops = &inode_ops_null;
-            } else if (S_ISDIR(disk_inode->mode)) {
-                inode->i.default_fops = &ext2_file_ops_dir;
-                inode->i.ops = &ext2_inode_ops_dir;
-            } else if (S_ISREG(disk_inode->mode)) {
-                inode->i.default_fops = &ext2_file_ops_file;
-                inode->i.ops = &ext2_inode_ops_file;
-            }
+            ext2_inode_setup_ops(&inode->i);
 
             kp_ext2(sb, "mode=%d, size=%d, blocks=%d\n", \
                     disk_inode->mode, disk_inode->size, disk_inode->blocks);
@@ -163,6 +170,10 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
         return 0;
     }
 
+    kp_ext2(sb, "Inode group block: %d, inode group block offset: %d\n", inode->inode_group_blk_nr, inode->inode_group_blk_offset);
+    kp_ext2(sb, "Inode links: %d\n", atomic32_get(&i->ref));
+    kp_ext2(sb, "Inode nlinks: %d\n", atomic32_get(&i->nlinks));
+
     using_block(super->dev, inode->inode_group_blk_nr, b) {
         struct ext2_disk_inode *dinode = (struct ext2_disk_inode *)b->data + inode->inode_group_blk_offset;
 
@@ -199,8 +210,7 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
     if (i->ino == EXT2_ACL_IDX_INO || i->ino == EXT2_ACL_DATA_INO)
         return 0;
 
-    using_inode_lock_write(i)
-        __ext2_inode_truncate(container_of(i, struct ext2_inode, i), 0);
+    __ext2_inode_truncate(container_of(i, struct ext2_inode, i), 0);
 
     inode_group = (i->ino - 1) / sb->disksb.inodes_per_block_group;
     inode_entry = (i->ino - 1) % sb->disksb.inodes_per_block_group;

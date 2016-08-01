@@ -5,4 +5,5 @@ objs-y += dir.o
 objs-y += bmap.o
 objs-y += namei.o
 objs-y += truncate.o
+objs-y += ialloc.o
 

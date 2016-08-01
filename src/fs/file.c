@@ -87,7 +87,15 @@ int fs_file_generic_write(struct file *filp, void *vbuf, size_t len)
         if (ret < 0)
             return ret;
 
+#if 0
         kp(KP_TRACE, "write append: truncate(%d)\n", filp->offset + len);
+        ret = vfs_truncate(filp->inode, filp->offset + len);
+        if (ret)
+            return ret;
+#endif
+    }
+
+    if (filp->inode->size - filp->offset < len) {
         ret = vfs_truncate(filp->inode, filp->offset + len);
         if (ret)
             return ret;

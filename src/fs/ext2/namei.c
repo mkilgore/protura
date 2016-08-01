@@ -71,7 +71,7 @@ __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *na
     return NULL;
 }
 
-static __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result, int *err)
+__must_check struct block *__ext2_add_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result, int *err)
 {
     struct block *b;
     int block_size = dir->sb->bdev->block_size;
@@ -315,6 +315,8 @@ int __ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t size)
             dent->name_len = entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW];
             memcpy(dent->name, entry->name, entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW]);
             dent->name[entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW]] = '\0';
+
+            kp_ext2(dir->sb, "Dir entry "PRinode": %s\n", Pinode(dir), dent->name);
 
             ret = entry->rec_len;
             filp->offset += entry->rec_len;
