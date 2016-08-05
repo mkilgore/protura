@@ -192,13 +192,13 @@ int vfs_mknod(struct inode *dir, const char *name, size_t len, mode_t mode, dev_
         return -ENOTSUP;
 }
 
-int vfs_unlink(struct inode *dir, const char *name, size_t len)
+int vfs_unlink(struct inode *dir, struct inode *entity, const char *name, size_t len)
 {
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
 
     if (inode_has_unlink(dir))
-        return dir->ops->unlink(dir, name, len);
+        return dir->ops->unlink(dir, entity, name, len);
     else
         return -ENOTSUP;
 }
@@ -260,6 +260,17 @@ int vfs_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode)
 
     if (inode_has_mkdir(dir))
         return dir->ops->mkdir(dir, name, len, mode);
+    else
+        return -ENOTSUP;
+}
+
+int vfs_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t len)
+{
+    if (!S_ISDIR(dir->mode))
+        return -ENOTDIR;
+
+    if (inode_has_rmdir(dir))
+        return dir->ops->rmdir(dir, deldir, name, len);
     else
         return -ENOTSUP;
 }

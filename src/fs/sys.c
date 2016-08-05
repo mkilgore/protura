@@ -235,6 +235,42 @@ int sys_mkdir(const char *__user name, mode_t mode)
     return vfs_mkdir(current->cwd, name, strlen(name), mode);
 }
 
+int sys_rmdir(const char *__user name)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata dirname;
+    int ret;
+
+    ret = user_check_strn(name, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    memset(&dirname, 0, sizeof(dirname));
+
+    dirname.path = name;
+    dirname.cwd = current->cwd;
+
+    ret = namei_full(&dirname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    if (!dirname.parent)
+        goto cleanup_namei;
+
+    if (!dirname.found) {
+        ret = -ENOENT;
+        goto cleanup_namei;
+    }
+
+    ret = vfs_rmdir(dirname.parent, dirname.found, dirname.name_start, dirname.name_len);
+
+  cleanup_namei:
+    if (dirname.found)
+        inode_put(dirname.found);
+
+    if (dirname.parent)
+        inode_put(dirname.parent);
+
+    return ret;
+}
+
 int sys_link(const char *__user old, const char *__user new)
 {
     struct task *current = cpu_get_local()->current;
@@ -323,7 +359,7 @@ int sys_unlink(const char *__user file)
         goto cleanup_namei;
     }
 
-    ret = vfs_unlink(name.parent, name.name_start, name.name_len);
+    ret = vfs_unlink(name.parent, name.found, name.name_start, name.name_len);
 
   cleanup_namei:
     if (name.found)

@@ -35,7 +35,7 @@ sector_t vfs_bmap(struct inode *inode, sector_t);
 sector_t vfs_bmap_alloc(struct inode *inode, sector_t);
 
 int vfs_link(struct inode *dir, struct inode *old, const char *name, size_t len);
-int vfs_unlink(struct inode *dir, const char *name, size_t len);
+int vfs_unlink(struct inode *dir, struct inode *entity, const char *name, size_t len);
 
 int vfs_chdir(const char *path);
 
@@ -45,6 +45,7 @@ int vfs_stat(struct inode *inode, struct stat *buf);
 
 int vfs_create(struct inode *dir, const char *name, size_t len, mode_t mode, struct inode **result);
 int vfs_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode);
+int vfs_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t len);
 int vfs_mknod(struct inode *dir, const char *name, size_t len, mode_t mode, dev_t dev);
 
 #endif
