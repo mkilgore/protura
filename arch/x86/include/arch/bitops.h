@@ -9,6 +9,7 @@
 #define INCLUDE_ARCH_BITOPS_H
 
 #include <protura/types.h>
+#include <protura/limits.h>
 #include <protura/compiler.h>
 #include <arch/asm.h>
 
@@ -55,16 +56,16 @@ static __always_inline int bit_test_and_set(const volatile void *value, int bit)
 static __always_inline int bit_find_next_zero(const void *value, size_t bytes, int start_loc)
 {
     const uint8_t *b = value;
-    int i;
+    size_t i;
 
-    int start_byte = start_loc / CHAR_BIT;
-    int start_bit = start_loc % CHAR_BIT;
+    size_t start_byte = start_loc / CHAR_BIT;
+    size_t start_bit = start_loc % CHAR_BIT;
 
     for (i = start_byte; i < bytes; i++) {
         if (b[i] == 0xFF)
             continue;
 
-        uint8_t c = b[i];
+        uint8_t c = b[i] >> start_bit;
         int k;
         for (k = start_bit; k < CHAR_BIT; k++, c >>= 1)
             if (!(c & 1))
