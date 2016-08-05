@@ -62,7 +62,7 @@ void add_lines(FILE *file)
 
 int main(int argc, char **argv) {
     enum arg_index ret;
-    FILE *file;
+    FILE *file = NULL;
     int i;
 
     while ((ret = arg_parser(argc, argv, args)) != ARG_DONE) {
@@ -85,6 +85,9 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
+
+    if (!file)
+        add_lines(stdin);
 
     qsort(lines, line_count, sizeof(*lines), linecmp);
 
