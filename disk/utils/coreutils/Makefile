@@ -10,6 +10,7 @@ COREUTILS_PROGS = \
 	ls \
 	mkdir \
 	mknod \
+	rmdir \
 	seq \
 	sh \
 	sort \
