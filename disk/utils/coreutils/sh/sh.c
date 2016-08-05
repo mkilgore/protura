@@ -16,8 +16,11 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <string.h>
 
 #include "input.h"
+
+char *cwd;
 
 void handle_child(int sig)
 {
@@ -47,6 +50,9 @@ int main(int argc, char **argv)
 
     signal(SIGCHLD, handle_child);
     signal(SIGINT, handle_sigint);
+
+    cwd = strdup("/");
+
     input_loop();
     return 0;
 }

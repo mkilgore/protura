@@ -23,12 +23,12 @@
 
 #define INPUT_MAX 100
 
-static void input_new_line(const char *prompt, char *buf, size_t len)
+static void input_new_line(char *buf, size_t len)
 {
     size_t loc = 0;
     memset(buf, 0, len);
 
-    printf("%s", prompt);
+    printf("%s $ ", cwd);
 
     while ((buf[loc] = getchar()) != '\n') {
         putchar(buf[loc]);
@@ -43,12 +43,11 @@ static void input_new_line(const char *prompt, char *buf, size_t len)
 
 void input_loop(void)
 {
-    const char *prompt = "$ ";
     int exit_loop = 0;
     char line[INPUT_MAX + 1];
 
     do {
-        input_new_line(prompt, line, sizeof(line));
+        input_new_line(line, sizeof(line));
         /*
         line = readline(prompt);
         if (line && *line)
@@ -69,3 +68,4 @@ void input_loop(void)
 
     return ;
 }
+
