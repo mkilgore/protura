@@ -37,11 +37,13 @@ qemu_line="qemu-system-i386 \
     -kernel ./imgs/protura_x86_multiboot \
     $kernel_cmdline"
 
-urxvt -title qemu-monitor -e bash -c "echo $qemu_line; stty -icanon -echo; nc -v -l -p 5345 | tee ./qemu_monitor.log" &
-MON_PID=$!
-
 urxvt -title qemu-log -e bash -c "stty -icanon -echo; nc -v -l -p 5346 | tee ./com2.log" &
 TERM_PID=$!
+
+urxvt -title qemu-monitor -e bash -c "stty -icanon -echo; nc -v -l -p 5345 | tee ./qemu_monitor.log" &
+MON_PID=$!
+
+sleep .1
 
 urxvt -title qemu-console -e bash -c "$qemu_line; read" &
 WAIT_PID=$!
