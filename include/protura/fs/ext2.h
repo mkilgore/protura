@@ -126,6 +126,21 @@ struct ext2_disk_directory_entry {
     char name[];
 };
 
+enum ext2_disk_dir_type {
+    EXT2_FT_UNKNOWN,
+    EXT2_FT_REG_FILE,
+    EXT2_FT_DIR,
+    EXT2_FT_CHRDEV,
+    EXT2_FT_BLKDEV,
+    EXT2_FT_FIFO,
+    EXT2_FT_SOCK,
+    EXT2_FT_SYMLINK,
+    EXT2_FT_MAX,
+};
+
+extern uint8_t ext2_dt_to_dir_type[];
+extern uint8_t ext2_dir_type_to_dt[];
+
 /* Indexes for 'name_len_and_type' */
 #define EXT2_DENT_NAME_LEN_LOW 0
 #define EXT2_DENT_NAME_LEN_HIGH 1

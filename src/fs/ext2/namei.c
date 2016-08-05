@@ -35,6 +35,32 @@ static size_t ext2_disk_dir_entry_rec_len(size_t name_len)
     return ALIGN_2(name_len, 4) + sizeof(struct ext2_disk_directory_entry);
 }
 
+uint8_t ext2_dt_to_dir_type[] = {
+    [DT_UNKNOWN] = EXT2_FT_UNKNOWN,
+    [DT_REG] = EXT2_FT_REG_FILE,
+    [DT_DIR] = EXT2_FT_DIR,
+    [DT_CHR] = EXT2_FT_CHRDEV,
+    [DT_BLK] = EXT2_FT_BLKDEV,
+    /*
+    [DT_LNK] = EXT2_FT_SYMLINK,
+    [DT_SOCK] = EXT2_FT_SOCK,
+    [DT_FIFO] = EXT2_FT_FIFO,
+     */
+};
+
+uint8_t ext2_dir_type_to_dt[] = {
+    [EXT2_FT_UNKNOWN] = DT_UNKNOWN,
+    [EXT2_FT_REG_FILE] = DT_REG,
+    [EXT2_FT_DIR] = DT_DIR,
+    [EXT2_FT_CHRDEV] = DT_CHR,
+    [EXT2_FT_BLKDEV] = DT_BLK,
+};
+
+static uint8_t ext2_dir_type(mode_t mode)
+{
+    return ext2_dt_to_dir_type[MODE_TO_DT(mode)];
+}
+
 /* Finds the entry coresponding to 'name', and returns the on-disk entry in
  * '*result'. The block that *result resides in is returned by the function.
  * This block should be passed to brelease() when you're done messing with
@@ -195,7 +221,7 @@ int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, m
         return err;
 
     entry->ino = ino;
-    entry->name_len_and_type[EXT2_DENT_TYPE] = MODE_TO_DT(mode);
+    entry->name_len_and_type[EXT2_DENT_TYPE] = ext2_dir_type(mode);
 
     brelease(b);
 
