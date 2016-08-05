@@ -258,6 +258,72 @@ int __ext2_dir_remove_entry(struct inode *dir, struct block *b, struct ext2_disk
     return 0;
 }
 
+/*
+ * Reports 0 when the directory contains no entries other then '.' and '..'
+ * Else reports the error (ENOTEMPTY)
+ */
+int __ext2_dir_empty(struct inode *dir)
+{
+    int ret = 0;
+    int block_size = dir->sb->bdev->block_size;
+    int blocks;
+    int cur_block;
+
+    blocks = ALIGN_2(dir->size, block_size) / block_size;
+
+    for (cur_block = 0; cur_block < blocks && !ret; cur_block++) {
+        sector_t sec;
+        struct block *b;
+
+        sec = vfs_bmap(dir, cur_block);
+
+        if (sec == SECTOR_INVALID)
+            return -ENOTEMPTY;
+
+        using_block(dir->sb->dev, sec, b) {
+            int offset;
+            struct ext2_disk_directory_entry *new;
+
+            for (offset = 0, new = NULL; offset < block_size; offset += new->rec_len) {
+                size_t len;
+                new = (struct ext2_disk_directory_entry *)(b->data + offset);
+
+                len = new->name_len_and_type[EXT2_DENT_NAME_LEN_LOW];
+
+                /* Entries with inode 0 are fine, they are empty */
+                if (new->ino == 0)
+                    continue;
+
+                /* The only allowed entries are '.' and '..' */
+                if (len == 0) {
+                    ret = -ENOTEMPTY;
+                    break;
+                }
+
+                if (len > 2) {
+                    ret = -ENOTEMPTY;
+                    break;
+                }
+
+                if (new->name[0] != '.') {
+                    ret = -ENOTEMPTY;
+                    break;
+                }
+
+                if (len == 1)
+                    continue;
+
+                if (new->name[1] != '.') {
+                    ret = -ENOTEMPTY;
+                    break;
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
 /* Marks the entry as empty by using inode-no zero, and combining it into the
  * previous inode entry. */
 int __ext2_dir_remove(struct inode *dir, const char *name, size_t len)

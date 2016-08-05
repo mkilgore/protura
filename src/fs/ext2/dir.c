@@ -93,15 +93,36 @@ static int ext2_dir_link(struct inode *dir, struct inode *old, const char *name,
     return 0;
 }
 
-static int ext2_dir_unlink(struct inode *dir, const char *name, size_t len)
+static int ext2_dir_unlink(struct inode *dir, struct inode *link, const char *name, size_t len)
 {
     int ret;
-    struct inode *link;
 
     kp_ext2(dir->sb, "Unlink: "PRinode" adding %s\n", Pinode(dir), name);
 
-    using_inode_lock_read(dir)
-        ret = __ext2_dir_lookup(dir, name, len, &link);
+    using_inode_lock_write(dir)
+        ret = __ext2_dir_remove(dir, name, len);
+
+    if (ret)
+        goto cleanup_link;
+
+    inode_dec_nlinks(link);
+
+  cleanup_link:
+    inode_put(link);
+    return ret;
+}
+
+static int ext2_dir_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t len)
+{
+    int ret = 0;
+
+    kp_ext2(dir->sb, "Unlink: "PRinode" adding %s\n", Pinode(dir), name);
+
+    if (!S_ISDIR(deldir->mode))
+        return -ENOTDIR;
+
+    using_inode_lock_read(deldir)
+        ret = __ext2_dir_empty(deldir);
 
     if (ret)
         return ret;
@@ -110,10 +131,17 @@ static int ext2_dir_unlink(struct inode *dir, const char *name, size_t len)
         ret = __ext2_dir_remove(dir, name, len);
 
     if (ret)
-        goto cleanup_link;
+        return ret;
 
-  cleanup_link:
-    inode_put(link);
+    /* '..' in deldir */
+    inode_dec_nlinks(dir);
+
+    /* '.' in deldir */
+    inode_dec_nlinks(deldir);
+
+    /* entry in dir */
+    inode_dec_nlinks(deldir);
+
     return ret;
 }
 
@@ -122,6 +150,8 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     int ret;
     int exists;
     struct inode *newdir;
+    struct ext2_inode *ino;
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
 
     mode &= ~S_IFMT;
     mode |= S_IFDIR;
@@ -143,6 +173,9 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     newdir->mode = mode;
     newdir->ops = &ext2_inode_ops_dir;
     newdir->default_fops = &ext2_file_ops_dir;
+    newdir->size = 0;
+
+    ino = container_of(newdir, struct ext2_inode, i);
 
     using_inode_lock_write(newdir) {
         ret = __ext2_dir_add(newdir, ".", 1, newdir->ino, newdir->mode);
@@ -157,6 +190,9 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
 
     if (ret)
         goto cleanup_newdir;
+
+    using_ext2_block_groups(sb)
+        sb->groups[ext2_ino_group(sb, ino->i.ino)].directory_count++;
 
     atomic_set(&newdir->nlinks, 2);
     inode_set_valid(newdir);
@@ -186,6 +222,7 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     ino->mode = mode;
     ino->ops = &ext2_inode_ops_file;
     ino->default_fops = &ext2_file_ops_file;
+    ino->size = 0;
 
     using_inode_lock_write(dir)
         ret = __ext2_dir_add(dir, name, len, ino->ino, mode);
@@ -259,5 +296,6 @@ struct inode_ops ext2_inode_ops_dir = {
     .create = ext2_dir_create,
     .mkdir = ext2_dir_mkdir,
     .mknod = ext2_dir_mknod,
+    .rmdir = ext2_dir_rmdir,
 };
 

@@ -91,8 +91,8 @@ struct inode_ops {
     int (*link) (struct inode *dir, struct inode *old, const char *name, size_t len);
     int (*mknod) (struct inode *dir, const char *name, size_t len, mode_t mode, dev_t dev);
 
-    int (*unlink) (struct inode *dir, const char *name, size_t len);
-    int (*rmdir) (struct inode *dir, const char *name, size_t len);
+    int (*unlink) (struct inode *dir, struct inode *entity, const char *name, size_t len);
+    int (*rmdir) (struct inode *dir, struct inode *entity, const char *name, size_t len);
 };
 
 #define Pinode(i) (i)->sb_dev, (i)->ino
@@ -107,6 +107,7 @@ struct inode_ops {
 #define inode_has_create(inode) ((inode)->ops && (inode)->ops->create)
 #define inode_has_mkdir(inode) ((inode)->ops && (inode)->ops->mkdir)
 #define inode_has_mknod(inode) ((inode)->ops && (inode)->ops->mknod)
+#define inode_has_rmdir(inode) ((inode)->ops && (inode)->ops->rmdir)
 
 #define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
 #define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)

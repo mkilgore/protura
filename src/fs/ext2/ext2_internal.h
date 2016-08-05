@@ -54,6 +54,7 @@ int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, m
 int __ext2_dir_remove(struct inode *dir, const char *name, size_t len);
 int __ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler);
 int __ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t size);
+int __ext2_dir_empty(struct inode *dir);
 int ext2_inode_new(struct super_block *sb, struct inode **result);
 
 #endif
