@@ -35,12 +35,15 @@ static sector_t __ext2_mark_block(struct ext2_super_block *sb)
         if (!sb->groups[i].block_unused_total)
             continue ;
 
+        kp_ext2(sb, "Group: %d, block bitmap: %d\n", i, sb->groups[i].block_nr_block_bitmap);
+
         using_block(sb->sb.dev, sb->groups[i].block_nr_block_bitmap, b) {
             int location = bit_find_first_zero(b->data, sb->block_size);
 
             kp_ext2(sb, "First zero: %d\n", location);
 
-            ret = i * blocks_per_group + location;
+            /* location is based from zero, but blocks start at 1 */
+            ret = i * blocks_per_group + location + 1;
             bit_set(b->data, location);
             sb->groups[i].block_unused_total--;
 
@@ -80,6 +83,8 @@ void ext2_block_release(struct ext2_super_block *sb, sector_t block)
         using_block(sb->sb.dev, sb->groups[group].block_nr_block_bitmap, b) {
             bit_clear(b->data, index);
             sb->groups[group].block_unused_total++;
+
+            b->dirty = 1;
         }
     }
 
