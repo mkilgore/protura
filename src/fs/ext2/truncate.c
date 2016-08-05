@@ -141,14 +141,14 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     int ret = 0;
     struct block *b;
 
-    starting_block = ALIGN_2_DOWN(size, block_size);
-    ending_block = ALIGN_2_DOWN(inode->i.size, block_size);
+    starting_block = ALIGN_2(size, block_size) / block_size;
+    ending_block = ALIGN_2_DOWN(inode->i.size, block_size) / block_size;
 
     if (starting_block >= ending_block)
         goto set_size_and_ret;
 
     if (ending_block > 12 + BLOCKS_IN_INDIRECT(block_size))
-        panic("Truncating files that large not supported!\n");
+        panic("Size: %d, Ending block: %d, Truncating files that large not supported!\n", inode->i.size, ending_block);
 
     if (starting_block < 12) {
         ret = __ext2_inode_truncate_direct(inode, sb, starting_block, ending_block);
