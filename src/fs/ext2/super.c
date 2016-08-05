@@ -210,6 +210,10 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
     if (i->ino == EXT2_ACL_IDX_INO || i->ino == EXT2_ACL_DATA_INO)
         return 0;
 
+    using_mutex(&sb->sb.dirty_inodes_lock)
+        if (inode_is_dirty(i))
+            list_del(&i->sb_dirty_entry);
+
     __ext2_inode_truncate(container_of(i, struct ext2_inode, i), 0);
 
     inode_group = (i->ino - 1) / sb->disksb.inodes_per_block_group;
