@@ -67,6 +67,21 @@ enum input_token lexer_next_token(struct input_lexer *lex)
         lex->len = 1;
         return TOK_NEWLINE;
 
+    /* "string" case */
+    case '\"':
+        lex->len = 0;
+        lex->str++;
+
+        while (tok = lex->input[lex->location],
+               tok != '\"') {
+            lex->len++;
+            lex->location++;
+        }
+
+        lex->location++;
+
+        return TOK_STRING;
+
     /* Everything else is considered part of a string */
     default:
         lex->len = 1;
