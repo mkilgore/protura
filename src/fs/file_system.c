@@ -12,7 +12,6 @@
 #include <protura/list.h>
 
 #include <arch/spinlock.h>
-#include <protura/fs/simple_fs.h>
 #include <protura/fs/ext2.h>
 #include <protura/fs/elf.h>
 #include <protura/fs/file_system.h>
@@ -66,7 +65,6 @@ struct file_system *file_system_lookup(const char *name)
 
 void file_systems_init(void)
 {
-    /* simple_fs_init(); */
     ext2_init();
 
     elf_register();
