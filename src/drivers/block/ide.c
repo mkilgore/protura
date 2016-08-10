@@ -109,7 +109,7 @@ static void __ide_start_queue(void)
 
     __ide_wait_ready();
 
-    kp(KP_TRACE, "IDE: sector=%d\n", disk_sector);
+    kp(KP_TRACE, "B sector: %d, IDE: sector=%d\n", b->sector, disk_sector);
 
     outb(IDE_PORT_SECTOR_CNT, sector_count);
     outb(IDE_PORT_LBA_LOW_8, (disk_sector) & 0xFF);
@@ -149,9 +149,6 @@ static void __ide_handle_intr(struct irq_frame *frame)
 
     b = list_take_first(&ide_state.block_queue, struct block, block_list_node);
 
-    kp(KP_TRACE, "B=%d\n", b->sector);
-    kp(KP_TRACE, "b->dirty=%d, b->valid=%d\n", b->dirty, b->valid);
-    kp(KP_TRACE, "b->owner=%p\n", b->owner);
     /* If we were doing a read, then read the data now. We have to wait until
      * the drive is in the IDE_STATUS_READY state until we can start the read.
      *
