@@ -32,8 +32,16 @@ static void input_new_line(char *buf, size_t len)
 
     while ((buf[loc] = getchar()) != '\n') {
         putchar(buf[loc]);
-        if (loc < len - 1)
-            loc++;
+        switch (buf[loc]) {
+        case '\b':
+            if (loc > 0)
+                loc--;
+            break;
+
+        default:
+            if (loc < len - 1)
+                loc++;
+        }
     }
 
     putchar('\n');
