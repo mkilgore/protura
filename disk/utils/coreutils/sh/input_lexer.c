@@ -41,6 +41,11 @@ enum input_token lexer_next_token(struct input_lexer *lex)
         return TOK_REDIRECT_IN;
 
     case '>':
+        if (lex->input[lex->location] == '>') {
+            lex->location++;
+            lex->len++;
+            return TOK_REDIRECT_APPEND_OUT;
+        }
         lex->len = 1;
         return TOK_REDIRECT_OUT;
 

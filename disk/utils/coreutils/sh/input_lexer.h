@@ -7,6 +7,7 @@ enum input_token {
     TOK_STRING,
     TOK_REDIRECT_IN,
     TOK_REDIRECT_OUT,
+    TOK_REDIRECT_APPEND_OUT,
     TOK_PIPE,
     TOK_LOGIC_AND,
     TOK_LOGIC_OR,

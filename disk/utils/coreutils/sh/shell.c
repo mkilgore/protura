@@ -83,6 +83,7 @@ static void parse_line(const char *line)
             break;
 
         case TOK_REDIRECT_OUT:
+        case TOK_REDIRECT_APPEND_OUT:
         case TOK_REDIRECT_IN:
             tok2 = lexer_next_token(&state);
 
@@ -91,6 +92,8 @@ static void parse_line(const char *line)
 
                 if (token == TOK_REDIRECT_OUT)
                     prog.stdout_fd = open(tmp, O_WRONLY | O_CREAT, 0777);
+                else if (token == TOK_REDIRECT_APPEND_OUT)
+                    prog.stdout_fd = open(tmp, O_WRONLY | O_CREAT | O_APPEND, 0777);
                 else
                     prog.stdin_fd = open(tmp, O_RDONLY);
 
