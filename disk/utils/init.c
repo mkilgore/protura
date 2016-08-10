@@ -43,7 +43,7 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 
 int main(int argc, char **argv)
 {
-    int consolefd, keyboardfd;
+    int consolefd, keyboardfd, stderrfd;
     struct sigaction action;
 
     memset(&action, 0, sizeof(action));
@@ -51,16 +51,19 @@ int main(int argc, char **argv)
     action.sa_handler = handle_children;
     sigaction(SIGCHLD, &action, NULL);
 
-    keyboardfd = open("/dev/keyboard", O_RDONLY, 0);
-    consolefd = open("/dev/console", O_WRONLY, 0);
+    keyboardfd = open("/dev/keyboard", O_RDONLY);
+    consolefd = open("/dev/console", O_WRONLY);
+    stderrfd = open("/dev/console", O_WRONLY);
 
     start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 
     close(keyboardfd);
     close(consolefd);
+    close(stderrfd);
 
     keyboardfd = open("/dev/com2", O_RDONLY, 0);
     consolefd = open("/dev/com2", O_WRONLY, 0);
+    stderrfd = open("/dev/com2", O_WRONLY, 0);
 
     start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 
