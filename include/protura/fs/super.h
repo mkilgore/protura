@@ -28,6 +28,9 @@ struct super_block_ops {
 
     /* Read, write, and delete may sleep */
     int (*inode_read) (struct super_block *, struct inode *);
+
+    /* Super block is locked wihle this is called .
+     * Inode is locked while this is called */
     int (*inode_write) (struct super_block *, struct inode *);
 
     /* called when nlink and the in-kernel reference count of the inode drops
@@ -36,7 +39,10 @@ struct super_block_ops {
      * Note that the passed inode is already locked for writing. */
     int (*inode_delete) (struct super_block *, struct inode *);
 
+    /* Super block is locked while sb_write is called */
     int (*sb_write) (struct super_block *);
+
+    /* Super block is locked while sb_put is called */
     int (*sb_put) (struct super_block *);
 
     void (*fs_sync) (struct super_block *);
@@ -47,18 +53,21 @@ struct super_block {
     struct block_device *bdev;
     struct inode *root;
 
-    mutex_t dirty_inodes_lock;
+    mutex_t super_block_lock;
     list_head_t dirty_inodes;
 
     struct super_block_ops *ops;
 };
+
+#define using_super_block(sb) \
+    using_mutex(&(sb)->super_block_lock)
 
 #define SUPER_BLOCK_INIT(super_block) \
     { \
         .dev = 0, \
         .bdev = NULL, \
         .root = NULL, \
-        .dirty_inodes_lock = MUTEX_INIT((super_block).dirty_inodes_lock, "sb-dirty-inodes"), \
+        .super_block_lock = MUTEX_INIT((super_block).super_block_lock, "sb-lock"), \
         .dirty_inodes = LIST_HEAD_INIT((super_block).dirty_inodes), \
         .ops = NULL, \
     }

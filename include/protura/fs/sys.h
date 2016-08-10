@@ -35,6 +35,7 @@ int sys_fstat(int fd, struct stat *buf);
 int sys_mkdir(const char *__user name, mode_t mode);
 int sys_mknod(const char *__user node, mode_t mode, dev_t dev);
 int sys_rmdir(const char *__user name);
+int sys_rename(const char *__user old, const char *__user new);
 
 /* Called internally by sys_open - Performs the same function, but takes
  * arguments relating to inode's and file's rather then a path name and

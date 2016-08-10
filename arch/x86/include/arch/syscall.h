@@ -56,6 +56,7 @@
 #define SYSCALL_MKDIR 0x31
 #define SYSCALL_MKNOD 0x32
 #define SYSCALL_RMDIR 0x33
+#define SYSCALL_RENAME 0x34
 
 #ifdef __KERNEL__
 #ifndef ASM

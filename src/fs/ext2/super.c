@@ -62,7 +62,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
     inode_group = (ino - 1) / sb->disksb.inodes_per_block_group;
     inode_entry = (ino - 1) % sb->disksb.inodes_per_block_group;
 
-    using_ext2_block_groups(sb) {
+    using_super_block(super) {
         inode_group_blk_nr = sb->groups[inode_group].block_nr_inode_table;
 
         inode_group_blk_nr += (inode_entry * sizeof(struct ext2_disk_inode)) / sb->block_size;
@@ -105,7 +105,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
                     inode->i.dev_no = DEV_MAKE((disk_inode->blk_ptrs[1] & 0xFFF00) >> 8, (disk_inode->blk_ptrs[1] & 0xFF) | ((disk_inode->blk_ptrs[1] >> 12) & 0xFFF00));
                 }
             } else {
-                int i;
+                unsigned int i;
                 for (i = 0; i < ARRAY_SIZE(disk_inode->blk_ptrs); i++)
                     inode->blk_ptrs[i] = disk_inode->blk_ptrs[i];
             }
@@ -132,7 +132,7 @@ static void verify_ext2_inode(struct super_block *super, struct ext2_inode *inod
     kassert(cond, "inode %d:%d not set dirty!\n", (inode)->i.sb_dev, (inode)->i.ino);
 
         inode_assert(inode, dinode->mode == inode->i.mode);
-        inode_assert(inode, dinode->size == inode->i.size);
+        inode_assert(inode, (off_t)dinode->size == inode->i.size);
         inode_assert(inode, dinode->links_count == atomic32_get(&inode->i.nlinks));
         inode_assert(inode, dinode->blocks == inode->blocks);
 
@@ -143,7 +143,7 @@ static void verify_ext2_inode(struct super_block *super, struct ext2_inode *inod
             if (dinode->blk_ptrs[0])
                 inode_assert(inode, dinode->blk_ptrs[0] == inode->i.dev_no);
         } else {
-            int i;
+            unsigned int i;
             for (i = 0; i < ARRAY_SIZE(inode->blk_ptrs); i++)
                 inode_assert(inode, dinode->blk_ptrs[i] == inode->blk_ptrs[i]);
         }
@@ -185,7 +185,7 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
         if (S_ISCHR(inode->i.mode) || S_ISBLK(inode->i.mode)) {
             dinode->blk_ptrs[0] = (uint32_t)inode->i.dev_no;
         } else {
-            int i;
+            unsigned int i;
             for (i = 0; i < ARRAY_SIZE(inode->blk_ptrs); i++)
                 dinode->blk_ptrs[i] = inode->blk_ptrs[i];
         }
@@ -210,16 +210,15 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
     if (i->ino == EXT2_ACL_IDX_INO || i->ino == EXT2_ACL_DATA_INO)
         return 0;
 
-    using_mutex(&sb->sb.dirty_inodes_lock)
+    __ext2_inode_truncate(container_of(i, struct ext2_inode, i), 0);
+
+    using_super_block(super) {
         if (inode_is_dirty(i))
             list_del(&i->sb_dirty_entry);
 
-    __ext2_inode_truncate(container_of(i, struct ext2_inode, i), 0);
+        inode_group = (i->ino - 1) / sb->disksb.inodes_per_block_group;
+        inode_entry = (i->ino - 1) % sb->disksb.inodes_per_block_group;
 
-    inode_group = (i->ino - 1) / sb->disksb.inodes_per_block_group;
-    inode_entry = (i->ino - 1) % sb->disksb.inodes_per_block_group;
-
-    using_ext2_block_groups(sb) {
         using_block(super->dev, sb->groups[inode_group].block_nr_inode_bitmap, b) {
             if (bit_test(b->data, inode_entry) == 0)
                 panic("EXT2 (%p): Error, attempted to delete inode with ino(%d) not currently used!\n", sb, i->ino);
@@ -378,39 +377,35 @@ static int ext2_sb_write(struct super_block *sb)
     struct block *b;
 
     kp_ext2(ext2sb, "Writing ext2 block-groups...\n");
-    using_ext2_block_groups(ext2sb) {
-        int i;
-        int groups_per_block = ext2sb->block_size / sizeof(struct ext2_disk_block_group);
-        int total_bg_blocks = (ext2sb->block_group_count * sizeof(struct ext2_disk_block_group) + ext2sb->block_size - 1) / ext2sb->block_size;
+    int i;
+    int groups_per_block = ext2sb->block_size / sizeof(struct ext2_disk_block_group);
+    int total_bg_blocks = (ext2sb->block_group_count * sizeof(struct ext2_disk_block_group) + ext2sb->block_size - 1) / ext2sb->block_size;
 
-        kp_ext2(ext2sb, "groups_per_block=%d\n", groups_per_block);
+    kp_ext2(ext2sb, "groups_per_block=%d\n", groups_per_block);
 
-        for (i = 0; i < total_bg_blocks; i++) {
-            int offset = i * groups_per_block;
-            int count = groups_per_block;
+    for (i = 0; i < total_bg_blocks; i++) {
+        int offset = i * groups_per_block;
+        int count = groups_per_block;
 
-            if (count > ext2sb->block_group_count - offset)
-                count = ext2sb->block_group_count - offset;
+        if (count > ext2sb->block_group_count - offset)
+            count = ext2sb->block_group_count - offset;
 
-            kp_ext2(ext2sb, "count=%d\n", count);
+        kp_ext2(ext2sb, "count=%d\n", count);
 
-            using_block(ext2sb->sb.dev, ext2sb->sb_block_nr + 1 + i, b) {
-                memcpy(b->data, ext2sb->groups + i * groups_per_block, count * sizeof(*ext2sb->groups));
-                b->dirty = 1;
-            }
+        using_block(ext2sb->sb.dev, ext2sb->sb_block_nr + 1 + i, b) {
+            memcpy(b->data, ext2sb->groups + i * groups_per_block, count * sizeof(*ext2sb->groups));
+            b->dirty = 1;
         }
     }
 
     kp_ext2(ext2sb, "Writing ext2 super-block...\n");
-    using_ext2_super_block(ext2sb) {
-        using_block(ext2sb->sb.dev, ext2sb->sb_block_nr, b) {
-            if (ext2sb->block_size >= 1024)
-                memcpy(b->data, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
-            else
-                memcpy(b->data + 1024, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
+    using_block(ext2sb->sb.dev, ext2sb->sb_block_nr, b) {
+        if (ext2sb->block_size >= 1024)
+            memcpy(b->data, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
+        else
+            memcpy(b->data + 1024, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
 
-            b->dirty = 1;
-        }
+        b->dirty = 1;
     }
 
     return 0;

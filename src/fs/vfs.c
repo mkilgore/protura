@@ -275,3 +275,14 @@ int vfs_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t 
         return -ENOTSUP;
 }
 
+int vfs_rename(struct inode *old_dir, const char *name, size_t len, struct inode *new_dir, const char *new_name, size_t new_len)
+{
+    if (!S_ISDIR(old_dir->mode))
+        return -ENOTDIR;
+
+    if (inode_has_rename(old_dir))
+        return old_dir->ops->rename(old_dir, name, len, new_dir, new_name, new_len);
+    else
+        return -ENOTSUP;
+}
+

@@ -95,7 +95,7 @@ void inode_put(struct inode *inode)
             return ;
         }
 
-        using_mutex(&inode->sb->dirty_inodes_lock) {
+        using_super_block(inode->sb) {
             kp(KP_TRACE, "inode "PRinode" dirty flag: %d \n", Pinode(inode), flag_test(&inode->flags, INO_DIRTY));
             if (flag_test(&inode->flags, INO_DIRTY)) {
                 kp(KP_TRACE, "inode "PRinode" being written...\n", Pinode(inode));

@@ -246,6 +246,11 @@ static void sys_handler_rmdir(struct irq_frame *frame)
     frame->eax = sys_rmdir((const char *)frame->ebx);
 }
 
+static void sys_handler_rename(struct irq_frame *frame)
+{
+    frame->eax = sys_rename((const char *)frame->ebx, (const char *)frame->ecx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -297,6 +302,7 @@ static struct syscall_handler {
     SYSCALL(MKDIR, sys_handler_mkdir),
     SYSCALL(MKNOD, sys_handler_mknod),
     SYSCALL(RMDIR, sys_handler_rmdir),
+    SYSCALL(RENAME, sys_handler_rename),
 };
 
 static void syscall_handler(struct irq_frame *frame)

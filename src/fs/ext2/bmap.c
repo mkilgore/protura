@@ -60,12 +60,12 @@ sector_t ext2_block_alloc(struct ext2_super_block *sb)
 {
     sector_t ret = SECTOR_INVALID;
 
-    using_ext2_block_groups(sb)
+    using_super_block(&sb->sb) {
         ret = __ext2_mark_block(sb);
 
-    if (ret != SECTOR_INVALID)
-        using_ext2_super_block(sb)
+        if (ret != SECTOR_INVALID)
             sb->disksb.block_unused_total--;
+    }
 
     kp_ext2(sb, "block_alloc: %d\n", ret);
 
@@ -79,17 +79,16 @@ void ext2_block_release(struct ext2_super_block *sb, sector_t block)
     int index = block % blocks_per_group;
     struct block *b;
 
-    using_ext2_block_groups(sb) {
+    using_super_block(&sb->sb) {
         using_block(sb->sb.dev, sb->groups[group].block_nr_block_bitmap, b) {
             bit_clear(b->data, index);
             sb->groups[group].block_unused_total++;
 
             b->dirty = 1;
         }
-    }
 
-    using_ext2_super_block(sb)
         sb->disksb.block_unused_total++;
+    }
 
     kp_ext2(sb, "block_release: %d\n", block);
 }

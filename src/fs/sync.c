@@ -30,7 +30,7 @@ void super_sync(struct super_block *sb)
 {
     struct inode *inode;
 
-    using_mutex(&sb->dirty_inodes_lock) {
+    using_super_block(sb) {
         list_foreach_take_entry(&sb->dirty_inodes, inode, sb_dirty_entry) {
             kp(KP_TRACE, "took entry: "PRinode"\n", Pinode(inode));
             sb->ops->inode_write(sb, inode);

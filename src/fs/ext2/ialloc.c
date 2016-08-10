@@ -77,27 +77,25 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
 
     ext2_inode = container_of(inode, struct ext2_inode, i);
 
-    using_ext2_super_block(ext2sb) {
-        using_ext2_block_groups(ext2sb) {
-            for (i = 0; i < ext2sb->block_group_count && !ino; i++)
-                if ((ino = __ext2_check_block_group(ext2sb, i)) != 0)
-                    break;
+    using_super_block(sb) {
+        for (i = 0; i < ext2sb->block_group_count && !ino; i++)
+            if ((ino = __ext2_check_block_group(ext2sb, i)) != 0)
+                break;
 
-            if (ino) {
-                int entry;
+        if (ino) {
+            int entry;
 
-                entry = (ino - 1) % ext2sb->disksb.inodes_per_block_group;
-                kp_ext2(sb, "ialloc: entry: %d\n", entry);
+            entry = (ino - 1) % ext2sb->disksb.inodes_per_block_group;
+            kp_ext2(sb, "ialloc: entry: %d\n", entry);
 
-                inode_group_blk = ext2sb->groups[i].block_nr_inode_table;
-                kp_ext2(sb, "ialloc: group start: %d\n", inode_group_blk);
+            inode_group_blk = ext2sb->groups[i].block_nr_inode_table;
+            kp_ext2(sb, "ialloc: group start: %d\n", inode_group_blk);
 
-                inode_group_blk += (entry * sizeof(struct ext2_disk_inode)) / ext2sb->block_size;
-                kp_ext2(sb, "ialloc: inode group block: %d\n", inode_group_blk);
+            inode_group_blk += (entry * sizeof(struct ext2_disk_inode)) / ext2sb->block_size;
+            kp_ext2(sb, "ialloc: inode group block: %d\n", inode_group_blk);
 
-                inode_group_blk_offset = entry % (ext2sb->block_size / sizeof(struct ext2_disk_inode));
-                kp_ext2(sb, "ialloc: inode group block offset: %d\n", inode_group_blk_offset);
-            }
+            inode_group_blk_offset = entry % (ext2sb->block_size / sizeof(struct ext2_disk_inode));
+            kp_ext2(sb, "ialloc: inode group block offset: %d\n", inode_group_blk_offset);
         }
 
         kp_ext2(sb, "ialloc: Found new inode: %d\n", ino);

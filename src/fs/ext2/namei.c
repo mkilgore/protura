@@ -174,7 +174,7 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
     return b;
 }
 
-int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result)
+int __ext2_dir_lookup_ino(struct inode *dir, const char *name, size_t len, ino_t *ino)
 {
     struct block *b;
     struct ext2_disk_directory_entry *entry;
@@ -184,9 +184,26 @@ int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct in
     if (!b)
         return -ENOENT;
 
-    *result = inode_get(dir->sb, entry->ino);
+    *ino = entry->ino;
 
     brelease(b);
+
+    return 0;
+}
+
+int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result)
+{
+    ino_t entry;
+    int ret;
+
+    ret = __ext2_dir_lookup_ino(dir, name, len, &entry);
+    if (ret)
+        return ret;
+
+    *result = inode_get(dir->sb, entry);
+
+    if (!*result)
+        return -ENOENT;
 
     return 0;
 }
@@ -322,6 +339,23 @@ int __ext2_dir_empty(struct inode *dir)
     }
 
     return ret;
+}
+
+int __ext2_dir_change_dotdot(struct inode *dir, ino_t ino)
+{
+    struct block *b;
+    struct ext2_disk_directory_entry *entry;
+
+    b = __ext2_lookup_entry(dir, "..", 2, &entry);
+    if (!b)
+        return -ENOENT;
+
+    entry->ino = ino;
+
+    b->dirty = 1;
+    brelease(b);
+
+    return 0;
 }
 
 /* Marks the entry as empty by using inode-no zero, and combining it into the

@@ -191,7 +191,7 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     if (ret)
         goto cleanup_newdir;
 
-    using_ext2_block_groups(sb)
+    using_super_block(dir->sb)
         sb->groups[ext2_ino_group(sb, ino->i.ino)].directory_count++;
 
     atomic_set(&newdir->nlinks, 2);
@@ -276,6 +276,152 @@ static int ext2_dir_mknod(struct inode *dir, const char *name, size_t len, mode_
     return 0;
 }
 
+/*
+ * Check if 'check' is a desendent of base
+ */
+static int ext2_subdir_check(struct inode *base, struct inode *check)
+{
+    ino_t base_ino = base->ino;
+    struct inode *cur = inode_dup(check);
+    int ret = 0;
+
+    if (!S_ISDIR(cur->mode)) {
+        ret = -EINVAL;
+        goto cleanup_cur;
+    }
+
+    while (cur->ino != EXT2_ROOT_INO) {
+        ino_t entry;
+
+        if (cur->ino == base_ino) {
+            ret = -EINVAL;
+            goto cleanup_cur;
+        }
+
+        int ret = __ext2_dir_lookup_ino(cur, "..", 2, &entry);
+        if (ret) {
+            ret = -EINVAL;
+            goto cleanup_cur;
+        }
+
+        inode_put(cur);
+
+        cur = inode_get(base->sb, entry);
+        if (!cur)
+            return -EINVAL;
+    }
+
+  cleanup_cur:
+    inode_put(cur);
+    return ret;
+}
+
+static int ext2_dir_rename_within_dir(struct inode *dir, struct inode *entry, const char *name, size_t len, const char *new_name, size_t new_len)
+{
+    int ret;
+
+    using_inode_lock_write(dir) {
+        ret = __ext2_dir_remove(dir, name, len);
+
+        if (!ret)
+            ret = __ext2_dir_add(dir, new_name, new_len, entry->ino, entry->mode);
+    }
+
+    return ret;
+}
+
+static inline void swap_inodes(struct inode **i1, struct inode **i2)
+{
+    struct inode *tmp;
+    tmp = *i1;
+    *i1 = *i2;
+    *i2 = tmp;
+}
+
+/*
+ * Lookup new_name - if exist, fail
+ * Lookup old_name
+ *
+ * If cross directory:
+ *   Lock inodes in inode-pointer order
+ *     Remove entry in old_dir
+ *     Add entry in new_dir
+ *     Modify ".." entry in old_name inode, point to new_dir
+ *     dec old_dir nlink
+ *     inc new_dir nlink
+ *
+ * If same directory:
+ *   Lock directory inode
+ *     Modify entry in old_dir to be new_name
+ *
+ */
+static int ext2_dir_rename(struct inode *old_dir, const char *name, size_t len, struct inode *new_dir, const char *new_name, size_t new_len)
+{
+    int ret;
+    struct inode *entry;
+    struct inode *lock1, *lock2, *lock3;
+
+    kp_ext2(old_dir->sb, "Renaming %s in "PRinode" to %s in "PRinode"\n", name, Pinode(old_dir), new_name, Pinode(new_dir));
+
+    using_inode_lock_read(old_dir)
+        ret = __ext2_dir_lookup(old_dir, name, len, &entry);
+
+    if (ret)
+        return ret;
+
+    if (old_dir == new_dir) {
+        ret = ext2_dir_rename_within_dir(old_dir, entry, name, len, new_name, new_len);
+        goto cleanup_entry;
+    }
+
+    /* Cross directory */
+
+    if (S_ISDIR(entry->mode)) {
+        ret = ext2_subdir_check(entry, new_dir);
+        if (ret)
+            goto cleanup_entry;
+    }
+
+    /*
+     * We have to lock all of old_dir, entry, and new_dir
+     * To avoid deadlocks, these are always locked in inode-pointer order.
+     */
+    lock1 = old_dir;
+    lock2 = entry;
+    lock3 = new_dir;
+
+    if (lock1 > lock2)
+        swap_inodes(&lock1, &lock2);
+
+    if (lock1 > lock3)
+        swap_inodes(&lock1, &lock3);
+
+    if (lock2 > lock3)
+        swap_inodes(&lock2, &lock3);
+
+    inode_lock_write(lock1);
+    inode_lock_write(lock2);
+    inode_lock_write(lock3);
+
+    ret = __ext2_dir_remove(old_dir, name, len);
+    if (ret)
+        goto cleanup_unlock_inodes;
+
+    ret = __ext2_dir_add(new_dir, new_name, new_len, entry->ino, entry->mode);
+    if (ret)
+        goto cleanup_unlock_inodes;
+
+    ret = __ext2_dir_change_dotdot(entry, new_dir->ino);
+
+  cleanup_unlock_inodes:
+    inode_unlock_write(lock3);
+    inode_unlock_write(lock2);
+    inode_unlock_write(lock1);
+  cleanup_entry:
+    inode_put(entry);
+    return ret;
+}
+
 struct file_ops ext2_file_ops_dir = {
     .open = NULL,
     .release = NULL,
@@ -297,5 +443,6 @@ struct inode_ops ext2_inode_ops_dir = {
     .mkdir = ext2_dir_mkdir,
     .mknod = ext2_dir_mknod,
     .rmdir = ext2_dir_rmdir,
+    .rename = ext2_dir_rename,
 };
 

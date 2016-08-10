@@ -170,13 +170,6 @@ int sys_write(int fd, void *__user buf, size_t len)
     if (ret)
         return ret;
 
-    kp(KP_NORMAL, "Writing to %d: %p: i:%p\n", fd, filp, filp->inode);
-    kp(KP_NORMAL, "Writing to %d: %p: m:%d\n", fd, filp, filp->mode);
-    kp(KP_NORMAL, "Writing to %d: %p: f:%d\n", fd, filp, filp->flags);
-    kp(KP_NORMAL, "Writing to %d: %p: o:%d\n", fd, filp, filp->offset);
-    if (filp->inode)
-        kp(KP_NORMAL, "Writing to %d: %p: i:"PRinode"\n", fd, filp, Pinode(filp->inode));
-
     return vfs_write(filp, buf, len);
 }
 
@@ -226,13 +219,41 @@ int sys_ftruncate(int fd, off_t length)
 int sys_mkdir(const char *__user name, mode_t mode)
 {
     struct task *current = cpu_get_local()->current;
+    struct nameidata dirname;
     int ret;
 
     ret = user_check_strn(name, PATH_MAX, F(VM_MAP_READ));
     if (ret)
         return ret;
 
-    return vfs_mkdir(current->cwd, name, strlen(name), mode);
+    memset(&dirname, 0, sizeof(dirname));
+    dirname.path = name;
+    dirname.cwd = current->cwd;
+
+    ret = namei_full(&dirname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    if (!dirname.parent)
+        goto cleanup_namei;
+
+    if (dirname.found) {
+        ret = -EEXIST;
+        goto cleanup_namei;
+    }
+
+    if (dirname.name_len == 0) {
+        ret = -ENOENT;
+        goto cleanup_namei;
+    }
+
+    ret = vfs_mkdir(dirname.parent, dirname.name_start, dirname.name_len, mode);
+
+  cleanup_namei:
+    if (dirname.parent)
+        inode_put(dirname.parent);
+
+    if (dirname.found)
+        inode_put(dirname.found);
+
+    return ret;
 }
 
 int sys_rmdir(const char *__user name)
@@ -259,6 +280,11 @@ int sys_rmdir(const char *__user name)
         goto cleanup_namei;
     }
 
+    if (dirname.name_len == 0) {
+        ret = -ENOENT;
+        goto cleanup_namei;
+    }
+
     ret = vfs_rmdir(dirname.parent, dirname.found, dirname.name_start, dirname.name_len);
 
   cleanup_namei:
@@ -278,6 +304,10 @@ int sys_link(const char *__user old, const char *__user new)
     struct nameidata newname;
     int ret;
 
+    ret = user_check_strn(old, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
     ret = namex(old, current->cwd, &oldlink);
     if (ret)
         return ret;
@@ -293,6 +323,11 @@ int sys_link(const char *__user old, const char *__user new)
 
     if (newname.found) {
         ret = -EEXIST;
+        goto release_namei;
+    }
+
+    if (newname.name_len == 0) {
+        ret = -ENOENT;
         goto release_namei;
     }
 
@@ -324,6 +359,11 @@ int sys_mknod(const char *__user node, mode_t mode, dev_t dev)
 
     if (name.found) {
         ret = -EEXIST;
+        goto cleanup_namei;
+    }
+
+    if (name.name_len == 0) {
+        ret = -ENOENT;
         goto cleanup_namei;
     }
 
@@ -365,6 +405,59 @@ int sys_unlink(const char *__user file)
     if (name.found)
         inode_put(name.found);
     inode_put(name.parent);
+    return ret;
+}
+
+int sys_rename(const char *__user old, const char *__user new)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata old_name, new_name;
+    int ret;
+
+    ret = user_check_strn(old, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    ret = user_check_strn(new, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    memset(&old_name, 0, sizeof(old_name));
+    old_name.path = old;
+    old_name.cwd = current->cwd;
+
+    ret = namei_full(&old_name, F(NAMEI_GET_PARENT));
+    if (!old_name.parent)
+        goto cleanup_old_name;
+
+    if (old_name.name_len == 0) {
+        ret = -ENOENT;
+        goto cleanup_old_name;
+    }
+
+    memset(&new_name, 0, sizeof(new_name));
+    new_name.path = new;
+    new_name.cwd = current->cwd;
+
+    ret = namei_full(&new_name, F(NAMEI_GET_PARENT));
+    if (!new_name.parent)
+        goto cleanup_old_name;
+
+    if (new_name.name_len == 0) {
+        ret = -ENOENT;
+        goto cleanup_new_name;
+    }
+
+    ret = vfs_rename(old_name.parent, old_name.name_start, old_name.name_len, new_name.parent, new_name.name_start, new_name.name_len);
+
+  cleanup_new_name:
+    if (new_name.parent)
+        inode_put(new_name.parent);
+
+  cleanup_old_name:
+    if (old_name.parent)
+        inode_put(old_name.parent);
+
     return ret;
 }
 

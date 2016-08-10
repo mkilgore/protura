@@ -93,6 +93,9 @@ struct inode_ops {
 
     int (*unlink) (struct inode *dir, struct inode *entity, const char *name, size_t len);
     int (*rmdir) (struct inode *dir, struct inode *entity, const char *name, size_t len);
+
+    int (*rename) (struct inode *old_dir, const char *name, size_t len,
+                   struct inode *new_dir, const char *new_name, size_t new_len);
 };
 
 #define Pinode(i) (i)->sb_dev, (i)->ino
@@ -108,19 +111,26 @@ struct inode_ops {
 #define inode_has_mkdir(inode) ((inode)->ops && (inode)->ops->mkdir)
 #define inode_has_mknod(inode) ((inode)->ops && (inode)->ops->mknod)
 #define inode_has_rmdir(inode) ((inode)->ops && (inode)->ops->rmdir)
+#define inode_has_rename(inode) ((inode)->ops && (inode)->ops->rename)
 
 #define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
 #define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)
 
 #define inode_set_valid(inode) bit_set(&(inode)->flags, INO_VALID)
+
+#define inode_set_dirty_unlocked(inode) \
+    do { \
+        if (!bit_test(&(inode)->flags, INO_DIRTY)) { \
+            bit_set(&(inode)->flags, INO_DIRTY); \
+            kp(KP_TRACE, "Adding "PRinode": dirty\n", Pinode(inode)); \
+            list_add(&(inode)->sb->dirty_inodes, &(inode)->sb_dirty_entry); \
+        } \
+    } while (0)
+
 #define inode_set_dirty(inode) \
     do { \
-        using_mutex(&(inode)->sb->dirty_inodes_lock) { \
-            if (!bit_test(&(inode)->flags, INO_DIRTY)) { \
-                bit_set(&(inode)->flags, INO_DIRTY); \
-                kp(KP_TRACE, "Adding "PRinode": dirty\n", Pinode(inode)); \
-                list_add(&(inode)->sb->dirty_inodes, &(inode)->sb_dirty_entry); \
-            } \
+        using_super_block((inode)->sb) { \
+            inode_set_dirty_unlocked(inode); \
         } \
     } while (0)
 

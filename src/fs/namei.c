@@ -38,16 +38,17 @@ int namei_full(struct nameidata *data, flags_t flags)
 
     data->found = NULL;
 
-    if (!cwd || *path == '/') {
+    if (!cwd || *path == '/')
         cwd = ino_root;
-        path++;
-    }
 
     cwd = inode_dup(cwd);
 
     while (*path) {
         struct inode *next;
         size_t len = 0;
+
+        if (*path == '/')
+            path++;
 
         while (path[len] && path[len] != '/')
             len++;
@@ -69,8 +70,6 @@ int namei_full(struct nameidata *data, flags_t flags)
         cwd = next;
 
         path += len;
-        if (*path == '/')
-            path++;
     }
 
     if (flag_test(&flags, NAMEI_GET_INODE))

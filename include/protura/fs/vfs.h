@@ -47,5 +47,6 @@ int vfs_create(struct inode *dir, const char *name, size_t len, mode_t mode, str
 int vfs_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode);
 int vfs_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t len);
 int vfs_mknod(struct inode *dir, const char *name, size_t len, mode_t mode, dev_t dev);
+int vfs_rename(struct inode *old_dir, const char *name, size_t len, struct inode *new_dir, const char *new_name, size_t new_len);
 
 #endif
