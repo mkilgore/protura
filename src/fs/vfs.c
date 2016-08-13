@@ -206,17 +206,22 @@ int vfs_unlink(struct inode *dir, struct inode *entity, const char *name, size_t
 int vfs_chdir(const char *path)
 {
     struct task *current = cpu_get_local()->current;
-    struct inode *new_cwd = NULL;
+    struct nameidata name;
     int ret;
 
     kp(KP_TRACE, "chdir: %s\n", path);
 
-    ret = namex(path, current->cwd, &new_cwd);
-    if (ret)
+    memset(&name, 0, sizeof(name));
+
+    name.path = path;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_ALLOW_TRAILING_SLASH));
+    if (!name.found)
         return ret;
 
     inode_put(current->cwd);
-    current->cwd = new_cwd;
+    current->cwd = name.found;
 
     return 0;
 }
@@ -236,8 +241,8 @@ int vfs_stat(struct inode *inode, struct stat *buf)
     buf->st_atime = 0;
     buf->st_ctime = 0;
     buf->st_mtime = 0;
-    buf->st_blksize = 0;
-    buf->st_blocks = 0;
+    buf->st_blksize = inode->block_size;
+    buf->st_blocks = inode->blocks;
 
     return 0;
 }
@@ -282,6 +287,33 @@ int vfs_rename(struct inode *old_dir, const char *name, size_t len, struct inode
 
     if (inode_has_rename(old_dir))
         return old_dir->ops->rename(old_dir, name, len, new_dir, new_name, new_len);
+    else
+        return -ENOTSUP;
+}
+
+int vfs_follow_link(struct inode *dir, struct inode *symlink, struct inode **result)
+{
+    if (inode_has_follow_link(symlink))
+        return symlink->ops->follow_link(dir, symlink, result);
+    else
+        return -ENOTSUP;
+}
+
+int vfs_readlink(struct inode *symlink, char *buf, size_t buf_len)
+{
+    if (inode_has_readlink(symlink))
+        return symlink->ops->readlink(symlink, buf, buf_len);
+    else
+        return -ENOTSUP;
+}
+
+int vfs_symlink(struct inode *dir, const char *name, size_t len, const char *symlink_target)
+{
+    if (!S_ISDIR(dir->mode))
+        return -ENOTDIR;
+
+    if (inode_has_symlink(dir))
+        return dir->ops->symlink(dir, name, len, symlink_target);
     else
         return -ENOTSUP;
 }

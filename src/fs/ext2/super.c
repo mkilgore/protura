@@ -44,6 +44,9 @@ void ext2_inode_setup_ops(struct inode *inode)
     } else if (S_ISREG(inode->mode)) {
         inode->default_fops = &ext2_file_ops_file;
         inode->ops = &ext2_inode_ops_file;
+    } else if (S_ISLNK(inode->mode)) {
+        inode->default_fops = NULL;
+        inode->ops = &ext2_inode_ops_symlink;
     }
 }
 
@@ -75,6 +78,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
 
         inode->i.sb = super;
         inode->i.sb_dev = super->dev;
+        inode->i.block_size = sb->block_size;
         inode->inode_group_blk_nr = inode_group_blk_nr;
         inode->inode_group_blk_offset = inode_offset;
 
@@ -88,7 +92,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
             inode->i.mode = disk_inode->mode;
             inode->i.size = disk_inode->size;
             atomic32_set(&inode->i.nlinks, disk_inode->links_count);
-            inode->blocks = disk_inode->blocks;
+            inode->i.blocks = disk_inode->blocks;
 
             if (S_ISCHR(disk_inode->mode) || S_ISBLK(disk_inode->mode)) {
                 /* Two possible dev formats: (Found in Linux Kernel source code)
@@ -134,7 +138,7 @@ static void verify_ext2_inode(struct super_block *super, struct ext2_inode *inod
         inode_assert(inode, dinode->mode == inode->i.mode);
         inode_assert(inode, (off_t)dinode->size == inode->i.size);
         inode_assert(inode, dinode->links_count == atomic32_get(&inode->i.nlinks));
-        inode_assert(inode, dinode->blocks == inode->blocks);
+        inode_assert(inode, dinode->blocks == inode->i.blocks);
 
         if (S_ISCHR(dinode->mode) || S_ISBLK(dinode->mode)) {
             /* FIXME: Only handles the simple cases, not the case that dev is
@@ -180,7 +184,7 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
         dinode->mode = inode->i.mode;
         dinode->size = inode->i.size;
         dinode->links_count = atomic32_get(&inode->i.nlinks);
-        dinode->blocks = inode->blocks;
+        dinode->blocks = inode->i.blocks;
 
         if (S_ISCHR(inode->i.mode) || S_ISBLK(inode->i.mode)) {
             dinode->blk_ptrs[0] = (uint32_t)inode->i.dev_no;

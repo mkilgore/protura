@@ -65,9 +65,10 @@ struct stat {
 #define MODE_TO_DT(mode) (((mode) >> 12) & 15)
 
 #define DT_UNKNOWN 0
-#define DT_CHR     2
-#define DT_DIR     4
-#define DT_BLK     6
-#define DT_REG     8
+#define DT_CHR     MODE_TO_DT(_IFCHR)
+#define DT_DIR     MODE_TO_DT(_IFDIR)
+#define DT_BLK     MODE_TO_DT(_IFBLK)
+#define DT_REG     MODE_TO_DT(_IFREG)
+#define DT_LNK     MODE_TO_DT(_IFLNK)
 
 #endif

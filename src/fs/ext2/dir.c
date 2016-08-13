@@ -422,6 +422,64 @@ static int ext2_dir_rename(struct inode *old_dir, const char *name, size_t len, 
     return ret;
 }
 
+static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, const char *symlink_target)
+{
+    int ret;
+    size_t target_len;
+    struct inode *symlink;
+    struct ext2_inode *symlink_ext2;
+
+    target_len = strlen(symlink_target);
+
+    ret = ext2_inode_new(dir->sb, &symlink);
+    if (ret)
+        return ret;
+
+    kp_ext2(dir->sb, "Creating %s, new symlink: %d, %p\n", name, symlink->ino, symlink);
+
+    symlink->mode = S_IFLNK;
+    symlink->ops = &ext2_inode_ops_symlink;
+    symlink->default_fops = NULL;
+    symlink->size = target_len;
+
+    using_inode_lock_write(dir)
+        ret = __ext2_dir_add(dir, name, len, symlink->ino, S_IFLNK);
+
+    if (ret) {
+        inode_put(symlink);
+        return ret;
+    }
+
+    symlink_ext2 = container_of(symlink, struct ext2_inode, i);
+
+    if (target_len <= 59) {
+        strcpy((char *)symlink_ext2->blk_ptrs, symlink_target);
+        symlink->blocks = 0;
+    } else {
+        struct block *b;
+        sector_t s;
+
+        symlink->blocks = 1;
+        s = ext2_bmap_alloc(symlink, 0);
+
+        using_block(symlink->sb->dev, s, b) {
+            strcpy(b->data, symlink_target);
+            b->dirty = 1;
+        }
+    }
+
+    /* We wait to do this until we're sure the entry succeeded */
+    inode_set_valid(symlink);
+    inode_set_dirty(symlink);
+    inode_inc_nlinks(symlink);
+
+    kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&symlink->ref));
+
+    inode_put(symlink);
+
+    return 0;
+}
+
 struct file_ops ext2_file_ops_dir = {
     .open = NULL,
     .release = NULL,
@@ -444,5 +502,6 @@ struct inode_ops ext2_inode_ops_dir = {
     .mknod = ext2_dir_mknod,
     .rmdir = ext2_dir_rmdir,
     .rename = ext2_dir_rename,
+    .symlink = ext2_dir_symlink,
 };
 

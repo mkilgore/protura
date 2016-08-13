@@ -33,25 +33,34 @@ int namei_full(struct nameidata *data, flags_t flags)
     path = data->path;
     cwd = data->cwd;
 
+    kp(KP_TRACE, "data->cwd: %p\n", data->cwd);
+
     if (!path)
         return -EFAULT;
 
     data->found = NULL;
 
-    if (!cwd || *path == '/')
+    if (!cwd || *path == '/') {
         cwd = ino_root;
+        path++;
+    }
 
     cwd = inode_dup(cwd);
 
     while (*path) {
         struct inode *next;
-        size_t len = 0;
+        struct inode *link;
+        size_t len = 0, old_len = 0;
+        const char *old_path;
 
         if (*path == '/')
             path++;
 
         while (path[len] && path[len] != '/')
             len++;
+
+        old_path = path;
+        old_len = len;
 
         if (!path[len]) {
             if (flag_test(&flags, NAMEI_GET_PARENT))
@@ -66,10 +75,32 @@ int namei_full(struct nameidata *data, flags_t flags)
         if (ret)
             goto release_cwd;
 
-        inode_put(cwd);
-        cwd = next;
+        if (!flag_test(&flags, NAMEI_DONT_FOLLOW_LINK) && S_ISLNK(next->mode)) {
+            ret = vfs_follow_link(cwd, next, &link);
+
+            if (ret) {
+                inode_put(next);
+                goto release_cwd;
+            }
+
+            inode_put(next);
+            next = link;
+        }
 
         path += len;
+
+        if (flag_test(&flags, NAMEI_ALLOW_TRAILING_SLASH) && *path == '/') {
+            if (flag_test(&flags, NAMEI_GET_PARENT))
+                data->parent = inode_dup(cwd);
+
+            data->name_start = old_path;
+            data->name_len = old_len;
+
+            path++;
+        }
+
+        inode_put(cwd);
+        cwd = next;
     }
 
     if (flag_test(&flags, NAMEI_GET_INODE))

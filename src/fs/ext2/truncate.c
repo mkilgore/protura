@@ -180,7 +180,7 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
 
   set_size_and_ret:
     /* 'blocks' is always a count of 512-byte blocks */
-    inode->blocks = starting_block * (block_size / 512);
+    inode->i.blocks = starting_block * (block_size / 512);
     inode->i.size = size;
     inode_set_dirty(&inode->i);
     return 0;

@@ -41,8 +41,8 @@ uint8_t ext2_dt_to_dir_type[] = {
     [DT_DIR] = EXT2_FT_DIR,
     [DT_CHR] = EXT2_FT_CHRDEV,
     [DT_BLK] = EXT2_FT_BLKDEV,
-    /*
     [DT_LNK] = EXT2_FT_SYMLINK,
+    /*
     [DT_SOCK] = EXT2_FT_SOCK,
     [DT_FIFO] = EXT2_FT_FIFO,
      */
@@ -54,6 +54,7 @@ uint8_t ext2_dir_type_to_dt[] = {
     [EXT2_FT_DIR] = DT_DIR,
     [EXT2_FT_CHRDEV] = DT_CHR,
     [EXT2_FT_BLKDEV] = DT_BLK,
+    [EXT2_FT_SYMLINK] = DT_LNK,
 };
 
 static uint8_t ext2_dir_type(mode_t mode)

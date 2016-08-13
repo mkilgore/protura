@@ -48,5 +48,8 @@ int vfs_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode);
 int vfs_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t len);
 int vfs_mknod(struct inode *dir, const char *name, size_t len, mode_t mode, dev_t dev);
 int vfs_rename(struct inode *old_dir, const char *name, size_t len, struct inode *new_dir, const char *new_name, size_t new_len);
+int vfs_follow_link(struct inode *dir, struct inode *symlink, struct inode **result);
+int vfs_readlink(struct inode *symlink, char *buf, size_t buf_len);
+int vfs_symlink(struct inode *dir, const char *name, size_t len, const char *symlink_target);
 
 #endif

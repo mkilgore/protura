@@ -251,6 +251,21 @@ static void sys_handler_rename(struct irq_frame *frame)
     frame->eax = sys_rename((const char *)frame->ebx, (const char *)frame->ecx);
 }
 
+static void sys_handler_readlink(struct irq_frame *frame)
+{
+    frame->eax = sys_readlink((const char *)frame->ebx, (char *)frame->ecx, (size_t)frame->edx);
+}
+
+static void sys_handler_symlink(struct irq_frame *frame)
+{
+    frame->eax = sys_symlink((const char *)frame->ebx, (const char *)frame->ecx);
+}
+
+static void sys_handler_lstat(struct irq_frame *frame)
+{
+    frame->eax = sys_lstat((const char *)frame->ebx, (struct stat *)frame->ecx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -303,6 +318,9 @@ static struct syscall_handler {
     SYSCALL(MKNOD, sys_handler_mknod),
     SYSCALL(RMDIR, sys_handler_rmdir),
     SYSCALL(RENAME, sys_handler_rename),
+    SYSCALL(READLINK, sys_handler_readlink),
+    SYSCALL(SYMLINK, sys_handler_symlink),
+    SYSCALL(LSTAT, sys_handler_lstat),
 };
 
 static void syscall_handler(struct irq_frame *frame)

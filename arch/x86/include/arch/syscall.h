@@ -58,6 +58,10 @@
 #define SYSCALL_RMDIR 0x33
 #define SYSCALL_RENAME 0x34
 
+#define SYSCALL_READLINK 0x35
+#define SYSCALL_SYMLINK  0x36
+#define SYSCALL_LSTAT    0x37
+
 #ifdef __KERNEL__
 #ifndef ASM
 

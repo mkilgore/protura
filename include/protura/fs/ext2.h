@@ -182,7 +182,6 @@ struct ext2_inode {
 
     sector_t inode_group_blk_nr;
     int inode_group_blk_offset;
-    uint32_t blocks;
 
     uint32_t flags;
     union {

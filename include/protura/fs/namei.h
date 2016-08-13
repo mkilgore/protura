@@ -23,6 +23,8 @@ struct nameidata {
 enum {
     NAMEI_GET_INODE,
     NAMEI_GET_PARENT,
+    NAMEI_ALLOW_TRAILING_SLASH,
+    NAMEI_DONT_FOLLOW_LINK,
 };
 
 int namei_full(struct nameidata *data, flags_t flags);

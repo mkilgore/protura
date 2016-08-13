@@ -42,6 +42,8 @@ struct inode {
     off_t size;
     mode_t mode;
     atomic32_t nlinks;
+    uint32_t blocks;
+    uint32_t block_size;
 
     flags_t flags;
 
@@ -96,6 +98,10 @@ struct inode_ops {
 
     int (*rename) (struct inode *old_dir, const char *name, size_t len,
                    struct inode *new_dir, const char *new_name, size_t new_len);
+
+    int (*symlink) (struct inode *dir, const char *symlink, size_t len, const char *symlink_target);
+    int (*readlink) (struct inode *dir, char *buf, size_t buf_len);
+    int (*follow_link) (struct inode *dir, struct inode *symlink, struct inode **result);
 };
 
 #define Pinode(i) (i)->sb_dev, (i)->ino
@@ -112,6 +118,9 @@ struct inode_ops {
 #define inode_has_mknod(inode) ((inode)->ops && (inode)->ops->mknod)
 #define inode_has_rmdir(inode) ((inode)->ops && (inode)->ops->rmdir)
 #define inode_has_rename(inode) ((inode)->ops && (inode)->ops->rename)
+#define inode_has_symlink(inode) ((inode)->ops && (inode)->ops->symlink)
+#define inode_has_readlink(inode) ((inode)->ops && (inode)->ops->readlink)
+#define inode_has_follow_link(inode) ((inode)->ops && (inode)->ops->follow_link)
 
 #define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
 #define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)

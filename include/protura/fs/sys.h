@@ -27,15 +27,18 @@ int sys_pipe(int *fds);
 
 int sys_truncate(const char *__user file, off_t length);
 int sys_ftruncate(int fd, off_t length);
-int sys_link(const char *old, const char *new);
-int sys_unlink(const char *name);
+int sys_link(const char *__user old, const char *__user new);
+int sys_unlink(const char *__user name);
 int sys_chdir(const char *__user path);
-int sys_stat(const char *__user path, struct stat *buf);
-int sys_fstat(int fd, struct stat *buf);
+int sys_stat(const char *__user path, struct stat *__user buf);
+int sys_fstat(int fd, struct stat *__user buf);
 int sys_mkdir(const char *__user name, mode_t mode);
 int sys_mknod(const char *__user node, mode_t mode, dev_t dev);
 int sys_rmdir(const char *__user name);
 int sys_rename(const char *__user old, const char *__user new);
+int sys_lstat(const char *__user path, struct stat *__user buf);
+int sys_readlink(const char *__user path, char *__user buf, size_t buf_len);
+int sys_symlink(const char *__user path, const char *__user linkpath);
 
 /* Called internally by sys_open - Performs the same function, but takes
  * arguments relating to inode's and file's rather then a path name and

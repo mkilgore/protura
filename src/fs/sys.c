@@ -84,7 +84,7 @@ int sys_open(const char *__user path, int flags, mode_t mode)
     name.path = path;
     name.cwd = current->cwd;
 
-    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT) | F(NAMEI_ALLOW_TRAILING_SLASH));
 
     if (!name.found) {
         if (!(flags & O_CREAT) || !name.parent)
@@ -101,8 +101,10 @@ int sys_open(const char *__user path, int flags, mode_t mode)
 
     ret = __sys_open(name.found, file_flags, &filp);
 
-    inode_put(name.found);
   cleanup_namei:
+    if (name.found)
+        inode_put(name.found);
+
     if (name.parent)
         inode_put(name.parent);
     return ret;
@@ -192,6 +194,10 @@ int sys_truncate(const char *__user path, off_t length)
     struct inode *i;
     int ret;
 
+    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
     ret = namex(path, current->cwd, &i);
     if (ret)
         return ret;
@@ -230,7 +236,7 @@ int sys_mkdir(const char *__user name, mode_t mode)
     dirname.path = name;
     dirname.cwd = current->cwd;
 
-    ret = namei_full(&dirname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    ret = namei_full(&dirname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT) | F(NAMEI_ALLOW_TRAILING_SLASH));
     if (!dirname.parent)
         goto cleanup_namei;
 
@@ -271,7 +277,7 @@ int sys_rmdir(const char *__user name)
     dirname.path = name;
     dirname.cwd = current->cwd;
 
-    ret = namei_full(&dirname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    ret = namei_full(&dirname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT) | F(NAMEI_ALLOW_TRAILING_SLASH));
     if (!dirname.parent)
         goto cleanup_namei;
 
@@ -300,16 +306,23 @@ int sys_rmdir(const char *__user name)
 int sys_link(const char *__user old, const char *__user new)
 {
     struct task *current = cpu_get_local()->current;
-    struct inode *oldlink;
-    struct nameidata newname;
+    struct nameidata newname, oldname;
     int ret;
 
     ret = user_check_strn(old, PATH_MAX, F(VM_MAP_READ));
     if (ret)
         return ret;
 
-    ret = namex(old, current->cwd, &oldlink);
+    ret = user_check_strn(new, PATH_MAX, F(VM_MAP_READ));
     if (ret)
+        return ret;
+
+    memset(&oldname, 0, sizeof(oldname));
+    oldname.path = old;
+    oldname.cwd = current->cwd;
+
+    ret = namei_full(&oldname, F(NAMEI_GET_INODE) | F(NAMEI_ALLOW_TRAILING_SLASH));
+    if (!oldname.found)
         return ret;
 
     memset(&newname, 0, sizeof(newname));
@@ -317,9 +330,9 @@ int sys_link(const char *__user old, const char *__user new)
     newname.path = new;
     newname.cwd = current->cwd;
 
-    ret = namei_full(&newname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    ret = namei_full(&newname, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT) | F(NAMEI_ALLOW_TRAILING_SLASH));
     if (!newname.parent)
-        goto release_oldlink;
+        goto release_oldname;
 
     if (newname.found) {
         ret = -EEXIST;
@@ -331,14 +344,15 @@ int sys_link(const char *__user old, const char *__user new)
         goto release_namei;
     }
 
-    ret = vfs_link(newname.parent, oldlink, newname.name_start, newname.name_len);
+    ret = vfs_link(newname.parent, oldname.found, newname.name_start, newname.name_len);
 
   release_namei:
     if (newname.found)
         inode_put(newname.found);
     inode_put(newname.parent);
-  release_oldlink:
-    inode_put(oldlink);
+  release_oldname:
+    if (oldname.found)
+        inode_put(oldname.found);
     return ret;
 }
 
@@ -347,6 +361,10 @@ int sys_mknod(const char *__user node, mode_t mode, dev_t dev)
     struct task *current = cpu_get_local()->current;
     struct nameidata name;
     int ret;
+
+    ret = user_check_strn(node, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
 
     memset(&name, 0, sizeof(name));
     name.path = node;
@@ -385,6 +403,10 @@ int sys_unlink(const char *__user file)
     struct task *current = cpu_get_local()->current;
     struct nameidata name;
     int ret;
+
+    ret = user_check_strn(file, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
 
     memset(&name, 0, sizeof(name));
     name.path = file;
@@ -463,30 +485,52 @@ int sys_rename(const char *__user old, const char *__user new)
 
 int sys_chdir(const char *__user path)
 {
+    int ret;
+
+    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
     return vfs_chdir(path);
 }
 
 int sys_stat(const char *path, struct stat *buf)
 {
     struct task *current = cpu_get_local()->current;
-    struct inode *inode;
+    struct nameidata name;
     int ret;
 
-    ret = namex(path, current->cwd, &inode);
+    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
     if (ret)
         return ret;
 
-    ret = vfs_stat(inode, buf);
+    ret = user_check_region(buf, sizeof(*buf), F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
 
-    inode_put(inode);
+    memset(&name, 0, sizeof(name));
+    name.path = path;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_ALLOW_TRAILING_SLASH));
+    if (!name.found)
+        return ret;
+
+    ret = vfs_stat(name.found, buf);
+
+    inode_put(name.found);
 
     return ret;
 }
 
-int sys_fstat(int fd, struct stat *buf)
+int sys_fstat(int fd, struct stat *__user buf)
 {
     struct file *filp;
     int ret;
+
+    ret = user_check_region(buf, sizeof(*buf), F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
 
     ret = fd_get_checked(fd, &filp);
 
@@ -494,6 +538,103 @@ int sys_fstat(int fd, struct stat *buf)
         return ret;
 
     ret = vfs_stat(filp->inode, buf);
+
+    return ret;
+}
+
+int sys_lstat(const char *__user path, struct stat *__user buf)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata name;
+    int ret;
+
+    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    ret = user_check_region(buf, sizeof(*buf), F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    memset(&name, 0, sizeof(name));
+    name.path = path;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_ALLOW_TRAILING_SLASH) | F(NAMEI_DONT_FOLLOW_LINK));
+    if (!name.found)
+        return ret;
+
+    ret = vfs_stat(name.found, buf);
+
+    inode_put(name.found);
+
+    return ret;
+}
+
+int sys_readlink(const char *__user path, char *__user buf, size_t buf_len)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata name;
+    int ret;
+
+    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    ret = user_check_region(buf, buf_len, F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    memset(&name, 0, sizeof(name));
+    name.path = path;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_DONT_FOLLOW_LINK));
+    if (!name.found)
+        return ret;
+
+    ret = vfs_readlink(name.found, buf, buf_len);
+
+    inode_put(name.found);
+
+    return ret;
+}
+
+int sys_symlink(const char *__user path, const char *__user linkpath)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata name;
+    int ret;
+
+    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    ret = user_check_strn(linkpath, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    memset(&name, 0, sizeof(name));
+    name.path = path;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
+    if (!name.parent)
+        return ret;
+
+    if (name.found) {
+        ret = -EEXIST;
+        goto cleanup_name;
+    }
+
+    ret = vfs_symlink(name.parent, name.name_start, name.name_len, linkpath);
+
+  cleanup_name:
+    if (name.found)
+        inode_put(name.found);
+
+    if (name.parent)
+        inode_put(name.parent);
 
     return ret;
 }
