@@ -184,7 +184,6 @@ static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int 
 static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
     struct page *p;
-    kp(KP_TRACE, "palloc: %d pages\n", 1 << order);
 
     if (!(flags & __PAL_NOWAIT))
         __palloc_sleep_for_enough_pages(&buddy_allocator, order, flags);
