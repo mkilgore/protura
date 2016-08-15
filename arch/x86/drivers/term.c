@@ -27,6 +27,7 @@ struct term_info {
 
     uint8_t cur_r, cur_c;
     uint8_t cur_col;
+    int ignore_next_nl;
 };
 
 static struct term_info glob_term;
@@ -132,15 +133,19 @@ static void __term_putchar_nocur(char ch)
 {
     uint8_t r = glob_term.cur_r;
     uint8_t c = glob_term.cur_c;
+
+    /* We do this up here so that ignore_next_nl gets cleared for every other
+     * char. */
+    if ((ch == '\n' || ch == '\r') && !glob_term.ignore_next_nl) {
+        c = 0;
+        r++;
+    } else {
+        glob_term.ignore_next_nl = 0;
+    }
+
     switch (ch) {
     case '\n':
-        c = 0;
-        r++;
-        break;
-
     case '\r':
-        c = 0;
-        r++;
         break;
 
     case '\t':
@@ -159,15 +164,18 @@ static void __term_putchar_nocur(char ch)
         glob_term.buf[r][c].color = glob_term.cur_col;
         c++;
         if (c >= TERM_COLS) {
+            glob_term.ignore_next_nl = 1;
             c = 0;
             r++;
         }
         break;
     }
+
     if (r >= TERM_ROWS) {
         __term_scroll(1);
         r--;
     }
+
     glob_term.cur_c = c;
     glob_term.cur_r = r;
 }
