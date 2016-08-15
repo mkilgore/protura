@@ -45,18 +45,23 @@ static int screen_rows = 25;
 
 int page_file(FILE *file)
 {
-    int rows = 0;
+    int row = 0;
     int hit_eof = 0;
     char *line = NULL;
+    size_t buf_len = 0;
+    size_t len;
 
     while (!hit_eof) {
-        for (rows = 1; rows < screen_rows && !hit_eof; rows++) {
-            size_t len;
-            hit_eof = getline(&line, &len, file) == -1;
+
+        for (row = 0; row < screen_rows && !hit_eof; row++) {
+            len = getline(&line, &buf_len, file);
+            hit_eof = len == -1;
+
             if (line && !hit_eof) {
                 /* Get rid of newline if we're on the last row. */
-                if (rows + 1 == screen_rows)
+                if (row + 1 == screen_rows)
                     line[len - 1] = '\0';
+
                 printf("%s", line);
             }
         }
@@ -68,10 +73,10 @@ int page_file(FILE *file)
          * both input and output, and stdin/stdout/stderr are all connected to
          * it. So reading from stderr gives us input from the user, which we
          * otherwise can't get. */
-        if (!hit_eof)
+        if (!hit_eof) {
             fgetc(stderr);
-
-        putchar('\n');
+            putchar('\n');
+        }
     }
 
     if (line)
