@@ -1,15 +1,20 @@
 
-COREUTILS_CFLAGS := -Wall -std=c11 -I./disk/utils/coreutils/include
+COREUTILS_CFLAGS := -Wall -std=gnu99 -I./disk/utils/coreutils/include
 
 COREUTILS_PROGS = \
 	cat \
 	false \
 	head \
+	hexdump \
 	link \
+	ln \
 	lnum \
 	ls \
 	mkdir \
 	mknod \
+	more \
+	mount \
+	mv \
 	rmdir \
 	seq \
 	sh \
@@ -18,6 +23,7 @@ COREUTILS_PROGS = \
 	tee \
 	touch \
 	true \
+	umount \
 	uniq \
 	unlink \
 	wc \

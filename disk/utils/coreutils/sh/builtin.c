@@ -127,9 +127,17 @@ static int echo(struct prog_desc *prog)
     return 0;
 }
 
+static int pwd(struct prog_desc *prog)
+{
+    dprintf(prog->stdout_fd, "%s\n", cwd);
+
+    return 0;
+}
+
 static struct builtin_cmd cmds[] = {
     { .id = "cd", .cmd = cd },
     { .id = "echo", .cmd = echo },
+    { .id = "pwd", .cmd = pwd },
     { .id = NULL, .cmd = NULL }
 };
 

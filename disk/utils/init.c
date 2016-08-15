@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     action.sa_handler = handle_children;
     sigaction(SIGCHLD, &action, NULL);
 
-    keyboardfd = open("/dev/keyboard", O_RDONLY);
+    keyboardfd = open("/dev/console", O_RDONLY);
     consolefd = open("/dev/console", O_WRONLY);
     stderrfd = open("/dev/console", O_WRONLY);
 
@@ -61,9 +61,9 @@ int main(int argc, char **argv)
     close(consolefd);
     close(stderrfd);
 
-    keyboardfd = open("/dev/com2", O_RDONLY, 0);
-    consolefd = open("/dev/com2", O_WRONLY, 0);
-    stderrfd = open("/dev/com2", O_WRONLY, 0);
+    keyboardfd = open("/dev/com2", O_RDONLY);
+    consolefd = open("/dev/com2", O_WRONLY);
+    stderrfd = open("/dev/com2", O_WRONLY);
 
     start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 

@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
                 return 1;
             }
             output_file(file, argarg, STDOUT_FILENO);
-            close(file);
+            close_with_dash(file);
             break;
 
         case ARG_ERR:

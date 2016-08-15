@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -22,7 +23,9 @@ static const char *arg_desc_str  = "Files: List of files to provide information 
 
 #define XARGS \
     X(all, "all", 0, 'a', "Do not ignore entries starting with '.'") \
+    X(almost_all, "almost-all", 0, 'A', "All, but '.' and '..' are not listed") \
     X(lng, NULL,  0, 'l', "Use a long listing format") \
+    X(dereference, "dereference", 0, 'L', "For symlinks: Show information on referenced file instead") \
     X(help, "help", 0, 'h', "Display help") \
     X(version, "version", 0, 'v', "Display version information") \
     X(last, NULL, 0, '\0', NULL)
@@ -42,8 +45,15 @@ static const struct arg ls_args[] = {
 #undef X
 };
 
-static int show_all = 0;
+enum all_option {
+    SHOW_NORMAL,
+    SHOW_ALL,
+    SHOW_ALMOST_ALL,
+};
+
+static enum all_option show_all = SHOW_NORMAL;
 static int long_fmt = 0;
+static int dereference_links = 0;
 
 void list_items(DIR *directory) {
     struct dirent *item;
@@ -51,7 +61,11 @@ void list_items(DIR *directory) {
     while ((item = readdir(directory))) {
         struct stat st;
 
-        if (!show_all && item->d_name[0] == '.')
+        if (show_all == SHOW_NORMAL && item->d_name[0] == '.')
+            continue;
+
+        if (show_all == SHOW_ALMOST_ALL
+            && (strcmp(item->d_name, ".") == 0 || strcmp(item->d_name, "..") == 0))
             continue;
 
         if (!long_fmt) {
@@ -59,7 +73,10 @@ void list_items(DIR *directory) {
             continue;
         }
 
-        stat(item->d_name, &st);
+        if (!dereference_links)
+            lstat(item->d_name, &st);
+        else
+            stat(item->d_name, &st);
 
         if (S_ISDIR(st.st_mode)) {
             printf("d\t%d\t%ld\t%s\n", (int)st.st_ino, (long)st.st_size, item->d_name);
@@ -82,7 +99,11 @@ void list_items(DIR *directory) {
         }
 
         if (S_ISLNK(st.st_mode)) {
-            printf("l\t%d\t%ld\t%s\n", (int)st.st_ino, (long)st.st_size, item->d_name);
+            char buf[255];
+
+            readlink(item->d_name, buf, sizeof(buf));
+
+            printf("l\t%d\t%ld\t%s -> %s\n", (int)st.st_ino, (long)st.st_size, item->d_name, buf);
             continue;
         }
     }
@@ -105,11 +126,19 @@ int main(int argc, char **argv) {
             return 0;
 
         case ARG_all:
-            show_all = 1;
+            show_all = SHOW_ALL;
+            break;
+
+        case ARG_almost_all:
+            show_all = SHOW_ALMOST_ALL;
             break;
 
         case ARG_lng:
             long_fmt = 1;
+            break;
+
+        case ARG_dereference:
+            dereference_links = 1;
             break;
 
         case ARG_EXTRA:
