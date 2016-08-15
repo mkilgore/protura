@@ -26,7 +26,7 @@ void keyboard_init(void)
     return ;
 }
 
-static int keyboard_file_read(struct file *filp, void *vbuf, size_t len)
+int keyboard_file_read(struct file *filp, void *vbuf, size_t len)
 {
     char *buf = vbuf;
     int c, cur_pos = 0;

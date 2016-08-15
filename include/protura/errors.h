@@ -22,6 +22,7 @@
 #define ENOMEM 12	/* Not enough space */
 #define EACCES 13	/* Permission denied */
 #define EFAULT 14	/* Bad address */
+#define ENOTBLK 15  /* Block device required */
 #define EBUSY 16	/* Device or resource busy */
 #define EEXIST 17	/* File exists */
 #define EXDEV 18	/* Cross-device link */

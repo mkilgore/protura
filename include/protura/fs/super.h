@@ -53,6 +53,11 @@ struct super_block {
     struct block_device *bdev;
     struct inode *root;
 
+    struct inode *covered;
+
+    /* Entry into list of all the current super_blocks */
+    list_node_t list_entry;
+
     mutex_t super_block_lock;
     list_head_t dirty_inodes;
 
@@ -67,6 +72,7 @@ struct super_block {
         .dev = 0, \
         .bdev = NULL, \
         .root = NULL, \
+        .list_entry = LIST_NODE_INIT((super_block).list_entry), \
         .super_block_lock = MUTEX_INIT((super_block).super_block_lock, "sb-lock"), \
         .dirty_inodes = LIST_HEAD_INIT((super_block).dirty_inodes), \
         .ops = NULL, \

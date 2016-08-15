@@ -23,6 +23,7 @@ enum {
     CHAR_DEV_CONSOLE = 1,
     CHAR_DEV_KEYBOARD = 2,
     CHAR_DEV_COM = 3,
+    CHAR_DEV_SCREEN = 4,
 };
 
 void char_dev_init(void);

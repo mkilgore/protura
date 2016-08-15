@@ -107,6 +107,7 @@ int sys_open(const char *__user path, int flags, mode_t mode)
 
     if (name.parent)
         inode_put(name.parent);
+
     return ret;
 }
 
@@ -635,6 +636,102 @@ int sys_symlink(const char *__user path, const char *__user linkpath)
 
     if (name.parent)
         inode_put(name.parent);
+
+    return ret;
+}
+
+int sys_mount(const char *source, const char *target, const char *fsystem, unsigned long flags, const void *data)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata target_name;
+    struct nameidata source_name;
+    int ret;
+
+    ret = user_check_strn(source, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    ret = user_check_strn(target, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    memset(&source_name, 0, sizeof(source_name));
+    source_name.path = source;
+    source_name.cwd = current->cwd;
+
+    ret = namei_full(&source_name, F(NAMEI_GET_INODE));
+    if (!source_name.found)
+        return ret;
+
+    if (!S_ISBLK(source_name.found->mode)) {
+        ret = -ENOTBLK;
+        goto cleanup_source_name;
+    }
+
+    memset(&target_name, 0, sizeof(target_name));
+    target_name.path = target;
+    target_name.cwd = current->cwd;
+
+    ret = namei_full(&target_name, F(NAMEI_GET_INODE));
+    if (!target_name.found)
+        goto cleanup_source_name;
+
+    if (!S_ISDIR(target_name.found->mode)) {
+        ret = -ENOTDIR;
+        goto cleanup_target_name;
+    }
+
+    ret = vfs_mount(target_name.found, source_name.found->dev_no, fsystem);
+
+  cleanup_target_name:
+    if (target_name.found)
+        inode_put(target_name.found);
+
+  cleanup_source_name:
+    if (source_name.found)
+        inode_put(source_name.found);
+
+    return ret;
+}
+
+int sys_umount(const char *target)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata target_name;
+    struct super_block *sb;
+    int ret;
+
+    ret = user_check_strn(target, PATH_MAX, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    memset(&target_name, 0, sizeof(target_name));
+    target_name.path = target;
+    target_name.cwd = current->cwd;
+
+    ret = namei_full(&target_name, F(NAMEI_GET_INODE));
+    if (!target_name.found)
+        return ret;
+
+    kp(KP_TRACE, "umount: inode: "PRinode"\n", Pinode(target_name.found));
+
+    sb = target_name.found->sb;
+
+    if (target_name.found != sb->root) {
+        ret = -EINVAL;
+        goto cleanup_target_name;
+    }
+
+    /* We get rid of this because we can't hold any inode refs when we umount,
+     * and we don't need it. */
+    inode_put(target_name.found);
+    target_name.found = NULL;
+
+    ret = vfs_umount(sb);
+
+  cleanup_target_name:
+    if (target_name.found)
+        inode_put(target_name.found);
 
     return ret;
 }

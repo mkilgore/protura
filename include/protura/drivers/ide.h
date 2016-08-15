@@ -13,8 +13,10 @@
 void ide_init(void);
 
 /* Block should be locked before syncing */
-void ide_sync_block(struct block_device *, struct block *);
+void ide_sync_block_master(struct block_device *, struct block *);
+void ide_sync_block_slave(struct block_device *, struct block *);
 
-extern struct block_device_ops ide_block_device_ops;
+extern struct block_device_ops ide_master_block_device_ops;
+extern struct block_device_ops ide_slave_block_device_ops;
 
 #endif

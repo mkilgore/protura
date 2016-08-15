@@ -163,7 +163,7 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
         if (ret)
             return ret;
 
-        if (starting_block < 12) {
+        if (starting_block < 12 && inode->blk_ptrs_single[0]) {
             ext2_block_release(sb, inode->blk_ptrs_single[0]);
             inode->blk_ptrs_single[0] = 0;
         }

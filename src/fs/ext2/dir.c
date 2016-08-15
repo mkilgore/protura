@@ -103,18 +103,17 @@ static int ext2_dir_unlink(struct inode *dir, struct inode *link, const char *na
         ret = __ext2_dir_remove(dir, name, len);
 
     if (ret)
-        goto cleanup_link;
+        return ret;
 
     inode_dec_nlinks(link);
 
-  cleanup_link:
-    inode_put(link);
     return ret;
 }
 
 static int ext2_dir_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t len)
 {
     int ret = 0;
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
 
     kp_ext2(dir->sb, "Unlink: "PRinode" adding %s\n", Pinode(dir), name);
 
@@ -132,6 +131,9 @@ static int ext2_dir_rmdir(struct inode *dir, struct inode *deldir, const char *n
 
     if (ret)
         return ret;
+
+    using_super_block(dir->sb)
+        sb->groups[ext2_ino_group(sb, deldir->ino)].directory_count--;
 
     /* '..' in deldir */
     inode_dec_nlinks(dir);

@@ -81,7 +81,7 @@ void ext2_block_release(struct ext2_super_block *sb, sector_t block)
 
     using_super_block(&sb->sb) {
         using_block(sb->sb.dev, sb->groups[group].block_nr_block_bitmap, b) {
-            bit_clear(b->data, index);
+            bit_clear(b->data, index - 1);
             sb->groups[group].block_unused_total++;
 
             b->dirty = 1;

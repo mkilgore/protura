@@ -217,11 +217,15 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
     __ext2_inode_truncate(container_of(i, struct ext2_inode, i), 0);
 
     using_super_block(super) {
-        if (inode_is_dirty(i))
+        if (inode_is_dirty(i)) {
+            ext2_inode_write(super, i);
             list_del(&i->sb_dirty_entry);
+        }
 
         inode_group = (i->ino - 1) / sb->disksb.inodes_per_block_group;
         inode_entry = (i->ino - 1) % sb->disksb.inodes_per_block_group;
+
+        kp_ext2(sb, "Removing inode: "PRinode", inode_group: %d, inode_entry: %d\n", Pinode(i), inode_group, inode_entry);
 
         using_block(super->dev, sb->groups[inode_group].block_nr_inode_bitmap, b) {
             if (bit_test(b->data, inode_entry) == 0)
@@ -230,6 +234,9 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
             bit_clear(b->data, inode_entry);
             b->dirty = 1;
         }
+
+        sb->groups[inode_group].inode_unused_total++;
+        sb->disksb.inode_unused_total++;
     }
 
     return 0;
@@ -411,6 +418,7 @@ static int ext2_sb_write(struct super_block *sb)
 
         b->dirty = 1;
     }
+    kp_ext2(ext2sb, "Done writing ext2 super-block.\n");
 
     return 0;
 }
@@ -420,8 +428,6 @@ static int ext2_sb_put(struct super_block *sb)
     struct ext2_super_block *ext2sb = container_of(sb, struct ext2_super_block, sb);
 
     ext2_sb_write(sb);
-
-    inode_put(sb->root);
 
     kfree(ext2sb);
 

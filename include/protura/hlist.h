@@ -15,7 +15,7 @@ struct hlist_head {
 #define HLIST_HEAD_INIT { .first = NULL }
 #define HLIST_HEAD(name) struct hlist_head name = HLIST_HEAD_INIT(name)
 
-static inline void INIT_HLIST_NODE(struct hlist_node *n)
+static inline void hlist_node_init(struct hlist_node *n)
 {
     n->next = NULL;
     n->pprev = NULL;

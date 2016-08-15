@@ -73,13 +73,23 @@ enum {
 struct ide_state {
     struct spinlock lock;
 
-    list_head_t block_queue;
+    int next_is_slave;
+
+    list_head_t block_queue_master;
+    list_head_t block_queue_slave;
+
+    size_t block_size[2];
 };
 
 static struct ide_state ide_state = {
     .lock = SPINLOCK_INIT("ide_state lock"),
-    .block_queue = LIST_HEAD_INIT(ide_state.block_queue)
+    .next_is_slave = 0,
+    .block_queue_master = LIST_HEAD_INIT(ide_state.block_queue_master),
+    .block_queue_slave = LIST_HEAD_INIT(ide_state.block_queue_slave),
 };
+
+#define ide_queue_empty(ide_state) \
+    (list_empty(&(ide_state)->block_queue_master) && list_empty(&(ide_state)->block_queue_slave))
 
 static int __ide_wait_ready(void)
 {
@@ -97,28 +107,48 @@ static void __ide_start_queue(void)
     struct block *b;
     sector_t disk_sector;
     int sector_count;
+    list_head_t *block_queue;
+
+    if (!list_empty(&ide_state.block_queue_master)) {
+        block_queue = &ide_state.block_queue_master;
+        ide_state.next_is_slave = 0;
+    } else {
+        block_queue = &ide_state.block_queue_slave;
+        ide_state.next_is_slave = 1;
+    }
 
     /* We don't actually remove this block from the queue here. That will be
      * done in the interrupt handler once we're completely done with this block
      */
-    b = list_first(&ide_state.block_queue, struct block, block_list_node);
+    b = list_first(block_queue, struct block, block_list_node);
 
     sector_count = b->block_size / IDE_SECTOR_SIZE;
     disk_sector = b->sector * sector_count;
     /* Start the IDE data transfer */
 
+    /* We select the drive before issuing the __ide_wait_ready()
+     *
+     * Then we send the sector info - which includes setting the drive-head a
+     * second time
+     */
+    outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET
+                                | IDE_DH_LBA
+                                | ((ide_state.next_is_slave)? IDE_DH_SLAVE: 0)
+                                );
+
     __ide_wait_ready();
 
-    kp(KP_TRACE, "B sector: %d, IDE: sector=%d\n", b->sector, disk_sector);
+    kp(KP_TRACE, "B sector: %d, IDE: sector=%d, master/slave: %d\n", b->sector, disk_sector, ide_state.next_is_slave);
 
+    outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET
+                                | IDE_DH_LBA
+                                | ((disk_sector >> 24) & 0x0F)
+                                | ((ide_state.next_is_slave)? IDE_DH_SLAVE: 0)
+                                );
     outb(IDE_PORT_SECTOR_CNT, sector_count);
     outb(IDE_PORT_LBA_LOW_8, (disk_sector) & 0xFF);
     outb(IDE_PORT_LBA_MID_8, (disk_sector >> 8) & 0xFF);
     outb(IDE_PORT_LBA_HIGH_8, (disk_sector >> 16) & 0xFF);
-    outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET
-                                | IDE_DH_LBA
-                                | ((disk_sector >> 24) & 0x0F)
-                                );
 
     if (b->dirty) {
         int i;
@@ -143,11 +173,17 @@ static void __ide_start_queue(void)
 static void __ide_handle_intr(struct irq_frame *frame)
 {
     struct block *b;
+    list_head_t *block_queue;
 
-    if (list_empty(&ide_state.block_queue))
+    if (ide_state.next_is_slave)
+        block_queue = &ide_state.block_queue_slave;
+    else
+        block_queue = &ide_state.block_queue_master;
+
+    if (list_empty(block_queue))
         return ;
 
-    b = list_take_first(&ide_state.block_queue, struct block, block_list_node);
+    b = list_take_first(block_queue, struct block, block_list_node);
 
     /* If we were doing a read, then read the data now. We have to wait until
      * the drive is in the IDE_STATUS_READY state until we can start the read.
@@ -175,7 +211,7 @@ static void __ide_handle_intr(struct irq_frame *frame)
     /* Wakeup the owner of this block */
     scheduler_task_wake(b->owner);
 
-    if (!list_empty(&ide_state.block_queue))
+    if (!ide_queue_empty(&ide_state))
         __ide_start_queue();
 
     return ;
@@ -194,19 +230,25 @@ void ide_init(void)
 
     outb(IDE_PORT_PRIMARY_CTL, 0);
     outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET | IDE_DH_LBA);
+
+    block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0), IDE_SECTOR_SIZE);
+    block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_SLAVE, 0), IDE_SECTOR_SIZE);
 }
 
-void ide_sync_block(struct block_device *__unused dev, struct block *b)
+static void ide_sync_block(struct block *b, int master_or_slave)
 {
     /* If the block is valid and not dirty, then there is no syncing needed */
     if (b->valid && !b->dirty)
         return ;
 
-    int start;
     using_spinlock(&ide_state.lock) {
-        start = list_empty(&ide_state.block_queue);
+        int start = ide_queue_empty(&ide_state);
 
-        list_add_tail(&ide_state.block_queue, &b->block_list_node);
+        list_head_t *list = (master_or_slave)
+                            ? &ide_state.block_queue_slave
+                            : &ide_state.block_queue_master;
+
+        list_add_tail(list, &b->block_list_node);
 
         if (start)
             __ide_start_queue();
@@ -224,7 +266,21 @@ void ide_sync_block(struct block_device *__unused dev, struct block *b)
     return ;
 }
 
-struct block_device_ops ide_block_device_ops = {
-    .sync_block = ide_sync_block,
+void ide_sync_block_master(struct block_device *__unused dev, struct block *b)
+{
+    return ide_sync_block(b, 0);
+}
+
+void ide_sync_block_slave(struct block_device *__unused dev, struct block *b)
+{
+    return ide_sync_block(b, 1);
+}
+
+struct block_device_ops ide_master_block_device_ops = {
+    .sync_block = ide_sync_block_master,
+};
+
+struct block_device_ops ide_slave_block_device_ops = {
+    .sync_block = ide_sync_block_slave,
 };
 

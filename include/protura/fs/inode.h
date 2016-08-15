@@ -28,6 +28,7 @@ struct char_device;
 enum inode_flags {
     INO_VALID, /* Inode's data is a valid version of the data */
     INO_DIRTY, /* Inode's data is not the same as the disk's version */
+    INO_MOUNT, /* Inode is a mount point */
 };
 
 struct inode {
@@ -46,6 +47,11 @@ struct inode {
     uint32_t block_size;
 
     flags_t flags;
+
+    /* If set, this inode is a mount point - 'mount' is the root of the mounted
+     * file-system */
+    mutex_t mount_lock;
+    struct inode *mount;
 
     mutex_t lock;
 
@@ -151,9 +157,11 @@ extern struct inode_ops inode_ops_null;
 static inline void inode_init(struct inode *i)
 {
     mutex_init(&i->lock);
+    mutex_init(&i->mount_lock);
     atomic_init(&i->ref, 0);
     list_node_init(&i->list_entry);
     list_node_init(&i->sb_dirty_entry);
+    hlist_node_init(&i->hash_entry);
 
     pipe_info_init(&i->pipe_info);
 }
@@ -219,6 +227,10 @@ static inline void inode_dec_nlinks(struct inode *inode)
 #define using_inode(sb, ino, inode) \
     using((inode = inode_get(sb, ino)) != NULL, inode_put(inode))
 
+#define using_inode_mount(inode) \
+    using_mutex(&(inode)->mount_lock)
+
 void inode_cache_flush(void);
+int inode_clear_super(struct super_block *sb);
 
 #endif

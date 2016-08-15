@@ -11,7 +11,9 @@
 #include <protura/fs/super.h>
 
 void super_sync(struct super_block *sb);
+void __super_sync(struct super_block *sb);
 
 void sys_sync(void);
+int mount_root(dev_t device, const char *fsystem);
 
 #endif

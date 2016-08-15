@@ -70,10 +70,35 @@ int namei_full(struct nameidata *data, flags_t flags)
             data->name_len = len;
         }
 
+        next = NULL;
+
         ret = vfs_lookup(cwd, path, len, &next);
 
-        if (ret)
+        if (ret) {
+            if (next)
+                inode_put(next);
             goto release_cwd;
+        }
+
+      translate_inode:
+
+        if (flag_test(&next->flags, INO_MOUNT)) {
+            kp(KP_TRACE, "Translating mount-point\n");
+            link = NULL;
+
+            using_inode_mount(next) {
+                kp(KP_TRACE, "next->mount: %p\n", next->mount);
+                if (next->mount)
+                    link = inode_dup(next->mount);
+            }
+
+            kp(KP_TRACE, "Translating mount-point done\n");
+            if (link) {
+                inode_put(next);
+                next = link;
+                goto translate_inode;
+            }
+        }
 
         if (!flag_test(&flags, NAMEI_DONT_FOLLOW_LINK) && S_ISLNK(next->mode)) {
             ret = vfs_follow_link(cwd, next, &link);
@@ -85,11 +110,13 @@ int namei_full(struct nameidata *data, flags_t flags)
 
             inode_put(next);
             next = link;
+
+            goto translate_inode;
         }
 
         path += len;
 
-        if (flag_test(&flags, NAMEI_ALLOW_TRAILING_SLASH) && *path == '/') {
+        if (flag_test(&flags, NAMEI_ALLOW_TRAILING_SLASH) && *path == '/' && !*(path + 1)) {
             if (flag_test(&flags, NAMEI_GET_PARENT))
                 data->parent = inode_dup(cwd);
 
@@ -113,66 +140,6 @@ int namei_full(struct nameidata *data, flags_t flags)
     inode_put(cwd);
     return ret;
 }
-
-#if 0
-static int namei_generic(const char *path, const char **name_start, size_t *name_len, int get_parent, struct inode *cwd, struct inode **result)
-{
-    int ret = 0;
-
-    if (!path)
-        return -EFAULT;
-
-    if (*path == '/') {
-        cwd = ino_root;
-        path++;
-    }
-
-    cwd = inode_dup(cwd);
-
-    while (*path) {
-        struct inode *next;
-        size_t len = 0;
-
-        while (path[len] && path[len] != '/')
-            len++;
-
-        if (!path[len] && get_parent) {
-            *name_start = path;
-            *name_len = len;
-            break;
-        }
-
-        ret = vfs_lookup(cwd, path, len, &next);
-
-        if (ret)
-            goto release_cwd;
-
-        inode_put(cwd);
-        cwd = next;
-
-        path += len;
-        if (*path == '/')
-            path++;
-    }
-
-    *result = cwd;
-    return 0;
-
-  release_cwd:
-    inode_put(cwd);
-    return ret;
-}
-
-int namexparent(const char *path, const char **name_start, size_t *name_len, struct inode *cwd, struct inode **result)
-{
-    return namei_generic(path, name_start, name_len, 1, cwd, result);
-}
-
-int nameiparent(const char *path, const char **name_start, size_t *name_len, struct inode **result)
-{
-    return namexparent(path, name_start, name_len, ino_root, result);
-}
-#endif
 
 int namex(const char *path, struct inode *cwd, struct inode **result)
 {

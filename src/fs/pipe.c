@@ -63,6 +63,7 @@ static void pipe_release_pages(struct pipe_info *pipe)
 
 static int pipe_inode_delete(struct super_block *pipe_superblock, struct inode *inode)
 {
+    kp(KP_TRACE, "Deleting pipe "PRinode"\n", Pinode(inode));
     pipe_release_pages(&inode->pipe_info);
 
     return 0;

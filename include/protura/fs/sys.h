@@ -47,4 +47,7 @@ int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp)
 
 int sys_execve(const char *__user executable, const char *const __user argv[], const char *const __user envp[], struct irq_frame *);
 
+int sys_mount(const char *source, const char *target, const char *fsystem, unsigned long mountflags, const void *data);
+int sys_umount(const char *mountpoint);
+
 #endif

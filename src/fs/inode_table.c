@@ -22,10 +22,11 @@
 #include <protura/fs/file.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
+#include <protura/fs/sync.h>
 #include <protura/fs/inode_table.h>
 #include <protura/fs/vfs.h>
 
-#define INODE_HASH_SIZE 512
+#define INODE_HASH_SIZE 128
 
 static struct {
     mutex_t lock;
@@ -49,6 +50,19 @@ static inline int inode_hash_get(dev_t dev, ino_t ino)
     return (ino ^ (DEV_MAJOR(dev) + DEV_MINOR(dev))) % INODE_HASH_SIZE;
 }
 
+/* Completely removes an inode
+ *
+ * Be sure the inode is not dirty and has no references first
+ */
+static void __inode_flush(struct inode *i)
+{
+    struct super_block *sb = i->sb;
+
+    if (hlist_hashed(&i->hash_entry))
+        hlist_del(&i->hash_entry);
+    sb->ops->inode_dealloc(sb, i);
+}
+
 void inode_oom(void)
 {
     struct inode *inode;
@@ -57,9 +71,7 @@ void inode_oom(void)
      * them from the hash and frees their memory. */
     using_mutex(&inode_list.lock) {
         list_foreach_take_entry(&inode_list.unused, inode, list_entry) {
-            struct super_block *sb = inode->sb;
-            hlist_del(&inode->hash_entry);
-            sb->ops->inode_dealloc(sb, inode);
+            __inode_flush(inode);
         }
     }
 }
@@ -78,7 +90,7 @@ void inode_put(struct inode *inode)
             if (inode_try_lock_write(inode))
                 release = 1;
             else
-                panic("Inode lock error! inode_put with ref=1 while holding the lock.\n");
+                panic("Inode lock error! inode_put with ref=1 while holding the lock. Inode: "PRinode"\n", Pinode(inode));
         } else {
             atomic_dec(&inode->ref);
         }
@@ -91,7 +103,9 @@ void inode_put(struct inode *inode)
             kp(KP_TRACE, "inode "PRinode" has no hark links, deleting...\n", Pinode(inode));
             if (sb->ops->inode_delete)
                 sb->ops->inode_delete(sb, inode);
-            sb->ops->inode_dealloc(sb, inode);
+
+            kp(KP_TRACE, "Flushing inode...\n");
+            __inode_flush(inode);
             return ;
         }
 
@@ -183,5 +197,76 @@ void inode_add(struct inode *i)
         hlist_add(inode_list.inode_hashes + hash, &i->hash_entry);
         atomic_inc(&inode_list.inode_count);
     }
+}
+
+/* Removes all the inodes associated with a super_block */
+int inode_clear_super(struct super_block *sb)
+{
+    int hash;
+    dev_t dev = sb->dev;
+    struct inode *inode;
+    struct inode *mount_root = NULL;
+    int ret = 0;
+
+    using_mutex(&inode_list.lock) {
+        using_super_block(sb)
+            __super_sync(sb);
+
+        /* FIXME: This is pretty inefficent, even if it is only really used on
+         * a umount. Better would be keeping a list of all the inodes a
+         * super_block owns in the super_block itself, and iterating over that.
+         */
+        for (hash = 0; hash < INODE_HASH_SIZE && !ret; hash++) {
+            struct hlist_node *next;
+
+            next = inode_list.inode_hashes[hash].first;
+            while (next) {
+                inode = hlist_entry(next, struct inode, hash_entry);
+                next = next->next;
+
+                if (inode->sb_dev != dev)
+                    continue;
+
+                if (inode == sb->root && atomic32_get(&inode->ref) == ((sb->covered)? 2: 1))
+                    continue;
+
+                if (atomic32_get(&inode->ref) == 0) {
+                    __inode_flush(inode);
+                    continue;
+                }
+
+                ret = -EBUSY;
+                break;
+            }
+        }
+
+        if (ret)
+            break;
+
+        /* All things seem to be go - remove 'mounted' entry in the covered inode */
+        using_inode_mount(sb->covered) {
+            mount_root = sb->covered->mount; /* We have to inode_put this later */
+            sb->covered->mount = NULL;
+            flag_clear(&sb->covered->flags, INO_MOUNT);
+        }
+    }
+
+    if (ret)
+        return ret;
+
+    inode_put(mount_root);
+    inode_put(sb->covered);
+    inode_put(sb->root);
+
+    using_mutex(&inode_list.lock) {
+        if (atomic32_get(&sb->root->ref) == 0) {
+            __inode_flush(sb->root);
+            sb->root = NULL;
+        } else {
+            panic("inode_clear_super: There are still references to sb->root, that should be impossible!\n");
+        }
+    }
+
+    return ret;
 }
 

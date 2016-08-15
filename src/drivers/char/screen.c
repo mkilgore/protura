@@ -18,18 +18,23 @@
 #include <arch/asm.h>
 #include <protura/fs/char.h>
 #include <protura/drivers/screen.h>
-#include <protura/drivers/keyboard.h>
 
-void console_init(void)
+void screen_init(void)
 {
-    screen_init();
-    keyboard_init();
+    return ;
 }
 
-struct file_ops console_file_ops = {
+int screen_file_write(struct file *filp, void *buf, size_t len)
+{
+    term_putnstr(buf, len);
+
+    return len;
+}
+
+struct file_ops screen_file_ops = {
     .open = NULL,
     .release = NULL,
-    .read = keyboard_file_read,
+    .read = NULL,
     .write = screen_file_write,
     .lseek = NULL,
     .readdir = NULL,

@@ -16,6 +16,7 @@
 #include <arch/spinlock.h>
 #include <protura/drivers/console.h>
 #include <protura/drivers/keyboard.h>
+#include <protura/drivers/screen.h>
 #include <protura/drivers/com.h>
 #include <protura/fs/file.h>
 #include <protura/fs/fs.h>
@@ -42,11 +43,16 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_COM,
         .fops = &com_file_ops,
     },
+    [CHAR_DEV_SCREEN] = {
+        .name = "screen",
+        .major = CHAR_DEV_SCREEN,
+        .fops = &screen_file_ops,
+    },
 };
 
 struct char_device *char_dev_get(dev_t device)
 {
-    int c = DEV_MAJOR(device);
+    unsigned int c = DEV_MAJOR(device);
 
     kp(KP_TRACE, "DEV MAJOR=%d\n", c);
 

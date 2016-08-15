@@ -30,9 +30,17 @@ int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
         return -EBADF;
 
     /* Guard against reading past the end of the file */
+    kp(KP_TRACE, "Block-dev inode size: %d\n", filp->inode->size);
+    /*
+     * Don't check if `len` is correct, because filp->inode->size will
+     * currently always be zero.
+
     if (filp->offset + len > filp->inode->size)
         len = filp->inode->size - filp->offset;
 
+     */
+
+    kp(KP_TRACE, "len: %d\n", len);
     /* Access the block device for this file, and get it's block size */
     size_t block_size = bdev->block_size;
     sector_t sec = filp->offset / block_size;
@@ -77,13 +85,13 @@ static struct block_device devices[] = {
         .fops = NULL,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_NONE].blocks),
     },
-    [BLOCK_DEV_IDE] = {
-        .name = "ide",
-        .major = BLOCK_DEV_IDE,
+    [BLOCK_DEV_IDE_MASTER] = {
+        .name = "ide-master",
+        .major = BLOCK_DEV_IDE_MASTER,
         .block_size = 0,
-        .ops = &ide_block_device_ops,
+        .ops = &ide_master_block_device_ops,
         .fops = &block_dev_file_ops_generic,
-        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE].blocks),
+        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_MASTER].blocks),
     },
     [BLOCK_DEV_PIPE] = {
         .name = "pipe",
@@ -92,6 +100,14 @@ static struct block_device devices[] = {
         .ops = NULL,
         .fops = &pipe_default_file_ops,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_PIPE].blocks),
+    },
+    [BLOCK_DEV_IDE_SLAVE] = {
+        .name = "ide-slave",
+        .major = BLOCK_DEV_IDE_SLAVE,
+        .block_size = 0,
+        .ops = &ide_slave_block_device_ops,
+        .fops = &block_dev_file_ops_generic,
+        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_SLAVE].blocks),
     },
 };
 

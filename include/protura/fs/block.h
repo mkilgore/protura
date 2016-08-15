@@ -113,8 +113,9 @@ int block_dev_file_close_generic(struct file *);
 
 enum {
     BLOCK_DEV_NONE = 0,
-    BLOCK_DEV_IDE = 1,
+    BLOCK_DEV_IDE_MASTER = 1,
     BLOCK_DEV_PIPE = 2,
+    BLOCK_DEV_IDE_SLAVE = 3,
 };
 
 void block_dev_init(void);

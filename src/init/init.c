@@ -15,6 +15,9 @@
 #include <arch/init.h>
 #include <arch/asm.h>
 #include <protura/fs/fs.h>
+#include <protura/fs/namei.h>
+#include <protura/fs/vfs.h>
+#include <protura/fs/sync.h>
 #include <protura/drivers/term.h>
 
 #include <protura/init/init_task.h>
@@ -28,8 +31,9 @@ int kernel_is_booting = 1;
 static int start_user_init(void *unused)
 {
     /* Mount the current IDE drive as an ext2 filesystem */
-    sb_root = (file_system_lookup("ext2")->read_sb) (DEV_MAKE(BLOCK_DEV_IDE, 0));
-    ino_root = sb_root->root;
+    int ret = mount_root(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0), "ext2");
+    if (ret)
+        panic("UNABLE TO MOUNT ROOT FILESYSTEM\n");
 
     task_pid1 = task_user_new_exec("/bin/init");
     task_pid1->pid = 1;

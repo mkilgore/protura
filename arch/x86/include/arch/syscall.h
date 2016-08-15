@@ -62,6 +62,9 @@
 #define SYSCALL_SYMLINK  0x36
 #define SYSCALL_LSTAT    0x37
 
+#define SYSCALL_MOUNT 0x38
+#define SYSCALL_UMOUNT 0x39
+
 #ifdef __KERNEL__
 #ifndef ASM
 

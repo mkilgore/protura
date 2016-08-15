@@ -226,6 +226,8 @@ void task_make_zombie(struct task *t)
     struct task *child;
     int i;
 
+    kp(KP_TRACE, "zombie: %d\n", t->pid);
+
     t->killed = 1;
 
     /* Children of Zombie's are inherited by PID1. */
