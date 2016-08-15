@@ -34,6 +34,7 @@ qemu_line="qemu-system-i386 \
     -debugcon file:./qemu_debug.log \
     -d cpu_reset \
     -drive format=raw,file=./disk.img,media=disk,index=0,if=ide \
+    -drive format=raw,file=./disk2.img,media=disk,index=1,if=ide \
     -kernel ./imgs/protura_x86_multiboot \
     $kernel_cmdline"
 

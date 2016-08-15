@@ -17,10 +17,10 @@ $(eval $(call dir_rule,disk/root/usr/i686-protura,disk/root/usr))
 $(eval $(call dir_rule,disk/root/usr/i686-protura/include,disk/root/usr/i686-protura))
 
 PHONY += disk clean-disk
-disk: disk.img
+disk: disk.img disk2.img
 
 clean-disk:
-	$(Q)for file in $(DISK_PROGS) $(DISK_UTIL_OBJS) $(DISK_UTIL_EXTRA_OBJS) $(DISK_DEP) $(DISK_CLEAN_EXTRA) ./disk.img; do \
+	$(Q)for file in $(DISK_PROGS) $(DISK_UTIL_OBJS) $(DISK_UTIL_EXTRA_OBJS) $(DISK_DEP) $(DISK_CLEAN_EXTRA) ./disk.img ./disk2.img; do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
@@ -47,11 +47,17 @@ rebuild-newlib:
 
 DISK_PROGS += $(DISK_UTIL_PROGS)
 
-disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS)
+disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gendisk.sh
 	@echo " GENDISK $@"
 	$(Q)sudo ./scripts/gendisk.sh
 
+disk2.img: ./scripts/gendisk2.sh
+	@echo " GENDISK $@"
+	$(Q)sudo ./scripts/gendisk2.sh
+
 gendisk: disk.img
+gendisk2: disk2.img
+
 
 ifeq ($(MAKECMDGOALS),disk)
 -include $(DISK_DEP)

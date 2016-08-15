@@ -8,6 +8,10 @@ mkfs.ext2 -b 1024 -O ^large_file ./disk.img 32768
 mount ./disk.img ./disk_ext2
 
 cp -R ./disk/root/* ./disk_ext2/
+
+mkdir ./disk_ext2/mnt
+mkdir ./disk_ext2/mnt/slave
+
 mkdir ./disk_ext2/dev
 
 while read device; do
