@@ -19,6 +19,7 @@ COREUTILS_PROGS = \
 	seq \
 	sh \
 	sort \
+	stat \
 	sync \
 	tee \
 	touch \
