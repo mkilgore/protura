@@ -9,10 +9,12 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
+#include <protura/snprintf.h>
 #include <protura/list.h>
 
 #include <arch/spinlock.h>
 #include <protura/fs/ext2.h>
+#include <protura/fs/procfs.h>
 #include <protura/fs/elf.h>
 #include <protura/fs/file_system.h>
 
@@ -63,9 +65,23 @@ struct file_system *file_system_lookup(const char *name)
     return found;
 }
 
+int file_systeam_list_read(void *page, size_t page_size, size_t *len)
+{
+    struct file_system *system;
+
+    *len = 0;
+
+    using_spinlock(&file_system_list.lock)
+        list_foreach_entry(&file_system_list.list, system, fs_list_entry)
+            *len += snprintf(page + *len, page_size - *len, "%s\n", system->name);
+
+    return 0;
+}
+
 void file_systems_init(void)
 {
     ext2_init();
+    procfs_init();
 
     elf_register();
 }

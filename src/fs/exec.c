@@ -11,6 +11,7 @@
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/string.h>
+#include <protura/snprintf.h>
 #include <arch/spinlock.h>
 #include <protura/mutex.h>
 #include <protura/atomic.h>
@@ -27,7 +28,6 @@
 #include <protura/fs/sys.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/binfmt.h>
-#include <protura/fs/exec.h>
 
 /* The end result of all this argument shifting is to end up with the below
  * setup:
@@ -202,7 +202,7 @@ static char *copy_to_userspace(char *sp, char *copy, size_t len, int argc, int e
     return sp - len;
 }
 
-int execve(struct inode *inode, const char *const argv[], const char *const envp[], struct irq_frame *frame)
+static int execve(struct inode *inode, const char *file, const char *const argv[], const char *const envp[], struct irq_frame *frame)
 {
     struct file *filp;
     struct exe_params params;
@@ -213,16 +213,26 @@ int execve(struct inode *inode, const char *const argv[], const char *const envp
     char *user_stack_end;
     size_t arg_len;
     struct task *current = cpu_get_local()->current;
+    char new_name[128];
+    size_t name_len = 0;
+    const char *const *arg;
 
     if (argv == NULL)
-        argv = (const char *[]) { NULL };
+        argv = (const char *[]) { file, NULL };
 
     if (envp == NULL)
-        envp = (const char *[]) { NULL };
+        envp = (const char *[]) { file, NULL };
 
     fd = __sys_open(inode, F(FILE_READABLE), &filp);
     if (fd < 0)
         return fd;
+
+    name_len = snprintf(new_name, sizeof(new_name), "%s", file);
+
+    /* We skip argv[0], as it should be the same as the filename above */
+    if (*argv)
+        for (arg = argv + 1; *arg && name_len < sizeof(new_name); arg++)
+            name_len += snprintf(new_name + name_len, sizeof(new_name) - name_len, " %s", *arg);
 
     saved_args = palloc_va(log2(CONFIG_KERNEL_ARG_PAGES), PAL_KERNEL);
 
@@ -252,6 +262,8 @@ int execve(struct inode *inode, const char *const argv[], const char *const envp
 
     current->sig_pending = 0;
 
+    strcpy(current->name, new_name);
+
   close_fd:
     pfree_va(saved_args, log2(CONFIG_KERNEL_ARG_PAGES));
     sys_close(fd);
@@ -268,7 +280,7 @@ int sys_execve(const char *file, const char *const argv[], const char *const env
     if (ret)
         return ret;
 
-    ret = execve(exe, argv, envp, frame);
+    ret = execve(exe, file, argv, envp, frame);
 
     inode_put(exe);
 

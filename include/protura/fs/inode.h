@@ -56,7 +56,7 @@ struct inode {
     mutex_t lock;
 
     atomic_t ref;
-    struct hlist_node hash_entry;
+    hlist_node_t hash_entry;
     list_node_t list_entry;
 
     list_node_t sb_dirty_entry;

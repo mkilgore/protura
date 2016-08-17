@@ -22,6 +22,7 @@ void scheduler_task_mark_dead(struct task *t);
 
 int scheduler_task_send_signal(pid_t pid, int signal, int force);
 int scheduler_task_exists(pid_t pid);
+int scheduler_tasks_read(void *p, size_t size, size_t *len);
 
 static inline enum task_state scheduler_task_get_state(struct task *t)
 {

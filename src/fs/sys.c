@@ -645,28 +645,36 @@ int sys_mount(const char *source, const char *target, const char *fsystem, unsig
     struct task *current = cpu_get_local()->current;
     struct nameidata target_name;
     struct nameidata source_name;
+    dev_t device;
     int ret;
 
-    ret = user_check_strn(source, PATH_MAX, F(VM_MAP_READ));
-    if (ret)
-        return ret;
+    memset(&source_name, 0, sizeof(source_name));
+
+    /* We accept a NULL souce for the cases like proc, which don't have a backing block device */
+    if (source) {
+        ret = user_check_strn(source, PATH_MAX, F(VM_MAP_READ));
+        if (ret)
+            return ret;
+
+        source_name.path = source;
+        source_name.cwd = current->cwd;
+
+        ret = namei_full(&source_name, F(NAMEI_GET_INODE));
+        if (!source_name.found) {
+            device = 0;
+        } else if (S_ISBLK(source_name.found->mode)) {
+            device = source_name.found->dev_no;
+        } else {
+            ret = -ENOTBLK;
+            goto cleanup_source_name;
+        }
+    } else {
+        device = 0;
+    }
 
     ret = user_check_strn(target, PATH_MAX, F(VM_MAP_READ));
     if (ret)
         return ret;
-
-    memset(&source_name, 0, sizeof(source_name));
-    source_name.path = source;
-    source_name.cwd = current->cwd;
-
-    ret = namei_full(&source_name, F(NAMEI_GET_INODE));
-    if (!source_name.found)
-        return ret;
-
-    if (!S_ISBLK(source_name.found->mode)) {
-        ret = -ENOTBLK;
-        goto cleanup_source_name;
-    }
 
     memset(&target_name, 0, sizeof(target_name));
     target_name.path = target;
@@ -681,7 +689,7 @@ int sys_mount(const char *source, const char *target, const char *fsystem, unsig
         goto cleanup_target_name;
     }
 
-    ret = vfs_mount(target_name.found, source_name.found->dev_no, fsystem);
+    ret = vfs_mount(target_name.found, device, fsystem);
 
   cleanup_target_name:
     if (target_name.found)

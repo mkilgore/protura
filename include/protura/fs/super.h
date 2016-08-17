@@ -44,8 +44,6 @@ struct super_block_ops {
 
     /* Super block is locked while sb_put is called */
     int (*sb_put) (struct super_block *);
-
-    void (*fs_sync) (struct super_block *);
 };
 
 struct super_block {

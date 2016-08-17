@@ -29,6 +29,8 @@ void file_system_unregister(const char *name);
 
 struct file_system *file_system_lookup(const char *name);
 
+int file_systeam_list_read(void *page, size_t page_size, size_t *len);
+
 #endif
 
 #endif

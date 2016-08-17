@@ -65,12 +65,15 @@ void __super_sync(struct super_block *sb)
 {
     struct inode *inode;
 
-    list_foreach_take_entry(&sb->dirty_inodes, inode, sb_dirty_entry) {
-        kp(KP_TRACE, "took entry: "PRinode"\n", Pinode(inode));
-        sb->ops->inode_write(sb, inode);
+    if (sb->ops->inode_write) {
+        list_foreach_take_entry(&sb->dirty_inodes, inode, sb_dirty_entry) {
+            kp(KP_TRACE, "took entry: "PRinode"\n", Pinode(inode));
+            sb->ops->inode_write(sb, inode);
+        }
     }
 
-    sb->ops->sb_write(sb);
+    if (sb->ops->sb_write)
+        sb->ops->sb_write(sb);
 }
 
 void super_sync(struct super_block *sb)

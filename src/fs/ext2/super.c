@@ -267,6 +267,9 @@ static struct super_block *ext2_sb_read(dev_t dev)
     int block_size;
     uint32_t ext2_magic;
 
+    if (dev == 0)
+        return NULL;
+
     sb = kzalloc(sizeof(*sb), PAL_KERNEL);
     ext2_super_block_init(sb);
 

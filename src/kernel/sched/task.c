@@ -42,10 +42,13 @@
 static atomic_t total_tasks = ATOMIC_INIT(0);
 
 const char *task_states[] = {
-    [TASK_NONE]     = "no state",
-    [TASK_SLEEPING] = "sleeping",
-    [TASK_RUNNABLE] = "runnable",
-    [TASK_RUNNING]  = "running",
+    [TASK_NONE]          = "no state",
+    [TASK_SLEEPING]      = "sleep",
+    [TASK_INTR_SLEEPING] = "isleep",
+    [TASK_RUNNABLE]      = "runnable",
+    [TASK_RUNNING]       = "running",
+    [TASK_ZOMBIE]        = "zombie",
+    [TASK_DEAD]          = "dead",
 };
 
 void task_print(char *buf, size_t size, struct task *task)
@@ -156,6 +159,9 @@ struct task *task_user_new_exec(const char *exe)
     if (!t)
         return NULL;
 
+    strncpy(t->name, exe, sizeof(t->name) - 1);
+    t->name[sizeof(t->name) - 1] = '\0';
+
     t->user_ptr_check = 1;
 
     arch_task_setup_stack_user_with_exec(t, exe);
@@ -191,7 +197,7 @@ struct task *task_fork(struct task *parent)
     if (!new)
         return NULL;
 
-    snprintf(new->name, sizeof(new->name), "Chld: %d", parent->pid);
+    strcpy(new->name, parent->name);
 
     arch_task_setup_stack_user(new);
     address_space_copy(new->addrspc, parent->addrspc);
@@ -389,6 +395,11 @@ void sys_exit(int code)
 
     if (t->parent)
         scheduler_task_wake(t->parent);
+
+    /* If we're a kernel process, we will never be wait()'d on, so we mark
+     * ourselves dead */
+    if (t->kernel)
+        scheduler_task_mark_dead(t);
 
     scheduler_task_yield();
     panic("scheduler_task_yield() returned after sys_exit()!!!\n");

@@ -19,4 +19,5 @@ objs-y += binfmt_table.o
 objs-y += binfmt_elf.o
 
 subdir-y += ext2
+subdir-y += procfs
 

@@ -12,11 +12,13 @@ cp -R ./disk/root/* ./disk_ext2/
 mkdir ./disk_ext2/mnt
 mkdir ./disk_ext2/mnt/slave
 
+mkdir ./disk_ext2/proc
 mkdir ./disk_ext2/dev
 
 while read device; do
     mknod ./disk_ext2/$device
 done < ./disk/device_table.txt
+
 
 umount ./disk_ext2
 

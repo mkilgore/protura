@@ -76,6 +76,32 @@ struct file_ops block_dev_file_ops_generic = {
     .readdir = NULL,
 };
 
+static mutex_t anon_dev_bitmap_lock = MUTEX_INIT(anon_dev_bitmap_lock, "anon-dev-bitmap-lock");
+static int anon_dev_bitmap[256 / sizeof(int) / CHAR_BIT];
+
+dev_t block_dev_anon_get(void)
+{
+    dev_t ret = 0;
+
+    using_mutex(&anon_dev_bitmap_lock) {
+        int bit = bit_find_first_zero(anon_dev_bitmap, sizeof(anon_dev_bitmap));
+        if (bit != -1) {
+            bit_set(anon_dev_bitmap, bit);
+            ret = DEV_MAKE(BLOCK_DEV_ANON, bit);
+        }
+    }
+
+    return ret;
+}
+
+void block_dev_anon_put(dev_t dev)
+{
+    int bit = DEV_MINOR(dev);
+    using_mutex(&anon_dev_bitmap_lock) {
+        bit_clear(anon_dev_bitmap, bit);
+    }
+}
+
 static struct block_device devices[] = {
     [BLOCK_DEV_NONE] = {
         .name = "",
@@ -93,14 +119,6 @@ static struct block_device devices[] = {
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_MASTER].blocks),
     },
-    [BLOCK_DEV_PIPE] = {
-        .name = "pipe",
-        .major = BLOCK_DEV_PIPE,
-        .block_size = 0,
-        .ops = NULL,
-        .fops = &pipe_default_file_ops,
-        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_PIPE].blocks),
-    },
     [BLOCK_DEV_IDE_SLAVE] = {
         .name = "ide-slave",
         .major = BLOCK_DEV_IDE_SLAVE,
@@ -108,6 +126,14 @@ static struct block_device devices[] = {
         .ops = &ide_slave_block_device_ops,
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_SLAVE].blocks),
+    },
+    [BLOCK_DEV_ANON] = {
+        .name = "anon",
+        .major = BLOCK_DEV_ANON,
+        .block_size = 0,
+        .ops = NULL,
+        .fops = NULL,
+        .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_ANON].blocks),
     },
 };
 

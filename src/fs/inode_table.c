@@ -31,7 +31,7 @@
 static struct {
     mutex_t lock;
 
-    struct hlist_head inode_hashes[INODE_HASH_SIZE];
+    hlist_head_t inode_hashes[INODE_HASH_SIZE];
 
     /* Entries in this list have already been flushed to the disk and have no
      * references. */
@@ -168,10 +168,10 @@ struct inode *inode_get(struct super_block *sb, ino_t ino)
             inode->ino = ino;
 
             ret = sb->ops->inode_read(sb, inode);
-            kp(KP_TRACE, "Read inode: %p - "PRinode"\n", inode, Pinode(inode));
+            kp(KP_TRACE, "Read inode: %p - "PRinode" ret: %d\n", inode, Pinode(inode), ret);
 
             if (ret) {
-                sb->ops->inode_delete(sb, inode);
+                sb->ops->inode_dealloc(sb, inode);
                 inode = NULL;
             } else {
                 hlist_add(inode_list.inode_hashes + hash, &inode->hash_entry);

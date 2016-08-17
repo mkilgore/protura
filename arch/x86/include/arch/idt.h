@@ -61,6 +61,8 @@ void irq_register_callback(uint8_t irqno, void (*callback)(struct irq_frame *), 
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
+int interrupt_stats_read(void *p, size_t size, size_t *len);
+
 #endif
 
 #endif

@@ -356,6 +356,37 @@ void scheduler(void)
     }
 }
 
+int scheduler_tasks_read(void *p, size_t size, size_t *len)
+{
+    struct task *t;
+
+    *len = snprintf(p, size, "Pid\tPPid\tState\tKilled\tName\n");
+
+    using_spinlock(&ktasks.lock) {
+        list_foreach_entry(&ktasks.list, t, task_list_node) {
+            int state = t->state;
+
+            /* RUNNING and RUNNABLE are essencially the same thing to
+             * user-space, */
+            if (state == TASK_RUNNABLE)
+                state = TASK_RUNNING;
+
+            *len += snprintf(p + *len, size - *len,
+                    "%d\t%d\t%s\t%d\t\"%s\"\n",
+                    t->pid,
+                    (t->parent)? t->parent->pid: 0,
+                    task_states[state],
+                    t->killed,
+                    t->name);
+
+            if (*len == size)
+                break;
+        }
+    }
+
+    return 0;
+}
+
 void wakeup_list_init(struct wakeup_list *list)
 {
     memset(list, 0, sizeof(*list));

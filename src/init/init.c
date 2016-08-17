@@ -31,7 +31,7 @@ int kernel_is_booting = 1;
 static int start_user_init(void *unused)
 {
     /* Mount the current IDE drive as an ext2 filesystem */
-    int ret = mount_root(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0), "ext2");
+    int ret = mount_root(DEV_MAKE(CONFIG_ROOT_MAJOR, CONFIG_ROOT_MINOR), CONFIG_ROOT_FSTYPE);
     if (ret)
         panic("UNABLE TO MOUNT ROOT FILESYSTEM\n");
 

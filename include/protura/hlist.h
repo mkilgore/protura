@@ -12,44 +12,49 @@ struct hlist_head {
     struct hlist_node *first;
 };
 
-#define HLIST_HEAD_INIT { .first = NULL }
-#define HLIST_HEAD(name) struct hlist_head name = HLIST_HEAD_INIT(name)
+typedef struct hlist_node hlist_node_t;
+typedef struct hlist_head hlist_head_t;
 
-static inline void hlist_node_init(struct hlist_node *n)
+#define HLIST_HEAD_INIT { .first = NULL }
+#define HLIST_HEAD(name) hlist_head_t name = HLIST_HEAD_INIT(name)
+
+#define HLIST_NODE_INIT() { 0 }
+
+static inline void hlist_node_init(hlist_node_t *n)
 {
     n->next = NULL;
     n->pprev = NULL;
 }
 
-static inline int hlist_empty(const struct hlist_head *h)
+static inline int hlist_empty(const hlist_head_t *h)
 {
     return !h->first;
 }
 
-static inline void __hlist_del(struct hlist_node *n)
+static inline void __hlist_del(hlist_node_t *n)
 {
-    struct hlist_node *next = n->next;
-    struct hlist_node **pprev = n->pprev;
+    hlist_node_t *next = n->next;
+    hlist_node_t **pprev = n->pprev;
     *pprev = next;
     if (next)
         next->pprev = pprev;
 }
 
-static inline int hlist_hashed(struct hlist_node *n)
+static inline int hlist_hashed(hlist_node_t *n)
 {
     return !!n->pprev;
 }
 
-static inline void hlist_del(struct hlist_node *n)
+static inline void hlist_del(hlist_node_t *n)
 {
     __hlist_del(n);
     n->next = NULL;
     n->pprev = NULL;
 }
 
-static inline void hlist_add(struct hlist_head *head, struct hlist_node *n)
+static inline void hlist_add(hlist_head_t *head, hlist_node_t *n)
 {
-    struct hlist_node *first = head->first;
+    hlist_node_t *first = head->first;
     n->next = first;
     if (first)
         first->pprev = &n->next;

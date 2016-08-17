@@ -12,6 +12,7 @@
 #include <protura/scheduler.h>
 #include <protura/mm/memlayout.h>
 #include <protura/drivers/term.h>
+#include <protura/snprintf.h>
 
 #include "irq_handler.h"
 #include <arch/asm.h>
@@ -158,6 +159,24 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
 
         (print) (" %s(%02d) - %d\n", idt_ids[k].name, k, atomic32_get(&idt_ids[k].count));
     }
+}
+
+int interrupt_stats_read(void *p, size_t size, size_t *len)
+{
+    int k;
+
+    *len = 0;
+
+    *len = snprintf(p, size, "Interrupt stats:\n");
+
+    for (k = 0; k < 256 && *len < size; k++) {
+        if (!idt_ids[k].handler)
+            continue;
+
+        *len += snprintf(p + *len, size - *len, "0x%02x - %d\n", k, atomic32_get(&idt_ids[k].count));
+    }
+
+    return 0;
 }
 
 void irq_global_handler(struct irq_frame *iframe)

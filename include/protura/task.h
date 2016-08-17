@@ -78,7 +78,7 @@ struct task {
 
     struct sigaction sig_actions[NSIG];
 
-    char name[20];
+    char name[128];
 };
 
 extern struct task *task_pid1;

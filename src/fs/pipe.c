@@ -77,7 +77,6 @@ static struct super_block_ops pipe_fake_super_block_ops = {
     .inode_delete = pipe_inode_delete,
     .sb_write = NULL,
     .sb_put = NULL,
-    .fs_sync = NULL,
 };
 
 /* This is initalized with the proper fields down in pipe_init() */
@@ -94,7 +93,7 @@ static struct inode *new_pipe_inode(void)
     struct inode *inode = pipe_fake_super_block.ops->inode_alloc(&pipe_fake_super_block);
 
     inode->ino = next_pipe_ino++;
-    inode->sb_dev = BLOCK_DEV_PIPE;
+    inode->sb_dev = pipe_fake_super_block.dev;
     inode->sb = &pipe_fake_super_block;
 
     return inode;
@@ -389,8 +388,8 @@ int sys_pipe(int *fds)
 
 void pipe_init(void)
 {
-    pipe_fake_super_block.dev = BLOCK_DEV_PIPE;
-    pipe_fake_super_block.bdev = block_dev_get(BLOCK_DEV_PIPE);
+    pipe_fake_super_block.dev = block_dev_anon_get();
+    pipe_fake_super_block.bdev = 0;
     pipe_fake_super_block.ops = &pipe_fake_super_block_ops;
 }
 

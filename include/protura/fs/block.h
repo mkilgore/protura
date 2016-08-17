@@ -114,8 +114,8 @@ int block_dev_file_close_generic(struct file *);
 enum {
     BLOCK_DEV_NONE = 0,
     BLOCK_DEV_IDE_MASTER = 1,
-    BLOCK_DEV_PIPE = 2,
-    BLOCK_DEV_IDE_SLAVE = 3,
+    BLOCK_DEV_IDE_SLAVE = 2,
+    BLOCK_DEV_ANON = 3,
 };
 
 void block_dev_init(void);
@@ -184,5 +184,7 @@ static inline void block_unlock(struct block *b)
     kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
 }
 
+dev_t block_dev_anon_get(void);
+void block_dev_anon_put(dev_t);
 
 #endif

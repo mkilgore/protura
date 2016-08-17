@@ -29,7 +29,6 @@
 #include <protura/fs/sys.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/binfmt.h>
-#include <protura/fs/exec.h>
 #include <protura/fs/elf.h>
 
 static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)

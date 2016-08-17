@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <protura/syscall.h>
+#include <sys/mount.h>
 
 /* Reap children */
 static void handle_children(int sig)
@@ -44,6 +45,7 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 int main(int argc, char **argv)
 {
     int consolefd, keyboardfd, stderrfd;
+    int ret;
     struct sigaction action;
 
     memset(&action, 0, sizeof(action));
@@ -54,6 +56,11 @@ int main(int argc, char **argv)
     keyboardfd = open("/dev/console", O_RDONLY);
     consolefd = open("/dev/console", O_WRONLY);
     stderrfd = open("/dev/console", O_WRONLY);
+
+    /* Mount proc if we can */
+    ret = mount(NULL, "/proc", "proc", 0, NULL);
+    if (ret)
+        perror("mount proc");
 
     start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 
