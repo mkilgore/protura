@@ -17,6 +17,7 @@ static const char *arg_desc_str  = "Files: List of files to sort the contents of
 #define XARGS \
     X(help, "help", 'h', 0, NULL, "Display help") \
     X(version, "version", 'v', 0, NULL, "Display version information") \
+    X(numeric, "numeric", 'n', 0, NULL, "Do a numeric sort on each line") \
     X(last, NULL, '\0', 0, NULL, NULL)
 
 enum arg_index {
@@ -44,6 +45,32 @@ int linecmp(const void *l1, const void *l2)
     return strcmp(*line1, *line2);
 }
 
+int numericcmp(const void *l1, const void *l2)
+{
+    const char *const *line1 = l1;
+    const char *const *line2 = l2;
+    char *l1_end, *l2_end;
+    long n1, n2;
+
+    n1 = strtol(*line1, &l1_end, 0);
+    n2 = strtol(*line2, &l2_end, 0);
+
+    if (l1_end == *line1 && l2_end == *line2) {
+        return strcmp(*line1, *line2);
+    } else if (l1_end == *line1) {
+        return -1;
+    } else if (l2_end == *line2) {
+        return 1;
+    } else {
+        if (n1 > n2)
+            return 1;
+        else if (n1 < n2)
+            return -1;
+        else
+            return 0;
+    }
+}
+
 void add_lines(FILE *file)
 {
     size_t len = 0;
@@ -63,6 +90,7 @@ void add_lines(FILE *file)
 int main(int argc, char **argv) {
     enum arg_index ret;
     FILE *file = NULL;
+    int (*sortfunc) (const void *, const void *) = linecmp;
     int i;
 
     while ((ret = arg_parser(argc, argv, args)) != ARG_DONE) {
@@ -73,6 +101,11 @@ int main(int argc, char **argv) {
         case ARG_version:
             printf("%s", version_text);
             return 0;
+
+        case ARG_numeric:
+            printf("Numeric\n");
+            sortfunc = numericcmp;
+            break;
 
         case ARG_EXTRA:
             file = fopen_with_dash(argarg, "r");
@@ -89,7 +122,7 @@ int main(int argc, char **argv) {
     if (!file)
         add_lines(stdin);
 
-    qsort(lines, line_count, sizeof(*lines), linecmp);
+    qsort(lines, line_count, sizeof(*lines), sortfunc);
 
     for (i = 0; i < line_count; i++) {
         puts(lines[i]);
