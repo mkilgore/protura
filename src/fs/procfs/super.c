@@ -24,6 +24,7 @@
 #include <protura/fs/inode_table.h>
 #include <protura/fs/file_system.h>
 #include <protura/fs/vfs.h>
+#include <protura/fs/sync.h>
 #include <protura/fs/procfs.h>
 #include "procfs_internal.h"
 
@@ -153,5 +154,6 @@ void procfs_init(void)
     procfs_register_entry(&procfs_root, "interrupts", interrupt_stats_read);
     procfs_register_entry(&procfs_root, "tasks", scheduler_tasks_read);
     procfs_register_entry(&procfs_root, "filesystems", file_systeam_list_read);
+    procfs_register_entry(&procfs_root, "mounts", mount_list_read);
 }
 

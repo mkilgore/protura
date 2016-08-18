@@ -15,5 +15,6 @@ void __super_sync(struct super_block *sb);
 
 void sys_sync(void);
 int mount_root(dev_t device, const char *fsystem);
+int mount_list_read(void *page, size_t page_size, size_t *len);
 
 #endif

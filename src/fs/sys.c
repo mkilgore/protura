@@ -689,7 +689,7 @@ int sys_mount(const char *source, const char *target, const char *fsystem, unsig
         goto cleanup_target_name;
     }
 
-    ret = vfs_mount(target_name.found, device, fsystem);
+    ret = vfs_mount(target_name.found, device, fsystem, source, target);
 
   cleanup_target_name:
     if (target_name.found)

@@ -52,7 +52,8 @@ int vfs_follow_link(struct inode *dir, struct inode *symlink, struct inode **res
 int vfs_readlink(struct inode *symlink, char *buf, size_t buf_len);
 int vfs_symlink(struct inode *dir, const char *name, size_t len, const char *symlink_target);
 
-int vfs_mount(struct inode *mount_point, dev_t block_dev, const char *filesystem);
+/* devname is for user convience when display mount points and can be left NULL */
+int vfs_mount(struct inode *mount_point, dev_t block_dev, const char *filesystem, const char *devname, const char *mountname);
 int vfs_umount(struct super_block *sb);
 
 #endif

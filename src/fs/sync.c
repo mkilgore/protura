@@ -11,6 +11,7 @@
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/string.h>
+#include <protura/snprintf.h>
 #include <arch/spinlock.h>
 #include <protura/mutex.h>
 #include <protura/atomic.h>
@@ -28,6 +29,29 @@
 
 static mutex_t super_lock = MUTEX_INIT(super_lock, "super-block-list-lock");
 static list_head_t super_block_list = LIST_HEAD_INIT(super_block_list);
+
+struct vfs_mount {
+    list_node_t mount_point_node;
+
+    dev_t dev;
+    char *devname;
+
+    char *mountname;
+    char *filesystem;
+};
+
+#define VFS_MOUNT_INIT(mount)\
+    { \
+        .mount_point_node = LIST_NODE_INIT((mount).mount_point_node), \
+    }
+
+static inline void vfs_mount_init(struct vfs_mount *mount)
+{
+    *mount = (struct vfs_mount)VFS_MOUNT_INIT(*mount);
+}
+
+static mutex_t mount_list_lock = MUTEX_INIT(mount_list_lock, "mount-list-lock");
+static list_head_t mount_list = LIST_HEAD_INIT(mount_list);
 
 static struct super_block *super_get(dev_t device, const char *filesystem)
 {
@@ -92,6 +116,50 @@ void sys_sync(void)
             super_sync(sb);
 }
 
+static inline void mount_list_add(dev_t device, const char *devname, const char *mountname, const char *fs)
+{
+    struct vfs_mount *mount_rec;
+
+    mount_rec = kmalloc(sizeof(*mount_rec), PAL_KERNEL);
+    vfs_mount_init(mount_rec);
+
+    mount_rec->dev = device;
+    mount_rec->mountname = kstrdup(mountname, PAL_KERNEL);
+    mount_rec->filesystem = kstrdup(fs, PAL_KERNEL);
+
+    if (devname)
+        mount_rec->devname = kstrdup(devname, PAL_KERNEL);
+
+    using_mutex(&mount_list_lock)
+        list_add(&mount_list, &mount_rec->mount_point_node);
+
+    return ;
+}
+
+static inline void mount_list_del(dev_t device)
+{
+    struct vfs_mount *mount, *found = NULL;
+
+    using_mutex(&mount_list_lock) {
+        list_foreach_entry(&mount_list, mount, mount_point_node) {
+            if (mount->dev == device) {
+                list_del(&mount->mount_point_node);
+                found = mount;
+                break;
+            }
+        }
+    }
+
+    if (found) {
+        if (found->devname)
+            kfree(found->devname);
+        kfree(found->mountname);
+        kfree(found->filesystem);
+        kfree(found);
+    }
+
+}
+
 int mount_root(dev_t device, const char *fsystem)
 {
     struct super_block *sb = super_get(device, fsystem);
@@ -99,6 +167,8 @@ int mount_root(dev_t device, const char *fsystem)
         return -EINVAL;
 
     ino_root = sb->root;
+
+    mount_list_add(device, NULL, "/", fsystem);
 
     return 0;
 }
@@ -120,7 +190,7 @@ static int super_mount(struct super_block *super, struct inode *mount_point)
     return ret;
 }
 
-int vfs_mount(struct inode *mount_point, dev_t block_dev, const char *filesystem)
+int vfs_mount(struct inode *mount_point, dev_t block_dev, const char *filesystem, const char *devname, const char *mountname)
 {
     struct super_block *super;
     int ret;
@@ -142,12 +212,15 @@ int vfs_mount(struct inode *mount_point, dev_t block_dev, const char *filesystem
     }
     kp(KP_TRACE, "mount done!\n");
 
+    mount_list_add(super->dev, devname, mountname, filesystem);
+
     return ret;
 }
 
 static int super_umount(struct super_block *super)
 {
     int ret;
+    dev_t dev = super->dev;
 
     ret = inode_clear_super(super);
     if (ret)
@@ -156,6 +229,27 @@ static int super_umount(struct super_block *super)
     ret = super_put(super);
     if (ret)
         return ret;
+
+    mount_list_del(dev);
+
+    return 0;
+}
+
+int mount_list_read(void *page, size_t page_size, size_t *len)
+{
+    struct vfs_mount *mount;
+    *len = 0;
+
+    using_mutex(&mount_list_lock) {
+        list_foreach_entry(&mount_list, mount, mount_point_node) {
+            if (mount->devname)
+                *len += snprintf(page + *len, page_size - *len, "%s", mount->devname);
+            else
+                *len += snprintf(page + *len, page_size - *len, "(%d,%d)", DEV_MAJOR(mount->dev), DEV_MINOR(mount->dev));
+
+            *len += snprintf(page + *len, page_size - *len, " on %s as %s\n", mount->mountname, mount->filesystem);
+        }
+    }
 
     return 0;
 }
