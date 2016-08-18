@@ -601,22 +601,22 @@ int sys_readlink(const char *__user path, char *__user buf, size_t buf_len)
     return ret;
 }
 
-int sys_symlink(const char *__user path, const char *__user linkpath)
+int sys_symlink(const char *__user target, const char *__user link)
 {
     struct task *current = cpu_get_local()->current;
     struct nameidata name;
     int ret;
 
-    ret = user_check_strn(path, PATH_MAX, F(VM_MAP_READ));
+    ret = user_check_strn(target, PATH_MAX, F(VM_MAP_READ));
     if (ret)
         return ret;
 
-    ret = user_check_strn(linkpath, PATH_MAX, F(VM_MAP_READ));
+    ret = user_check_strn(link, PATH_MAX, F(VM_MAP_READ));
     if (ret)
         return ret;
 
     memset(&name, 0, sizeof(name));
-    name.path = path;
+    name.path = link;
     name.cwd = current->cwd;
 
     ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT));
@@ -628,7 +628,7 @@ int sys_symlink(const char *__user path, const char *__user linkpath)
         goto cleanup_name;
     }
 
-    ret = vfs_symlink(name.parent, name.name_start, name.name_len, linkpath);
+    ret = vfs_symlink(name.parent, name.name_start, name.name_len, target);
 
   cleanup_name:
     if (name.found)
