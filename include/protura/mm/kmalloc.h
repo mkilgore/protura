@@ -28,4 +28,7 @@ static inline void *kzalloc(size_t size, int flags)
 
 void kmalloc_oom(void);
 
+char *kstrdup(const char *s, int flags);
+char *kstrndup(const char *s, size_t n, int flags);
+
 #endif

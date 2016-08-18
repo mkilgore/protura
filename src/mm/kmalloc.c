@@ -81,3 +81,29 @@ void kfree(void *p)
     panic("kmalloc: Error! Addr %p was not found in kmalloc's memory space!\n", p);
 }
 
+char *kstrdup(const char *s, int flags)
+{
+    size_t len = strlen(s);
+    char *buf = kmalloc(len + 1, flags);
+
+    strcpy(buf, s);
+
+    return buf;
+}
+
+char *kstrndup(const char *s, size_t n, int flags)
+{
+    size_t len = strlen(s);
+    char *buf;
+
+    if (len > n)
+        len = n;
+
+    buf = kmalloc(len + 1, flags);
+
+    strncpy(buf, s, n);
+    buf[len] = '\0';
+
+    return buf;
+}
+
