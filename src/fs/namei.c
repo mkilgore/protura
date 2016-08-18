@@ -26,6 +26,7 @@
 
 int namei_full(struct nameidata *data, flags_t flags)
 {
+    int link_count = 0;
     struct inode *cwd;
     const char *path;
     int ret = 0;
@@ -101,6 +102,14 @@ int namei_full(struct nameidata *data, flags_t flags)
         }
 
         if (!flag_test(&flags, NAMEI_DONT_FOLLOW_LINK) && S_ISLNK(next->mode)) {
+            if (link_count == CONFIG_LINK_MAX) {
+                ret = -ELOOP;
+                inode_put(next);
+                goto release_cwd;
+            }
+
+            link_count++;
+
             ret = vfs_follow_link(cwd, next, &link);
 
             if (ret) {
