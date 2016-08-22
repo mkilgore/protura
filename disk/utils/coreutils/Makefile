@@ -6,6 +6,7 @@ COREUTILS_PROGS = \
 	false \
 	head \
 	hexdump \
+	kill \
 	link \
 	ln \
 	lnum \

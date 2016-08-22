@@ -13,6 +13,8 @@
 #define container_of(ptr, type, member) \
     ((type *) ((char*)(ptr) - offsetof(type, member)))
 
+#define ARRAY_SIZE(arr) (sizeof(arr)/sizeof(*arr))
+
 #define QQ(x) #x
 #define Q(x) QQ(x)
 
