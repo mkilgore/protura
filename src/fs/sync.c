@@ -131,7 +131,7 @@ static inline void mount_list_add(dev_t device, const char *devname, const char 
         mount_rec->devname = kstrdup(devname, PAL_KERNEL);
 
     using_mutex(&mount_list_lock)
-        list_add(&mount_list, &mount_rec->mount_point_node);
+        list_add_tail(&mount_list, &mount_rec->mount_point_node);
 
     return ;
 }
