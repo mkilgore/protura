@@ -70,9 +70,10 @@ static void parse_line(const char *line)
 
         switch (token) {
         case TOK_COMMENT:
-            while ((token = lexer_next_token(&state)), token != TOK_NEWLINE || token != TOK_EOF)
+            while ((token = lexer_next_token(&state)),
+                    token != TOK_NEWLINE && token != TOK_EOF)
                 ;
-            break;
+            goto handle_newline;
 
         case TOK_STRING:
             if (!prog.file) {
@@ -104,6 +105,8 @@ static void parse_line(const char *line)
             }
             break;
 
+        handle_newline:
+        case TOK_EOF:
         case TOK_NEWLINE:
             if (!prog.file)
                 goto done_exec;

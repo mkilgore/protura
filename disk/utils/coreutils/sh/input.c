@@ -77,3 +77,21 @@ void input_loop(void)
     return ;
 }
 
+void input_script_loop(void)
+{
+    char *line = NULL;
+    size_t buf_len = 0;
+    int len;
+
+    while ((len = getline(&line, &buf_len, stdin)) != -1) {
+        if (strcmp(line, "exit") == 0)
+            break;
+        else
+            shell_run_line(line);
+    }
+
+    free(line);
+
+    return ;
+}
+
