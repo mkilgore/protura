@@ -16,6 +16,7 @@
 #include <protura/fs/ext2.h>
 #include <protura/fs/procfs.h>
 #include <protura/fs/elf.h>
+#include <protura/fs/binfmt.h>
 #include <protura/fs/file_system.h>
 
 static struct file_system_list {
@@ -84,5 +85,6 @@ void file_systems_init(void)
     procfs_init();
 
     elf_register();
+    script_register();
 }
 

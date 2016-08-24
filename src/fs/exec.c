@@ -101,121 +101,23 @@
  * which are simply (stack end - offset).
  */
 
-#define stack_push(sp, item) \
-    do { \
-        (sp) -= sizeof(item); \
-        *(typeof(item) *)(sp) = item; \
-    } while (0)
-
-static int count_args(const char *const args[])
-{
-    int argc = 0;
-    while (*args)
-        argc++, args++;
-
-    return argc;
-}
-
-static char *push_strings(const char *const strs[], int strs_count, char *strv, char *stack, char *stack_top)
-{
-    int i;
-
-    for (i = strs_count - 1; i >= 0; i--) {
-        const char *s = strs[i];
-
-        if (!s) {
-            stack_push(strv, NULL);
-            continue;
-        }
-
-        size_t s_len = strlen(s);
-
-        /* Remove space from the stack for the string and the null terminator */
-        stack -= s_len + 1;
-
-        /* Put the offset to the start of this string into the argv array */
-        stack_push(strv, stack_top - stack);
-
-        /* Put the string into memory */
-        memcpy(stack, s, s_len + 1);
-    }
-
-    return stack;
-}
-
-static size_t create_arg_copy(char *sp, const char *const argv[], int argc, const char *const envp[], int envc)
-{
-    char *stack_top = sp;
-    char *user_argv;
-    char *user_envp;
-
-    /* envp comes before argv in the memory layout detailed above, so we
-     * reserve space for both of them before we start copying our strings */
-    user_envp = sp;
-    sp -= (envc + 1) * sizeof(char *);
-    stack_push(user_envp, NULL);
-
-    user_argv = sp;
-    sp -= (argc + 1) * sizeof(char *);
-    stack_push(user_argv, NULL);
-
-    sp = push_strings(envp, envc, user_envp, sp, stack_top);
-    sp = push_strings(argv, argc, user_argv, sp, stack_top);
-
-    /* Strings can be an odd length, so we have to manually align the stack
-     * pointer to the alignment of the argv pointer */
-    sp = ALIGN_2_DOWN(sp, alignof(char **));
-
-    /* The first two zeros are the argv and envp pointers - they will be filled
-     * in by copy_to_userspace */
-    stack_push(sp, NULL);
-    stack_push(sp, NULL);
-    stack_push(sp, argc);
-
-    return stack_top - sp;
-}
-
-static char *copy_to_userspace(char *sp, char *copy, size_t len, int argc, int envc)
-{
-    char *stack_top = sp;
-    char **envp;
-    char **argv;
-    int i;
-
-    memcpy(sp - len, copy - len, len);
-
-    envp = (char **)sp - (envc + 1);
-    argv = envp - (argc + 1);
-
-    for (i = 0; i < envc + 1; i++)
-        if (envp[i])
-            envp[i] = stack_top - (size_t)envp[i];
-
-    for (i = 0; i < argc + 1; i++)
-        if (argv[i])
-            argv[i] = stack_top - (size_t)argv[i];
-
-    /* Store the pointer to 'argv' on the stack */
-    *(char ***)(sp - len + sizeof(int) * 2) = envp;
-    *(char ***)(sp - len + sizeof(int)) = argv;
-
-    return sp - len;
-}
-
 static int execve(struct inode *inode, const char *file, const char *const argv[], const char *const envp[], struct irq_frame *frame)
 {
     struct file *filp;
     struct exe_params params;
     int fd;
     int ret;
-    int argc, envc;
-    char *saved_args, *sp;
+    char *sp;
     char *user_stack_end;
-    size_t arg_len;
     struct task *current = cpu_get_local()->current;
     char new_name[128];
     size_t name_len = 0;
     const char *const *arg;
+
+    exe_params_init(&params);
+
+    strncpy(params.filename, file, sizeof(params.filename));
+    params.filename[sizeof(params.filename) - 1] = '\0';
 
     if (argv == NULL)
         argv = (const char *[]) { file, NULL };
@@ -223,9 +125,9 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
     if (envp == NULL)
         envp = (const char *[]) { file, NULL };
 
-    fd = __sys_open(inode, F(FILE_READABLE), &filp);
-    if (fd < 0)
-        return fd;
+    ret = vfs_open(inode, F(FILE_READABLE), &filp);
+    if (ret)
+        return ret;
 
     name_len = snprintf(new_name, sizeof(new_name), "%s", file);
 
@@ -234,20 +136,31 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
         for (arg = argv + 1; *arg && name_len < sizeof(new_name); arg++)
             name_len += snprintf(new_name + name_len, sizeof(new_name) - name_len, " %s", *arg);
 
+    /*
     saved_args = palloc_va(log2(CONFIG_KERNEL_ARG_PAGES), PAL_KERNEL);
 
     argc = count_args(argv);
     envc = count_args(envp);
     arg_len = create_arg_copy(saved_args + PG_SIZE * CONFIG_KERNEL_ARG_PAGES, argv, argc, envp, envc);
+     */
+    params_fill(&params, argv, envp);
 
     params.exe = filp;
     ret = binary_load(&params, frame);
 
+    kp(KP_TRACE, "binary_load: %d\n", ret);
+
     if (ret)
         goto close_fd;
 
+    /* At this point, the pointers we were passed are now completely invalid
+     * (besides frame and inode, which reside in the kernel). */
+
     user_stack_end = cpu_get_local()->current->addrspc->stack->addr.end;
+    sp = params_copy_to_userspace(&params, user_stack_end);
+    /*
     sp = copy_to_userspace(user_stack_end, saved_args + PG_SIZE * CONFIG_KERNEL_ARG_PAGES, arg_len, argc, envc);
+     */
 
     irq_frame_set_stack(frame, sp);
 
@@ -265,8 +178,11 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
     strcpy(current->name, new_name);
 
   close_fd:
+    /*
     pfree_va(saved_args, log2(CONFIG_KERNEL_ARG_PAGES));
-    sys_close(fd);
+     */
+    params_clear(&params);
+    vfs_close(filp);
     return ret;
 }
 
@@ -275,6 +191,8 @@ int sys_execve(const char *file, const char *const argv[], const char *const env
     struct inode *exe;
     struct task *current = cpu_get_local()->current;
     int ret;
+
+    kp(KP_TRACE, "Executing: %s\n", file);
 
     ret = namex(file, current->cwd, &exe);
     if (ret)

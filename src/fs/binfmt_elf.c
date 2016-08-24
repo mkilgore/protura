@@ -189,7 +189,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     return 0;
 }
 
-static struct binfmt binfmt_elf = BINFMT_INIT(binfmt_elf, "elf", load_bin_elf);
+static struct binfmt binfmt_elf = BINFMT_INIT(binfmt_elf, "elf",  "\177ELF", load_bin_elf);
 
 void elf_register(void)
 {

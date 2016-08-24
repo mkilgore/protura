@@ -15,8 +15,10 @@ objs-y += sys.o
 objs-y += pipe.o
 
 objs-y += exec.o
+objs-y += params.o
 objs-y += binfmt_table.o
 objs-y += binfmt_elf.o
+objs-y += binfmt_script.o
 
 subdir-y += ext2
 subdir-y += procfs
