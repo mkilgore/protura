@@ -24,6 +24,8 @@
 
 static void start_child(const struct prog_desc *prog)
 {
+    int ret;
+
     if (prog->stdin_fd != STDIN_FILENO) {
         dup2(prog->stdin_fd, STDIN_FILENO);
         close(prog->stdin_fd);
@@ -39,13 +41,12 @@ static void start_child(const struct prog_desc *prog)
         close(prog->stderr_fd);
     }
 
-    if (execvp(prog->file, prog->argv) == -1) {
-        printf("Error execing program: %s\n", prog->file);
-        printf("Error: %s\n", strerror(errno));
+    if ((ret = execvp(prog->file, prog->argv)) == -1) {
+        perror(prog->file);
         exit(0);
     }
 
-    printf("Uhhh, execvp returned...\n");
+    printf("Uhhh, execvp returned: %d...\n", ret);
     exit(0);
 }
 
