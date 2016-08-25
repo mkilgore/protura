@@ -143,9 +143,11 @@ static void parse_line(const char *line)
     }
 
     if (prog.file) {
-        prog_start(&prog, &child);
+        if (builtin_exec(&prog, NULL) != 0) {
+            prog_start(&prog, &child);
 
-        waitpid(child, NULL, 0);
+            waitpid(child, NULL, 0);
+        }
     }
 
 cleanup:
