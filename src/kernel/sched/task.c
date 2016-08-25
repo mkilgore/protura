@@ -422,7 +422,7 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
      * which is fine because we're waiting for any children to call sys_exit(),
      * which will wake us up. */
   sleep_again:
-    sleep {
+    sleep_intr {
         kp(KP_TRACE, "Task %s: Locking child list for wait4\n", t->name);
         using_spinlock(&t->children_list_lock) {
             if (list_empty(&t->task_children)) {
@@ -448,6 +448,8 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
 
         if (!have_no_children && !have_child && !(options & WNOHANG)) {
             scheduler_task_yield();
+            if (t->sig_pending)
+                return -ERESTARTSYS;
             goto sleep_again;
         }
     }
