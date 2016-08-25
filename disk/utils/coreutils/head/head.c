@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
             break;
 
         case ARG_EXTRA:
-            file = open_with_dash(argarg, O_RDONLY | O_NONBLOCK);
+            file = open_with_dash(argarg, O_RDONLY);
             if (file == -1) {
                 perror(argarg);
                 return 1;

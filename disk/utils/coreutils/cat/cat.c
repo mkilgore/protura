@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
 
         case ARG_EXTRA:
             has_file = true;
-            file = open_with_dash(argarg, O_RDONLY | O_NONBLOCK);
+            file = open_with_dash(argarg, O_RDONLY);
             if (file == -1) {
                 perror(argarg);
                 return 1;
