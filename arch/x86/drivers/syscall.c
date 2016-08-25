@@ -276,6 +276,11 @@ static void sys_handler_umount(struct irq_frame *frame)
     frame->eax = sys_umount((const char *)frame->ebx);
 }
 
+static void sys_handler_fcntl(struct irq_frame *frame)
+{
+    frame->eax = sys_fcntl(frame->ebx, frame->ecx, frame->edx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -333,6 +338,7 @@ static struct syscall_handler {
     SYSCALL(LSTAT, sys_handler_lstat),
     SYSCALL(MOUNT, sys_handler_mount),
     SYSCALL(UMOUNT, sys_handler_umount),
+    SYSCALL(FCNTL, sys_handler_fcntl),
 };
 
 static void syscall_handler(struct irq_frame *frame)

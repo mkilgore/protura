@@ -188,13 +188,19 @@ int sys_execve(const char *file, const char *const argv[], const char *const env
     kp(KP_TRACE, "Executing: %s\n", file);
 
     ret = namex(file, current->cwd, &exe);
-    if (ret)
-        return ret;
+    if (ret) {
+        irq_frame_set_syscall_ret(frame, ret);
+        return 0;
+    }
 
     ret = execve(exe, file, argv, envp, frame);
 
     inode_put(exe);
 
-    return ret;
+    kp(KP_TRACE, "execve ret: %d\n", ret);
+    if (ret)
+        irq_frame_set_syscall_ret(frame, ret);
+
+    return 0;
 }
 

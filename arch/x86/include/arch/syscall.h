@@ -65,6 +65,8 @@
 #define SYSCALL_MOUNT 0x38
 #define SYSCALL_UMOUNT 0x39
 
+#define SYSCALL_FCNTL 0x40
+
 #ifdef __KERNEL__
 #ifndef ASM
 

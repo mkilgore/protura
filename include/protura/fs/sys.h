@@ -50,4 +50,6 @@ int sys_execve(const char *__user executable, const char *const __user argv[], c
 int sys_mount(const char *source, const char *target, const char *fsystem, unsigned long mountflags, const void *data);
 int sys_umount(const char *mountpoint);
 
+int sys_fcntl(int fd, int cmd, uintptr_t arg);
+
 #endif

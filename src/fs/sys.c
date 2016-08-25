@@ -752,3 +752,58 @@ int sys_umount(const char *target)
     return ret;
 }
 
+int sys_fcntl(int fd, int cmd, uintptr_t arg)
+{
+    struct task *current = cpu_get_local()->current;
+    struct file *filp;
+    int ret;
+
+    kp(KP_TRACE, "fcntl: %d, %d\n", fd, cmd);
+
+    ret = fd_get_checked(fd, &filp);
+    if (ret)
+        return ret;
+
+    switch (cmd) {
+    case F_DUPFD:
+        return sys_dup(fd);
+
+    case F_GETFD:
+        return FD_ISSET(fd,&current->close_on_exec);
+
+    case F_SETFD:
+        if (arg & 1)
+            FD_SET(fd, &current->close_on_exec);
+        else
+            FD_CLR(fd, &current->close_on_exec);
+        return 0;
+
+    case F_GETFL:
+        ret = 0;
+
+        if (flag_test(&filp->flags, FILE_READABLE)
+            && flag_test(&filp->flags, FILE_WRITABLE))
+            ret |= O_RDWR;
+        else if (flag_test(&filp->flags, FILE_READABLE))
+            ret |= O_RDONLY;
+        else if (flag_test(&filp->flags, FILE_WRITABLE))
+            ret |= O_WRONLY;
+
+        if (flag_test(&filp->flags, FILE_APPEND))
+            ret |= O_APPEND;
+
+        return ret;
+
+    case F_SETFL:
+        if (arg & O_APPEND)
+            flag_set(&filp->flags, FILE_APPEND);
+        else
+            flag_clear(&filp->flags, FILE_APPEND);
+
+        return 0;
+
+    }
+
+    return -EINVAL;
+}
+
