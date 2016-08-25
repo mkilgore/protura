@@ -9,12 +9,11 @@
 #include <protura/wait.h>
 #include <protura/mm/vm.h>
 #include <protura/signal.h>
+#include <protura/fs/fdset.h>
 #include <arch/context.h>
 #include <arch/paging.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
-
-#define NOFILE 20
 
 struct file;
 struct inode;
@@ -72,6 +71,8 @@ struct task {
 
     struct file *files[NOFILE];
     struct inode *cwd;
+
+    fd_set close_on_exec;
 
     /* When modifying the sets, this lock must be taken */
     sigset_t sig_pending, sig_blocked;
