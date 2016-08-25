@@ -11,13 +11,8 @@ int main(int argc, char **argv, char **envp)
 
     printf("argc: %d\n", argc);
 
-    for (i = 0; i < argc; i++) {
+    for (i = 0; i < argc; i++)
         printf("str: %s\n", argv[i]);
-    }
-
-    argv[0][1] = 'k';
-
-    printf("Modified arg: %s\n", argv[0]);
 
     printf("envp: %p\n", envp);
 
@@ -26,8 +21,9 @@ int main(int argc, char **argv, char **envp)
         envp++;
     }
 
-    printf("environ: %p\n", environ);
-    printf("PATH: %s\n", getenv("PATH"));
+    for (i = 3; i < 32; i++)
+        if (close(i) == 0)
+            printf("FD %d valid\n", i);
 
     return 0;
 }
