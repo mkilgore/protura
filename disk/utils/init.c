@@ -12,14 +12,27 @@
 #include <protura/syscall.h>
 #include <sys/mount.h>
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
+
+pid_t shell[2];
+
 /* Reap children */
 static void handle_children(int sig)
 {
     pid_t child;
     printf("Waiting on children!\n");
 
-    while ((child = waitpid(-1, NULL, WNOHANG)) > 0)
+    while ((child = waitpid(-1, NULL, WNOHANG)) > 0) {
         printf("Reaped %d\n", child);
+
+        int i;
+        for (i = 0; i < ARRAY_SIZE(shell); i++) {
+            if (shell[i] == child) {
+                printf("Syncing...\n");
+                sync();
+            }
+        }
+    }
 }
 
 static pid_t start_prog(const char *prog, char *const argv[], char *const envp[])
@@ -62,7 +75,7 @@ int main(int argc, char **argv)
     if (ret)
         perror("mount proc");
 
-    start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
+    shell[0] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 
     close(keyboardfd);
     close(consolefd);
@@ -72,7 +85,7 @@ int main(int argc, char **argv)
     consolefd = open("/dev/com2", O_WRONLY);
     stderrfd = open("/dev/com2", O_WRONLY);
 
-    start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
+    shell[1] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 
     /* Sleep forever */
     while (1)
