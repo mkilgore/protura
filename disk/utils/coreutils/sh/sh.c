@@ -86,13 +86,11 @@ int main(int argc, char **argv)
             return 0;
 
         case ARG_EXTRA:
-            fd = open(argarg, O_RDONLY);
+            fd = open(argarg, O_RDONLY | O_CLOEXEC);
             if (fd < 0) {
                 perror(argarg);
                 return 0;
             }
-            dup2(fd, STDIN_FILENO);
-            close(fd);
             is_script = 1;
             break;
 
@@ -108,7 +106,7 @@ int main(int argc, char **argv)
     cwd = strdup("/");
 
     if (is_script)
-        input_script_loop();
+        input_script_loop(fd);
     else
         input_loop();
 

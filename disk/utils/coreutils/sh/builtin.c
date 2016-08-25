@@ -121,7 +121,6 @@ static int echo(struct prog_desc *prog)
     for (i = 2; i < prog->argc; i++)
         dprintf(prog->stdout_fd, " %s", prog->argv[i]);
 
-
     write(prog->stdout_fd, &(const char){ '\n' }, 1);
 
     return 0;

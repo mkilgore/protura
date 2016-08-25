@@ -115,13 +115,6 @@ static void parse_line(const char *line)
                 goto done_exec;
 
             prog_start(&prog, &child);
-            /* HACK: close-on-exec is not implemented yet - just close
-             * everything except standard streams and hope for the best.
-             *
-             * This works as long as the program doesn't make use of any extra
-             * files. */
-            for (i = 3; i < 20; i++)
-                close(i);
 
             waitpid(child, NULL, 0);
 
@@ -151,13 +144,6 @@ static void parse_line(const char *line)
 
     if (prog.file) {
         prog_start(&prog, &child);
-        /* HACK: close-on-exec is not implemented yet - just close
-         * everything except standard streams and hope for the best.
-         *
-         * This works as long as the program doesn't make use of any extra
-         * files. */
-        for (i = 3; i < 20; i++)
-            close(i);
 
         waitpid(child, NULL, 0);
     }

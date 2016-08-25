@@ -24,18 +24,20 @@
 
 static void start_child(const struct prog_desc *prog)
 {
-    if (prog->stdin_fd != STDIN_FILENO)
+    if (prog->stdin_fd != STDIN_FILENO) {
         dup2(prog->stdin_fd, STDIN_FILENO);
+        close(prog->stdin_fd);
+    }
 
-    if (prog->stdout_fd != STDOUT_FILENO)
+    if (prog->stdout_fd != STDOUT_FILENO) {
         dup2(prog->stdout_fd, STDOUT_FILENO);
+        close(prog->stdout_fd);
+    }
 
-    if (prog->stderr_fd != STDERR_FILENO)
+    if (prog->stderr_fd != STDERR_FILENO) {
         dup2(prog->stderr_fd, STDERR_FILENO);
-
-    int i;
-    for (i = 3; i < 20; i++)
-        close(i);
+        close(prog->stderr_fd);
+    }
 
     if (execvp(prog->file, prog->argv) == -1) {
         printf("Error execing program: %s\n", prog->file);
@@ -58,6 +60,17 @@ int prog_start(const struct prog_desc *prog, pid_t *child_pid)
         start_child(prog);
 
     *child_pid = pid;
+
+    /* Now that prog is started, we close the original inputs */
+    if (prog->stdin_fd != STDIN_FILENO)
+        close(prog->stdin_fd);
+
+    if (prog->stdout_fd != STDOUT_FILENO)
+        close(prog->stdout_fd);
+
+    if (prog->stderr_fd != STDERR_FILENO)
+        close(prog->stderr_fd);
+
     return 0;
 }
 

@@ -46,7 +46,7 @@ static void input_new_line(char *buf, size_t len)
 
     putchar('\n');
 
-    buf[loc + 1] = '\0';
+    buf[loc] = '\0';
 }
 
 void input_loop(void)
@@ -77,13 +77,14 @@ void input_loop(void)
     return ;
 }
 
-void input_script_loop(void)
+void input_script_loop(int fd)
 {
     char *line = NULL;
     size_t buf_len = 0;
     int len;
+    FILE *fin = fdopen(fd, "r");
 
-    while ((len = getline(&line, &buf_len, stdin)) != -1) {
+    while ((len = getline(&line, &buf_len, fin)) != -1) {
         if (strcmp(line, "exit") == 0)
             break;
         else
