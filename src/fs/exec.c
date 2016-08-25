@@ -105,7 +105,6 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
 {
     struct file *filp;
     struct exe_params params;
-    int fd;
     int ret;
     char *sp;
     char *user_stack_end;
@@ -136,13 +135,6 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
         for (arg = argv + 1; *arg && name_len < sizeof(new_name); arg++)
             name_len += snprintf(new_name + name_len, sizeof(new_name) - name_len, " %s", *arg);
 
-    /*
-    saved_args = palloc_va(log2(CONFIG_KERNEL_ARG_PAGES), PAL_KERNEL);
-
-    argc = count_args(argv);
-    envc = count_args(envp);
-    arg_len = create_arg_copy(saved_args + PG_SIZE * CONFIG_KERNEL_ARG_PAGES, argv, argc, envp, envc);
-     */
     params_fill(&params, argv, envp);
 
     params.exe = filp;
@@ -158,9 +150,6 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
 
     user_stack_end = cpu_get_local()->current->addrspc->stack->addr.end;
     sp = params_copy_to_userspace(&params, user_stack_end);
-    /*
-    sp = copy_to_userspace(user_stack_end, saved_args + PG_SIZE * CONFIG_KERNEL_ARG_PAGES, arg_len, argc, envc);
-     */
 
     irq_frame_set_stack(frame, sp);
 
@@ -173,14 +162,18 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
         current->sig_actions[i].sa_flags = 0;
     }
 
+    for (i = 0; i < NOFILE; i++) {
+        if (FD_ISSET(i, &current->close_on_exec)) {
+            kp(KP_TRACE, "Close-on-exec: %d\n", i);
+            sys_close(i);
+        }
+    }
+
     current->sig_pending = 0;
 
     strcpy(current->name, new_name);
 
   close_fd:
-    /*
-    pfree_va(saved_args, log2(CONFIG_KERNEL_ARG_PAGES));
-     */
     params_clear(&params);
     vfs_close(filp);
     return ret;

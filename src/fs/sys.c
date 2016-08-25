@@ -101,6 +101,14 @@ int sys_open(const char *__user path, int flags, mode_t mode)
 
     ret = __sys_open(name.found, file_flags, &filp);
 
+    if (ret < 0)
+        goto cleanup_namei;
+
+    if (flags & O_CLOEXEC) {
+        FD_SET(ret, &current->close_on_exec);
+        kp(KP_TRACE, "Setting Close-on-exec for %d\n", ret);
+    }
+
   cleanup_namei:
     if (name.found)
         inode_put(name.found);

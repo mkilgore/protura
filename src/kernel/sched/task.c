@@ -208,6 +208,8 @@ struct task *task_fork(struct task *parent)
         if (parent->files[i])
             new->files[i] = file_dup(parent->files[i]);
 
+    new->close_on_exec = parent->close_on_exec;
+
     new->parent = parent;
     memcpy(new->context.frame, parent->context.frame, sizeof(*new->context.frame));
 
