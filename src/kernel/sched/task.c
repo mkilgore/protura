@@ -467,6 +467,7 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
 
 int sys_dup(int oldfd)
 {
+    struct task *current = cpu_get_local()->current;
     struct file *filp = fd_get(oldfd);
     int newfd;
     int ret;
@@ -479,11 +480,14 @@ int sys_dup(int oldfd)
 
     fd_assign(newfd, file_dup(filp));
 
+    FD_CLR(newfd, &current->close_on_exec);
+
     return newfd;
 }
 
 int sys_dup2(int oldfd, int newfd)
 {
+    struct task *current = cpu_get_local()->current;
     struct file *old_filp;
     struct file *new_filp;
     int ret;
@@ -501,6 +505,8 @@ int sys_dup2(int oldfd, int newfd)
         vfs_close(new_filp);
 
     fd_assign(newfd, file_dup(old_filp));
+
+    FD_CLR(newfd, &current->close_on_exec);
 
     return newfd;
 }
