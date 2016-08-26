@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
+#include <protura/time.h>
 #include <protura/mutex.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/vm.h>
@@ -157,5 +158,8 @@ void procfs_init(void)
     procfs_register_entry(&procfs_root, "filesystems", file_systeam_list_read);
     procfs_register_entry(&procfs_root, "mounts", mount_list_read);
     procfs_register_entry(&procfs_root, "binfmts", binfmt_readpage);
+    procfs_register_entry(&procfs_root, "uptime", protura_uptime_read);
+    procfs_register_entry(&procfs_root, "boottime", protura_boot_time_read);
+    procfs_register_entry(&procfs_root, "currenttime", protura_current_time_read);
 }
 

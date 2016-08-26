@@ -30,6 +30,7 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
 #include <arch/drivers/keyboard.h>
+#include <arch/drivers/rtc.h>
 #include <arch/paging.h>
 #include <arch/pages.h>
 #include <arch/task.h>
@@ -131,6 +132,9 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
      * interrupts on the CPU */
     kp(KP_NORMAL, "Initalizing the 8259 PIC\n");
     pic8259_init();
+
+    kp(KP_NORMAL, "Reading RTC time\n");
+    rtc_update_time();
 
     kmain();
 }
