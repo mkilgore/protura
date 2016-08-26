@@ -95,13 +95,36 @@ static void escape_integer(struct printf_backbone *backbone, const char *code, s
 {
     char buf[3 * sizeof(long long) + 2], *ebuf = buf + sizeof(buf) - 1;
     int digit;
-    int orig, i;
+    int orig, i, count;
+    int zero_pad = 0, force_width = -1;
+
+    for (i = 0; i < len - 1; i++) {
+        switch (code[i]) {
+        case '0':
+            if (force_width == -1)
+                zero_pad = 1;
+            else
+                force_width *= 10;
+            break;
+
+        case '1' ... '9':
+            if (force_width == -1)
+                force_width = code[i] - '0';
+            else
+                force_width = (force_width * 10) + (code[i] - '0');
+            break;
+        }
+    }
 
     orig = va_arg(*args, int);
     i = orig;
 
-    if (i == 0)
+    count = 0;
+
+    if (i == 0) {
         *--ebuf = '0';
+        count++;
+    }
 
     while (i != 0) {
         digit = i % 10;
@@ -109,6 +132,12 @@ static void escape_integer(struct printf_backbone *backbone, const char *code, s
             digit = -digit;
         i = i / 10;
         *--ebuf = inttohex[0][digit];
+        count++;
+    }
+
+    while (count < force_width && zero_pad) {
+        *--ebuf = '0';
+        count++;
     }
 
     if (orig < 0)
