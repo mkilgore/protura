@@ -12,10 +12,15 @@ i3-msg workspace $2
 
 i3-msg append_layout $(pwd)/scripts/i3_debug_layout.json
 
-urxvt -title objdump -e bash -c "objdump -D ./imgs/protura_x86_multiboot | less" &
+mkfifo /tmp/dash_fifo
+
+#urxvt -title objdump -e bash -c "objdump -D ./imgs/protura_x86_multiboot | less" &
+#B1_PID=$!
+
+urxvt -bg gray7 -title objdump -e bash -c "cat /tmp/dash_fifo" &
 B1_PID=$!
 
-urxvt -title gdb -e bash -i -c "gdb -d ./src -d ./src/fs -d ./src/kernel -d ./include -d ./arch/x86" &
+urxvt -title gdb -e bash -i -c "gdb" &
 B2_PID=$!
 
 if [ -z "${@:2}" ]; then

@@ -1,7 +1,7 @@
 
 # This target is for creating a multiboot compliant kernel
 BOOT_TARGETS += multiboot
-LDFLAGS_multiboot := -T $(objtree)/link_multiboot.ld -ggdb
+LDFLAGS_multiboot := -T $(objtree)/link_multiboot.ld --build-id=none
 OBJS_multiboot := $(objtree)/boot_multiboot.o $(objtree)/boot_multiboot_pagedir.o $(objtree)/link_multiboot.ld
 
 $(objtree)/boot_multiboot_pagedir.S: $(srctree)/gen_initial_pagedir.pl

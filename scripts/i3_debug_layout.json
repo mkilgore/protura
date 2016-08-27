@@ -16,7 +16,7 @@
                "y": 0
             },
             "name": "bash",
-            "percent": 0.25,
+            "percent": 0.75,
             "swallows": [
                {
                    "title": "^objdump$"
@@ -37,7 +37,7 @@
                "y": 0
             },
             "name": "bash",
-            "percent": 0.75,
+            "percent": 0.25,
             "swallows": [
                {
                    "title": "^gdb$"

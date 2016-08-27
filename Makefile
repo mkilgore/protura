@@ -21,6 +21,7 @@ LD      := $(TARGET)ld
 AS      := $(TARGET)gas
 PERL    := perl -w -Mdiagnostics
 MKDIR   := mkdir
+OBJCOPY := objcopy
 
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
@@ -93,9 +94,9 @@ endif
 
 ifdef PROTURA_DEBUG
 	CPPFLAGS += -DPROTURA_DEBUG
-	CFLAGS += -ggdb
-	ASFLAGS += -ggdb
-	LDFLAGS += -ggdb
+	CFLAGS +=  -ggdb -gdwarf-2
+	ASFLAGS += -ggdb -gdwarf-2
+	LDFLAGS +=
 endif
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -215,7 +216,11 @@ CLEAN_LIST += $$(OBJS_$(1))
 
 $$(_expand): $$(EXE_OBJ) $$(OBJS_$(1))
 	@echo " CCLD    $$@"
-	$$(Q)$$(CC) $$(LDFLAGS) $$(LDFLAGS_$(1)) -o $$@ $$(OBJS_$(1)) $$< 
+	$$(Q)$$(LD) $$(LDFLAGS_$(1)) -o $$@ $$(OBJS_$(1)) $$<
+	@echo " OBJCOPY $$@.sym"
+	$$(Q)$$(OBJCOPY) --only-keep-debug $$@ $$@.sym
+	@echo " OBJCOPY $$@"
+	$$(Q)$$(OBJCOPY) --strip-unneeded $$@
 
 endef
 
