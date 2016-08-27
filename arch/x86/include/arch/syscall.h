@@ -67,6 +67,8 @@
 
 #define SYSCALL_FCNTL 0x40
 
+#define SYSCALL_TIME 0x41
+
 #ifdef __KERNEL__
 #ifndef ASM
 

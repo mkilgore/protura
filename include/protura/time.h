@@ -39,4 +39,6 @@ int protura_uptime_read(void *, size_t, size_t *);
 int protura_boot_time_read(void *, size_t, size_t *);
 int protura_current_time_read(void *, size_t, size_t *);
 
+int sys_time(time_t *t);
+
 #endif

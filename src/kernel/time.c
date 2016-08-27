@@ -10,6 +10,8 @@
 #include <protura/debug.h>
 #include <protura/snprintf.h>
 #include <protura/atomic.h>
+#include <protura/mm/vm.h>
+#include <protura/mm/user_ptr.h>
 #include <protura/time.h>
 
 time_t current_uptime = 0;
@@ -62,6 +64,19 @@ int protura_boot_time_read(void *page, size_t page_size, size_t *len)
 int protura_current_time_read(void *page, size_t page_size, size_t *len)
 {
     *len = snprintf(page, page_size, "%d\n", protura_current_time_get());
+
+    return 0;
+}
+
+int sys_time(time_t *t)
+{
+    int ret;
+
+    ret = user_check_region(t, sizeof(*t), F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    *t = protura_current_time_get();
 
     return 0;
 }
