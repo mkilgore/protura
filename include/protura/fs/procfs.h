@@ -8,6 +8,8 @@
 #ifndef INCLUDE_FS_PROCFS_H
 #define INCLUDE_FS_PROCFS_H
 
+#include <protura/types.h>
+#include <protura/time.h>
 #include <protura/mutex.h>
 #include <protura/list.h>
 #include <protura/hlist.h>
@@ -25,6 +27,7 @@ struct procfs_node {
     ino_t ino;
     mode_t mode;
     int nlinks;
+    time_t ctime;
     struct procfs_dir *parent;
 
     mutex_t lock;
