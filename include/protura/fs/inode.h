@@ -9,6 +9,7 @@
 #define INCLUDE_FS_INODE_H
 
 #include <protura/types.h>
+#include <protura/time.h>
 #include <protura/errors.h>
 #include <protura/list.h>
 #include <protura/hlist.h>
@@ -45,6 +46,8 @@ struct inode {
     atomic32_t nlinks;
     uint32_t blocks;
     uint32_t block_size;
+
+    time_t atime, mtime, ctime;
 
     flags_t flags;
 
@@ -170,37 +173,37 @@ int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct
 
 static inline void inode_lock_read(struct inode *i)
 {
-    kp(KP_LOCK, "inode "PRinode": Locking read\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Locking read\n", Pinode(i));
     mutex_lock(&i->lock);
-    kp(KP_LOCK, "inode "PRinode": Locked read\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Locked read\n", Pinode(i));
 }
 
 static inline void inode_unlock_read(struct inode *i)
 {
-    kp(KP_LOCK, "inode "PRinode": Unlocking read\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Unlocking read\n", Pinode(i));
     mutex_unlock(&i->lock);
-    kp(KP_LOCK, "inode "PRinode": Unlocked read\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Unlocked read\n", Pinode(i));
 }
 
 static inline void inode_lock_write(struct inode *i)
 {
-    kp(KP_LOCK, "inode "PRinode": Locking write\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Locking write\n", Pinode(i));
     mutex_lock(&i->lock);
-    kp(KP_LOCK, "inode "PRinode": Locked write\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Locked write\n", Pinode(i));
 }
 
 static inline void inode_unlock_write(struct inode *i)
 {
-    kp(KP_LOCK, "inode "PRinode": Unlocking write\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Unlocking write\n", Pinode(i));
     mutex_unlock(&i->lock);
-    kp(KP_LOCK, "inode "PRinode": Unlocked write\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Unlocked write\n", Pinode(i));
 }
 
 static inline int inode_try_lock_write(struct inode *i)
 {
-    kp(KP_LOCK, "inode "PRinode": Attempting Locking write\n", Pinode(i));
+    kp(KP_LOCK_INODE, "inode "PRinode": Attempting Locking write\n", Pinode(i));
     if (mutex_try_lock(&i->lock)) {
-        kp(KP_LOCK, "inode "PRinode": Locked write\n", Pinode(i));
+        kp(KP_LOCK_INODE, "inode "PRinode": Locked write\n", Pinode(i));
         return 1;
     }
     return 0;

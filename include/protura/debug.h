@@ -42,6 +42,12 @@
 # define KP_SPINLOCK 99
 #endif
 
+#ifdef CONFIG_KERNEL_LOG_INODE_LOCK
+# define KP_LOCK_INODE KP_DEBUG
+#else
+# define KP_LOCK_INODE 99
+#endif
+
 void kprintf_internal(const char *s, ...) __printf(1, 2);
 void kprintfv_internal(const char *s, va_list);
 void kp_output_register(void (*print) (const char *fmt, va_list lst), const char *name);

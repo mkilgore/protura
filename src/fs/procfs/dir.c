@@ -124,6 +124,8 @@ static int procfs_inode_dir_read_dent(struct file *filp, struct dent *dent, size
     if (!ret)
         filp->offset++;
 
+    pinode->i.atime = protura_current_time_get();
+
     if (ret)
         return ret;
     else

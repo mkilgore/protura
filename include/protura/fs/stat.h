@@ -3,6 +3,7 @@
 
 #ifdef __KERNEL__
 # include <protura/types.h>
+# include <protura/time.h>
 #endif
 
 struct stat {
@@ -15,9 +16,9 @@ struct stat {
     uint32_t st_rdev;
     uint32_t st_size;
 
-    uint32_t st_atime;
-    uint32_t st_mtime;
-    uint32_t st_ctime;
+    time_t st_atime;
+    time_t st_mtime;
+    time_t st_ctime;
     uint32_t st_blksize;
     uint32_t st_blocks;
 };

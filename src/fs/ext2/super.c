@@ -13,6 +13,7 @@
 #include <protura/mutex.h>
 #include <protura/dump_mem.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/time.h>
 
 #include <arch/spinlock.h>
 #include <protura/fs/block.h>
@@ -94,6 +95,12 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
             atomic32_set(&inode->i.nlinks, disk_inode->links_count);
             inode->i.blocks = disk_inode->blocks;
 
+            inode->i.atime = disk_inode->atime;
+            inode->i.mtime = disk_inode->mtime;
+            inode->i.ctime = disk_inode->ctime;
+
+            inode->dtime = disk_inode->dtime;
+
             if (S_ISCHR(disk_inode->mode) || S_ISBLK(disk_inode->mode)) {
                 /* Two possible dev formats: (Found in Linux Kernel source code)
                  * Major=M, Minor=I
@@ -139,6 +146,11 @@ static void verify_ext2_inode(struct super_block *super, struct ext2_inode *inod
         inode_assert(inode, (off_t)dinode->size == inode->i.size);
         inode_assert(inode, dinode->links_count == atomic32_get(&inode->i.nlinks));
         inode_assert(inode, dinode->blocks == inode->i.blocks);
+
+        inode_assert(inode, dinode->atime == inode->i.atime);
+        inode_assert(inode, dinode->mtime == inode->i.mtime);
+        inode_assert(inode, dinode->ctime == inode->i.ctime);
+        inode_assert(inode, dinode->dtime == inode->dtime);
 
         if (S_ISCHR(dinode->mode) || S_ISBLK(dinode->mode)) {
             /* FIXME: Only handles the simple cases, not the case that dev is
@@ -186,6 +198,11 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
         dinode->links_count = atomic32_get(&inode->i.nlinks);
         dinode->blocks = inode->i.blocks;
 
+        dinode->atime = inode->i.atime;
+        dinode->ctime = inode->i.ctime;
+        dinode->mtime = inode->i.mtime;
+        dinode->dtime = inode->dtime;
+
         if (S_ISCHR(inode->i.mode) || S_ISBLK(inode->i.mode)) {
             dinode->blk_ptrs[0] = (uint32_t)inode->i.dev_no;
         } else {
@@ -205,6 +222,7 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
 static int ext2_inode_delete(struct super_block *super, struct inode *i)
 {
     struct ext2_super_block *sb = container_of(super, struct ext2_super_block, sb);
+    struct ext2_inode *ext2i = container_of(i, struct ext2_inode, i);
     struct block *b;
     int inode_group, inode_entry;
 
@@ -214,7 +232,9 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
     if (i->ino == EXT2_ACL_IDX_INO || i->ino == EXT2_ACL_DATA_INO)
         return 0;
 
-    __ext2_inode_truncate(container_of(i, struct ext2_inode, i), 0);
+    __ext2_inode_truncate(ext2i, 0);
+
+    ext2i->dtime = protura_current_time_get();
 
     using_super_block(super) {
         if (inode_is_dirty(i)) {
@@ -379,6 +399,8 @@ static struct super_block *ext2_sb_read(dev_t dev)
                 sb->groups[i].block_nr_inode_table);
     }
 
+    sb->disksb.last_mount_time = protura_current_time_get();
+
     kp_ext2(sb, "Reading root inode\n");
     sb->sb.root = inode_get(&sb->sb, EXT2_ROOT_INO);
 
@@ -396,6 +418,8 @@ static int ext2_sb_write(struct super_block *sb)
     int total_bg_blocks = (ext2sb->block_group_count * sizeof(struct ext2_disk_block_group) + ext2sb->block_size - 1) / ext2sb->block_size;
 
     kp_ext2(ext2sb, "groups_per_block=%d\n", groups_per_block);
+
+    ext2sb->disksb.last_write_time = protura_current_time_get();
 
     for (i = 0; i < total_bg_blocks; i++) {
         int offset = i * groups_per_block;

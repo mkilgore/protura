@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/scheduler.h>
+#include <protura/signal.h>
 #include <protura/kassert.h>
 #include <protura/wait.h>
 
@@ -36,7 +37,7 @@ int keyboard_file_read(struct file *filp, void *vbuf, size_t len)
     arch_keyboard_wakeup_add(current);
 
   sleep_again:
-    sleep {
+    sleep_intr {
         while ((cur_pos != len && (c = arch_keyboard_has_char()))) {
             buf[cur_pos] = arch_keyboard_get_char();
             cur_pos++;
@@ -45,6 +46,10 @@ int keyboard_file_read(struct file *filp, void *vbuf, size_t len)
         /* Only sleep if there was no data to be gotten */
         if (!cur_pos) {
             scheduler_task_yield();
+            if (has_pending_signal(current)) {
+                arch_keyboard_wakeup_remove(current);
+                return -ERESTARTSYS;
+            }
             goto sleep_again;
         }
     }

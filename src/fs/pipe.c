@@ -118,15 +118,15 @@ static int pipe_release(struct file *filp, int reader, int writer)
 
     using_mutex(&pinfo->pipe_buf_lock) {
         if (reader) {
-            kp(KP_NORMAL, "Pipe release reader!\n");
             pinfo->readers--;
+            kp(KP_NORMAL, "Pipe release readers: %d!\n", pinfo->readers);
             if (pinfo->readers == 0)
                 wait_queue_wake(&pinfo->write_queue);
         }
 
         if (writer) {
-            kp(KP_NORMAL, "Pipe release writer!\n");
             pinfo->writers--;
+            kp(KP_NORMAL, "Pipe release writers: %d!\n", pinfo->writers);
             if (pinfo->writers == 0)
                 wait_queue_wake(&pinfo->read_queue);
         }
@@ -206,9 +206,17 @@ static int pipe_read(struct file *filp, void *data, size_t size)
                 wake_writers = 0;
 
                 /* Sleep until more data */
-                sleep_with_wait_queue(&pinfo->read_queue)
-                    not_using_mutex(&pinfo->pipe_buf_lock)
+                sleep_intr_with_wait_queue(&pinfo->read_queue) {
+                    not_using_mutex(&pinfo->pipe_buf_lock) {
                         scheduler_task_yield();
+                        kp(KP_TRACE, "pipe yield() return, pending sig: %d\n", has_pending_signal(cpu_get_local()->current));
+                        if (has_pending_signal(cpu_get_local()->current)) {
+                            wait_queue_unregister();
+                            return -ERESTARTSYS;
+                        }
+
+                    }
+                }
                 kp(KP_NORMAL, "PIPE read: done !size\n");
             }
         }
@@ -228,7 +236,10 @@ static int pipe_write(struct file *filp, void *data, size_t size)
 {
     struct pipe_info *pinfo = &filp->inode->pipe_info;
     struct page *p;
+    struct task *current = cpu_get_local()->current;
+    size_t original_size = size;
     int wake_readers = 0;
+    int ret = 0;
 
     kp(KP_NORMAL, "PIPE: "PRinode" write: %d\n", Pinode(filp->inode), size);
 
@@ -278,15 +289,29 @@ static int pipe_write(struct file *filp, void *data, size_t size)
                 continue;
             }
 
+            /* If there's no data and no readers, then we send a SIGPIPE to
+             * ourselves and exit with -EPIPE */
+            if (size == original_size && !pinfo->readers) {
+                SIGSET_SET(&current->sig_pending, SIGPIPE);
+                ret = -EPIPE;
+                break;
+            }
+
             if (size) {
                 if (wake_readers)
                     wait_queue_wake(&pinfo->read_queue);
 
                 wake_readers = 0;
 
-                sleep_with_wait_queue(&pinfo->write_queue)
-                    not_using_mutex(&pinfo->pipe_buf_lock)
+                sleep_intr_with_wait_queue(&pinfo->write_queue) {
+                    not_using_mutex(&pinfo->pipe_buf_lock) {
                         scheduler_task_yield();
+                        if (has_pending_signal(cpu_get_local()->current)) {
+                            wait_queue_unregister();
+                            return -ERESTARTSYS;
+                        }
+                    }
+                }
             }
         }
 
@@ -297,7 +322,10 @@ static int pipe_write(struct file *filp, void *data, size_t size)
             wait_queue_wake(&pinfo->read_queue);
     }
 
-    return 0;
+    if (!ret)
+        return original_size - size;
+    else
+        return ret;
 }
 
 struct file_ops pipe_read_file_ops = {
@@ -329,6 +357,7 @@ int sys_pipe(int *fds)
     int ret = 0;
     struct file *filps[2];
     struct inode *inode;
+    struct task *current = cpu_get_local()->current;
 
     fds[0] = fd_get_empty();
 
@@ -372,6 +401,9 @@ int sys_pipe(int *fds)
 
     fd_assign(fds[P_READ], filps[P_READ]);
     fd_assign(fds[P_WRITE], filps[P_WRITE]);
+
+    FD_CLR(fds[P_READ], &current->close_on_exec);
+    FD_CLR(fds[P_WRITE], &current->close_on_exec);
 
     kp(KP_NORMAL, "PIPE: 0 inode: %p, file_refs: %d\n", filps[0]->inode, atomic_get(&filps[0]->ref));
     kp(KP_NORMAL, "PIPE: 1 inode: %p, file_refs: %d\n", filps[1]->inode, atomic_get(&filps[1]->ref));

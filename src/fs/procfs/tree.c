@@ -38,6 +38,7 @@ void procfs_register_entry(struct procfs_dir *parent, const char *name, int (*re
     entry->node.name = name;
     entry->node.mode = S_IFREG | 0777;
     entry->node.parent = parent;
+    entry->node.ctime = protura_current_time_get();
     entry->node.ino = procfs_next_ino();
     entry->readpage = readpage;
 
@@ -67,6 +68,7 @@ struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *na
     new->node.name = name;
     new->node.mode = S_IFDIR | 0777;
     new->node.parent = parent;
+    new->node.ctime = protura_current_time_get();
     new->node.ino = procfs_next_ino();
 
     using_mutex(&parent->node.lock) {

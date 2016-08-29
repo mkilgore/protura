@@ -16,6 +16,9 @@ int sys_sigwait(const sigset_t *__user set, int *__user sig);
 int sys_pause(void);
 int sys_sigsuspend(const sigset_t *__user mask);
 
+#define has_pending_signal(task) \
+    ((task)->sig_pending & ~((task)->sig_blocked))
+
 #endif
 
 #endif

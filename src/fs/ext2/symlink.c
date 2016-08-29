@@ -64,6 +64,9 @@ static int ext2_follow_link(struct inode *dir, struct inode *symlink, struct ino
 
     ret = namex(link, dir, result);
 
+    symlink->atime = protura_current_time_get();
+    inode_set_dirty(symlink);
+
     if (b) {
         brelease(b);
         inode_unlock_read(symlink);
@@ -97,6 +100,9 @@ static int ext2_readlink(struct inode *symlink, char *buf, size_t buf_len)
 
     strncpy(buf, link, buf_len);
     buf[buf_len - 1] = '\0';
+
+    symlink->atime = protura_current_time_get();
+    inode_set_dirty(symlink);
 
     if (b)
         brelease(b);

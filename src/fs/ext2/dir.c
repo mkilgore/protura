@@ -61,6 +61,9 @@ static int ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t dent_
     using_inode_lock_read(filp->inode)
         ret = __ext2_dir_read_dent(filp, dent, dent_size);
 
+    filp->inode->atime = protura_current_time_get();
+    inode_set_dirty(filp->inode);
+
     return ret;
 }
 
@@ -88,7 +91,12 @@ static int ext2_dir_link(struct inode *dir, struct inode *old, const char *name,
     if (ret)
         return ret;
 
-    inode_inc_nlinks(old);
+    old->mtime = old->ctime = protura_current_time_get();
+    atomic_inc(&old->nlinks);
+    inode_set_dirty(old);
+
+    dir->mtime = dir->ctime = protura_current_time_get();
+    inode_set_dirty(dir);
 
     return 0;
 }
@@ -105,7 +113,12 @@ static int ext2_dir_unlink(struct inode *dir, struct inode *link, const char *na
     if (ret)
         return ret;
 
-    inode_dec_nlinks(link);
+    link->mtime = link->ctime = protura_current_time_get();
+    atomic_dec(&link->nlinks);
+    inode_set_dirty(link);
+
+    dir->mtime = dir->ctime = protura_current_time_get();
+    inode_set_dirty(dir);
 
     return ret;
 }
@@ -143,6 +156,9 @@ static int ext2_dir_rmdir(struct inode *dir, struct inode *deldir, const char *n
 
     /* entry in dir */
     inode_dec_nlinks(deldir);
+
+    dir->ctime = dir->mtime = protura_current_time_get();
+    deldir->ctime = deldir->mtime = protura_current_time_get();
 
     return ret;
 }
@@ -196,10 +212,12 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     using_super_block(dir->sb)
         sb->groups[ext2_ino_group(sb, ino->i.ino)].directory_count++;
 
+    newdir->ctime = newdir->mtime = protura_current_time_get();
     atomic_set(&newdir->nlinks, 2);
     inode_set_valid(newdir);
     inode_set_dirty(newdir);
 
+    dir->ctime = dir->mtime = protura_current_time_get();
     inode_inc_nlinks(dir);
 
   cleanup_newdir:
@@ -235,9 +253,13 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     }
 
     /* We wait to do this until we're sure the entry succeeded */
+    ino->ctime = ino->mtime = protura_current_time_get();
     inode_set_valid(ino);
     inode_set_dirty(ino);
     inode_inc_nlinks(ino);
+
+    dir->ctime = dir->mtime = protura_current_time_get();
+    inode_set_dirty(dir);
 
     kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&ino->ref));
 
@@ -271,9 +293,13 @@ static int ext2_dir_mknod(struct inode *dir, const char *name, size_t len, mode_
         return ret;
     }
 
+    inode->ctime = inode->mtime = protura_current_time_get();
     inode_set_valid(inode);
     inode_set_dirty(inode);
     inode_inc_nlinks(inode);
+
+    dir->ctime = dir->mtime = protura_current_time_get();
+    inode_set_dirty(dir);
 
     return 0;
 }
@@ -415,6 +441,10 @@ static int ext2_dir_rename(struct inode *old_dir, const char *name, size_t len, 
 
     ret = __ext2_dir_change_dotdot(entry, new_dir->ino);
 
+    entry->ctime = entry->mtime = protura_current_time_get();
+    new_dir->ctime = new_dir->mtime = protura_current_time_get();
+    old_dir->ctime = old_dir->mtime = protura_current_time_get();
+
   cleanup_unlock_inodes:
     inode_unlock_write(lock3);
     inode_unlock_write(lock2);
@@ -471,9 +501,13 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
     }
 
     /* We wait to do this until we're sure the entry succeeded */
+    symlink->ctime = symlink->mtime = protura_current_time_get();
     inode_set_valid(symlink);
     inode_set_dirty(symlink);
     inode_inc_nlinks(symlink);
+
+    dir->ctime = dir->mtime = protura_current_time_get();
+    inode_set_dirty(dir);
 
     kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&symlink->ref));
 

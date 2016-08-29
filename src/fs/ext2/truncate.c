@@ -182,6 +182,7 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     /* 'blocks' is always a count of 512-byte blocks */
     inode->i.blocks = starting_block * (block_size / 512);
     inode->i.size = size;
+    inode->i.ctime = inode->i.mtime = protura_current_time_get();
     inode_set_dirty(&inode->i);
     return 0;
 }

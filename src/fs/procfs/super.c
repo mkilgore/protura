@@ -64,6 +64,8 @@ static int procfs_inode_read(struct super_block *sb, struct inode *inode)
     pinode->i.block_size = PG_SIZE;
     pinode->i.size = 0;
 
+    pinode->i.ctime = pinode->i.atime = pinode->i.mtime = protura_current_time_get();
+
     pinode->i.sb = sb;
     pinode->node = node;
 

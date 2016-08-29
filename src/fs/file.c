@@ -68,6 +68,9 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
 
     filp->offset += have_read;
 
+    filp->inode->atime = protura_current_time_get();
+    inode_set_dirty(filp->inode);
+
     return have_read;
 }
 
@@ -132,6 +135,9 @@ int fs_file_generic_write(struct file *filp, void *vbuf, size_t len)
             sec++;
         }
     }
+
+    filp->inode->ctime = filp->inode->mtime = protura_current_time_get();
+    inode_set_dirty(filp->inode);
 
     if (ret == 0) {
         filp->offset += have_written;

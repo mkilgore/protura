@@ -12,6 +12,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/scheduler.h>
+#include <protura/signal.h>
 #include <protura/kassert.h>
 #include <protura/wait.h>
 #include <protura/basic_printf.h>
@@ -123,7 +124,7 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
     wakeup_list_add(&com->watch_list, current);
 
   sleep_again:
-    sleep {
+    sleep_intr {
         using_spinlock(&com->buf_lock) {
             while ((cur_pos != len) && (com->buf_len > 0)) {
                 buf[cur_pos] = char_buf_read_char(&com->buf);
@@ -136,6 +137,10 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
         /* Sleep if there was no data in the buffer */
         if (!cur_pos) {
             scheduler_task_yield();
+            if (has_pending_signal(current)) {
+                wakeup_list_remove(&com->watch_list, current);
+                return -ERESTARTSYS;
+            }
             goto sleep_again;
         }
     }

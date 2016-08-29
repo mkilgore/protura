@@ -238,9 +238,9 @@ int vfs_stat(struct inode *inode, struct stat *buf)
     buf->st_uid = 0;
     buf->st_gid = 0;
 
-    buf->st_atime = 0;
-    buf->st_ctime = 0;
-    buf->st_mtime = 0;
+    buf->st_atime = inode->atime;
+    buf->st_ctime = inode->ctime;
+    buf->st_mtime = inode->mtime;
     buf->st_blksize = inode->block_size;
     buf->st_blocks = inode->blocks;
 

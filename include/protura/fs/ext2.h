@@ -9,6 +9,7 @@
 #define INCLUDE_FS_EXT2_H
 
 #include <protura/types.h>
+#include <protura/time.h>
 
 struct ext2_disk_sb {
     uint32_t inode_total;
@@ -94,10 +95,10 @@ struct ext2_disk_inode {
     uint16_t mode;
     uint16_t uid;
     uint32_t size;
-    uint32_t atime;
-    uint32_t ctime;
-    uint32_t mtime;
-    uint32_t dtime;
+    int32_t atime;
+    int32_t ctime;
+    int32_t mtime;
+    int32_t dtime;
     uint16_t gid;
     uint16_t links_count;
     uint32_t blocks; /* Recorded in number of 512 byte blocks */
@@ -182,6 +183,8 @@ struct ext2_inode {
 
     sector_t inode_group_blk_nr;
     int inode_group_blk_offset;
+
+    time_t dtime;
 
     uint32_t flags;
     union {

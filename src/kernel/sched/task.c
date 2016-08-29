@@ -432,7 +432,7 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
 
             list_foreach_entry(&t->task_children, child, task_sibling_list) {
                 kp(KP_TRACE, "Checking child %s(%p, %d)\n", child->name, child, child->pid);
-                if (childpid != -1 && child->pid != childpid) {
+                if (childpid != (pid_t)-1 && child->pid != childpid) {
                     kp(KP_TRACE, "Looking for %d, skipping child\n", childpid);
                     continue;
                 }
@@ -448,7 +448,7 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
 
         if (!have_no_children && !have_child && !(options & WNOHANG)) {
             scheduler_task_yield();
-            if (t->sig_pending)
+            if (has_pending_signal(t))
                 return -ERESTARTSYS;
             goto sleep_again;
         }

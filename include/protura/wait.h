@@ -78,6 +78,9 @@ int wait_queue_wake_all(struct wait_queue *);
 #define sleep_with_wait_queue_begin(queue) \
     (wait_queue_register(queue), scheduler_set_sleeping())
 
+#define sleep_intr_with_wait_queue_begin(queue) \
+    (wait_queue_register(queue), scheduler_set_intr_sleeping())
+
 #define sleep_with_wait_queue_end() \
     (scheduler_set_running(), wait_queue_unregister())
 
@@ -86,6 +89,10 @@ int wait_queue_wake_all(struct wait_queue *);
  * to settle for one 'using' macro that does both of the above. */
 #define sleep_with_wait_queue(queue) \
     using_nocheck(sleep_with_wait_queue_begin(queue), \
+            (sleep_with_wait_queue_end()))
+
+#define sleep_intr_with_wait_queue(queue) \
+    using_nocheck(sleep_intr_with_wait_queue_begin(queue), \
             (sleep_with_wait_queue_end()))
 
 #define WNOHANG 1
