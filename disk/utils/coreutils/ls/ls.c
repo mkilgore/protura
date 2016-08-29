@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
@@ -55,8 +56,20 @@ static enum all_option show_all = SHOW_NORMAL;
 static int long_fmt = 0;
 static int dereference_links = 0;
 
-void list_items(DIR *directory) {
+static const char *type_ids[] = {
+    [S_IFREG] = "r",
+    [S_IFDIR] = "d",
+    [S_IFBLK] = "b",
+    [S_IFCHR] = "c",
+    [S_IFLNK] = "l",
+};
+
+void list_items(DIR *directory)
+{
     struct dirent *item;
+    int column_count;
+    char columns[10][20];
+    int i;
 
     while ((item = readdir(directory))) {
         struct stat st;
@@ -78,33 +91,37 @@ void list_items(DIR *directory) {
         else
             stat(item->d_name, &st);
 
-        if (S_ISDIR(st.st_mode)) {
-            printf("d\t%d\t%ld\t%s\n", (int)st.st_ino, (long)st.st_size, item->d_name);
-            continue;
+        column_count = 0;
+
+        snprintf(columns[column_count], sizeof(columns[column_count]), "%s", type_ids[st.st_mode & S_IFMT]);
+        column_count++;
+
+        snprintf(columns[column_count], sizeof(columns[column_count]), "%d", (int)st.st_ino);
+        column_count++;
+
+        if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode)) {
+            snprintf(columns[column_count], sizeof(columns[column_count]), "%d", (int)st.st_size);
+            column_count++;
         }
 
-        if (S_ISREG(st.st_mode)) {
-            printf("-\t%d\t%ld\t%s\n", (int)st.st_ino, (long)st.st_size, item->d_name);
-            continue;
+        if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)){
+            snprintf(columns[column_count], sizeof(columns[column_count]), "%d, %d", (int)major(st.st_rdev), (int)minor(st.st_rdev));
+            column_count++;
         }
 
-        if (S_ISCHR(st.st_mode)) {
-            printf("c\t%d\t%d, %d\t%s\n", (int)st.st_ino, (int)major(st.st_rdev), (int)minor(st.st_rdev), item->d_name);
-            continue;
-        }
+        strftime(columns[column_count], sizeof(columns[column_count]), "%D %T", gmtime(&st.st_mtime));
+        column_count++;
 
-        if (S_ISBLK(st.st_mode)) {
-            printf("b\t%d\t%d, %d\t%s\n", (int)st.st_ino, (int)major(st.st_rdev), (int)minor(st.st_rdev), item->d_name);
-            continue;
-        }
+        for (i = 0; i < column_count; i++)
+            printf("%s\t", columns[i]);
 
-        if (S_ISLNK(st.st_mode)) {
+        if (!S_ISLNK(st.st_mode)) {
+            printf("%s\n", item->d_name);
+        } else {
             char buf[255];
-
             readlink(item->d_name, buf, sizeof(buf));
 
-            printf("l\t%d\t%ld\t%s -> %s\n", (int)st.st_ino, (long)st.st_size, item->d_name, buf);
-            continue;
+            printf("%s -> %s\n", item->d_name, buf);
         }
     }
 }

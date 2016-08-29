@@ -103,7 +103,6 @@ int main(int argc, char **argv) {
             return 0;
 
         case ARG_numeric:
-            printf("Numeric\n");
             sortfunc = numericcmp;
             break;
 

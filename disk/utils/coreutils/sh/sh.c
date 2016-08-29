@@ -48,33 +48,12 @@ static const struct arg args[] = {
 
 char *cwd;
 
-void handle_child(int sig)
-{
-    while (waitpid(-1, NULL, WNOHANG) > 0)
-        ;
-}
-
-void handle_sigint(int sig)
-{
-    pid_t pid = getpid();
-    /* "disable" SIGINT on the main thread so we don't kill the shell when we
-     * kill our children */
-    signal(SIGINT, SIG_IGN);
-    kill(-pid, SIGINT);
-}
-
-void ignore_sig(int sig)
-{
-    /* Restore SIGINT handler - We "disable" it by setting it to calling this
-     * function when we use SIGINT to kill off all of our children */
-    signal(SIGINT, handle_sigint);
-}
-
 int main(int argc, char **argv)
 {
     int fd;
     enum arg_index ret;
     int is_script = 0;
+    sigset_t blocked;
 
     while ((ret = arg_parser(argc, argv, args)) != ARG_DONE) {
         switch (ret) {
@@ -100,8 +79,10 @@ int main(int argc, char **argv)
         }
     }
 
-    signal(SIGCHLD, handle_child);
-    signal(SIGINT, handle_sigint);
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGCHLD);
+
+    sigprocmask(SIG_BLOCK, &blocked, NULL);
 
     cwd = strdup("/");
 

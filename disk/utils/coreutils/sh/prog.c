@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -25,6 +26,7 @@
 static void start_child(const struct prog_desc *prog)
 {
     int ret;
+    sigset_t blocked;
 
     if (prog->stdin_fd != STDIN_FILENO) {
         dup2(prog->stdin_fd, STDIN_FILENO);
@@ -40,6 +42,9 @@ static void start_child(const struct prog_desc *prog)
         dup2(prog->stderr_fd, STDERR_FILENO);
         close(prog->stderr_fd);
     }
+
+    sigemptyset(&blocked);
+    sigprocmask(SIG_SETMASK, &blocked, NULL);
 
     if ((ret = execvp(prog->file, prog->argv)) == -1) {
         perror(prog->file);

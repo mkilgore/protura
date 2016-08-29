@@ -52,10 +52,13 @@ static void prog_add_arg(struct prog_desc *prog, const char *str, size_t len)
     prog->argv[prog->argc] = NULL;
 }
 
+#define PROC_MAX 20
+
 static void parse_line(const char *line)
 {
     int i;
-    pid_t child;
+    int proc_count = 0;
+    pid_t children[20];
     struct prog_desc prog = { 0 };
     enum input_token token;
     struct input_lexer state = { 0 };
@@ -114,9 +117,12 @@ static void parse_line(const char *line)
             if (builtin_exec(&prog, NULL) == 0)
                 goto done_exec;
 
-            prog_start(&prog, &child);
+            prog_start(&prog, &children[proc_count++]);
 
-            waitpid(child, NULL, 0);
+            /*
+            ret = waitpid(child, NULL, 0);
+
+            child = 0;*/
 
          done_exec:
             close_prog(&prog);
@@ -128,8 +134,11 @@ static void parse_line(const char *line)
             int pipefd[2];
             pipe(pipefd);
 
+            fcntl(pipefd[0], F_SETFD, fcntl(pipefd[0], F_GETFD) | FD_CLOEXEC);
+            fcntl(pipefd[1], F_SETFD, fcntl(pipefd[1], F_GETFD) | FD_CLOEXEC);
+
             prog.stdout_fd = pipefd[1];
-            prog_start(&prog, &child);
+            prog_start(&prog, &children[proc_count++]);
 
             close_prog(&prog);
             prog_init(&prog);
@@ -144,11 +153,13 @@ static void parse_line(const char *line)
 
     if (prog.file) {
         if (builtin_exec(&prog, NULL) != 0) {
-            prog_start(&prog, &child);
-
-            waitpid(child, NULL, 0);
+            prog_start(&prog, &children[proc_count++]);
         }
     }
+
+    if (proc_count)
+        for (i = 0; i < proc_count; i++)
+            waitpid(children[i], NULL, 0);
 
 cleanup:
     close_prog(&prog);
