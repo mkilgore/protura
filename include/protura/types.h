@@ -23,7 +23,7 @@ typedef int32_t s32;
 typedef int64_t s64;
 
 typedef int32_t off_t;
-typedef uint32_t pid_t;
+typedef int32_t pid_t;
 
 typedef uint32_t mode_t;
 
