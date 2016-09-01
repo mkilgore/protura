@@ -26,6 +26,8 @@
 #include <protura/dump_mem.h>
 #include <protura/mm/palloc.h>
 #include <protura/signal.h>
+#include <protura/task_api.h>
+#include <protura/fs/file.h>
 
 #include <arch/fake_task.h>
 #include <arch/kernel_task.h>
@@ -223,36 +225,68 @@ int scheduler_task_exists(pid_t pid)
     return ret;
 }
 
+static void send_sig(struct task *t, int signal, int force)
+{
+    SIGSET_SET(&t->sig_pending, signal);
+    if (force)
+        SIGSET_UNSET(&t->sig_blocked, signal);
+
+    scheduler_task_intr_wake(t);
+}
+
 int scheduler_task_send_signal(pid_t pid, int signal, int force)
 {
     int ret = 0;
-    struct task *t, *found = NULL;
+    struct task *t;
 
     if (signal < 1 || signal > NSIG)
         return -EINVAL;
 
     kp(KP_TRACE, "signal: %d to %d\n", signal, pid);
 
+    ret = -ESRCH;
+
     using_spinlock(&ktasks.lock) {
         list_foreach_entry(&ktasks.list, t, task_list_node) {
-            if (t->pid == pid) {
-                found = t;
+            kp(KP_TRACE, "signal: Checking Pid %d\n", t->pid);
+            if (pid > 0 && t->pid == pid) {
+                send_sig(t, signal, force);
+                ret = 0;
                 break;
+            } else if (pid < 0 && t->pgid == -pid) {
+                kp(KP_TRACE, "signal: Sending signal %d to %d\n", signal, t->pid);
+                send_sig(t, signal, force);
+                ret = 0;
             }
-        }
-
-        if (found) {
-            SIGSET_SET(&found->sig_pending, signal);
-            if (force)
-                SIGSET_UNSET(&found->sig_blocked, signal);
-
-            scheduler_task_intr_wake(found);
-        } else {
-            ret = -ESRCH;
         }
     }
 
     return ret;
+}
+
+struct task *scheduler_task_get(pid_t pid)
+{
+    struct task *t, *found = NULL;
+
+    spinlock_acquire(&ktasks.lock);
+
+    list_foreach_entry(&ktasks.list, t, task_list_node) {
+        if (t->pid == pid) {
+            found = t;
+            break;
+        }
+    }
+
+    if (found)
+        return found;
+
+    spinlock_release(&ktasks.lock);
+    return 0;
+}
+
+void scheduler_task_put(struct task *t)
+{
+    spinlock_release(&ktasks.lock);
 }
 
 void scheduler(void)
@@ -360,7 +394,7 @@ int scheduler_tasks_read(void *p, size_t size, size_t *len)
 {
     struct task *t;
 
-    *len = snprintf(p, size, "Pid\tPPid\tState\tKilled\tName\n");
+    *len = snprintf(p, size, "Pid\tPPid\tPGid\tState\tKilled\tName\n");
 
     using_spinlock(&ktasks.lock) {
         list_foreach_entry(&ktasks.list, t, task_list_node) {
@@ -372,9 +406,10 @@ int scheduler_tasks_read(void *p, size_t size, size_t *len)
                 state = TASK_RUNNING;
 
             *len += snprintf(p + *len, size - *len,
-                    "%d\t%d\t%s\t%d\t\"%s\"\n",
+                    "%d\t%d\t%d\t%s\t%d\t\"%s\"\n",
                     t->pid,
                     (t->parent)? t->parent->pid: 0,
+                    t->pgid,
                     task_states[state],
                     t->killed,
                     t->name);
@@ -385,6 +420,89 @@ int scheduler_tasks_read(void *p, size_t size, size_t *len)
     }
 
     return 0;
+}
+
+static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
+{
+    memset(tinfo, 0, sizeof(*tinfo));
+
+    tinfo->pid = task->pid;
+
+    if (task->parent)
+        tinfo->ppid = task->parent->pid;
+    else
+        tinfo->ppid = 0;
+
+    tinfo->pgid = task->pgid;
+
+    switch (task->state) {
+    case TASK_RUNNING:
+    case TASK_RUNNABLE:
+        tinfo->state = TASK_API_RUNNING;
+        break;
+
+    case TASK_ZOMBIE:
+        tinfo->state = TASK_API_ZOMBIE;
+        break;
+
+    case TASK_SLEEPING:
+        tinfo->state = TASK_API_SLEEPING;
+        break;
+
+    case TASK_INTR_SLEEPING:
+        tinfo->state = TASK_API_INTR_SLEEPING;
+        break;
+
+    case TASK_DEAD:
+    case TASK_NONE:
+        tinfo->state = TASK_API_NONE;
+        break;
+    }
+
+    memcpy(&tinfo->close_on_exec, &task->close_on_exec, sizeof(tinfo->close_on_exec));
+    memcpy(&tinfo->sig_pending, &task->sig_pending, sizeof(tinfo->sig_pending));
+    memcpy(&tinfo->sig_blocked, &task->sig_blocked, sizeof(tinfo->sig_blocked));
+
+    memcpy(tinfo->name, task->name, sizeof(tinfo->name));
+}
+
+int scheduler_tasks_api_read(struct file *filp, void *p, size_t size)
+{
+    struct task_api_info tinfo;
+    struct task *task, *found = NULL;
+    pid_t last_pid = filp->offset;
+    pid_t found_pid = -1;
+
+    using_spinlock(&ktasks.lock) {
+        list_foreach_entry(&ktasks.list, task, task_list_node) {
+            if (task->state == TASK_DEAD
+                || task->state == TASK_NONE)
+                continue;
+
+            if (task->pid > last_pid
+                && (found_pid == -1 || task->pid < found_pid)) {
+                found = task;
+                found_pid = task->pid;
+            }
+        }
+
+        if (!found)
+            break;
+
+        fill_task_api_info(&tinfo, found);
+    }
+
+    if (found) {
+        filp->offset = found_pid;
+        if (size > sizeof(tinfo))
+            memcpy(p, &tinfo, sizeof(tinfo));
+        else
+            memcpy(p, &tinfo, size);
+
+        return size;
+    } else {
+        return 0;
+    }
 }
 
 void wakeup_list_init(struct wakeup_list *list)

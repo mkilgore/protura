@@ -23,6 +23,16 @@ void scheduler_task_mark_dead(struct task *t);
 int scheduler_task_send_signal(pid_t pid, int signal, int force);
 int scheduler_task_exists(pid_t pid);
 int scheduler_tasks_read(void *p, size_t size, size_t *len);
+int scheduler_tasks_api_read(struct file *filp, void *p, size_t size);
+
+/*
+ * These return a coresponding struct task
+ *
+ * Note: if the returned task is not NULL, then the caller now holds the ktasks
+ * spinlock. scheduler_task_put() will release it.
+ */
+struct task *scheduler_task_get(pid_t pid);
+void scheduler_task_put(struct task *);
 
 static inline enum task_state scheduler_task_get_state(struct task *t)
 {
