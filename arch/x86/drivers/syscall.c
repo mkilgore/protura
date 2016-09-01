@@ -286,6 +286,21 @@ static void sys_handler_time(struct irq_frame *frame)
     frame->eax = sys_time((time_t *)frame->ebx);
 }
 
+static void sys_handler_setpgid(struct irq_frame *frame)
+{
+    frame->eax = sys_setpgid(frame->ebx, frame->ecx);
+}
+
+static void sys_handler_getpgrp(struct irq_frame *frame)
+{
+    frame->eax = sys_getpgrp((pid_t *)frame->ebx);
+}
+
+static void sys_handler_fork_pgrp(struct irq_frame *frame)
+{
+    frame->eax = sys_fork_pgrp((pid_t)frame->ebx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -345,6 +360,9 @@ static struct syscall_handler {
     SYSCALL(UMOUNT, sys_handler_umount),
     SYSCALL(FCNTL, sys_handler_fcntl),
     SYSCALL(TIME, sys_handler_time),
+    SYSCALL(SETPGID, sys_handler_setpgid),
+    SYSCALL(GETPGRP, sys_handler_getpgrp),
+    SYSCALL(FORK_PGRP, sys_handler_fork_pgrp),
 };
 
 static void syscall_handler(struct irq_frame *frame)

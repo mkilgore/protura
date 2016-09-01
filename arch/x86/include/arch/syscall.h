@@ -69,6 +69,10 @@
 
 #define SYSCALL_TIME 0x41
 
+#define SYSCALL_SETPGID 0x42
+#define SYSCALL_GETPGRP 0x43
+#define SYSCALL_FORK_PGRP 0x44
+
 #ifdef __KERNEL__
 #ifndef ASM
 
