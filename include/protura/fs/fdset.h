@@ -8,8 +8,10 @@
 #ifndef INCLUDE_PROTURA_FS_FDSET_H
 #define INCLUDE_PROTURA_FS_FDSET_H
 
-#include <protura/types.h>
-#include <arch/bitops.h>
+#if __KERNEL__
+# include <protura/types.h>
+# include <arch/bitops.h>
+#endif
 
 #define NOFILE 32
 
