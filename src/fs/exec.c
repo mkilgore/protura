@@ -169,8 +169,6 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
         }
     }
 
-    current->sig_pending = 0;
-
     strcpy(current->name, new_name);
 
   close_fd:
