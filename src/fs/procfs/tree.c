@@ -24,6 +24,21 @@
 #include <protura/fs/procfs.h>
 #include "procfs_internal.h"
 
+static void procfs_add_node(struct procfs_dir *parent, struct procfs_node *node)
+{
+    using_mutex(&parent->node.lock) {
+        using_mutex(&node->lock) {
+            parent->node.nlinks++;
+            node->nlinks = 1;
+
+            procfs_hash_add_node(node);
+
+            list_add(&parent->entry_list, &node->parent_node);
+            parent->entry_count++;
+        }
+    }
+}
+
 void procfs_register_entry(struct procfs_dir *parent, const char *name, int (*readpage) (void *page, size_t page_size, size_t *len))
 {
     struct procfs_entry *entry;
@@ -36,23 +51,33 @@ void procfs_register_entry(struct procfs_dir *parent, const char *name, int (*re
     procfs_entry_init(entry);
 
     entry->node.name = name;
+    entry->node.len = strlen(name);
     entry->node.mode = S_IFREG | 0777;
     entry->node.parent = parent;
     entry->node.ctime = protura_current_time_get();
     entry->node.ino = procfs_next_ino();
     entry->readpage = readpage;
 
-    using_mutex(&parent->node.lock) {
-        using_mutex(&entry->node.lock) {
-            parent->node.nlinks++;
-            entry->node.nlinks = 1;
+    procfs_add_node(parent, &entry->node);
+}
 
-            procfs_hash_add_node(&entry->node);
+void procfs_register_entry_read(struct procfs_dir *parent, const char *name, int (*read) (struct file *filp, void *, size_t))
+{
+    struct procfs_entry *entry;
 
-            list_add(&parent->entry_list, &entry->node.parent_node);
-            parent->entry_count++;
-        }
-    }
+    entry = kmalloc(sizeof(*entry), PAL_KERNEL);
+
+    procfs_entry_init(entry);
+
+    entry->node.name = name;
+    entry->node.len = strlen(name);
+    entry->node.mode = S_IFREG | 0777;
+    entry->node.parent = parent;
+    entry->node.ctime = protura_current_time_get();
+    entry->node.ino = procfs_next_ino();
+    entry->read = read;
+
+    procfs_add_node(parent, &entry->node);
 }
 
 struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *name)
@@ -66,22 +91,13 @@ struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *na
 
     procfs_dir_init(new);
     new->node.name = name;
+    new->node.len = strlen(name);
     new->node.mode = S_IFDIR | 0777;
     new->node.parent = parent;
     new->node.ctime = protura_current_time_get();
     new->node.ino = procfs_next_ino();
 
-    using_mutex(&parent->node.lock) {
-        using_mutex(&new->node.lock) {
-            new->node.nlinks = 1;
-            parent->node.nlinks++;
-
-            procfs_hash_add_node(&new->node);
-
-            list_add(&parent->entry_list, &new->node.parent_node);
-            parent->entry_count++;
-        }
-    }
+    procfs_add_node(parent, &new->node);
 
     return new;
 }
@@ -89,6 +105,7 @@ struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *na
 struct procfs_dir procfs_root = {
     .node = {
         .name = "",
+        .len = 0,
         .ino = PROCFS_ROOT_INO,
         .mode = S_IFDIR | 0777,
         .nlinks = 1,

@@ -163,5 +163,7 @@ void procfs_init(void)
     procfs_register_entry(&procfs_root, "uptime", protura_uptime_read);
     procfs_register_entry(&procfs_root, "boottime", protura_boot_time_read);
     procfs_register_entry(&procfs_root, "currenttime", protura_current_time_read);
+
+    procfs_register_entry_read(&procfs_root, "tasks_api", scheduler_tasks_api_read);
 }
 

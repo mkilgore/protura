@@ -34,6 +34,11 @@ static int procfs_file_read(struct file *filp, void *buf, size_t size)
     size_t data_len, cpysize;
     int ret;
 
+    pinode->i.atime = protura_current_time_get();
+
+    if (entry->read)
+        return (entry->read)(filp, buf, size);
+
     if (filp->offset > 0)
         return 0;
 
@@ -55,7 +60,6 @@ static int procfs_file_read(struct file *filp, void *buf, size_t size)
 
     pfree_va(p, 0);
 
-    pinode->i.atime = protura_current_time_get();
 
     if (ret) {
         return ret;

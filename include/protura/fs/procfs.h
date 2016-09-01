@@ -24,6 +24,8 @@
 
 struct procfs_node {
     const char *name;
+    size_t len;
+
     ino_t ino;
     mode_t mode;
     int nlinks;
@@ -39,6 +41,8 @@ struct procfs_node {
 struct procfs_entry {
     struct procfs_node node;
     int (*readpage) (void *page, size_t page_size, size_t *len);
+
+    int (*read) (struct file *filp, void *buf, size_t);
 };
 
 struct procfs_dir {
@@ -81,6 +85,7 @@ struct procfs_inode {
 };
 
 void procfs_register_entry(struct procfs_dir *parent, const char *name, int (*readpage) (void *page, size_t page_size, size_t *len));
+void procfs_register_entry_read(struct procfs_dir *parent, const char *name, int (*read) (struct file *filp, void *, size_t));
 struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *name);
 
 struct procfs_dir procfs_root;

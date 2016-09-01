@@ -58,6 +58,7 @@ static int procfs_hash_node(ino_t ino)
 {
     return ino % PROCFS_HASH_TABLE_SIZE;
 }
+
 void procfs_hash_add_node(struct procfs_node *node)
 {
     using_mutex(&procfs_hashtable_lock)

@@ -47,7 +47,7 @@ static int procfs_inode_dir_lookup(struct inode *dir, const char *name, size_t l
 
     using_mutex(&dir_node->node.lock) {
         list_foreach_entry(&dir_node->entry_list, next, parent_node) {
-            if (strncmp(name, next->name, len) == 0) {
+            if (next->len == len && strncmp(name, next->name, len) == 0) {
                 found = next;
                 break;
             }
@@ -115,7 +115,7 @@ static int procfs_inode_dir_read_dent(struct file *filp, struct dent *dent, size
         }
 
         if (found)
-            ret = fill_dent(dent, dent_size, found->ino, found->name, strlen(found->name));
+            ret = fill_dent(dent, dent_size, found->ino, found->name, found->len);
         else
             ret = -EINVAL;
         break;
