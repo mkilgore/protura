@@ -12,6 +12,8 @@ struct prog_desc {
     int stdin_fd;
     int stdout_fd;
     int stderr_fd;
+
+    pid_t pgid;
 };
 
 /* On success, the Child's PID will be in '*child_pid',

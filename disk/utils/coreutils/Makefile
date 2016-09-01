@@ -16,6 +16,7 @@ COREUTILS_PROGS = \
 	more \
 	mount \
 	mv \
+	ps \
 	rmdir \
 	seq \
 	sh \
@@ -40,6 +41,8 @@ define def_util_build_rule
 $(1): $(2) | $$(DISK_BINDIR)
 	@echo " CCLD    $$@"
 	$$(Q)$$(CC) $$(COREUTILS_CFLAGS) $(3) $(2) -o $(1)
+	@echo " OBJCOPY $$@"
+	$$(Q)$$(OBJCOPY) --strip-unneeded $$@
 endef
 
 define def_util_dep_rule

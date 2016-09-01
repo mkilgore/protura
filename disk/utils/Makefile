@@ -44,4 +44,6 @@ disk/.%.d: disk/%.c
 disk/root/bin/%: disk/utils/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./disk/root/usr
 	@echo " CCLD    $@"
 	$(Q)$(CC) -o ./$@ ./$< $(DISK_LDFLAGS)
+	@echo " OBJCOPY $@"
+	$(Q)$(OBJCOPY) --strip-unneeded $@
 

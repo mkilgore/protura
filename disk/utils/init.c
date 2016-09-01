@@ -39,7 +39,7 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 {
     pid_t child_pid;
 
-    switch ((child_pid = fork())) {
+    switch ((child_pid = fork_pgrp(0))) {
     case -1:
         /* Fork error */
         return -1;
@@ -63,6 +63,7 @@ int main(int argc, char **argv)
 
     memset(&action, 0, sizeof(action));
 
+
     action.sa_handler = handle_children;
     sigaction(SIGCHLD, &action, NULL);
 
@@ -74,6 +75,8 @@ int main(int argc, char **argv)
     ret = mount(NULL, "/proc", "proc", 0, NULL);
     if (ret)
         perror("mount proc");
+
+    setpgid(0, 0);
 
     shell[0] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 

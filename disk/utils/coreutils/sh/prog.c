@@ -25,7 +25,7 @@
 
 static void start_child(const struct prog_desc *prog)
 {
-    int ret;
+    int ret, i;
     sigset_t blocked;
 
     if (prog->stdin_fd != STDIN_FILENO) {
@@ -43,6 +43,9 @@ static void start_child(const struct prog_desc *prog)
         close(prog->stderr_fd);
     }
 
+    for (i = 1; i <= NSIG; i++)
+        signal(i, SIG_DFL);
+
     sigemptyset(&blocked);
     sigprocmask(SIG_SETMASK, &blocked, NULL);
 
@@ -57,7 +60,12 @@ static void start_child(const struct prog_desc *prog)
 
 int prog_start(const struct prog_desc *prog, pid_t *child_pid)
 {
-    pid_t pid = fork();
+    sigset_t original_set, blocked;
+
+    sigfillset(&blocked);
+    sigprocmask(SIG_SETMASK, &blocked, &original_set);
+
+    pid_t pid = fork_pgrp(prog->pgid);
 
     if (pid == -1)
         return 1; /* fork() returned an error - abort */
@@ -76,6 +84,8 @@ int prog_start(const struct prog_desc *prog, pid_t *child_pid)
 
     if (prog->stderr_fd != STDERR_FILENO)
         close(prog->stderr_fd);
+
+    sigprocmask(SIG_SETMASK, &original_set, NULL);
 
     return 0;
 }

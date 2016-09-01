@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -59,6 +60,7 @@ static void parse_line(const char *line)
     int i;
     int proc_count = 0;
     pid_t children[20];
+    pid_t pgid = 0;
     struct prog_desc prog = { 0 };
     enum input_token token;
     struct input_lexer state = { 0 };
@@ -67,6 +69,7 @@ static void parse_line(const char *line)
     state.input = line;
 
     prog_init(&prog);
+    prog.pgid = 0;
 
     while ((token = lexer_next_token(&state)) != TOK_EOF) {
         enum input_token tok2;
@@ -119,6 +122,9 @@ static void parse_line(const char *line)
 
             prog_start(&prog, &children[proc_count++]);
 
+            if (!pgid)
+                pgid = children[proc_count - 1];
+
             /*
             ret = waitpid(child, NULL, 0);
 
@@ -127,6 +133,7 @@ static void parse_line(const char *line)
          done_exec:
             close_prog(&prog);
             prog_init(&prog);
+            prog.pgid = pgid;
             break;
 
         case TOK_PIPE:
@@ -140,8 +147,12 @@ static void parse_line(const char *line)
             prog.stdout_fd = pipefd[1];
             prog_start(&prog, &children[proc_count++]);
 
+            if (!pgid)
+                pgid = children[proc_count - 1];
+
             close_prog(&prog);
             prog_init(&prog);
+            prog.pgid = pgid;
             prog.stdin_fd = pipefd[0];
         }
             break;
@@ -154,12 +165,22 @@ static void parse_line(const char *line)
     if (prog.file) {
         if (builtin_exec(&prog, NULL) != 0) {
             prog_start(&prog, &children[proc_count++]);
+            if (!pgid)
+                pgid = children[proc_count - 1];
         }
     }
 
-    if (proc_count)
+    if (proc_count) {
+        pid_t found = 0;
+
+        found = waitpid(-pgid, NULL, 0);
+
+        kill(-pgid, SIGINT);
+
         for (i = 0; i < proc_count; i++)
-            waitpid(children[i], NULL, 0);
+            if (children[i] != found)
+                waitpid(children[i], NULL, 0);
+    }
 
 cleanup:
     close_prog(&prog);
