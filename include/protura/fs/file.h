@@ -43,6 +43,7 @@ struct file_ops {
     int (*read_dent) (struct file *, struct dent *, size_t dent_size);
     off_t (*lseek) (struct file *, off_t offset, int whence);
     int (*write) (struct file *, void *, size_t);
+    int (*ioctl) (struct file *, int cmd, uintptr_t arg);
 };
 
 enum file_whence {
@@ -83,5 +84,6 @@ struct file *file_dup(struct file *);
 int fs_file_generic_read(struct file *, void *buf, size_t len);
 int fs_file_generic_write(struct file *, void *buf, size_t len);
 off_t fs_file_generic_lseek(struct file *, off_t off, int whence);
+int fs_file_ioctl(struct file *filp, int cmd, uintptr_t arg);
 
 #endif

@@ -73,6 +73,8 @@
 #define SYSCALL_GETPGRP 0x43
 #define SYSCALL_FORK_PGRP 0x44
 
+#define SYSCALL_IOCTL 0x45
+
 #ifdef __KERNEL__
 #ifndef ASM
 

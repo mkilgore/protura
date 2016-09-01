@@ -31,6 +31,7 @@ struct file_ops ext2_file_ops_file = {
     .write = fs_file_generic_write,
     .lseek = fs_file_generic_lseek,
     .readdir = NULL,
+    .ioctl = fs_file_ioctl,
 };
 
 struct inode_ops ext2_inode_ops_file = {

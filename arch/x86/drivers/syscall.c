@@ -301,6 +301,11 @@ static void sys_handler_fork_pgrp(struct irq_frame *frame)
     frame->eax = sys_fork_pgrp((pid_t)frame->ebx);
 }
 
+static void sys_handler_ioctl(struct irq_frame *frame)
+{
+    frame->eax = sys_ioctl(frame->ebx, frame->ecx, (uintptr_t)frame->edx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -363,6 +368,7 @@ static struct syscall_handler {
     SYSCALL(SETPGID, sys_handler_setpgid),
     SYSCALL(GETPGRP, sys_handler_getpgrp),
     SYSCALL(FORK_PGRP, sys_handler_fork_pgrp),
+    SYSCALL(IOCTL, sys_handler_ioctl),
 };
 
 static void syscall_handler(struct irq_frame *frame)

@@ -26,6 +26,7 @@
 #include <protura/fs/inode_table.h>
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
+#include <protura/fs/ioctl.h>
 #include <protura/fs/sys.h>
 
 /* These functions connect the 'vfs_*' functions to the syscall verisons. Note
@@ -803,6 +804,34 @@ int sys_fcntl(int fd, int cmd, uintptr_t arg)
         return 0;
 
     }
+
+    return -EINVAL;
+}
+
+int sys_ioctl(int fd, int cmd, uintptr_t arg)
+{
+    struct task *current = cpu_get_local()->current;
+    struct file *filp;
+    int ret;
+
+    kp(KP_TRACE, "ioctl: %d, %d, %d\n", fd, cmd, arg);
+
+    ret = fd_get_checked(fd, &filp);
+    if (ret)
+        return ret;
+
+    switch (cmd) {
+    case FIOCLEX:
+        FD_SET(fd, &current->close_on_exec);
+        return 0;
+
+    case FIONCLEX:
+        FD_CLR(fd, &current->close_on_exec);
+        return 0;
+    }
+
+    if (filp->ops->ioctl)
+        return (filp->ops->ioctl) (filp, cmd, arg);
 
     return -EINVAL;
 }

@@ -52,4 +52,6 @@ int sys_umount(const char *mountpoint);
 
 int sys_fcntl(int fd, int cmd, uintptr_t arg);
 
+int sys_ioctl(int fd, int cmd, uintptr_t arg);
+
 #endif

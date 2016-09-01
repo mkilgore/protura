@@ -19,6 +19,7 @@
 #include <protura/fs/super.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
+#include <protura/fs/ioctl.h>
 #include <protura/fs/vfs.h>
 
 /* Generic read implemented using bmap */
@@ -177,5 +178,46 @@ struct file *file_dup(struct file *filp)
     atomic_inc(&filp->ref);
     kp(KP_TRACE, "File dup i:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
     return filp;
+}
+
+int fs_file_ioctl(struct file *filp, int cmd, uintptr_t arg)
+{
+    int ret;
+    int *ip;
+
+
+    switch (cmd) {
+    case FIBMAP:
+        if (!inode_has_bmap(filp->inode))
+            return -EINVAL;
+
+        ip = (int *)arg;
+        ret = user_check_region(ip, sizeof(*ip), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        *ip = vfs_bmap(filp->inode, *ip);
+        return 0;
+
+    case FIGETBSZ:
+        ip = (int *)arg;
+        ret = user_check_region(ip, sizeof(*ip), F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        *ip = filp->inode->block_size;
+        return 0;
+
+    case FIONREAD:
+        ip = (int *)arg;
+        ret = user_check_region(ip, sizeof(*ip), F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        *ip = filp->inode->size - filp->offset;
+        return 0;
+    }
+
+    return -EINVAL;
 }
 
