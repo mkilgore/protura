@@ -37,6 +37,8 @@ int sys_sigprocmask(int how, const sigset_t *__user set, sigset_t *__user oldset
         /* Remove attempts to block unblockable signals */
         tmp &= ~SIG_UNBLOCKABLE;
 
+        kp(KP_TRACE, "sigprocmask: %d, 0x%08x\n", how, tmp);
+
         switch (how) {
         case SIG_BLOCK:
             *blocked |= tmp;
@@ -76,6 +78,9 @@ int sys_sigaction(int signum, const struct sigaction *__user act, struct sigacti
     struct sigaction *action = cpu_get_local()->current->sig_actions + entry;
     int ret;
 
+    if (signum < 1 || signum > NSIG)
+        return -EINVAL;
+
     if (oldact) {
         ret = user_check_region(oldact, sizeof(*oldact), F(VM_MAP_WRITE));
         if (ret)
@@ -111,6 +116,9 @@ sighandler_t sys_signal(int signum, sighandler_t handler)
     struct sigaction *action = cpu_get_local()->current->sig_actions + entry;
     sighandler_t old_handler;
 
+    if (signum < 1 || signum > NSIG)
+        return SIG_ERR;
+
     old_handler = action->sa_handler;
 
     action->sa_handler = handler;
@@ -125,7 +133,10 @@ int sys_kill(pid_t pid, int sig)
     if (sig == 0)
         return scheduler_task_exists(pid);
 
-    if (pid > 0)
+    if (sig < 1 || sig > NSIG)
+        return -EINVAL;
+
+    if (pid > 0 || pid < -1)
         return scheduler_task_send_signal(pid, sig, 0);
 
     return -EINVAL;

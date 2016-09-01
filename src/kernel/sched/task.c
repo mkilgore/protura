@@ -23,6 +23,7 @@
 #include <protura/fs/fs.h>
 #include <protura/wait.h>
 #include <protura/signal.h>
+#include <protura/task_api.h>
 
 #include <arch/spinlock.h>
 #include <arch/fake_task.h>
@@ -208,7 +209,10 @@ struct task *task_fork(struct task *parent)
         if (parent->files[i])
             new->files[i] = file_dup(parent->files[i]);
 
+    new->pgid = parent->pgid;
+    new->session_id = parent->session_id;
     new->close_on_exec = parent->close_on_exec;
+    new->sig_blocked = parent->sig_blocked;
 
     new->parent = parent;
     memcpy(new->context.frame, parent->context.frame, sizeof(*new->context.frame));
@@ -325,7 +329,7 @@ void task_fd_release(struct task *t, int fd)
     t->files[fd] = NULL;
 }
 
-pid_t __fork(struct task *current)
+pid_t __fork(struct task *current, pid_t pgrp)
 {
     struct task *new;
     new = task_fork(current);
@@ -336,6 +340,11 @@ pid_t __fork(struct task *current)
         kp(KP_TRACE, "Fork failed\n");
 
     if (new) {
+        if (pgrp == 0)
+            new->pgid = new->pid;
+        else if (pgrp > 0)
+            new->pgid = pgrp;
+
         kp(KP_TRACE, "Task %s: Locking list of children\n", current->name);
         using_spinlock(&current->children_list_lock)
             list_add(&current->task_children, &new->task_sibling_list);
@@ -354,7 +363,13 @@ pid_t __fork(struct task *current)
 pid_t sys_fork(void)
 {
     struct task *t = cpu_get_local()->current;
-    return __fork(t);
+    return __fork(t, -1);
+}
+
+pid_t sys_fork_pgrp(pid_t pgrp)
+{
+    struct task *t = cpu_get_local()->current;
+    return __fork(t, pgrp);
 }
 
 pid_t sys_getpid(void)
@@ -432,9 +447,15 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
 
             list_foreach_entry(&t->task_children, child, task_sibling_list) {
                 kp(KP_TRACE, "Checking child %s(%p, %d)\n", child->name, child, child->pid);
-                if (childpid != (pid_t)-1 && child->pid != childpid) {
-                    kp(KP_TRACE, "Looking for %d, skipping child\n", childpid);
-                    continue;
+                if (childpid == 0) {
+                    if (child->pgid != t->pgid)
+                        continue;
+                } else if (childpid > 0) {
+                    if (child->pid != childpid)
+                        continue;
+                } else if (childpid < -1) {
+                    if (child->pgid != -childpid)
+                        continue;
                 }
                 if (child->state == TASK_ZOMBIE) {
                     list_del(&child->task_sibling_list);
@@ -512,4 +533,41 @@ int sys_dup2(int oldfd, int newfd)
 
     return newfd;
 }
+
+int sys_setpgid(pid_t pid, pid_t pgid)
+{
+    struct task *current = cpu_get_local()->current;
+
+    if (pid) {
+        struct task *t = scheduler_task_get(pid);
+
+        if (!t)
+            return -ESRCH;
+
+        if (!pgid)
+            pgid = pid;
+
+        t->pgid = pgid;
+
+        scheduler_task_put(t);
+        return 0;
+    }
+
+    if (!pgid)
+        pgid = current->pid;
+
+    current->pgid = pgid;
+
+    return 0;
+}
+
+int sys_getpgrp(pid_t *pgrp)
+{
+    struct task *current = cpu_get_local()->current;
+
+    *pgrp = current->pgid;
+
+    return 0;
+}
+
 

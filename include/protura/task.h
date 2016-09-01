@@ -41,6 +41,9 @@ enum task_state {
 
 struct task {
     pid_t pid;
+    pid_t pgid;
+    pid_t session_id;
+
     enum task_state state;
     unsigned int preempted :1;
     unsigned int kernel :1;
@@ -98,13 +101,16 @@ struct task *__must_check task_user_new(void);
 void task_init(struct task *);
 
 /* Used for the 'fork()' syscall */
-pid_t __fork(struct task *current);
+pid_t __fork(struct task *current, pid_t pgrp);
 pid_t sys_fork(void);
+pid_t sys_fork_pgrp(pid_t pgrp); /* Fork and set pgrp - Protura exclusive */
 pid_t sys_getpid(void);
 pid_t sys_getppid(void);
 void sys_exit(int code) __noreturn;
 int sys_dup(int oldfd);
 int sys_dup2(int olfd, int newfd);
+int sys_setpgid(pid_t pid, pid_t pgid);
+int sys_getpgrp(pid_t *pgrp);
 
 /* Used when a task is already killed and dead */
 void task_free(struct task *);
