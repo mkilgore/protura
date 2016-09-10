@@ -11,6 +11,8 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 
 #include "arg_parser.h"
 
