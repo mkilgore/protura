@@ -25,7 +25,6 @@
 
 static void input_new_line(char *buf, size_t len)
 {
-    size_t loc = 0;
     memset(buf, 0, len);
 
     printf("%s $ ", cwd);
