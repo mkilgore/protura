@@ -105,28 +105,7 @@
                                "y": 0
                             },
                             "name": "bash",
-                            "percent": 0.3,
-                            "swallows": [
-                               {
-                                   "title": "^qemu-monitor$"
-                               // "class": "^URxvt$",
-                               // "instance": "^urxvt$",
-                               // "title": "^bash$"
-                               }
-                            ],
-                            "type": "con"
-                        },
-                        {
-                            "border": "pixel",
-                            "floating": "auto_off",
-                            "geometry": {
-                               "height": 304,
-                               "width": 484,
-                               "x": 0,
-                               "y": 0
-                            },
-                            "name": "bash",
-                            "percent": 0.3,
+                            "percent": 0.6,
                             "swallows": [
                                {
                                    "title": "^qemu-log$"

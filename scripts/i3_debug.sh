@@ -33,7 +33,6 @@ qemu_line="qemu-system-i386 \
     -serial file:./qemu.log \
     -serial telnet:127.0.0.1:5346,nowait \
     -curses \
-    -monitor telnet:127.0.0.1:5345,nowait \
     -s \
     -S \
     -debugcon file:./qemu_debug.log \
@@ -46,8 +45,8 @@ qemu_line="qemu-system-i386 \
 urxvt -title qemu-log -e bash -c "stty -icanon -echo; nc -v -l -p 5346 | tee ./com2.log" &
 TERM_PID=$!
 
-urxvt -title qemu-monitor -e bash -c "stty -icanon -echo; nc -v -l -p 5345 | tee ./qemu_monitor.log" &
-MON_PID=$!
+#urxvt -title qemu-monitor -e bash -c "stty -icanon -echo; nc -v -l -p 5345 | tee ./qemu_monitor.log" &
+#MON_PID=$!
 
 sleep .1
 
