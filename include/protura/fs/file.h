@@ -82,7 +82,7 @@ void file_clear(struct file *);
 struct file *file_dup(struct file *);
 
 int fs_file_generic_read(struct file *, void *buf, size_t len);
-int fs_file_generic_write(struct file *, void *buf, size_t len);
+int fs_file_generic_write(struct file *, const void *buf, size_t len);
 off_t fs_file_generic_lseek(struct file *, off_t off, int whence);
 int fs_file_ioctl(struct file *filp, int cmd, uintptr_t arg);
 

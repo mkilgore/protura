@@ -75,10 +75,10 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
     return have_read;
 }
 
-int fs_file_generic_write(struct file *filp, void *vbuf, size_t len)
+int fs_file_generic_write(struct file *filp, const void *vbuf, size_t len)
 {
     int ret = 0;
-    char *buf = vbuf;
+    const char *buf = vbuf;
     size_t have_written = 0;
     dev_t dev = filp->inode->sb_dev;
 
