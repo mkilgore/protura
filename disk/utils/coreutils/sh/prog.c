@@ -51,11 +51,11 @@ static void start_child(const struct prog_desc *prog)
 
     if ((ret = execvp(prog->file, prog->argv)) == -1) {
         perror(prog->file);
-        exit(0);
+        exit(1);
     }
 
     printf("Uhhh, execvp returned: %d...\n", ret);
-    exit(0);
+    exit(1);
 }
 
 int prog_start(const struct prog_desc *prog, pid_t *child_pid)

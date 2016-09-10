@@ -171,15 +171,24 @@ static void parse_line(const char *line)
     }
 
     if (proc_count) {
-        pid_t found = 0;
+        int ret = 0, child_left = proc_count;
+        int found[20] = { 0 };
 
-        found = waitpid(-pgid, NULL, 0);
+        for (; child_left && ret == 0; child_left--) {
+            pid_t new = waitpid(-pgid, &ret, 0);
 
-        kill(-pgid, SIGINT);
+            for (i = 0; i < proc_count; i++)
+                if (children[i] == new)
+                    found[i] = 1;
+        }
 
-        for (i = 0; i < proc_count; i++)
-            if (children[i] != found)
-                waitpid(children[i], NULL, 0);
+        if (child_left) {
+            kill(-pgid, SIGINT);
+
+            for (i = 0; i < proc_count; i++)
+                if (!found[i])
+                    waitpid(children[i], NULL, 0);
+        }
     }
 
 cleanup:
