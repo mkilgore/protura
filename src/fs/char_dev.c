@@ -18,6 +18,7 @@
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/screen.h>
 #include <protura/drivers/com.h>
+#include <protura/drivers/tty.h>
 #include <protura/fs/file.h>
 #include <protura/fs/fs.h>
 #include <protura/fs/char.h>
@@ -48,6 +49,11 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_SCREEN,
         .fops = &screen_file_ops,
     },
+    [CHAR_DEV_TTY] = {
+        .name = "tty",
+        .major = CHAR_DEV_TTY,
+        .fops = &tty_file_ops,
+    },
 };
 
 struct char_device *char_dev_get(dev_t device)
@@ -64,8 +70,7 @@ struct char_device *char_dev_get(dev_t device)
 
 void char_dev_init(void)
 {
-    console_init();
-    keyboard_init();
     com_init();
+    tty_init();
 }
 

@@ -232,7 +232,7 @@ static int pipe_read(struct file *filp, void *data, size_t size)
     return original_size - size;
 }
 
-static int pipe_write(struct file *filp, void *data, size_t size)
+static int pipe_write(struct file *filp, const void *data, size_t size)
 {
     struct pipe_info *pinfo = &filp->inode->pipe_info;
     struct page *p;

@@ -151,9 +151,9 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
     return cur_pos;
 }
 
-static int com_file_write(struct file *filp, void *vbuf, size_t len)
+static int com_file_write(struct file *filp, const void *vbuf, size_t len)
 {
-    char *buf = vbuf;
+    const char *buf = vbuf;
     int com_id = DEV_MINOR(filp->inode->dev_no);
     struct com_port *com = com_ports + com_id;
 

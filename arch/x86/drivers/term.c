@@ -157,6 +157,7 @@ static void __term_putchar_nocur(char ch)
     case '\b':
         if (c > 0)
             c--;
+        glob_term.buf[r][c].chr = ' ';
         break;
 
     default:

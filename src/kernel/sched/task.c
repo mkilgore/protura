@@ -103,6 +103,7 @@ struct task *task_new(void)
     atomic_inc(&total_tasks);
 
     task = kmalloc(sizeof(*task), PAL_KERNEL);
+    kp(KP_TRACE, "task kmalloc: %p\n", task);
     if (!task)
         return NULL;
 
@@ -111,7 +112,7 @@ struct task *task_new(void)
     return task;
 }
 
-static struct task *task_kernel_generic(struct task *t, char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable)
+static struct task *task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable)
 {
     t->kernel = 1;
 
@@ -131,7 +132,7 @@ static struct task *task_kernel_generic(struct task *t, char *name, int (*kernel
 /* The main difference here is that the interruptable kernel task entry
  * function will enable interrupts before calling 'kernel_task', regular kernel
  * task's won't. */
-struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(void *), void *ptr)
+struct task *task_kernel_new_interruptable(const char *name, int (*kernel_task)(void *), void *ptr)
 {
     struct task *t = task_new();
 
@@ -141,7 +142,7 @@ struct task *task_kernel_new_interruptable(char *name, int (*kernel_task)(void *
     return task_kernel_generic(t, name, kernel_task, ptr, 1);
 }
 
-struct task *task_kernel_new(char *name, int (*kernel_task)(void *), void *ptr)
+struct task *task_kernel_new(const char *name, int (*kernel_task)(void *), void *ptr)
 {
     struct task *t = task_new();
 

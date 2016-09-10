@@ -12,7 +12,7 @@
 #include <protura/fs/char.h>
 
 void screen_init(void);
-int screen_file_write(struct file *filp, void *buf, size_t len);
+int screen_file_write(struct file *filp, const void *buf, size_t len);
 
 extern struct file_ops screen_file_ops;
 

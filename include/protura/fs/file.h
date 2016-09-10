@@ -42,7 +42,7 @@ struct file_ops {
     int (*readdir) (struct file *, struct file_readdir_handler *);
     int (*read_dent) (struct file *, struct dent *, size_t dent_size);
     off_t (*lseek) (struct file *, off_t offset, int whence);
-    int (*write) (struct file *, void *, size_t);
+    int (*write) (struct file *, const void *, size_t);
     int (*ioctl) (struct file *, int cmd, uintptr_t arg);
 };
 

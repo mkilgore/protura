@@ -604,7 +604,7 @@ int wait_queue_wake(struct wait_queue *queue)
     using_spinlock(&queue->lock) {
         list_foreach_take_entry(&queue->queue, t, wait.node) {
             kp(KP_TRACE, "Wait queue %p: Task %p: %d\n", queue, t, t->state);
-            if (t->state == TASK_SLEEPING) {
+            if (t->state == TASK_SLEEPING || t->state == TASK_INTR_SLEEPING) {
                 kp(KP_TRACE, "Wait queue %p: Waking task %s(%p)\n", queue, t->name, t);
                 scheduler_task_wake(t);
                 waken++;

@@ -24,7 +24,7 @@ void screen_init(void)
     return ;
 }
 
-int screen_file_write(struct file *filp, void *buf, size_t len)
+int screen_file_write(struct file *filp, const void *buf, size_t len)
 {
     term_putnstr(buf, len);
 
