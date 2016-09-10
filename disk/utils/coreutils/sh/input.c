@@ -29,24 +29,7 @@ static void input_new_line(char *buf, size_t len)
     memset(buf, 0, len);
 
     printf("%s $ ", cwd);
-
-    while ((buf[loc] = getchar()) != '\n') {
-        putchar(buf[loc]);
-        switch (buf[loc]) {
-        case '\b':
-            if (loc > 0)
-                loc--;
-            break;
-
-        default:
-            if (loc < len - 1)
-                loc++;
-        }
-    }
-
-    putchar('\n');
-
-    buf[loc] = '\0';
+    fgets(buf, len, stdin);
 }
 
 void input_loop(void)
@@ -68,7 +51,7 @@ void input_loop(void)
             exit_loop = 1;
         else
             shell_run_line(line);
-    } while (!exit_loop);
+    } while (!exit_loop && !feof(stdin));
 
     /*
     clear_history();
