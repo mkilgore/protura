@@ -67,9 +67,9 @@ int main(int argc, char **argv)
     action.sa_handler = handle_children;
     sigaction(SIGCHLD, &action, NULL);
 
-    keyboardfd = open("/dev/console", O_RDONLY);
-    consolefd = open("/dev/console", O_WRONLY);
-    stderrfd = open("/dev/console", O_WRONLY);
+    keyboardfd = open("/dev/tty0", O_RDONLY);
+    consolefd = open("/dev/tty0", O_WRONLY);
+    stderrfd = open("/dev/tty0", O_WRONLY);
 
     /* Mount proc if we can */
     ret = mount(NULL, "/proc", "proc", 0, NULL);
