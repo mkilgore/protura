@@ -31,7 +31,7 @@ struct file_ops console_file_ops = {
     .readdir = NULL,
 };
 
-static int tty_keyboard_read(struct tty_driver *driver, char *buf, size_t len)
+static int tty_keyboard_read(struct tty *driver, char *buf, size_t len)
 {
     char c;
     size_t cur_pos = 0;
@@ -44,22 +44,28 @@ static int tty_keyboard_read(struct tty_driver *driver, char *buf, size_t len)
     return cur_pos;
 }
 
-static int tty_keyboard_has_chars(struct tty_driver *driver)
+static int tty_keyboard_has_chars(struct tty *driver)
 {
     return arch_keyboard_has_char();
 }
 
-static int tty_console_write(struct tty_driver *driver, const char *data, size_t size)
+static int tty_console_write(struct tty *driver, const char *data, size_t size)
 {
     term_putnstr(data, size);
 
     return size;
 }
 
+static void tty_console_reigster_for_wakeups(struct tty *tty)
+{
+    arch_keyboard_wakeup_add(tty->kernel_task);
+}
+
 static struct tty_ops ops = {
     .read = tty_keyboard_read,
     .has_chars = tty_keyboard_has_chars,
     .write = tty_console_write,
+    .register_for_wakeups = tty_console_reigster_for_wakeups,
 };
 
 static struct tty_driver driver = {
@@ -67,9 +73,6 @@ static struct tty_driver driver = {
     .minor_start = 0,
     .minor_end = 0,
     .ops = &ops,
-    .inout_buf_lock = MUTEX_INIT(driver.inout_buf_lock, "console-tty-inout-buf-lock"),
-    .in_wait_queue = WAIT_QUEUE_INIT(driver.in_wait_queue, "console-tty-in-wait-queue"),
-    .tty_driver_node = LIST_NODE_INIT(driver.tty_driver_node),
 };
 
 void console_init(void)
@@ -77,8 +80,6 @@ void console_init(void)
     screen_init();
     keyboard_init();
 
-    tty_register(&driver);
-    kp(KP_TRACE, "driver kernel_task: %p\n", driver.kernel_task);
-    arch_keyboard_wakeup_add(driver.kernel_task);
+    tty_driver_register(&driver);
 }
 

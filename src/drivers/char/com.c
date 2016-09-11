@@ -24,6 +24,7 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/idt.h>
 #include <protura/fs/char.h>
+#include <protura/drivers/tty.h>
 #include <protura/drivers/com.h>
 
 #define COM_CLOCK 115200
@@ -228,6 +229,29 @@ static void com_init_ports(void)
 
     irq_restore(irq_flags);
 }
+
+#if 0
+static struct tty_ops ops = {
+
+};
+
+static struct tty_driver driver = {
+    .name = "com-tty",
+    .minor_start = 1,
+    .minor_end = 2,
+    .ops = &ops,
+    .inout_buf_lock = MUTEX_INIT(driver.inout_buf_lock, "com-tty-inout-buf-lock"),
+    .in_wait_queue = WAIT_QUEUE_INIT(driver.in_wait_queue, "com-tty-in-wait-queue"),
+    .tty_driver_node = LIST_NODE_INIT(driver.tty_driver_node),
+
+};
+
+void com_tty_init(void)
+{
+    tty_register(&driver);
+    wakeup_list_add(&
+}
+#endif
 
 void com_init(void)
 {

@@ -71,6 +71,6 @@ struct char_device *char_dev_get(dev_t device)
 void char_dev_init(void)
 {
     com_init();
-    tty_init();
+    tty_subsystem_init();
 }
 

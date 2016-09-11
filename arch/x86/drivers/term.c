@@ -160,6 +160,35 @@ static void __term_putchar_nocur(char ch)
         glob_term.buf[r][c].chr = ' ';
         break;
 
+    /* Some special codes like newline, tab, backspace, etc. are
+     * handled above. The rest are printed in ^x format. */
+    case '\x01': /* ^A to ^] */
+    case '\x02':
+    case '\x03':
+    case '\x04':
+    case '\x05':
+    case '\x06':
+    case '\x07':
+    case '\x0B':
+    case '\x0C':
+    case '\x0E':
+    case '\x0F':
+    case '\x10':
+    case '\x11':
+    case '\x12':
+    case '\x13':
+    case '\x14':
+    case '\x15':
+    case '\x16':
+    case '\x17':
+    case '\x18':
+    case '\x19':
+    case '\x1A':
+    case '\x1B':
+        __term_putchar('^');
+        __term_putchar(ch + 'A' - 1);
+        return ;
+
     default:
         glob_term.buf[r][c].chr = ch;
         glob_term.buf[r][c].color = glob_term.cur_col;

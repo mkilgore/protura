@@ -13,6 +13,7 @@
 #include <protura/kassert.h>
 #include <protura/wait.h>
 #include <protura/mm/palloc.h>
+#include <protura/mm/kmalloc.h>
 
 #include <arch/spinlock.h>
 #include <protura/drivers/term.h>
@@ -47,31 +48,37 @@
  * wake-up the kernel-thread. The kernel thread checks if there is any data to
  * be read from the process, and then processes it when so.
  */
-static list_head_t tty_driver_list = LIST_HEAD_INIT(tty_driver_list);
+
+#define MAX_MINOR 32
+
+static struct tty *tty_array[MAX_MINOR];
 
 /* Currently does a simple echo from the tty input to the tty output */
 static int tty_kernel_thread(void *p)
 {
-    struct tty_driver *driver = p;
+    struct tty *tty = p;
+    struct tty_driver *driver = tty->driver;
     char line_buf[128];
     size_t start = 0;
+
+    (driver->ops->register_for_wakeups) (tty);
 
     while (1) {
         char buf[32];
         size_t buf_len;
         int i;
 
-        buf_len = (driver->ops->read) (driver, buf, sizeof(buf));
+        buf_len = (driver->ops->read) (tty, buf, sizeof(buf));
 
         for (i = 0; i < buf_len; i++) {
             switch (buf[i]) {
             case '\n':
-                driver->ops->write(driver, buf + i, 1);
+                driver->ops->write(tty, buf + i, 1);
                 line_buf[start++] = '\n';
                 line_buf[start] = '\0';
-                using_mutex(&driver->inout_buf_lock) {
-                    char_buf_write(&driver->output_buf, line_buf, start);
-                    wait_queue_wake(&driver->in_wait_queue);
+                using_mutex(&tty->inout_buf_lock) {
+                    char_buf_write(&tty->output_buf, line_buf, start);
+                    wait_queue_wake(&tty->in_wait_queue);
                 }
                 start = 0;
                 break;
@@ -79,34 +86,32 @@ static int tty_kernel_thread(void *p)
             case '\b':
                 if (start > 0) {
                     start--;
-                    driver->ops->write(driver, buf + i, 1);
+                    driver->ops->write(tty, buf + i, 1);
                 }
                 break;
 
-            case '\x03':
-                driver->ops->write(driver, "^C", 2);
-                break;
-
             case '\x04':
-                driver->ret0 = 1;
-                wait_queue_wake(&driver->in_wait_queue);
+                tty->ret0 = 1;
+                wait_queue_wake(&tty->in_wait_queue);
                 break;
 
             default:
-                driver->ops->write(driver, buf + i, 1);
+                driver->ops->write(tty, buf + i, 1);
                 line_buf[start++] = buf[i];
                 break;
             }
         }
 
         /* For now, the process output is written directly to the hardware driver */
-        buf_len = char_buf_read(&driver->input_buf, buf, sizeof(buf));
+        using_mutex(&tty->inout_buf_lock)
+            buf_len = char_buf_read(&tty->input_buf, buf, sizeof(buf));
 
-        if (buf_len)
-            driver->ops->write(driver, buf, buf_len);
+        if (buf_len) {
+            driver->ops->write(tty, buf, buf_len);
+        }
 
         sleep {
-            if (!driver->ops->has_chars(driver) && !char_buf_has_data(&driver->input_buf))
+            if (!driver->ops->has_chars(tty) && !char_buf_has_data(&tty->input_buf))
                 scheduler_task_yield();
         }
     }
@@ -114,45 +119,64 @@ static int tty_kernel_thread(void *p)
     return 0;
 }
 
-void tty_register(struct tty_driver *driver)
+static void tty_create(struct tty_driver *driver, dev_t devno)
 {
-    driver->input_buf.buffer = palloc_va(0, PAL_KERNEL);
-    driver->input_buf.len = PG_SIZE;
+    struct tty *tty = kmalloc(sizeof(*tty), PAL_KERNEL);
 
-    driver->output_buf.buffer = palloc_va(0, PAL_KERNEL);
-    driver->output_buf.len = PG_SIZE;
+    if (!tty)
+        return ;
 
-    driver->kernel_task = task_kernel_new_interruptable(driver->name, tty_kernel_thread, driver);
-    scheduler_task_add(driver->kernel_task);
+    tty_init(tty);
 
-    list_add(&tty_driver_list, &driver->tty_driver_node);
+    tty->driver = driver;
+    tty->device_no = devno;
+
+    tty->input_buf.buffer = palloc_va(0, PAL_KERNEL);
+    tty->input_buf.len = PG_SIZE;
+
+    tty->output_buf.buffer = palloc_va(0, PAL_KERNEL);
+    tty->output_buf.len = PG_SIZE;
+
+    tty->kernel_task = task_kernel_new_interruptable(driver->name, tty_kernel_thread, tty);
+    scheduler_task_add(tty->kernel_task);
+
+    tty_array[devno] = tty;
 }
 
-static struct tty_driver *tty_driver_find(dev_t minor)
+void tty_driver_register(struct tty_driver *driver)
 {
-    struct tty_driver *d;
-    list_foreach_entry(&tty_driver_list, d, tty_driver_node)
-        if (d->minor_start <= minor && d->minor_end >= minor)
-            return d;
+    dev_t devices = driver->minor_start - driver->minor_end + 1;
+    int i;
 
-    return NULL;
+    for (i = 0; i < devices; i++)
+        tty_create(driver, i);
+
+    return ;
+}
+
+static struct tty *tty_find(dev_t minor)
+{
+    if (minor >= MAX_MINOR)
+        return NULL;
+
+    return tty_array[minor];
 }
 
 static int tty_read(struct file *filp, void *vbuf, size_t len)
 {
     struct inode *i = filp->inode;
     dev_t minor = DEV_MINOR(i->dev_no);
-    struct tty_driver *driver = tty_driver_find(minor);
+    struct tty *tty = tty_find(minor);
     size_t orig_len = len;
 
-    if (!driver)
+    if (!tty)
         return -ENOTTY;
 
-    using_mutex(&driver->inout_buf_lock) {
+    using_mutex(&tty->inout_buf_lock) {
         while (orig_len == len) {
             size_t read_count;
 
-            read_count = char_buf_read(&driver->output_buf, vbuf, len);
+            read_count = char_buf_read(&tty->output_buf, vbuf, len);
 
             vbuf += read_count;
             len -= read_count;
@@ -160,8 +184,8 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
             /* The ret0 flag forces an immediate return from read.
              * When there is no data, we end-up returning zero, which
              * represents EOF */
-            if (driver->ret0) {
-                driver->ret0 = 0;
+            if (tty->ret0) {
+                tty->ret0 = 0;
                 break;
             }
 
@@ -169,9 +193,9 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
                 break;
 
             /* Nice little dance to wait for data or a singal */
-            sleep_intr_with_wait_queue(&driver->in_wait_queue) {
-                if (!char_buf_has_data(&driver->output_buf)) {
-                    not_using_mutex(&driver->inout_buf_lock)  {
+            sleep_intr_with_wait_queue(&tty->in_wait_queue) {
+                if (!char_buf_has_data(&tty->output_buf)) {
+                    not_using_mutex(&tty->inout_buf_lock)  {
                         scheduler_task_yield();
 
                         if (has_pending_signal(cpu_get_local()->current)) {
@@ -191,15 +215,15 @@ static int tty_write(struct file *filp, const void *vbuf, size_t len)
 {
     struct inode *i = filp->inode;
     dev_t minor = DEV_MINOR(i->dev_no);
-    struct tty_driver *driver = tty_driver_find(minor);
+    struct tty *tty = tty_find(minor);
     size_t orig_len = len;
 
-    if (!driver)
+    if (!tty)
         return -ENOTTY;
 
-    using_mutex(&driver->inout_buf_lock) {
-        char_buf_write(&driver->input_buf, vbuf, len);
-        scheduler_task_wake(driver->kernel_task);
+    using_mutex(&tty->inout_buf_lock) {
+        char_buf_write(&tty->input_buf, vbuf, len);
+        scheduler_task_wake(tty->kernel_task);
     }
 
     return orig_len;
@@ -210,7 +234,7 @@ struct file_ops tty_file_ops = {
     .write = tty_write,
 };
 
-void tty_init(void)
+void tty_subsystem_init(void)
 {
     console_init();
 }

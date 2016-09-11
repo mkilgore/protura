@@ -199,7 +199,6 @@ void irq_global_handler(struct irq_frame *iframe)
         frame_flag = 1;
         t->context.prev_syscall = iframe->eax;
         t->context.frame = iframe;
-        kp(KP_TRACE, "%d: Frame->esp: %p\n", t->pid, (void *)iframe->esp);
     }
 
     if (iframe->intno >= 0x20 && iframe->intno <= 0x31) {
