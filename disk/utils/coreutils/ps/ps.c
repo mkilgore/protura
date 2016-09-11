@@ -63,6 +63,17 @@ static struct task_api_info tinfo[TASK_MAX];
 static int task_count;
 static enum ps_display display_choice = PS_NORMAL;
 
+static char *get_name(struct task_api_info *t)
+{
+    static char name[256];
+    if (t->is_kernel)
+        snprintf(name, sizeof(name), "[%s]", t->name);
+    else
+        snprintf(name, sizeof(name), "%s", t->name);
+
+    return name;
+}
+
 static void print_list_format(void)
 {
     struct task_api_info *t, *end = tinfo + task_count;
@@ -75,7 +86,7 @@ static void print_list_format(void)
                 t->ppid,
                 t->pgid,
                 task_state_strs[t->state],
-                t->name);
+                get_name(t));
 }
 
 static void print_signal_format(void)
@@ -89,7 +100,7 @@ static void print_signal_format(void)
                 t->pid,
                 t->sig_pending,
                 t->sig_blocked,
-                t->name);
+                get_name(t));
 }
 
 int main(int argc, char **argv)
