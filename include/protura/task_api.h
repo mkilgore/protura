@@ -24,6 +24,8 @@ struct task_api_info {
     fd_set close_on_exec;
     sigset_t sig_pending, sig_blocked;
 
+    unsigned int is_kernel :1;
+
     char name[128];
 };
 

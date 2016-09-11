@@ -325,15 +325,17 @@ void scheduler(void)
         list_foreach_entry(&ktasks.list, t, task_list_node) {
             /* If a task was preempted, then we start it again, reguardless of
              * it's current state. It's possible they aren't actually
-             * TASK_RUNNABLE, which is why this check is needed. */
+             * TASK_RUNNING, which is why this check is needed. */
             if (t->preempted) {
                 t->preempted = 0;
                 goto found_task;
             }
 
             switch (t->state) {
-            case TASK_RUNNABLE:
-                goto found_task;
+            case TASK_RUNNING:
+                if (!t->running)
+                    goto found_task;
+                break;
 
             case TASK_INTR_SLEEPING:
             case TASK_SLEEPING:
@@ -341,9 +343,6 @@ void scheduler(void)
                     t->wake_up = 0;
                     goto found_task;
                 }
-                break;
-
-            case TASK_RUNNING:
                 break;
 
             /* Dead tasks can be removed and freed - They should already be
@@ -371,22 +370,14 @@ void scheduler(void)
             list_new_last(&ktasks.list, &t->task_list_node);
         }
 
-        /* Set our current task equal to our new one, and set
-         * it to RUNNING. After that we perform the actual switch
-         *
-         * Once the task_switch happens, */
-        t->state = TASK_RUNNING;
+        /* Set the running flag as we prepare to enter this task */
+        t->running = 1;
         cpu_get_local()->current = t;
 
         task_switch(&cpu_get_local()->scheduler, t);
 
-        /* Note - There's a big possibility that when we come back here
-         * from a task switch, it's because the task was suspended or
-         * similar. Thus, it's state may not be RUNNING, and if it's not we
-         * don't want to change it to RUNNABLE */
-        if (t->state == TASK_RUNNING)
-            t->state = TASK_RUNNABLE;
         cpu_get_local()->current = NULL;
+        t->running = 0;
     }
 }
 
@@ -399,11 +390,6 @@ int scheduler_tasks_read(void *p, size_t size, size_t *len)
     using_spinlock(&ktasks.lock) {
         list_foreach_entry(&ktasks.list, t, task_list_node) {
             int state = t->state;
-
-            /* RUNNING and RUNNABLE are essencially the same thing to
-             * user-space, */
-            if (state == TASK_RUNNABLE)
-                state = TASK_RUNNING;
 
             *len += snprintf(p + *len, size - *len,
                     "%d\t%d\t%d\t%s\t%d\t\"%s\"\n",
@@ -426,6 +412,7 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 {
     memset(tinfo, 0, sizeof(*tinfo));
 
+    tinfo->is_kernel = task->kernel;
     tinfo->pid = task->pid;
 
     if (task->parent)
@@ -437,7 +424,6 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 
     switch (task->state) {
     case TASK_RUNNING:
-    case TASK_RUNNABLE:
         tinfo->state = TASK_API_RUNNING;
         break;
 
@@ -541,7 +527,7 @@ void wakeup_list_wakeup(struct wakeup_list *list)
     using_spinlock(&ktasks.lock)
         for (i = 0; i < WAKEUP_LIST_MAX_TASKS; i++)
             if (list->tasks[i])
-                list->tasks[i]->state = TASK_RUNNABLE;
+                list->tasks[i]->state = TASK_RUNNING;
 }
 
 void wait_queue_init(struct wait_queue *queue)

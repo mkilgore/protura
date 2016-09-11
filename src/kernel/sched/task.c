@@ -46,7 +46,6 @@ const char *task_states[] = {
     [TASK_NONE]          = "no state",
     [TASK_SLEEPING]      = "sleep",
     [TASK_INTR_SLEEPING] = "isleep",
-    [TASK_RUNNABLE]      = "runnable",
     [TASK_RUNNING]       = "running",
     [TASK_ZOMBIE]        = "zombie",
     [TASK_DEAD]          = "dead",
@@ -82,7 +81,7 @@ void task_init(struct task *task)
 
     task->pid = scheduler_next_pid();
 
-    task->state = TASK_RUNNABLE;
+    task->state = TASK_RUNNING;
 
     task->kstack_bot = palloc_va(log2(KERNEL_STACK_PAGES), PAL_KERNEL);
     task->kstack_top = task->kstack_bot + PG_SIZE * KERNEL_STACK_PAGES - 1;

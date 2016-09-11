@@ -14,6 +14,7 @@
 #include <protura/wait.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/snprintf.h>
 
 #include <arch/spinlock.h>
 #include <protura/drivers/term.h>
@@ -135,13 +136,28 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->driver = driver;
     tty->device_no = devno;
 
+    if (driver->minor_end == driver->minor_start) {
+        tty->name = kstrdup(driver->name, PAL_KERNEL);
+    } else {
+        kp(KP_TRACE, "TTY number name\n");
+        int digits = (devno < 10)? 1:
+                     (devno < 100)? 2: 3;
+        size_t name_len = strlen(driver->name) + digits;
+        kp(KP_TRACE, "TTY digits: %d, devno: %d, name_len: %d\n", digits, devno, name_len);
+
+        tty->name = kmalloc(name_len + 1, PAL_KERNEL);
+        snprintf(tty->name, name_len + 1, "%s%d", driver->name, devno);
+    }
+
+    kp(KP_TRACE, "TTY %s%d name: %s\n", driver->name, devno, tty->name);
+
     tty->input_buf.buffer = palloc_va(0, PAL_KERNEL);
     tty->input_buf.len = PG_SIZE;
 
     tty->output_buf.buffer = palloc_va(0, PAL_KERNEL);
     tty->output_buf.len = PG_SIZE;
 
-    tty->kernel_task = task_kernel_new_interruptable(driver->name, tty_kernel_thread, tty);
+    tty->kernel_task = task_kernel_new_interruptable(tty->name, tty_kernel_thread, tty);
     scheduler_task_add(tty->kernel_task);
 
     tty_array[devno + driver->minor_start] = tty;

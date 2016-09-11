@@ -33,7 +33,6 @@ enum task_state {
     TASK_NONE,
     TASK_SLEEPING,
     TASK_INTR_SLEEPING,
-    TASK_RUNNABLE,
     TASK_RUNNING,
     TASK_ZOMBIE,
     TASK_DEAD,
@@ -46,6 +45,7 @@ struct task {
 
     enum task_state state;
     unsigned int preempted :1;
+    unsigned int running :1;
     unsigned int kernel :1;
     unsigned int killed :1;
     unsigned int user_ptr_check :1;
@@ -89,7 +89,7 @@ extern struct task *task_pid1;
 
 /* Allocates a new task, assigning it a PID, intializing it's kernel
  * stack for it's first run, giving it a blank address_space, and setting the
- * state to TASK_RUNNABLE.
+ * state to TASK_RUNNING.
  *
  * The caller should do any other initalization, and then put the task into the
  * scheduler list using scheduler_task_add(). */

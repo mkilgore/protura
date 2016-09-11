@@ -50,7 +50,7 @@ static inline void scheduler_set_state(enum task_state state)
 }
 
 #define scheduler_task_set_sleeping(t) scheduler_task_set_state(t, TASK_SLEEPING)
-#define scheduler_task_set_runnable(t) scheduler_task_set_state(t, TASK_RUNNABLE)
+#define scheduler_task_set_running(t) scheduler_task_set_state(t, TASK_RUNNING)
 
 #define scheduler_task_set_intr_sleeping(t) scheduler_task_set_state(t, TASK_INTR_SLEEPING)
 
@@ -62,13 +62,13 @@ static inline void scheduler_set_state(enum task_state state)
 static inline void scheduler_task_wake(struct task *t)
 {
     if (t->state == TASK_SLEEPING || t->state == TASK_INTR_SLEEPING)
-        t->state = TASK_RUNNABLE;
+        t->state = TASK_RUNNING;
 }
 
 static inline void scheduler_task_intr_wake(struct task *t)
 {
     if (t->state == TASK_INTR_SLEEPING)
-        t->state = TASK_RUNNABLE;
+        t->state = TASK_RUNNING;
 }
 
 
