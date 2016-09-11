@@ -157,7 +157,7 @@ void scheduler_task_yield_preempt(void)
 {
     struct task *t = cpu_get_local()->current;
 
-    t->preempted = 1;
+    flag_set(&t->flags, TASK_FLAG_PREEMPTED);
     using_spinlock(&ktasks.lock)
         __yield(t);
 }
@@ -326,14 +326,14 @@ void scheduler(void)
             /* If a task was preempted, then we start it again, reguardless of
              * it's current state. It's possible they aren't actually
              * TASK_RUNNING, which is why this check is needed. */
-            if (t->preempted) {
-                t->preempted = 0;
+            if (flag_test(&t->flags, TASK_FLAG_PREEMPTED)) {
+                flag_clear(&t->flags, TASK_FLAG_PREEMPTED);
                 goto found_task;
             }
 
             switch (t->state) {
             case TASK_RUNNING:
-                if (!t->running)
+                if (!flag_test(&t->flags, TASK_FLAG_RUNNING))
                     goto found_task;
                 break;
 
@@ -371,13 +371,13 @@ void scheduler(void)
         }
 
         /* Set the running flag as we prepare to enter this task */
-        t->running = 1;
+        flag_set(&t->flags, TASK_FLAG_RUNNING);
         cpu_get_local()->current = t;
 
         task_switch(&cpu_get_local()->scheduler, t);
 
         cpu_get_local()->current = NULL;
-        t->running = 0;
+        flag_clear(&t->flags, TASK_FLAG_RUNNING);
     }
 }
 
@@ -397,7 +397,7 @@ int scheduler_tasks_read(void *p, size_t size, size_t *len)
                     (t->parent)? t->parent->pid: 0,
                     t->pgid,
                     task_states[state],
-                    t->killed,
+                    flag_test(&t->flags, TASK_FLAG_KILLED),
                     t->name);
 
             if (*len == size)
@@ -412,7 +412,7 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 {
     memset(tinfo, 0, sizeof(*tinfo));
 
-    tinfo->is_kernel = task->kernel;
+    tinfo->is_kernel = flag_test(&task->flags, TASK_FLAG_KERNEL);
     tinfo->pid = task->pid;
 
     if (task->parent)

@@ -38,17 +38,22 @@ enum task_state {
     TASK_DEAD,
 };
 
+enum {
+    TASK_FLAG_PREEMPTED,
+    TASK_FLAG_RUNNING,
+    TASK_FLAG_KERNEL,
+    TASK_FLAG_KILLED,
+    TASK_FLAG_USER_PTR_CHECK,
+};
+
 struct task {
     pid_t pid;
     pid_t pgid;
     pid_t session_id;
 
     enum task_state state;
-    unsigned int preempted :1;
-    unsigned int running :1;
-    unsigned int kernel :1;
-    unsigned int killed :1;
-    unsigned int user_ptr_check :1;
+
+    flags_t flags;
 
     int ret_code;
 
@@ -170,17 +175,17 @@ extern const char *task_states[];
 
 static inline void user_ptr_check_off(void)
 {
-    cpu_get_local()->current->user_ptr_check = 1;
+    flag_set(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
 }
 
 static inline void user_ptr_check_on(void)
 {
-    cpu_get_local()->current->user_ptr_check = 0;
+    flag_clear(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
 }
 
 static inline int user_ptr_check_is_on(void)
 {
-    return cpu_get_local()->current->user_ptr_check;
+    return flag_test(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
 }
 
 static inline int signals_pending(void)

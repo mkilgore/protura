@@ -62,7 +62,7 @@ void task_print(char *buf, size_t size, struct task *task)
                         , task->pid
                         , task->parent->pid
                         , task_states[task->state]
-                        , task->killed
+                        , flag_test(&task->flags, TASK_FLAG_KILLED)
                         );
 }
 
@@ -113,7 +113,7 @@ struct task *task_new(void)
 
 static struct task *task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable)
 {
-    t->kernel = 1;
+    flag_set(&t->flags, TASK_FLAG_KERNEL);
 
     strcpy(t->name, name);
 
@@ -163,7 +163,7 @@ struct task *task_user_new_exec(const char *exe)
     strncpy(t->name, exe, sizeof(t->name) - 1);
     t->name[sizeof(t->name) - 1] = '\0';
 
-    t->user_ptr_check = 1;
+    flag_set(&t->flags, TASK_FLAG_USER_PTR_CHECK);
 
     arch_task_setup_stack_user_with_exec(t, exe);
 
@@ -181,7 +181,7 @@ struct task *task_user_new(void)
     if (!t)
         return NULL;
 
-    t->user_ptr_check = 1;
+    flag_set(&t->flags, TASK_FLAG_USER_PTR_CHECK);
 
     arch_task_setup_stack_user(t);
 
@@ -225,7 +225,7 @@ void task_free(struct task *t)
     atomic_dec(&total_tasks);
 
     /* If this task wasn't yet killed, then we do it now */
-    if (t->killed == 0)
+    if (!flag_test(&t->flags, TASK_FLAG_KILLED))
         task_make_zombie(t);
 
     pfree_va(t->kstack_bot, log2(KERNEL_STACK_PAGES));
@@ -240,7 +240,7 @@ void task_make_zombie(struct task *t)
 
     kp(KP_TRACE, "zombie: %d\n", t->pid);
 
-    t->killed = 1;
+    flag_set(&t->flags, TASK_FLAG_KILLED);
 
     /* Children of Zombie's are inherited by PID1. */
     using_spinlock(&task_pid1->children_list_lock) {
@@ -288,7 +288,7 @@ void task_make_zombie(struct task *t)
     if (t->cwd)
         inode_put(t->cwd);
 
-    if (!t->kernel) {
+    if (!flag_test(&t->flags, TASK_FLAG_KERNEL)) {
         address_space_clear(t->addrspc);
         kfree(t->addrspc);
     }
@@ -415,7 +415,7 @@ void sys_exit(int code)
 
     /* If we're a kernel process, we will never be wait()'d on, so we mark
      * ourselves dead */
-    if (t->kernel)
+    if (flag_test(&t->flags, TASK_FLAG_KERNEL))
         scheduler_task_mark_dead(t);
 
     scheduler_task_yield();

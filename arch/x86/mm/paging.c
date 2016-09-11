@@ -93,7 +93,7 @@ static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
     //term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
     kp(KP_ERROR, "Stack backtrace:\n");
     dump_stack_ptr((void *)frame->ebp);
-    if (current && !current->kernel) {
+    if (current && !flag_test(&current->flags, TASK_FLAG_KERNEL)) {
         kp(KP_ERROR, "Current running program: %s\n", current->name);
         kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
                 current->context.frame->eax,
@@ -133,7 +133,7 @@ static void page_fault_handler(struct irq_frame *frame)
     /* Program seg-faulted - Attempt to display message and exit. */
     term_printf("Seg-fault - %d terminated\n", cpu_get_local()->current->pid);
 
-    cpu_get_local()->current->killed = 1;
+    flag_set(&cpu_get_local()->current->flags, TASK_FLAG_KILLED);
 }
 
 /* All of kernel-space virtual memory directly maps onto the lowest part of

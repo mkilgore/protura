@@ -21,7 +21,7 @@
 struct task init_task = {
     .pid = -1,
     .state = TASK_RUNNING,
-    .kernel = 1,
+    .flags = F(TASK_FLAG_KERNEL),
 
     .parent = NULL,
 

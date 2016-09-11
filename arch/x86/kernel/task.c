@@ -43,7 +43,7 @@ void arch_task_switch(context_t *old, struct task *new)
 {
     cpu_set_kernel_stack(cpu_get_local(), new->kstack_top);
 
-    if (new->kernel)
+    if (flag_test(&new->flags, TASK_FLAG_KERNEL))
         set_current_page_directory(V2P(&kernel_dir));
     else
         set_current_page_directory(V2P(new->addrspc->page_dir));

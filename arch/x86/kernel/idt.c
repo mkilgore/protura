@@ -99,7 +99,7 @@ void unhandled_cpu_exception(struct irq_frame *frame)
 
     kp(KP_ERROR, "Stack backtrace:\n");
     dump_stack_ptr((void *)frame->ebp);
-    if (current && !current->kernel) {
+    if (current && !flag_test(&current->flags, TASK_FLAG_KERNEL)) {
         kp(KP_ERROR, "Current running program: %s\n", current->name);
         kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x\n",
             current->context.frame->eax,
@@ -233,7 +233,7 @@ void irq_global_handler(struct irq_frame *iframe)
         cpu->intr_count--;
 
     /* Did we die? */
-    if (t->killed)
+    if (flag_test(&t->flags, TASK_FLAG_KILLED))
         sys_exit(0);
 
     /* If something set the reschedule flag and we're the last interrupt
@@ -247,7 +247,7 @@ void irq_global_handler(struct irq_frame *iframe)
     }
 
     /* Is he dead yet? */
-    if (t->killed)
+    if (flag_test(&t->flags, TASK_FLAG_KILLED))
         sys_exit(0);
 }
 
