@@ -150,7 +150,7 @@ static void __ide_start_queue(void)
     outb(IDE_PORT_LBA_MID_8, (disk_sector >> 8) & 0xFF);
     outb(IDE_PORT_LBA_HIGH_8, (disk_sector >> 16) & 0xFF);
 
-    if (b->dirty) {
+    if (flag_test(&b->flags, BLOCK_DIRTY)) {
         int i;
 
         outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_PIO_LBA28_WRITE);
@@ -192,7 +192,7 @@ static void __ide_handle_intr(struct irq_frame *frame)
      * drive (checked via __ide_wait_ready). Also, after reading every sector
      * we have to do another __ide_wait_ready().
      */
-    if (!b->dirty) {
+    if (!flag_test(&b->flags, BLOCK_DIRTY)) {
         int i;
         int sector_count = b->block_size / IDE_SECTOR_SIZE;
 
@@ -205,8 +205,8 @@ static void __ide_handle_intr(struct irq_frame *frame)
     }
 
     /* Our read/write is done, so now our block is definitely valid and not dirty */
-    b->valid = 1;
-    b->dirty = 0;
+    flag_set(&b->flags, BLOCK_VALID);
+    flag_clear(&b->flags, BLOCK_DIRTY);
 
     /* Wakeup the owner of this block */
     scheduler_task_wake(b->owner);
@@ -238,7 +238,7 @@ void ide_init(void)
 static void ide_sync_block(struct block *b, int master_or_slave)
 {
     /* If the block is valid and not dirty, then there is no syncing needed */
-    if (b->valid && !b->dirty)
+    if (flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY))
         return ;
 
     using_spinlock(&ide_state.lock) {
@@ -257,7 +257,7 @@ static void ide_sync_block(struct block *b, int master_or_slave)
     /* We sleep until the block is valid and not dirty. */
   sleep_again:
     sleep {
-        if (!b->valid || b->dirty) {
+        if (!flag_test(&b->flags, BLOCK_VALID) || flag_test(&b->flags, BLOCK_DIRTY)) {
             scheduler_task_yield();
             goto sleep_again;
         }

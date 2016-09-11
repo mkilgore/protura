@@ -21,6 +21,15 @@
 
 struct block_device;
 
+enum {
+    /* If this is set, then the contents of this block has been modified and
+     * doesn't match the contents of the disk. */
+    BLOCK_DIRTY,
+    /* If this isn't set, then that means the contents of this block aren't
+     * correct, and need to be read from the disk. */
+    BLOCK_VALID,
+};
+
 struct block {
     /* The actual data for this block */
     char *data;
@@ -35,13 +44,7 @@ struct block {
     struct block_device *bdev;
     list_node_t bdev_blocks_entry;
 
-    /* If this is set, then the contents of this block has been modified and
-     * doesn't match the contents of the disk. */
-    uint32_t dirty :1;
-
-    /* If this isn't set, then that means the contents of this block aren't
-     * correct, and need to be read from the disk. */
-    uint32_t valid :1;
+    flags_t flags;
 
     /* To be able to modify this block, you have to acquire this lock */
     mutex_t block_mutex;
@@ -62,12 +65,12 @@ struct block {
 
 static inline void block_mark_dirty(struct block *b)
 {
-    b->dirty = 1;
+    flag_set(&b->flags, BLOCK_DIRTY);
 }
 
 static inline void block_mark_clean(struct block *b)
 {
-    b->dirty = 0;
+    flag_clear(&b->flags, BLOCK_DIRTY);
 }
 
 static inline int block_waiting(struct block *b)
@@ -135,7 +138,7 @@ static inline void block_set_crc(struct block *b)
 static inline void block_check_crc(struct block *b)
 {
     if (crc16(b->data, b->block_size, BLOCK_CRC_POLY) != b->crc)
-        panic("Block %d:%d: CRC check failed, b->dirty should be set! b->dirty=%d\n", b->dev, b->sector, b->dirty);
+        panic("Block %d:%d: CRC check failed, b->dirty should be set! b->dirty=%d\n", b->dev, b->sector, flag_test(&b->flags, BLOCK_DIRTY));
 }
 #else
 static inline void block_set_crc(struct block *b) { }
@@ -144,10 +147,10 @@ static inline void block_check_crc(struct block *b) { }
 
 static inline void block_dev_sync_block(struct block_device *dev, struct block *b)
 {
-    if (!b->dirty && b->valid)
+    if (!flag_test(&b->flags, BLOCK_DIRTY) && flag_test(&b->flags, BLOCK_VALID))
         block_check_crc(b);
 
-    if (!b->valid || b->dirty) {
+    if (!flag_test(&b->flags, BLOCK_VALID) || flag_test(&b->flags, BLOCK_DIRTY)) {
         (dev->ops->sync_block) (dev, b);
         block_set_crc(b);
     }

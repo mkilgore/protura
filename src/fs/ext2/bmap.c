@@ -47,7 +47,7 @@ static sector_t __ext2_mark_block(struct ext2_super_block *sb)
             bit_set(b->data, location);
             sb->groups[i].block_unused_total--;
 
-            b->dirty = 1;
+            block_mark_dirty(b);
         }
 
         break;
@@ -84,7 +84,7 @@ void ext2_block_release(struct ext2_super_block *sb, sector_t block)
             bit_clear(b->data, index - 1);
             sb->groups[group].block_unused_total++;
 
-            b->dirty = 1;
+            block_mark_dirty(b);
         }
 
         sb->disksb.block_unused_total++;
@@ -205,7 +205,7 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
 
         using_block(sb->sb.dev, ret, b) {
             memset(b->data, 0, b->block_size);
-            b->dirty = 1;
+            block_mark_dirty(b);
         }
     } else {
         panic("Writing more then 12 blocks to a file not implemented!\n");

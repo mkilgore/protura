@@ -53,7 +53,7 @@ static ino_t __ext2_check_block_group(struct ext2_super_block *sb, int group_no)
         bit_set(b->data, loc);
         group->inode_unused_total--;
 
-        b->dirty = 1;
+        block_mark_dirty(b);
     }
 
     return ino;

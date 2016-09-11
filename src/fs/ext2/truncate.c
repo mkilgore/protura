@@ -76,7 +76,7 @@ static int __ext2_inode_truncate_sindirect(struct ext2_inode *inode,
             ext2_block_release(s, addr);
 
         ((uint32_t *)(b->data))[i] = 0;
-        b->dirty = 1;
+        block_mark_dirty(b);
     }
 
     return 0;
@@ -174,7 +174,7 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     if ((size % block_size) != 0) {
         using_block(sb->sb.dev, vfs_bmap(&inode->i, starting_block), b) {
             memset(b->data + (size % block_size), 0, block_size - (size % block_size));
-            b->dirty = 1;
+            block_mark_dirty(b);
         }
     }
 

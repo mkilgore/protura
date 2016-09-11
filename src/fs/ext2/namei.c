@@ -168,7 +168,7 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
     memcpy(entry->name, name, len);
 
   return_entry:
-    b->dirty = 1;
+    block_mark_dirty(b);
 
     *result = entry;
     *err = 0;
@@ -271,7 +271,7 @@ int __ext2_dir_remove_entry(struct inode *dir, struct block *b, struct ext2_disk
 
     entry->ino = 0;
 
-    b->dirty = 1;
+    block_mark_dirty(b);
 
     return 0;
 }
@@ -353,7 +353,7 @@ int __ext2_dir_change_dotdot(struct inode *dir, ino_t ino)
 
     entry->ino = ino;
 
-    b->dirty = 1;
+    block_mark_dirty(b);
     brelease(b);
 
     return 0;

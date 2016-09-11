@@ -496,7 +496,7 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
 
         using_block(symlink->sb->dev, s, b) {
             strcpy(b->data, symlink_target);
-            b->dirty = 1;
+            block_mark_dirty(b);
         }
     }
 

@@ -211,7 +211,7 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
                 dinode->blk_ptrs[i] = inode->blk_ptrs[i];
         }
 
-        b->dirty = 1;
+        block_mark_dirty(b);
     }
 
     inode_clear_dirty(i);
@@ -252,7 +252,7 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
                 panic("EXT2 (%p): Error, attempted to delete inode with ino(%d) not currently used!\n", sb, i->ino);
 
             bit_clear(b->data, inode_entry);
-            b->dirty = 1;
+            block_mark_dirty(b);
         }
 
         sb->groups[inode_group].inode_unused_total++;
@@ -432,7 +432,7 @@ static int ext2_sb_write(struct super_block *sb)
 
         using_block(ext2sb->sb.dev, ext2sb->sb_block_nr + 1 + i, b) {
             memcpy(b->data, ext2sb->groups + i * groups_per_block, count * sizeof(*ext2sb->groups));
-            b->dirty = 1;
+            block_mark_dirty(b);
         }
     }
 
@@ -443,7 +443,7 @@ static int ext2_sb_write(struct super_block *sb)
         else
             memcpy(b->data + 1024, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
 
-        b->dirty = 1;
+        block_mark_dirty(b);
     }
     kp_ext2(ext2sb, "Done writing ext2 super-block.\n");
 
