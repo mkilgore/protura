@@ -16,7 +16,9 @@ mkdir ./disk_ext2/proc
 mkdir ./disk_ext2/dev
 
 while read device; do
-    mknod ./disk_ext2/$device
+    if [ ! -z "$device" ]; then
+        mknod ./disk_ext2/$device
+    fi
 done < ./disk/device_table.txt
 
 

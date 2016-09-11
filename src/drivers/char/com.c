@@ -49,7 +49,6 @@ struct com_port {
 
     spinlock_t buf_lock;
     struct char_buf buf;
-    size_t buf_len;
     struct wakeup_list watch_list;
 };
 
@@ -64,8 +63,6 @@ static void com_int_handler(struct com_port *com)
             b = inb(com->ioport + UART_RX);
 
             char_buf_write_char(&com->buf, b);
-            com->buf_len++;
-            kp(KP_TRACE, "Buf sz: %d, buf_len: %d\n", (int)sizeof(com->buffer), com->buf_len);
             wakeup_list_wakeup(&com->watch_list);
         } while (inb(com->ioport + UART_LSR) & UART_LSR_DR);
     }
@@ -127,10 +124,9 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
   sleep_again:
     sleep_intr {
         using_spinlock(&com->buf_lock) {
-            while ((cur_pos != len) && (com->buf_len > 0)) {
+            while ((cur_pos != len) && (com->buf.buf_len > 0)) {
                 buf[cur_pos] = char_buf_read_char(&com->buf);
                 cur_pos++;
-                com->buf_len--;
                 kp(KP_TRACE, "%d: Reading from COM\n", current->pid);
             }
         }
@@ -230,9 +226,57 @@ static void com_init_ports(void)
     irq_restore(irq_flags);
 }
 
-#if 0
-static struct tty_ops ops = {
+static int com_tty_read(struct tty *tty, char *buf, size_t len)
+{
+    struct com_port *com = com_ports + tty->device_no;
+    int cur_pos = 0;
 
+    using_spinlock(&com->buf_lock) {
+        while ((cur_pos != len) && (com->buf.buf_len > 0)) {
+            buf[cur_pos] = char_buf_read_char(&com->buf);
+            cur_pos++;
+        }
+    }
+
+    return cur_pos;
+}
+
+static int com_tty_write(struct tty *tty, const char *buf, size_t len)
+{
+    struct com_port *com = com_ports + tty->device_no;
+
+    using_spinlock(&com->buf_lock) {
+        int i;
+        for (i = 0; i < len; i++)
+            outb(com->ioport + UART_TX, buf[i]);
+    }
+
+    return len;
+}
+
+static int com_tty_has_chars(struct tty *tty)
+{
+    struct com_port *com = com_ports + tty->device_no;
+    int ret;
+
+    using_spinlock(&com->buf_lock)
+        ret = com->buf.buf_len;
+
+    return ret;
+}
+
+static void com_tty_register_for_wakeups(struct tty *tty)
+{
+    struct com_port *com = com_ports + tty->device_no;
+
+    wakeup_list_add(&com->watch_list, tty->kernel_task);
+}
+
+static struct tty_ops ops = {
+    .read = com_tty_read,
+    .write = com_tty_write,
+    .has_chars = com_tty_has_chars,
+    .register_for_wakeups = com_tty_register_for_wakeups,
 };
 
 static struct tty_driver driver = {
@@ -240,18 +284,13 @@ static struct tty_driver driver = {
     .minor_start = 1,
     .minor_end = 2,
     .ops = &ops,
-    .inout_buf_lock = MUTEX_INIT(driver.inout_buf_lock, "com-tty-inout-buf-lock"),
-    .in_wait_queue = WAIT_QUEUE_INIT(driver.in_wait_queue, "com-tty-in-wait-queue"),
-    .tty_driver_node = LIST_NODE_INIT(driver.tty_driver_node),
-
 };
 
 void com_tty_init(void)
 {
-    tty_register(&driver);
-    wakeup_list_add(&
+    kp(KP_TRACE, "COM TTY INIT\n");
+    tty_driver_register(&driver);
 }
-#endif
 
 void com_init(void)
 {

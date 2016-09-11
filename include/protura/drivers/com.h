@@ -12,6 +12,7 @@
 #include <protura/fs/char.h>
 
 void com_init(void);
+void com_tty_init(void);
 
 extern struct file_ops com_file_ops;
 

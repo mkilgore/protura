@@ -22,6 +22,7 @@
 #include <protura/drivers/screen.h>
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/console.h>
+#include <protura/drivers/com.h>
 #include <protura/drivers/tty.h>
 
 /*
@@ -84,9 +85,12 @@ static int tty_kernel_thread(void *p)
                 break;
 
             case '\b':
+            case '\x7f':
                 if (start > 0) {
                     start--;
-                    driver->ops->write(tty, buf + i, 1);
+                    driver->ops->write(tty, &(char){ '\b' }, 1);
+                    driver->ops->write(tty, &(char){ ' ' }, 1);
+                    driver->ops->write(tty, &(char){ '\b' }, 1);
                 }
                 break;
 
@@ -140,16 +144,18 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->kernel_task = task_kernel_new_interruptable(driver->name, tty_kernel_thread, tty);
     scheduler_task_add(tty->kernel_task);
 
-    tty_array[devno] = tty;
+    tty_array[devno + driver->minor_start] = tty;
 }
 
 void tty_driver_register(struct tty_driver *driver)
 {
-    dev_t devices = driver->minor_start - driver->minor_end + 1;
+    dev_t devices = driver->minor_end - driver->minor_start + 1;
     int i;
 
-    for (i = 0; i < devices; i++)
+    for (i = 0; i < devices; i++) {
+        kp(KP_TRACE, "Creating %s%d\n", driver->name, i);
         tty_create(driver, i);
+    }
 
     return ;
 }
@@ -237,5 +243,6 @@ struct file_ops tty_file_ops = {
 void tty_subsystem_init(void)
 {
     console_init();
+    com_tty_init();
 }
 

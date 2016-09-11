@@ -84,9 +84,9 @@ int main(int argc, char **argv)
     close(consolefd);
     close(stderrfd);
 
-    keyboardfd = open("/dev/com2", O_RDONLY);
-    consolefd = open("/dev/com2", O_WRONLY);
-    stderrfd = open("/dev/com2", O_WRONLY);
+    keyboardfd = open("/dev/ttyS1", O_RDONLY);
+    consolefd = open("/dev/ttyS1", O_WRONLY);
+    stderrfd = open("/dev/ttyS1", O_WRONLY);
 
     shell[1] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
 

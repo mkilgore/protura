@@ -1,8 +1,13 @@
 /dev/console c 1 0
 /dev/keyboard c 2 0
 /dev/screen c 4 0
+
 /dev/tty0 c 5 0
+/dev/ttyS0 c 5 1
+/dev/ttyS1 c 5 2
+
 /dev/hda b 1 0
 /dev/hdb b 2 0
+
 /dev/com1 c 3 0
 /dev/com2 c 3 1
