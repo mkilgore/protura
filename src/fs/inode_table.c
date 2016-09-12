@@ -97,7 +97,7 @@ void inode_put(struct inode *inode)
     }
 
     if (release) {
-        kp(KP_TRACE, "Releasing inode "PRinode"\n", Pinode(inode));
+        kp(KP_TRACE, "Releasing inode "PRinode", nlinks: %d\n", Pinode(inode), atomic32_get(&inode->nlinks));
         /* If this inode has no hard-links to it, then we can just discard it. */
         if (atomic32_get(&inode->nlinks) == 0) {
             kp(KP_TRACE, "inode "PRinode" has no hark links, deleting...\n", Pinode(inode));
