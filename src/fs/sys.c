@@ -110,6 +110,9 @@ int sys_open(const char *__user path, int flags, mode_t mode)
         kp(KP_TRACE, "Setting Close-on-exec for %d\n", ret);
     }
 
+    if (flags & O_TRUNC)
+        vfs_truncate(filp->inode, 0);
+
   cleanup_namei:
     if (name.found)
         inode_put(name.found);
