@@ -156,10 +156,22 @@ int builtin_exec(struct prog_desc *prog, int *ret)
             if (ret)
                 *ret = k;
 
-            return 0;
+            goto cleanup_prog;
         }
     }
 
     return 1;
+
+  cleanup_prog:
+    if (prog->stdin_fd != STDIN_FILENO)
+        close(prog->stdin_fd);
+
+    if (prog->stdout_fd != STDOUT_FILENO)
+        close(prog->stdout_fd);
+
+    if (prog->stderr_fd != STDERR_FILENO)
+        close(prog->stderr_fd);
+
+    return 0;
 }
 
