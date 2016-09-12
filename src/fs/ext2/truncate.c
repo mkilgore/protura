@@ -40,7 +40,8 @@ static int __ext2_inode_truncate_direct(struct ext2_inode *inode, struct ext2_su
 {
     int i;
 
-    for (i = starting_block; i < ending_block && i < 12; i++) {
+    for (i = starting_block; i <= ending_block && i < 12; i++) {
+        kp(KP_TRACE, "Inode "PRinode": Truncating block %d\n", Pinode(&inode->i), inode->blk_ptrs_direct[i]);
         if (inode->blk_ptrs_direct[i])
             ext2_block_release(s, inode->blk_ptrs_direct[i]);
         inode->blk_ptrs_direct[i] = 0;
@@ -144,7 +145,9 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     starting_block = ALIGN_2(size, block_size) / block_size;
     ending_block = ALIGN_2_DOWN(inode->i.size, block_size) / block_size;
 
-    if (starting_block >= ending_block)
+    kp(KP_TRACE, "Inode "PRinode": Truncating %d-%d...\n", Pinode(&inode->i), starting_block, ending_block);
+
+    if (starting_block > ending_block)
         goto set_size_and_ret;
 
     if (ending_block > 12 + BLOCKS_IN_INDIRECT(block_size))

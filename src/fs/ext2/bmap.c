@@ -72,16 +72,17 @@ sector_t ext2_block_alloc(struct ext2_super_block *sb)
     return ret;
 }
 
-void ext2_block_release(struct ext2_super_block *sb, sector_t block)
+void ext2_block_release(struct ext2_super_block *sb, sector_t orig_block)
 {
     int blocks_per_group = sb->block_size * CHAR_BIT;
+    int block = orig_block - 1;
     int group = block / blocks_per_group;
     int index = block % blocks_per_group;
     struct block *b;
 
     using_super_block(&sb->sb) {
         using_block(sb->sb.dev, sb->groups[group].block_nr_block_bitmap, b) {
-            bit_clear(b->data, index - 1);
+            bit_clear(b->data, index);
             sb->groups[group].block_unused_total++;
 
             block_mark_dirty(b);
