@@ -210,10 +210,8 @@ void irq_global_handler(struct irq_frame *iframe)
     if (ident->handler != NULL)
         (ident->handler) (iframe);
 
-    if (frame_flag && t && t->sig_pending) {
-        kp(KP_TRACE, "%d: sig_pending: 0x%08x\n", t->pid, t->sig_pending);
+    if (frame_flag && t && t->sig_pending)
         signal_handle(t, iframe);
-    }
 
     /* There's a possibility that interrupts are on, if this was a syscall.
      *
