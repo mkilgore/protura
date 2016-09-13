@@ -12,7 +12,11 @@ cp -R ./disk/root/* ./disk_ext2/
 mkdir ./disk_ext2/mnt
 mkdir ./disk_ext2/mnt/slave
 
+mkdir ./disk_ext2/home
+cp -R ./disk/home/* ./disk_ext2/home/
+
 mkdir ./disk_ext2/proc
+mkdir ./disk_ext2/tmp
 mkdir ./disk_ext2/dev
 
 while read device; do
