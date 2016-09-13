@@ -47,3 +47,14 @@ disk/root/bin/%: disk/utils/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./d
 	@echo " OBJCOPY $@"
 	$(Q)$(OBJCOPY) --strip-unneeded $@
 
+DISK_PROGS += $(DISK_BINDIR)/ed
+
+$(DISK_BINDIR)/ed:
+	$(Q)git submodule update --init --depth 1
+	@echo " CONFIG  $@"
+	$(Q)cd ./disk/utils/protura-ed; ./configure CC=$(CC) >/dev/null;
+	@echo " MAKE    $@"
+	$(Q)cd ./disk/utils/protura-ed; make >/dev/null
+	@echo " CP      $@"
+	$(Q)cp ./disk/utils/protura-ed/ed $@
+
