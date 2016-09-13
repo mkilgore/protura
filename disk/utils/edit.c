@@ -20,7 +20,7 @@ int main(int argc, char **argv, char **envp)
 
     file = fopen(filename, "w");
 
-    while ((c = getchar()) != EOF && c != 4) {
+    while ((c = getchar()) != EOF) {
         putchar(c);
         fputc(c, file);
     }
