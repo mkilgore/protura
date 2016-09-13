@@ -12,6 +12,7 @@
 #include "common.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -84,7 +85,12 @@ int main(int argc, char **argv)
 
     sigprocmask(SIG_BLOCK, &blocked, NULL);
 
-    cwd = strdup("/");
+    if (!getenv("HOME"))
+        cwd = strdup("/");
+    else
+        cwd = strdup(getenv("HOME"));
+
+    chdir(cwd);
 
     if (is_script)
         input_script_loop(fd);
