@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 
     setpgid(0, 0);
 
-    shell[0] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
+    shell[0] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", "HOME=/home", NULL });
 
     close(keyboardfd);
     close(consolefd);
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     consolefd = open("/dev/ttyS1", O_WRONLY);
     stderrfd = open("/dev/ttyS1", O_WRONLY);
 
-    shell[1] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", NULL });
+    shell[1] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", "HOME=/home", NULL });
 
     /* Sleep forever */
     while (1)
