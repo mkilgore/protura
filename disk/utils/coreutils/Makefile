@@ -11,6 +11,7 @@ COREUTILS_PROGS = \
 	ln \
 	lnum \
 	ls \
+	mem \
 	mkdir \
 	mknod \
 	more \
