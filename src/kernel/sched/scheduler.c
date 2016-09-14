@@ -600,39 +600,33 @@ void wait_queue_node_init(struct wait_queue_node *node)
     list_node_init(&node->node);
 }
 
-void wait_queue_register(struct wait_queue *queue)
+void wait_queue_register(struct wait_queue *queue, struct wait_queue_node *node)
 {
-    struct task *t = cpu_get_local()->current;
-
-    wait_queue_unregister();
-
     using_spinlock(&queue->lock) {
-        list_add_tail(&queue->queue, &t->wait.node);
-        t->wait.queue = queue;
+        list_add_tail(&queue->queue, &node->node);
+        node->queue = queue;
     }
 }
 
-void wait_queue_unregister(void)
+void wait_queue_unregister(struct wait_queue_node *node)
 {
-    struct task *t = cpu_get_local()->current;
-
     /* Check if t is currently registered for a queue before attempting to
      * remove it */
-    if (!t->wait.queue)
+    if (!node->queue)
         return ;
 
     /* We get the spinlock *before* checking if we're actually in the list,
      * because it's entire possible that we'll be removed from the list while
      * we're doing the check. */
-    using_spinlock(&t->wait.queue->lock)
-        if (list_node_is_in_list(&t->wait.node))
-            list_del(&t->wait.node);
+    using_spinlock(&node->queue->lock)
+        if (list_node_is_in_list(&node->node))
+            list_del(&node->node);
 }
 
 int wait_queue_wake(struct wait_queue *queue)
 {
     int waken = 0;
-    struct task *t;
+    struct wait_queue_node *node;
 
     /* dequeue takes the next sleeping task off of the wait queue and wakes it up.
      *
@@ -645,7 +639,9 @@ int wait_queue_wake(struct wait_queue *queue)
      * even though it hasn't actually unregistered yet.
      */
     using_spinlock(&queue->lock) {
-        list_foreach_take_entry(&queue->queue, t, wait.node) {
+        list_foreach_take_entry(&queue->queue, node, node) {
+            struct task *t = node->task;
+
             kp(KP_TRACE, "Wait queue %p: Task %p: %d\n", queue, t, t->state);
             if (t->state == TASK_SLEEPING || t->state == TASK_INTR_SLEEPING) {
                 kp(KP_TRACE, "Wait queue %p: Waking task %s(%p)\n", queue, t->name, t);
@@ -663,12 +659,10 @@ int wait_queue_wake_all(struct wait_queue *queue)
 {
     int waken = 0;
     struct wait_queue_node *node;
-    struct task *t;
 
     using_spinlock(&queue->lock) {
         list_foreach_take_entry(&queue->queue, node, node) {
-            t = container_of(node, struct task, wait);
-            scheduler_task_wake(t);
+            scheduler_task_wake(node->task);
             waken++;
         }
     }

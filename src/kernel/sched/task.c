@@ -74,6 +74,7 @@ void task_init(struct task *task)
     list_node_init(&task->task_sibling_list);
     list_head_init(&task->task_children);
     wait_queue_node_init(&task->wait);
+    task->wait.task = task;
     spinlock_init(&task->children_list_lock, "Task child list");
 
     task->addrspc = kmalloc(sizeof(*task->addrspc), PAL_KERNEL);

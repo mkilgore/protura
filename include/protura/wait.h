@@ -47,6 +47,7 @@ struct wait_queue {
 struct wait_queue_node {
     list_node_t node;
     struct wait_queue *queue;
+    struct task *task;
 };
 
 #define WAIT_QUEUE_INIT(q, name) \
@@ -61,8 +62,8 @@ void wait_queue_init(struct wait_queue *);
 void wait_queue_node_init(struct wait_queue_node *);
 
 /* Register or unregister the current task to wakeup from this wait-queue. */
-void wait_queue_register(struct wait_queue *);
-void wait_queue_unregister(void);
+void wait_queue_register(struct wait_queue *, struct wait_queue_node *);
+void wait_queue_unregister(struct wait_queue_node *);
 
 /* Called by the task that is done with whatever the tasks waiting in the queue
  * are waiting for. Returns the number of tasks woken-up. */
@@ -73,16 +74,16 @@ int wait_queue_wake_all(struct wait_queue *);
 /* For explinations of the below macros, see the 'sleep' macro in scheduler.h */
 
 #define using_wait_queue(queue) \
-    using_nocheck(wait_queue_register(queue), wait_queue_unregister(queue))
+    using_nocheck(wait_queue_register(queue, &cpu_get_local()->current->wait), wait_queue_unregister(&cpu_get_local()->current->wait))
 
 #define sleep_with_wait_queue_begin(queue) \
-    (wait_queue_register(queue), scheduler_set_sleeping())
+    (wait_queue_register(queue, &cpu_get_local()->current->wait), scheduler_set_sleeping())
 
 #define sleep_intr_with_wait_queue_begin(queue) \
-    (wait_queue_register(queue), scheduler_set_intr_sleeping())
+    (wait_queue_register(queue, &cpu_get_local()->current->wait), scheduler_set_intr_sleeping())
 
 #define sleep_with_wait_queue_end() \
-    (scheduler_set_running(), wait_queue_unregister())
+    (scheduler_set_running(), wait_queue_unregister(&cpu_get_local()->current->wait))
 
 /* While it would be nice if we could just combine the 'using_wait_queue' and
  * 'sleep' macros here, we can only have one 'using' macro per line, so we have

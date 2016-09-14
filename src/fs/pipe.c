@@ -211,7 +211,7 @@ static int pipe_read(struct file *filp, void *data, size_t size)
                         scheduler_task_yield();
                         kp(KP_TRACE, "pipe yield() return, pending sig: %d\n", has_pending_signal(cpu_get_local()->current));
                         if (has_pending_signal(cpu_get_local()->current)) {
-                            wait_queue_unregister();
+                            wait_queue_unregister(&cpu_get_local()->current->wait);
                             return -ERESTARTSYS;
                         }
 
@@ -307,7 +307,7 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
                     not_using_mutex(&pinfo->pipe_buf_lock) {
                         scheduler_task_yield();
                         if (has_pending_signal(cpu_get_local()->current)) {
-                            wait_queue_unregister();
+                            wait_queue_unregister(&cpu_get_local()->current->wait);
                             return -ERESTARTSYS;
                         }
                     }

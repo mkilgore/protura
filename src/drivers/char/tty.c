@@ -221,7 +221,7 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
                         scheduler_task_yield();
 
                         if (has_pending_signal(cpu_get_local()->current)) {
-                            wait_queue_unregister();
+                            wait_queue_unregister(&cpu_get_local()->current->wait);
                             return -ERESTARTSYS;
                         }
                     }
