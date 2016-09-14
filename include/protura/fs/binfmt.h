@@ -82,7 +82,7 @@ void binfmt_unregister(struct binfmt *);
 /* Loads the binary specified by 'exe_params' into the current task */
 int binary_load(struct exe_params *, struct irq_frame *);
 
-int binfmt_readpage(void *page, size_t page_size, size_t *len);
+extern struct procfs_entry_ops binfmt_ops;
 
 void script_register(void);
 

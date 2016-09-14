@@ -8,10 +8,10 @@
 #ifndef INCLUDE_FS_FILE_SYSTEM_H
 #define INCLUDE_FS_FILE_SYSTEM_H
 
+#ifdef __KERNEL__
+
 #include <protura/types.h>
 #include <protura/list.h>
-
-#ifdef __KERNEL__
 
 struct super_block;
 
@@ -29,7 +29,7 @@ void file_system_unregister(const char *name);
 
 struct file_system *file_system_lookup(const char *name);
 
-int file_systeam_list_read(void *page, size_t page_size, size_t *len);
+extern struct procfs_entry_ops file_system_ops;
 
 #endif
 

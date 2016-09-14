@@ -66,7 +66,7 @@ struct file_system *file_system_lookup(const char *name)
     return found;
 }
 
-int file_systeam_list_read(void *page, size_t page_size, size_t *len)
+static int file_system_list_read(void *page, size_t page_size, size_t *len)
 {
     struct file_system *system;
 
@@ -78,6 +78,10 @@ int file_systeam_list_read(void *page, size_t page_size, size_t *len)
 
     return 0;
 }
+
+struct procfs_entry_ops file_system_ops = {
+    .readpage = file_system_list_read,
+};
 
 void file_systems_init(void)
 {

@@ -22,8 +22,9 @@ void scheduler_task_mark_dead(struct task *t);
 
 int scheduler_task_send_signal(pid_t pid, int signal, int force);
 int scheduler_task_exists(pid_t pid);
-int scheduler_tasks_read(void *p, size_t size, size_t *len);
-int scheduler_tasks_api_read(struct file *filp, void *p, size_t size);
+
+extern struct procfs_entry_ops tasks_ops;
+extern struct procfs_entry_ops tasks_api_ops;
 
 /*
  * These return a coresponding struct task

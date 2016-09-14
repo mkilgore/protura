@@ -38,11 +38,16 @@ struct procfs_node {
     hlist_node_t inode_hash_entry;
 };
 
-struct procfs_entry {
-    struct procfs_node node;
+struct procfs_entry_ops {
     int (*readpage) (void *page, size_t page_size, size_t *len);
 
     int (*read) (struct file *filp, void *buf, size_t);
+    int (*ioctl) (struct file *filp, int cmd, uintptr_t ptr);
+};
+
+struct procfs_entry {
+    struct procfs_node node;
+    const struct procfs_entry_ops *ops;
 };
 
 struct procfs_dir {
@@ -84,8 +89,7 @@ struct procfs_inode {
     struct procfs_node *node;
 };
 
-void procfs_register_entry(struct procfs_dir *parent, const char *name, int (*readpage) (void *page, size_t page_size, size_t *len));
-void procfs_register_entry_read(struct procfs_dir *parent, const char *name, int (*read) (struct file *filp, void *, size_t));
+void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, const struct procfs_entry_ops *ops);
 struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *name);
 
 struct procfs_dir procfs_root;

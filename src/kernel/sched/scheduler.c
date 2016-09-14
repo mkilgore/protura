@@ -26,6 +26,7 @@
 #include <protura/dump_mem.h>
 #include <protura/mm/palloc.h>
 #include <protura/signal.h>
+#include <protura/fs/procfs.h>
 #include <protura/task_api.h>
 #include <protura/fs/file.h>
 
@@ -381,7 +382,7 @@ void scheduler(void)
     }
 }
 
-int scheduler_tasks_read(void *p, size_t size, size_t *len)
+static int scheduler_tasks_read(void *p, size_t size, size_t *len)
 {
     struct task *t;
 
@@ -407,6 +408,10 @@ int scheduler_tasks_read(void *p, size_t size, size_t *len)
 
     return 0;
 }
+
+struct procfs_entry_ops tasks_ops = {
+    .readpage = scheduler_tasks_read,
+};
 
 static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 {
@@ -452,7 +457,7 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
     memcpy(tinfo->name, task->name, sizeof(tinfo->name));
 }
 
-int scheduler_tasks_api_read(struct file *filp, void *p, size_t size)
+static int scheduler_tasks_api_read(struct file *filp, void *p, size_t size)
 {
     struct task_api_info tinfo;
     struct task *task, *found = NULL;
@@ -490,6 +495,58 @@ int scheduler_tasks_api_read(struct file *filp, void *p, size_t size)
         return 0;
     }
 }
+
+static int tasks_api_fill_mem_info(struct task_api_mem_info *info)
+{
+    struct vm_map *map;
+    struct task *task;
+    int region;
+
+    task = scheduler_task_get(info->pid);
+    if (!task)
+        return -ESRCH;
+
+    list_foreach_entry(&task->addrspc->vm_maps, map, address_space_entry) {
+        region = info->region_count++;
+
+        if (region > ARRAY_SIZE(info->regions))
+            break;
+
+        info->regions[region].start = (uintptr_t)map->addr.start;
+        info->regions[region].end = (uintptr_t)map->addr.end;
+
+        info->regions[region].is_read= flag_test(&map->flags, VM_MAP_READ);
+        info->regions[region].is_write = flag_test(&map->flags, VM_MAP_WRITE);
+        info->regions[region].is_exec = flag_test(&map->flags, VM_MAP_EXE);
+    }
+
+    scheduler_task_put(task);
+
+    return 0;
+}
+
+static int scheduler_tasks_api_ioctl(struct file *filp, int cmd, uintptr_t ptr)
+{
+    struct task_api_mem_info *info;
+    int ret;
+
+    switch (cmd) {
+    case TASKIO_MEM_INFO:
+        info = (struct task_api_mem_info *)ptr;
+        ret = user_check_region(info, sizeof(*info), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        return tasks_api_fill_mem_info(info);
+    }
+
+    return -EINVAL;
+}
+
+struct procfs_entry_ops tasks_api_ops = {
+    .read = scheduler_tasks_api_read,
+    .ioctl = scheduler_tasks_api_ioctl,
+};
 
 void wakeup_list_init(struct wakeup_list *list)
 {

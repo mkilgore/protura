@@ -36,20 +36,20 @@ static int procfs_file_read(struct file *filp, void *buf, size_t size)
 
     pinode->i.atime = protura_current_time_get();
 
-    if (entry->read)
-        return (entry->read)(filp, buf, size);
+    if (entry->ops->read)
+        return (entry->ops->read)(filp, buf, size);
 
     if (filp->offset > 0)
         return 0;
 
-    if (!entry->readpage)
+    if (!entry->ops->readpage)
         return 0;
 
     p = palloc_va(0, PAL_KERNEL);
     if (!p)
         return -ENOMEM;
 
-    ret = (entry->readpage) (p, PG_SIZE, &data_len);
+    ret = (entry->ops->readpage) (p, PG_SIZE, &data_len);
 
     kp(KP_TRACE, "procfs output len: %d\n", data_len);
 
@@ -69,8 +69,21 @@ static int procfs_file_read(struct file *filp, void *buf, size_t size)
     }
 }
 
+static int procfs_file_ioctl(struct file *filp, int cmd, uintptr_t ptr)
+{
+    struct procfs_inode *pinode = container_of(filp->inode, struct procfs_inode, i);
+    struct procfs_node *node = pinode->node;
+    struct procfs_entry *entry = container_of(node, struct procfs_entry, node);
+
+    if (entry->ops->ioctl)
+        return (entry->ops->ioctl) (filp, cmd, ptr);
+
+    return -EINVAL;
+}
+
 struct file_ops procfs_file_file_ops = {
     .read = procfs_file_read,
+    .ioctl = procfs_file_ioctl,
 };
 
 struct inode_ops procfs_file_inode_ops = {

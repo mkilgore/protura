@@ -24,6 +24,7 @@
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/inode_table.h>
+#include <protura/fs/procfs.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/fs.h>
 
@@ -235,7 +236,7 @@ static int super_umount(struct super_block *super)
     return 0;
 }
 
-int mount_list_read(void *page, size_t page_size, size_t *len)
+static int mount_list_read(void *page, size_t page_size, size_t *len)
 {
     struct vfs_mount *mount;
     *len = 0;
@@ -253,6 +254,10 @@ int mount_list_read(void *page, size_t page_size, size_t *len)
 
     return 0;
 }
+
+struct procfs_entry_ops mount_ops = {
+    .readpage = mount_list_read,
+};
 
 int vfs_umount(struct super_block *sb)
 {

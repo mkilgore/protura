@@ -155,15 +155,15 @@ void procfs_init(void)
     procfs_register_entry(dir2, "entry6", NULL);
 #endif
 
-    procfs_register_entry(&procfs_root, "interrupts", interrupt_stats_read);
-    procfs_register_entry(&procfs_root, "tasks", scheduler_tasks_read);
-    procfs_register_entry(&procfs_root, "filesystems", file_systeam_list_read);
-    procfs_register_entry(&procfs_root, "mounts", mount_list_read);
-    procfs_register_entry(&procfs_root, "binfmts", binfmt_readpage);
-    procfs_register_entry(&procfs_root, "uptime", protura_uptime_read);
-    procfs_register_entry(&procfs_root, "boottime", protura_boot_time_read);
-    procfs_register_entry(&procfs_root, "currenttime", protura_current_time_read);
+    procfs_register_entry_ops(&procfs_root, "interrupts", &interrupt_ops);
+    procfs_register_entry_ops(&procfs_root, "tasks", &tasks_ops);
+    procfs_register_entry_ops(&procfs_root, "filesystems", &file_system_ops);
+    procfs_register_entry_ops(&procfs_root, "mounts", &mount_ops);
+    procfs_register_entry_ops(&procfs_root, "binfmts", &binfmt_ops);
+    procfs_register_entry_ops(&procfs_root, "uptime", &uptime_ops);
+    procfs_register_entry_ops(&procfs_root, "boottime", &boot_time_ops);
+    procfs_register_entry_ops(&procfs_root, "currenttime", &current_time_ops);
 
-    procfs_register_entry_read(&procfs_root, "tasks_api", scheduler_tasks_api_read);
+    procfs_register_entry_ops(&procfs_root, "tasks_api", &tasks_api_ops);
 }
 

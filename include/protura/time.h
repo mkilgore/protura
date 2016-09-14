@@ -35,9 +35,9 @@ void protura_boot_time_set(time_t t);
 
 time_t protura_current_time_get(void);
 
-int protura_uptime_read(void *, size_t, size_t *);
-int protura_boot_time_read(void *, size_t, size_t *);
-int protura_current_time_read(void *, size_t, size_t *);
+extern struct procfs_entry_ops uptime_ops;
+extern struct procfs_entry_ops boot_time_ops;
+extern struct procfs_entry_ops current_time_ops;
 
 int sys_time(time_t *t);
 

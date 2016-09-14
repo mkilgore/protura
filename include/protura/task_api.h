@@ -29,4 +29,22 @@ struct task_api_info {
     char name[128];
 };
 
+#define TASKIO_MEM_INFO 20
+
+struct task_api_mem_region {
+    uintptr_t start;
+    uintptr_t end;
+
+    unsigned int is_write :1;
+    unsigned int is_read :1;
+    unsigned int is_exec :1;
+};
+
+struct task_api_mem_info {
+    pid_t pid;
+
+    int region_count;
+    struct task_api_mem_region regions[10];
+};
+
 #endif

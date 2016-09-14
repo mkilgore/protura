@@ -12,6 +12,7 @@
 #include <protura/atomic.h>
 #include <protura/mm/vm.h>
 #include <protura/mm/user_ptr.h>
+#include <protura/fs/procfs.h>
 #include <protura/time.h>
 
 time_t current_uptime = 0;
@@ -47,26 +48,38 @@ time_t protura_current_time_get(void)
     return protura_uptime_get() + protura_boot_time_get();
 }
 
-int protura_uptime_read(void *page, size_t page_size, size_t *len)
+static int protura_uptime_read(void *page, size_t page_size, size_t *len)
 {
     *len = snprintf(page, page_size, "%d\n", protura_uptime_get());
 
     return 0;
 }
 
-int protura_boot_time_read(void *page, size_t page_size, size_t *len)
+static int protura_boot_time_read(void *page, size_t page_size, size_t *len)
 {
     *len = snprintf(page, page_size, "%d\n", protura_boot_time_get());
 
     return 0;
 }
 
-int protura_current_time_read(void *page, size_t page_size, size_t *len)
+static int protura_current_time_read(void *page, size_t page_size, size_t *len)
 {
     *len = snprintf(page, page_size, "%d\n", protura_current_time_get());
 
     return 0;
 }
+
+struct procfs_entry_ops uptime_ops = {
+    .readpage = protura_uptime_read,
+};
+
+struct procfs_entry_ops boot_time_ops = {
+    .readpage = protura_boot_time_read,
+};
+
+struct procfs_entry_ops current_time_ops = {
+    .readpage = protura_current_time_read,
+};
 
 int sys_time(time_t *t)
 {

@@ -14,6 +14,7 @@
 #include <protura/types.h>
 #include <protura/atomic.h>
 #include <protura/irq.h>
+#include <protura/fs/procfs.h>
 
 #include <arch/context.h>
 
@@ -61,7 +62,7 @@ void irq_register_callback(uint8_t irqno, void (*callback)(struct irq_frame *), 
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
-int interrupt_stats_read(void *p, size_t size, size_t *len);
+extern struct procfs_entry_ops interrupt_ops;
 
 #endif
 

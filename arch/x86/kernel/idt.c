@@ -13,6 +13,7 @@
 #include <protura/mm/memlayout.h>
 #include <protura/drivers/term.h>
 #include <protura/snprintf.h>
+#include <protura/fs/procfs.h>
 
 #include "irq_handler.h"
 #include <arch/asm.h>
@@ -161,7 +162,7 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
     }
 }
 
-int interrupt_stats_read(void *p, size_t size, size_t *len)
+static int interrupt_stats_read(void *p, size_t size, size_t *len)
 {
     int k;
 
@@ -178,6 +179,10 @@ int interrupt_stats_read(void *p, size_t size, size_t *len)
 
     return 0;
 }
+
+struct procfs_entry_ops interrupt_ops = {
+    .readpage = interrupt_stats_read,
+};
 
 void irq_global_handler(struct irq_frame *iframe)
 {

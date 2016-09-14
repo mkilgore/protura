@@ -39,29 +39,7 @@ static void procfs_add_node(struct procfs_dir *parent, struct procfs_node *node)
     }
 }
 
-void procfs_register_entry(struct procfs_dir *parent, const char *name, int (*readpage) (void *page, size_t page_size, size_t *len))
-{
-    struct procfs_entry *entry;
-
-    entry = kmalloc(sizeof(*entry), PAL_KERNEL);
-
-    kp(KP_TRACE, "entry: %p\n", entry);
-    kp(KP_TRACE, "parent: %p\n", parent);
-
-    procfs_entry_init(entry);
-
-    entry->node.name = name;
-    entry->node.len = strlen(name);
-    entry->node.mode = S_IFREG | 0777;
-    entry->node.parent = parent;
-    entry->node.ctime = protura_current_time_get();
-    entry->node.ino = procfs_next_ino();
-    entry->readpage = readpage;
-
-    procfs_add_node(parent, &entry->node);
-}
-
-void procfs_register_entry_read(struct procfs_dir *parent, const char *name, int (*read) (struct file *filp, void *, size_t))
+void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, const struct procfs_entry_ops *ops)
 {
     struct procfs_entry *entry;
 
@@ -75,7 +53,7 @@ void procfs_register_entry_read(struct procfs_dir *parent, const char *name, int
     entry->node.parent = parent;
     entry->node.ctime = protura_current_time_get();
     entry->node.ino = procfs_next_ino();
-    entry->read = read;
+    entry->ops = ops;
 
     procfs_add_node(parent, &entry->node);
 }

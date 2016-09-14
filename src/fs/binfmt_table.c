@@ -21,6 +21,7 @@
 #include <protura/fs/super.h>
 #include <protura/fs/file.h>
 #include <protura/fs/vfs.h>
+#include <protura/fs/procfs.h>
 #include <protura/fs/binfmt.h>
 
 static struct {
@@ -81,7 +82,7 @@ int binary_load(struct exe_params *params, struct irq_frame *frame)
     return ret;
 }
 
-int binfmt_readpage(void *page, size_t page_size, size_t *len)
+static int binfmt_readpage(void *page, size_t page_size, size_t *len)
 {
     struct binfmt *fmt;
 
@@ -95,4 +96,8 @@ int binfmt_readpage(void *page, size_t page_size, size_t *len)
 
     return 0;
 }
+
+struct procfs_entry_ops binfmt_ops = {
+    .readpage = binfmt_readpage,
+};
 
