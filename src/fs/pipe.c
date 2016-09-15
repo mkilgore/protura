@@ -152,8 +152,10 @@ static int pipe_read(struct file *filp, void *data, size_t size)
     struct pipe_info *pinfo = &filp->inode->pipe_info;
     struct page *p;
     int wake_writers = 0;
+    int ret = 0;
 
     kp(KP_NORMAL, "PIPE: "PRinode" read: %d\n", Pinode(filp->inode), size);
+    kp(KP_TRACE, "PIPE: nonblock: %d\n", flag_test(&filp->flags, FILE_NONBLOCK));
 
     using_mutex(&pinfo->pipe_buf_lock) {
         kp(KP_NORMAL, "PIPE read: got Mutex!\n");
@@ -196,6 +198,14 @@ static int pipe_read(struct file *filp, void *data, size_t size)
             if (pinfo->writers == 0)
                 break;
 
+            if (flag_test(&filp->flags, FILE_NONBLOCK)) {
+                kp(KP_TRACE, "NONBLOCK pipe: %d == %d\n", size, original_size);
+                if (size == original_size)
+                    ret = -EAGAIN;
+
+                break;
+            }
+
             if (size) {
                 kp(KP_NORMAL, "PIPE read: size\n");
                 /* If we freed a page by reading data, then wake-up any writers
@@ -229,7 +239,10 @@ static int pipe_read(struct file *filp, void *data, size_t size)
             wait_queue_wake(&pinfo->write_queue);
     }
 
-    return original_size - size;
+    if (!ret)
+        return original_size - size;
+    else
+        return ret;
 }
 
 static int pipe_write(struct file *filp, const void *data, size_t size)
@@ -246,6 +259,12 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
     using_mutex(&pinfo->pipe_buf_lock) {
         kp(KP_NORMAL, "PIPE write: got Mutex!\n");
         while (size) {
+            if (!pinfo->readers) {
+                SIGSET_SET(&current->sig_pending, SIGPIPE);
+                ret = -EPIPE;
+                break;
+            }
+
             list_foreach_take_entry(&pinfo->free_pages, p, page_list_node) {
                 kp(KP_NORMAL, "PIPE: write free_pages\n");
                 size_t cpysize = (PG_SIZE > size)? size: PG_SIZE;
@@ -289,14 +308,15 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
                 continue;
             }
 
-            /* If there's no data and no readers, then we send a SIGPIPE to
-             * ourselves and exit with -EPIPE */
-            if (size == original_size && !pinfo->readers) {
-                SIGSET_SET(&current->sig_pending, SIGPIPE);
-                ret = -EPIPE;
+            if (flag_test(&filp->flags, FILE_NONBLOCK)) {
+                if (size == original_size)
+                    ret = -EAGAIN;
+
                 break;
             }
 
+            /* If there's no data and no readers, then we send a SIGPIPE to
+             * ourselves and exit with -EPIPE */
             if (size) {
                 if (wake_readers)
                     wait_queue_wake(&pinfo->read_queue);

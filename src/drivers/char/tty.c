@@ -190,6 +190,7 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
     dev_t minor = DEV_MINOR(i->dev_no);
     struct tty *tty = tty_find(minor);
     size_t orig_len = len;
+    int ret = 0;
 
     if (!tty)
         return -ENOTTY;
@@ -214,6 +215,11 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
             if (len != orig_len)
                 break;
 
+            if (flag_test(&filp->flags, FILE_NONBLOCK)) {
+                ret = -EAGAIN;
+                break;
+            }
+
             /* Nice little dance to wait for data or a singal */
             sleep_intr_with_wait_queue(&tty->in_wait_queue) {
                 if (!char_buf_has_data(&tty->output_buf)) {
@@ -230,7 +236,10 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
         }
     }
 
-    return orig_len - len;
+    if (!ret)
+        return orig_len - len;
+    else
+        return ret;
 }
 
 static int tty_write(struct file *filp, const void *vbuf, size_t len)
