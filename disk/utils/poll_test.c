@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -43,7 +44,7 @@ void child(void)
         printf("Child Sending signal: %d!\n", order[i]);
         write(pipe_fd[order[i]][PWRITE], &k, sizeof(k));
 
-        close(pipe_fd[order[i]][PWRITE]);
+        //close(pipe_fd[order[i]][PWRITE]);
     }
 }
 
@@ -72,8 +73,22 @@ void wait_for_signal(void)
 
         for (k = 0; k < ARRAY_SIZE(fds); k++) {
             printf("revents %d: %d\n", k, fds[k].revents);
-            if (fds[k].revents)
+            if (fds[k].revents) {
+                int res;
+                printf("Reading once\n");
+
+                ret = read(fds[k].fd, &res, sizeof(res));
+                printf("res: %d\n", res);
+                printf("ret: %d\n", ret);
+                printf("Reading again...\n");
+
+                ret = read(fds[k].fd, &res, sizeof(res));
+                printf("res: %d\n", res);
+                printf("ret: %d - err: %d(%s)\n", ret, errno, strerror(errno));
+
                 fds[k].fd = -1;
+                fds[k].revents = 0;
+            }
         }
     }
 
@@ -136,6 +151,9 @@ int main(int argc, char **argv, char **envp)
             return 1;
         }
         fcntl(pipe_fd[i][PREAD], F_SETFD, fcntl(pipe_fd[i][PREAD], F_GETFD) | FD_CLOEXEC);
+
+        fcntl(pipe_fd[i][PREAD], F_SETFL, fcntl(pipe_fd[i][PREAD], F_GETFL) | O_NONBLOCK);
+        fcntl(pipe_fd[i][PWRITE], F_SETFL, fcntl(pipe_fd[i][PWRITE], F_GETFL) | O_NONBLOCK);
     }
 
     printf("Forking child...\n");
