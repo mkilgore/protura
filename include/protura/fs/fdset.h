@@ -14,22 +14,23 @@
 #endif
 
 #define NOFILE 32
+#define FD_SETSIZE 32
 
-typedef uint32_t fd_set;
+typedef unsigned int fd_set;
 
 static inline void FD_CLR(int fd, fd_set *set)
 {
-    bit_clear(set, fd);
+    *set &= ~(1 << fd);
 }
 
 static inline void FD_SET(int fd, fd_set *set)
 {
-    bit_set(set, fd);
+    *set |= (1 << fd);
 }
 
 static inline int FD_ISSET(int fd, fd_set *set)
 {
-    return bit_test(set, fd);
+    return !!(*set & (1 << fd));
 }
 
 static inline void FD_ZERO(fd_set *set)
