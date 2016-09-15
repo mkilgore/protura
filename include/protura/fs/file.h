@@ -58,6 +58,7 @@ enum file_flags {
     FILE_READABLE,
     FILE_WRITABLE,
     FILE_APPEND,
+    FILE_NONBLOCK,
 };
 
 #define file_is_readable(file) (bit_test(&(file)->flags, FILE_READABLE))

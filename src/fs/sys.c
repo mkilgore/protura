@@ -81,11 +81,19 @@ int sys_open(const char *__user path, int flags, mode_t mode)
     if (flags & O_APPEND)
         file_flags |= F(FILE_APPEND);
 
+    if (flags & O_NONBLOCK)
+        file_flags |= F(FILE_NONBLOCK);
+
     memset(&name, 0, sizeof(name));
     name.path = path;
     name.cwd = current->cwd;
 
     ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_GET_PARENT) | F(NAMEI_ALLOW_TRAILING_SLASH));
+
+    if ((flags & O_EXCL) && name.found) {
+        ret = -EEXIST;
+        goto cleanup_namei;
+    }
 
     if (!name.found) {
         if (!(flags & O_CREAT) || !name.parent)
@@ -796,6 +804,9 @@ int sys_fcntl(int fd, int cmd, uintptr_t arg)
         if (flag_test(&filp->flags, FILE_APPEND))
             ret |= O_APPEND;
 
+        if (flag_test(&filp->flags, FILE_NONBLOCK))
+            ret |= O_NONBLOCK;
+
         return ret;
 
     case F_SETFL:
@@ -803,6 +814,11 @@ int sys_fcntl(int fd, int cmd, uintptr_t arg)
             flag_set(&filp->flags, FILE_APPEND);
         else
             flag_clear(&filp->flags, FILE_APPEND);
+
+        if (arg & O_NONBLOCK)
+            flag_set(&filp->flags, FILE_NONBLOCK);
+        else
+            flag_clear(&filp->flags, FILE_NONBLOCK);
 
         return 0;
 
