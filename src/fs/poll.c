@@ -180,7 +180,8 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
         /* We do this check before the sleep so that if the scheduler woke us
          * up on a timeout, we do one last check for events. */
-        if (timeout > 0 && current->wake_up == 0)
+        if ((timeout > 0 && current->wake_up == 0)
+            || (has_pending_signal(current)))
             exit_poll = 1;
 
         sleep_intr {
@@ -195,7 +196,10 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
     current->wake_up = 0;
 
+    if (event_count == 0 && has_pending_signal(current))
+        event_count = -EINTR;
+
     pfree_va(filps, 0);
-    return 0;
+    return event_count;
 }
 
