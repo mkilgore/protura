@@ -4,7 +4,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/types.h>
+#include <sys/select.h>
 #include <sys/wait.h>
 #include <poll.h>
 
@@ -21,15 +23,27 @@ void child(void)
 {
     int i;
     int k = 2;
+    int order[PIPE_COUNT];
+
+    for (i = 0; i < PIPE_COUNT; i++)
+        order[i] = i;
+
+    for (i = 0; i < 100; i++) {
+        int o1 = rand() % PIPE_COUNT, o2 = rand() % PIPE_COUNT;
+        int tmp;
+        tmp = order[o1];
+        order[o1] = order[o2];
+        order[o2] = tmp;
+    }
 
     for (i = 0; i < PIPE_COUNT; i++) {
         printf("Child sleeping...\n");
         sleep(1);
 
-        printf("Child Sending signal: %d!\n", i);
-        write(pipe_fd[i][PWRITE], &k, sizeof(k));
+        printf("Child Sending signal: %d!\n", order[i]);
+        write(pipe_fd[order[i]][PWRITE], &k, sizeof(k));
 
-        close(pipe_fd[i][PWRITE]);
+        close(pipe_fd[order[i]][PWRITE]);
     }
 }
 
@@ -66,6 +80,25 @@ void wait_for_signal(void)
     return ;
 }
 
+void select_test(void)
+{
+    int ret;
+    fd_set read;
+    struct timeval tim;
+
+    FD_ZERO(&read);
+    FD_SET(STDIN_FILENO, &read);
+
+    tim.tv_sec = 5;
+    tim.tv_usec = 0;
+
+    printf("Select...\n");
+    ret = select(STDIN_FILENO + 1, &read, NULL, NULL, &tim);
+
+    printf("ret: %d\n", ret);
+    printf("is_set: %d\n", FD_ISSET(STDIN_FILENO, &read));
+}
+
 void wait_for_keyboard(void)
 {
     int ret;
@@ -94,6 +127,8 @@ int main(int argc, char **argv, char **envp)
     int i;
     int ret;
 
+    srand(time(NULL));
+
     for (i = 0; i < PIPE_COUNT; i++) {
         ret = pipe(pipe_fd[i]);
         if (ret == -1) {
@@ -103,7 +138,7 @@ int main(int argc, char **argv, char **envp)
         fcntl(pipe_fd[i][PREAD], F_SETFD, fcntl(pipe_fd[i][PREAD], F_GETFD) | FD_CLOEXEC);
     }
 
-    printf("Forking cihld...\n");
+    printf("Forking child...\n");
 
     fork_child();
 
@@ -112,6 +147,7 @@ int main(int argc, char **argv, char **envp)
 
     wait_for_signal();
     wait_for_keyboard();
+    select_test();
 
     wait(NULL);
 
