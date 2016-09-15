@@ -3,9 +3,10 @@
 
 #if __KERNEL__
 # include <protura/types.h>
-# include <protura/signal.h>
-# include <protura/fs/fdset.h>
 #endif
+
+#include <protura/signal.h>
+#include <protura/fs/fdset.h>
 
 enum task_api_state {
     TASK_API_NONE,
