@@ -48,6 +48,10 @@ struct wait_queue_node {
     list_node_t node;
     struct wait_queue *queue;
     struct task *task;
+
+    /* If set, this callback will be called when this wait_queue_node is
+     * woken-up. Note that the callback will be called *before* waking-up task. */
+    void (*wake_callback) (struct wait_queue_node *);
 };
 
 #define WAIT_QUEUE_INIT(q, name) \
@@ -55,7 +59,7 @@ struct wait_queue_node {
       .lock = SPINLOCK_INIT(name) }
 
 #define WAIT_QUEUE_NODE_INIT(q) \
-    { .node = LIST_NODE_INIT((q).name), \
+    { .node = LIST_NODE_INIT((q).node), \
       .queue = NULL }
 
 void wait_queue_init(struct wait_queue *);
@@ -64,6 +68,10 @@ void wait_queue_node_init(struct wait_queue_node *);
 /* Register or unregister the current task to wakeup from this wait-queue. */
 void wait_queue_register(struct wait_queue *, struct wait_queue_node *);
 void wait_queue_unregister(struct wait_queue_node *);
+
+/* Special version of unregister - if we're already unregistered, then the next
+ * person in the queue is woken-up for us */
+int wait_queue_unregister_wake(struct wait_queue_node *);
 
 /* Called by the task that is done with whatever the tasks waiting in the queue
  * are waiting for. Returns the number of tasks woken-up. */

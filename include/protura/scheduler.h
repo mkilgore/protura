@@ -1,6 +1,7 @@
 #ifndef INCLUDE_ARCH_SCHEDULER_H
 #define INCLUDE_ARCH_SCHEDULER_H
 
+#include <arch/drivers/pic8259_timer.h>
 #include <protura/stddef.h>
 #include <protura/task.h>
 #include <protura/list.h>
@@ -72,6 +73,10 @@ static inline void scheduler_task_intr_wake(struct task *t)
         t->state = TASK_RUNNING;
 }
 
+static inline uint32_t scheduler_calculate_wakeup(uint32_t mseconds)
+{
+    return timer_get_ticks() + mseconds * (TIMER_TICKS_PER_SEC / 1000);
+}
 
 void scheduler_task_waitms(uint32_t mseconds);
 int sys_sleep(int seconds);

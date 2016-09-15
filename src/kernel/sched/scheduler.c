@@ -600,6 +600,14 @@ void wait_queue_node_init(struct wait_queue_node *node)
     list_node_init(&node->node);
 }
 
+static inline void wait_queue_wake_node(struct wait_queue_node *node)
+{
+    if (node->wake_callback)
+        (node->wake_callback) (node);
+
+    scheduler_task_wake(node->task);
+}
+
 void wait_queue_register(struct wait_queue *queue, struct wait_queue_node *node)
 {
     using_spinlock(&queue->lock) {
@@ -623,7 +631,7 @@ void wait_queue_unregister(struct wait_queue_node *node)
             list_del(&node->node);
 }
 
-int wait_queue_wake(struct wait_queue *queue)
+static int __wait_queue_wake(struct wait_queue *queue)
 {
     int waken = 0;
     struct wait_queue_node *node;
@@ -638,19 +646,41 @@ int wait_queue_wake(struct wait_queue *queue)
      * task changed it's state to RUNNING then it's as though it unregistered,
      * even though it hasn't actually unregistered yet.
      */
-    using_spinlock(&queue->lock) {
-        list_foreach_take_entry(&queue->queue, node, node) {
-            struct task *t = node->task;
+    list_foreach_take_entry(&queue->queue, node, node) {
+        struct task *t = node->task;
 
-            kp(KP_TRACE, "Wait queue %p: Task %p: %d\n", queue, t, t->state);
-            if (t->state == TASK_SLEEPING || t->state == TASK_INTR_SLEEPING) {
-                kp(KP_TRACE, "Wait queue %p: Waking task %s(%p)\n", queue, t->name, t);
-                scheduler_task_wake(t);
-                waken++;
-                break;
-            }
+        kp(KP_TRACE, "Wait queue %p: Task %p: %d\n", queue, t, t->state);
+        if (t->state == TASK_SLEEPING || t->state == TASK_INTR_SLEEPING) {
+            kp(KP_TRACE, "Wait queue %p: Waking task %s(%p)\n", queue, t->name, t);
+            wait_queue_wake_node(node);
+            waken++;
+            break;
         }
     }
+
+    return waken;
+}
+
+int wait_queue_unregister_wake(struct wait_queue_node *node)
+{
+    int ret = 0;
+
+    using_spinlock(&node->queue->lock) {
+        if (list_node_is_in_list(&node->node))
+            list_del(&node->node);
+        else
+            ret = __wait_queue_wake(node->queue);
+    }
+
+    return ret;
+}
+
+int wait_queue_wake(struct wait_queue *queue)
+{
+    int waken = 0;
+
+    using_spinlock(&queue->lock)
+        waken = __wait_queue_wake(queue);
 
     return waken;
 }
@@ -662,7 +692,7 @@ int wait_queue_wake_all(struct wait_queue *queue)
 
     using_spinlock(&queue->lock) {
         list_foreach_take_entry(&queue->queue, node, node) {
-            scheduler_task_wake(node->task);
+            wait_queue_wake_node(node);
             waken++;
         }
     }

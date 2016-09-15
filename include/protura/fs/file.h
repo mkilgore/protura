@@ -15,6 +15,7 @@
 #include <protura/mutex.h>
 #include <protura/fs/dirent.h>
 #include <protura/fs/dent.h>
+#include <protura/fs/poll.h>
 
 struct inode;
 struct file_ops;
@@ -44,6 +45,7 @@ struct file_ops {
     off_t (*lseek) (struct file *, off_t offset, int whence);
     int (*write) (struct file *, const void *, size_t);
     int (*ioctl) (struct file *, int cmd, uintptr_t arg);
+    int (*poll) (struct file *, struct poll_table *, int events);
 };
 
 enum file_whence {

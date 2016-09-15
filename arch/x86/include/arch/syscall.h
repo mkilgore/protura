@@ -75,6 +75,8 @@
 
 #define SYSCALL_IOCTL 0x45
 
+#define SYSCALL_POLL 0x46
+
 #ifdef __KERNEL__
 #ifndef ASM
 

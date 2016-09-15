@@ -251,9 +251,35 @@ static int tty_write(struct file *filp, const void *vbuf, size_t len)
     return orig_len;
 }
 
+static int tty_poll(struct file *filp, struct poll_table *table, int events)
+{
+    struct inode *i = filp->inode;
+    dev_t minor = DEV_MINOR(i->dev_no);
+    struct tty *tty = tty_find(minor);
+    int ret = 0;
+
+    if (!tty)
+        return POLLERR;
+
+    using_mutex(&tty->inout_buf_lock) {
+        if (events & POLLIN) {
+            if (char_buf_has_data(&tty->output_buf))
+                ret |= POLLIN;
+
+            poll_table_add(table, &tty->in_wait_queue);
+        }
+
+        if (events & POLLOUT)
+            ret |= POLLOUT;
+    }
+
+    return ret;
+}
+
 struct file_ops tty_file_ops = {
     .read = tty_read,
     .write = tty_write,
+    .poll = tty_poll,
 };
 
 void tty_subsystem_init(void)

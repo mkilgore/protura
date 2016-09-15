@@ -328,6 +328,34 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
         return ret;
 }
 
+static int pipe_poll(struct file *filp, struct poll_table *table, int events)
+{
+    struct pipe_info *pinfo = &filp->inode->pipe_info;
+    int ret = 0;
+
+    using_mutex(&pinfo->pipe_buf_lock) {
+        if (events & POLLIN) {
+            if (!list_empty(&pinfo->bufs))
+                ret |= POLLIN;
+            else if (!pinfo->writers)
+                ret |= POLLIN | POLLHUP;
+
+            poll_table_add(table, &pinfo->read_queue);
+        }
+
+        if (events & POLLOUT) {
+            if (!list_empty(&pinfo->free_pages) || pinfo->total_pages < CONFIG_PIPE_MAX_PAGES)
+                ret |= POLLOUT;
+            else if (!pinfo->readers)
+                ret |= POLLOUT | POLLHUP;
+
+            poll_table_add(table, &pinfo->write_queue);
+        }
+    }
+
+    return ret;
+}
+
 struct file_ops pipe_read_file_ops = {
     .open = NULL,
     .release = pipe_read_release,
@@ -336,6 +364,7 @@ struct file_ops pipe_read_file_ops = {
     .read_dent = NULL,
     .lseek = NULL,
     .write = NULL,
+    .poll = pipe_poll,
 };
 
 struct file_ops pipe_write_file_ops = {

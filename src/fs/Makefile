@@ -13,6 +13,7 @@ objs-y += namei.o
 objs-y += vfs.o
 objs-y += sys.o
 objs-y += pipe.o
+objs-y += poll.o
 
 objs-y += exec.o
 objs-y += params.o
