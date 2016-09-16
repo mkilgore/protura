@@ -457,7 +457,7 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
     memcpy(tinfo->name, task->name, sizeof(tinfo->name));
 }
 
-static int scheduler_tasks_api_read(struct file *filp, void *p, size_t size)
+static int scheduler_task_api_read(struct file *filp, void *p, size_t size)
 {
     struct task_api_info tinfo;
     struct task *task, *found = NULL;
@@ -496,7 +496,7 @@ static int scheduler_tasks_api_read(struct file *filp, void *p, size_t size)
     }
 }
 
-static int tasks_api_fill_mem_info(struct task_api_mem_info *info)
+static int task_api_fill_mem_info(struct task_api_mem_info *info)
 {
     struct vm_map *map;
     struct task *task;
@@ -525,7 +525,7 @@ static int tasks_api_fill_mem_info(struct task_api_mem_info *info)
     return 0;
 }
 
-static int tasks_api_fill_file_info(struct task_api_file_info *info)
+static int task_api_fill_file_info(struct task_api_file_info *info)
 {
     int i;
     struct task *task;
@@ -571,7 +571,7 @@ static int tasks_api_fill_file_info(struct task_api_file_info *info)
     return 0;
 }
 
-static int scheduler_tasks_api_ioctl(struct file *filp, int cmd, uintptr_t ptr)
+static int scheduler_task_api_ioctl(struct file *filp, int cmd, uintptr_t ptr)
 {
     struct task_api_mem_info *mem_info;
     struct task_api_file_info *file_info;
@@ -584,7 +584,7 @@ static int scheduler_tasks_api_ioctl(struct file *filp, int cmd, uintptr_t ptr)
         if (ret)
             return ret;
 
-        return tasks_api_fill_mem_info(mem_info);
+        return task_api_fill_mem_info(mem_info);
 
     case TASKIO_FILE_INFO:
         file_info = (struct task_api_file_info *)ptr;
@@ -592,15 +592,15 @@ static int scheduler_tasks_api_ioctl(struct file *filp, int cmd, uintptr_t ptr)
         if (ret)
             return ret;
 
-        return tasks_api_fill_file_info(file_info);
+        return task_api_fill_file_info(file_info);
     }
 
     return -EINVAL;
 }
 
-struct procfs_entry_ops tasks_api_ops = {
-    .read = scheduler_tasks_api_read,
-    .ioctl = scheduler_tasks_api_ioctl,
+struct procfs_entry_ops task_api_ops = {
+    .read = scheduler_task_api_read,
+    .ioctl = scheduler_task_api_ioctl,
 };
 
 void wakeup_list_init(struct wakeup_list *list)

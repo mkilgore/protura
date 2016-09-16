@@ -164,6 +164,6 @@ void procfs_init(void)
     procfs_register_entry_ops(&procfs_root, "boottime", &boot_time_ops);
     procfs_register_entry_ops(&procfs_root, "currenttime", &current_time_ops);
 
-    procfs_register_entry_ops(&procfs_root, "tasks_api", &tasks_api_ops);
+    procfs_register_entry_ops(&procfs_root, "task_api", &task_api_ops);
 }
 

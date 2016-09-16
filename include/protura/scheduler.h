@@ -25,7 +25,7 @@ int scheduler_task_send_signal(pid_t pid, int signal, int force);
 int scheduler_task_exists(pid_t pid);
 
 extern struct procfs_entry_ops tasks_ops;
-extern struct procfs_entry_ops tasks_api_ops;
+extern struct procfs_entry_ops task_api_ops;
 
 /*
  * These return a coresponding struct task
