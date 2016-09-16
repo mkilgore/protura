@@ -525,19 +525,74 @@ static int tasks_api_fill_mem_info(struct task_api_mem_info *info)
     return 0;
 }
 
+static int tasks_api_fill_file_info(struct task_api_file_info *info)
+{
+    int i;
+    struct task *task;
+
+    task = scheduler_task_get(info->pid);
+    if (!task)
+        return -ESRCH;
+
+    for (i = 0; i < NOFILE; i++) {
+        struct file *filp = task_fd_get(task, i);
+
+        if (!filp) {
+            info->files[i].in_use = 0;
+            continue;
+        }
+
+        info->files[i].in_use = 1;
+
+        if (inode_is_pipe(filp->inode))
+            info->files[i].is_pipe = 1;
+
+        if (flag_test(&filp->flags, FILE_WRITABLE))
+            info->files[i].is_writable = 1;
+
+        if (flag_test(&filp->flags, FILE_READABLE))
+            info->files[i].is_readable = 1;
+
+        if (flag_test(&filp->flags, FILE_NONBLOCK))
+            info->files[i].is_nonblock= 1;
+
+        if (flag_test(&filp->flags, FILE_APPEND))
+            info->files[i].is_append = 1;
+
+        info->files[i].inode = filp->inode->ino;
+        info->files[i].dev = DEV_TO_USERSPACE(filp->inode->sb_dev);
+        info->files[i].mode = filp->inode->mode;
+        info->files[i].offset = filp->offset;
+        info->files[i].size = filp->inode->size;
+    }
+
+    scheduler_task_put(task);
+
+    return 0;
+}
+
 static int scheduler_tasks_api_ioctl(struct file *filp, int cmd, uintptr_t ptr)
 {
-    struct task_api_mem_info *info;
+    struct task_api_mem_info *mem_info;
+    struct task_api_file_info *file_info;
     int ret;
 
     switch (cmd) {
     case TASKIO_MEM_INFO:
-        info = (struct task_api_mem_info *)ptr;
-        ret = user_check_region(info, sizeof(*info), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        mem_info = (struct task_api_mem_info *)ptr;
+        ret = user_check_region(mem_info, sizeof(*mem_info), F(VM_MAP_READ) | F(VM_MAP_WRITE));
         if (ret)
             return ret;
 
-        return tasks_api_fill_mem_info(info);
+        return tasks_api_fill_mem_info(mem_info);
+
+    case TASKIO_FILE_INFO:
+        file_info = (struct task_api_file_info *)ptr;
+        ret = user_check_region(file_info, sizeof(*file_info), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        return tasks_api_fill_file_info(file_info);
     }
 
     return -EINVAL;

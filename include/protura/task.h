@@ -136,12 +136,13 @@ void task_make_zombie(struct task *t);
 
 /* File descriptor related functions */
 
+int task_fd_assign_empty(struct task *t, struct file *filp);
 int task_fd_get_empty(struct task *t);
 void task_fd_release(struct task *t, int fd);
 #define task_fd_assign(t, fd, filp) \
     ((t)->files[(fd)] = (filp))
 #define task_fd_get(t, fd) \
-    ((t)->files[(fd)])
+    (((intptr_t)(t)->files[(fd)] == -1)? NULL: (t)->files[(fd)])
 
 static inline int task_fd_get_checked(struct task *t, int fd, struct file **filp)
 {
@@ -164,6 +165,9 @@ static inline int task_fd_get_checked(struct task *t, int fd, struct file **filp
 
 #define fd_assign(fd, filp) \
     task_fd_assign(cpu_get_local()->current, (fd), (filp))
+
+#define fd_assign_empty(filp) \
+    task_fd_assign_empty(cpu_get_local()->current, filp)
 
 #define fd_get(fd) \
     task_fd_get(cpu_get_local()->current, (fd))

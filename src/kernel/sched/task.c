@@ -325,6 +325,22 @@ int task_fd_get_empty(struct task *t)
     return -1;
 }
 
+/*
+ * 'task_fd_get_empty' is still dumb because it leaves an invalid '-1' value in
+ * the array of struct file pointers. This is checked for via the 'fd_get'
+ * macro, but it is much better to allocate and assign the fd directly (And
+ * atomically), which is what this function does.
+ */
+int task_fd_assign_empty(struct task *t, struct file *filp)
+{
+    int i;
+    for (i = 0; i < ARRAY_SIZE(t->files); i++)
+        if (cmpxchg(t->files + i, 0, (uintptr_t)filp) == 0)
+            return i;
+
+    return -1;
+}
+
 void task_fd_release(struct task *t, int fd)
 {
     t->files[fd] = NULL;

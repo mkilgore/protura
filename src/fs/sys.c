@@ -41,21 +41,29 @@ int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp)
     if (file_flags & F(FILE_WRITABLE) && S_ISDIR(inode->mode))
         return -EISDIR;
 
-    fd = fd_get_empty();
+    *filp = kzalloc(sizeof(**filp), PAL_KERNEL);
+    if (!*filp)
+        return -ENOMEM;
 
-    if (fd == -1)
-        return -ENFILE;
+    fd = fd_assign_empty(*filp);
 
-    ret = vfs_open(inode, file_flags, filp);
+    if (fd == -1) {
+        ret = -ENFILE;
+        goto filp_release;
+    }
+
+    ret = vfs_open_noalloc(inode, file_flags, *filp);
 
     if (ret < 0)
         goto ret_fd_release;
 
-    fd_assign(fd, *filp);
     return fd;
 
   ret_fd_release:
     fd_release(fd);
+
+  filp_release:
+    kfree(*filp);
     return ret;
 }
 

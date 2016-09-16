@@ -99,6 +99,11 @@ static struct inode *new_pipe_inode(void)
     return inode;
 }
 
+int inode_is_pipe(struct inode *inode)
+{
+    return inode->sb_dev == pipe_fake_super_block.dev;
+}
+
 /*
  * When a file is released, we decrease the number of readers or writers of the
  * coresponding pipe. When either number drops to zero, then we wake up the
@@ -527,31 +532,31 @@ int sys_pipe(int *fds)
     struct inode *inode;
     struct task *current = cpu_get_local()->current;
 
-    fds[0] = fd_get_empty();
-
-    if (fds[0] == -1) {
-        ret = -ENFILE;
-        goto ret;
-    }
-
-    fds[1] = fd_get_empty();
-
-    if (fds[1] == -1) {
-        ret = -ENFILE;
-        goto release_fd_0;
-    }
-
     inode = new_pipe_inode();
 
     if (!inode) {
         ret = -ENFILE;
-        goto release_fd_1;
+        goto ret;
     }
 
     kp(KP_NORMAL, "PIPE: Inode %p: "PRinode"\n", inode, Pinode(inode));
 
     filps[0] = kzalloc(sizeof(struct file), PAL_KERNEL);
     filps[1] = kzalloc(sizeof(struct file), PAL_KERNEL);
+
+    fds[0] = fd_assign_empty(filps[0]);
+
+    if (fds[0] == -1) {
+        ret = -ENFILE;
+        goto release_filps;
+    }
+
+    fds[1] = fd_assign_empty(filps[1]);
+
+    if (fds[1] == -1) {
+        ret = -ENFILE;
+        goto release_fd_0;
+    }
 
     filps[P_READ]->mode = inode->mode;
     filps[P_READ]->inode = inode_dup(inode);
@@ -578,10 +583,15 @@ int sys_pipe(int *fds)
 
     return 0;
 
-  release_fd_1:
     fd_release(fds[1]);
   release_fd_0:
     fd_release(fds[0]);
+  release_filps:
+    kfree(filps[0]);
+    kfree(filps[1]);
+
+    inode_dup(inode);
+    inode_put(inode);
   ret:
     return ret;
 }

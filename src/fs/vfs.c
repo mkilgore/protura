@@ -27,17 +27,9 @@
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
 
-
-int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_ret)
+int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *filp)
 {
     int ret = 0;
-    struct file *filp;
-
-    kp(KP_TRACE, "Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
-
-    *filp_ret = NULL;
-
-    filp = kzalloc(sizeof(*filp), PAL_KERNEL);
 
     kp(KP_TRACE, "Allocated filp: %p\n", filp);
 
@@ -55,13 +47,31 @@ int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_re
     if (ret < 0)
         goto cleanup_filp;
 
-    *filp_ret = filp;
-
     return ret;
 
   cleanup_filp:
     inode_put(filp->inode);
-    kfree(filp);
+
+    return ret;
+}
+
+int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_ret)
+{
+    int ret = 0;
+    struct file *filp;
+
+    kp(KP_TRACE, "Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
+
+    *filp_ret = NULL;
+
+    filp = kzalloc(sizeof(*filp), PAL_KERNEL);
+
+    ret = vfs_open_noalloc(inode, file_flags, filp);
+
+    if (!ret)
+        *filp_ret = filp;
+    else
+        kfree(filp);
 
     return ret;
 }
