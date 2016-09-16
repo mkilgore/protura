@@ -11,6 +11,7 @@
 #include <protura/types.h>
 #include <protura/list.h>
 #include <protura/wait.h>
+#include <protura/mutex.h>
 
 /* pipe_info is embedded as part of an inode, so there is no locking
  * information directly in this structure - Locking is done via the inode. */
@@ -68,5 +69,10 @@ struct file_ops;
 extern struct file_ops pipe_read_file_ops;
 extern struct file_ops pipe_write_file_ops;
 extern struct file_ops pipe_default_file_ops;
+
+extern struct file_ops fifo_read_file_ops;
+extern struct file_ops fifo_write_file_ops;
+extern struct file_ops fifo_rdwr_file_ops;
+extern struct file_ops fifo_default_file_ops;
 
 #endif
