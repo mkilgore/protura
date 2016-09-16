@@ -56,6 +56,8 @@ const char *mode_to_string(mode_t mode)
         return "block device";
     else if (S_ISCHR(mode))
         return "character device";
+    else if (S_ISFIFO(mode))
+        return "fifo device";
 
     return "";
 }
