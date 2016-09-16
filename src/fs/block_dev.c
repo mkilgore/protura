@@ -30,7 +30,7 @@ int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
         return -EBADF;
 
     /* Guard against reading past the end of the file */
-    kp(KP_TRACE, "Block-dev inode size: %d\n", filp->inode->size);
+    kp(KP_TRACE, "Block-dev inode size: %ld\n", filp->inode->size);
     /*
      * Don't check if `len` is correct, because filp->inode->size will
      * currently always be zero.

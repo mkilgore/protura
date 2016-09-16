@@ -17,6 +17,11 @@
 #define FD_SETSIZE 32
 
 typedef unsigned int fd_set;
+typedef unsigned int fd_mask;
+
+#define NBBY 8 /* Number of bits in a byte */
+
+#define NFDBITS (sizeof(fd_mask) * NBBY)
 
 static inline void FD_CLR(int fd, fd_set *set)
 {

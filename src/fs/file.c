@@ -125,7 +125,7 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t len)
 
 
             using_block(dev, on_dev, b) {
-                kp(KP_TRACE, "Write: %d: sec_off=%d, have_written=%d, b->data=%p\n", dev, sec_off, have_written, b->data);
+                kp(KP_TRACE, "Write: %d: sec_off=%ld, have_written=%d, b->data=%p\n", dev, sec_off, have_written, b->data);
                 memcpy(b->data + sec_off, buf + have_written, left);
                 block_mark_dirty(b);
             }

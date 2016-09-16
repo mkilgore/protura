@@ -12,27 +12,55 @@
 #include <protura/stddef.h>
 #include <protura/compiler.h>
 
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+#if 0
+typedef __kuint8_t u8;
+typedef __kuint16_t u16;
+typedef __kuint32_t u32;
+typedef __kuint64_t u64;
 
-typedef int8_t s8;
-typedef int16_t s16;
-typedef int32_t s32;
-typedef int64_t s64;
+typedef __kint8_t s8;
+typedef __kint16_t __ks16;
+typedef __kint32_t __ks32;
+typedef __kint64_t __ks64;
+#endif
 
-typedef int32_t off_t;
-typedef int32_t pid_t;
+typedef long __koff_t;
+typedef __kint32_t __kpid_t;
 
-typedef uint32_t mode_t;
+typedef __kuint32_t __kmode_t;
 
-typedef uint32_t dev_t;
-typedef uint32_t sector_t;
+typedef __kuint32_t __kdev_t;
+typedef __kuint16_t __kudev_t; /* Userspace dev_t */
+typedef __kuint32_t __ksector_t;
 
-#define SECTOR_INVALID ((sector_t)-1)
+typedef __kuint32_t __kino_t;
+typedef __kuint16_t __kumode_t;
 
-typedef uint32_t ino_t;
-typedef uint16_t umode_t;
+typedef long __ktime_t;
+typedef __kint32_t __kuseconds_t;
+typedef long     __ksuseconds_t;
+
+typedef __kint32_t __kuid_t;
+typedef __kint32_t __kgid_t;
+
+typedef char * __kcaddr_t;
+typedef __kuintptr_t __kdaddr_t;
+
+#ifdef __KERNEL__
+
+# define SECTOR_INVALID ((sector_t)-1)
+
+typedef __koff_t off_t;
+typedef __kpid_t pid_t;
+typedef __kmode_t mode_t;
+typedef __kdev_t dev_t;
+typedef __ksector_t sector_t;
+typedef __kino_t ino_t;
+typedef __kumode_t umode_t;
+typedef __ktime_t time_t;
+typedef __kuseconds_t useconds_t;
+typedef __ksuseconds_t suseconds_t;
+
+#endif
 
 #endif

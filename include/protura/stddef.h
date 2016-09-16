@@ -8,30 +8,34 @@
 #ifndef INCLUDE_PROTURA_STDDEF_H
 #define INCLUDE_PROTURA_STDDEF_H
 
-#define NULL ((void *)0)
+#define __kNULL ((void *)0)
 
-#define offsetof(s, m) ((size_t)&(((s *)0)->m))
+#ifdef __KERNEL__
 
-#define alignof(t) __alignof__(t)
+#define NULL __kNULL
 
-#define container_of(ptr, type, member) ({ \
-        const typeof(((type *)0)->member) *__mptr = (ptr); \
-        (type *)((char *)__mptr - offsetof(type, member)); })
+# define offsetof(s, m) ((size_t)&(((s *)0)->m))
 
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
+# define alignof(t) __alignof__(t)
 
-#define STATIC_ASSERT3(cond, msg) typedef char msg[(cond)?1:-1]
-#define STATIC_ASSERT2(cond, line) STATIC_ASSERT3(cond, static_assertion_at_line_##line)
-#define STATIC_ASSERT1(cond, line) STATIC_ASSERT2(cond, line)
-#define STATIC_ASSERT(cond) STATIC_ASSERT1(cond, __LINE__)
+# define container_of(ptr, type, member) ({ \
+         const typeof(((type *)0)->member) *__mptr = (ptr); \
+         (type *)((char *)__mptr - offsetof(type, member)); })
 
-#define SUCCESS 0
+# define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
 
-#define TP2(x, y) x ## y
-#define TP(x, y) TP2(x, y)
+# define STATIC_ASSERT3(cond, msg) typedef char msg[(cond)?1:-1]
+# define STATIC_ASSERT2(cond, line) STATIC_ASSERT3(cond, static_assertion_at_line_##line)
+# define STATIC_ASSERT1(cond, line) STATIC_ASSERT2(cond, line)
+# define STATIC_ASSERT(cond) STATIC_ASSERT1(cond, __LINE__)
 
-#define _Q(x) #x
-#define Q(x) _Q(x)
+# define SUCCESS 0
+
+# define TP2(x, y) x ## y
+# define TP(x, y) TP2(x, y)
+
+# define _Q(x) #x
+# define Q(x) _Q(x)
 
 /* Macro black-magic
  *
@@ -68,7 +72,7 @@
  * with or without a block, and it doesn't require any 'using_end' macro after
  * its usage.
  */
-#define using_cond(cond, cmd1, cmd2)                               \
+# define using_cond(cond, cmd1, cmd2)                               \
     while (1)                                                      \
     if (0)                                                         \
         TP(__using_finished, __LINE__):                            \
@@ -93,7 +97,7 @@
                             TP(__using_body, __LINE__):            \
                             if (__using_cond)
 
-#define scoped_using_cond(cond, cmd1, cmd2, arg) \
+# define scoped_using_cond(cond, cmd1, cmd2, arg) \
     if (0) { \
         TP(__using_finished, __LINE__): \
         ; \
@@ -121,17 +125,19 @@
  * As a note, gcc is smart enough to turn this usage into two direct calls to
  * 'cmd1' and 'cmd2' at the beginning and end of the block, without any extra
  * code or variables. */
-#define using_nocheck(cmd1, cmd2) using_cond(1, cmd1, cmd2)
+# define using_nocheck(cmd1, cmd2) using_cond(1, cmd1, cmd2)
 
 /* The normal 'using' one uses the result of 'cmd1' to decide whether or not to
  * run the code. Used in the event the command you would use as 'cmd1' returns
  * an error code you want to check before you keep going. */
-#define using(cmd1, cmd2) using_cond(cmd1, do { ; } while (0), cmd2)
+# define using(cmd1, cmd2) using_cond(cmd1, do { ; } while (0), cmd2)
 
 /* This is defined by the Makefile, but it's useful to have it defined anyway,
  * so syntax checkers don't barf saying 'PROTURA_BITS' doesn't exist */
-#ifndef PROTURA_BITS
-# define PROTURA_BITS 32
+# ifndef PROTURA_BITS
+#  define PROTURA_BITS 32
+# endif
+
 #endif
 
 #endif

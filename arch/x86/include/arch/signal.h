@@ -59,6 +59,7 @@ struct sigaction {
 #define SIG_SETMASK 2
 
 #ifdef __KERNEL__
+
 #define SIG_BIT(x) (F((x) - 1))
 #define SIG_UNBLOCKABLE (SIG_BIT(SIGKILL) | SIG_BIT(SIGSTOP))
 

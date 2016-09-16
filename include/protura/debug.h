@@ -56,11 +56,11 @@ void kp_output_unregister(void (*print) (const char *fmt, va_list lst));
 #define kp(level, str, ...) \
     do { \
         if (level <= CONFIG_KERNEL_LOG_LEVEL) { \
-            kprintf_internal("[%05d]" TP(KP_STR, level) ":" Q(__LINE__) ":" __FILE__ ": " str, protura_uptime_get(), ## __VA_ARGS__); \
+            kprintf_internal("[%05ld]" TP(KP_STR, level) ":" Q(__LINE__) ":" __FILE__ ": " str, protura_uptime_get(), ## __VA_ARGS__); \
         } \
     } while (0)
 
-#define panic(str, ...) __panic("[%05d][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
+#define panic(str, ...) __panic("[%05ld][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
 
 void __panic(const char *s, ...) __printf(1, 2) __noreturn;
 void __panicv(const char *s, va_list) __noreturn;

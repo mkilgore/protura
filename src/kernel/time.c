@@ -50,21 +50,21 @@ time_t protura_current_time_get(void)
 
 static int protura_uptime_read(void *page, size_t page_size, size_t *len)
 {
-    *len = snprintf(page, page_size, "%d\n", protura_uptime_get());
+    *len = snprintf(page, page_size, "%ld\n", protura_uptime_get());
 
     return 0;
 }
 
 static int protura_boot_time_read(void *page, size_t page_size, size_t *len)
 {
-    *len = snprintf(page, page_size, "%d\n", protura_boot_time_get());
+    *len = snprintf(page, page_size, "%ld\n", protura_boot_time_get());
 
     return 0;
 }
 
 static int protura_current_time_read(void *page, size_t page_size, size_t *len)
 {
-    *len = snprintf(page, page_size, "%d\n", protura_current_time_get());
+    *len = snprintf(page, page_size, "%ld\n", protura_current_time_get());
 
     return 0;
 }

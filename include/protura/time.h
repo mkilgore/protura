@@ -10,16 +10,15 @@
 
 #include <protura/types.h>
 
-typedef int32_t  time_t;
-typedef long     suseconds_t;
-
-/* Number of days from year 0 to the start of the Unix Epoch, 1970-01-01 */
-#define TIME_DAYS_TO_EPOCH 719499
+#ifdef __KERNEL__
 
 struct timeval {
     time_t tv_sec;
     suseconds_t tv_usec;
 };
+
+/* Number of days from year 0 to the start of the Unix Epoch, 1970-01-01 */
+#define TIME_DAYS_TO_EPOCH 719499
 
 time_t protura_uptime_get(void);
 void protura_uptime_inc(void);
@@ -40,5 +39,7 @@ extern struct procfs_entry_ops boot_time_ops;
 extern struct procfs_entry_ops current_time_ops;
 
 int sys_time(time_t *t);
+
+#endif
 
 #endif

@@ -1,26 +1,23 @@
 #ifndef INCLUDE_FS_STAT_H
 #define INCLUDE_FS_STAT_H
 
-#ifdef __KERNEL__
-# include <protura/types.h>
-# include <protura/time.h>
-#endif
+#include <protura/types.h>
 
 struct stat {
-    uint32_t st_dev;
-    uint32_t st_ino;
-    uint16_t st_mode;
-    uint16_t st_nlink;
-    uint16_t st_uid;
-    uint16_t st_gid;
-    uint32_t st_rdev;
-    uint32_t st_size;
+    __kuint32_t st_dev;
+    __kuint32_t st_ino;
+    __kuint16_t st_mode;
+    __kuint16_t st_nlink;
+    __kuint16_t st_uid;
+    __kuint16_t st_gid;
+    __kuint32_t st_rdev;
+    __kuint32_t st_size;
 
-    time_t st_atime;
-    time_t st_mtime;
-    time_t st_ctime;
-    uint32_t st_blksize;
-    uint32_t st_blocks;
+    __ktime_t st_atime;
+    __ktime_t st_mtime;
+    __ktime_t st_ctime;
+    __kuint32_t st_blksize;
+    __kuint32_t st_blocks;
 };
 
 /* mode flags */

@@ -104,7 +104,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
         off_t file_size = sect.f_size + starting_offset;
         off_t file_offset = sect.f_off - starting_offset;
 
-        kp(KP_TRACE,"Starting_offset: %d\n", starting_offset);
+        kp(KP_TRACE,"Starting_offset: %ld\n", starting_offset);
 
         /* This could be cleaned-up. The complexity comes from the fact that
          * sect.f_off doesn't have to be page aligned, even if the section it

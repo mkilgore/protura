@@ -147,14 +147,14 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
         brelease(b);
     }
 
-    kp_ext2(dir->sb, "Truncating directory: %d\n", dir->size + block_size);
+    kp_ext2(dir->sb, "Truncating directory: %ld\n", dir->size + block_size);
 
     __ext2_inode_truncate(container_of(dir, struct ext2_inode, i), dir->size + block_size);
 
     kp_ext2(dir->sb, "bmap_alloc\n");
     sec = ext2_bmap_alloc(dir, (dir->size - 1) / block_size);
 
-    kp_ext2(dir->sb, "dir->size=%d\n", dir->size);
+    kp_ext2(dir->sb, "dir->size=%ld\n", dir->size);
     kp_ext2(dir->sb, "sec=%d\n", sec);
     if (sec == SECTOR_INVALID) {
         *err = -ENOSPC;
@@ -416,7 +416,7 @@ int __ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t size)
     int block_size = dir->sb->bdev->block_size;
     int ret = 0;
 
-    kp_ext2(dir->sb, "Dir size: %d\n", dir->size);
+    kp_ext2(dir->sb, "Dir size: %ld\n", dir->size);
 
   again:
     if (filp->offset == dir->size)

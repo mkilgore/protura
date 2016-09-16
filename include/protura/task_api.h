@@ -1,9 +1,7 @@
 #ifndef INCLUDE_PROTURA_TASK_API_H
 #define INCLUDE_PROTURA_TASK_API_H
 
-#if __KERNEL__
-# include <protura/types.h>
-#endif
+#include <protura/types.h>
 
 #include <protura/signal.h>
 #include <protura/fs/fdset.h>
@@ -17,9 +15,9 @@ enum task_api_state {
 };
 
 struct task_api_info {
-    pid_t pid;
-    pid_t ppid;
-    pid_t pgid;
+    __kpid_t pid;
+    __kpid_t ppid;
+    __kpid_t pgid;
     enum task_api_state state;
 
     fd_set close_on_exec;
@@ -43,18 +41,18 @@ struct task_api_mem_region {
 };
 
 struct task_api_mem_info {
-    pid_t pid;
+    __kpid_t pid;
 
     int region_count;
     struct task_api_mem_region regions[10];
 };
 
 struct task_api_file {
-    short dev;
-    short inode;
-    int mode;
-    int offset;
-    int size;
+    __kudev_t dev;
+    __kino_t inode;
+    __kmode_t mode;
+    __koff_t offset;
+    __koff_t size;
 
     union {
         struct {
@@ -71,7 +69,7 @@ struct task_api_file {
 };
 
 struct task_api_file_info {
-    pid_t pid;
+    __kpid_t pid;
 
     struct task_api_file files[NOFILE];
 };
