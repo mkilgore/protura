@@ -23,6 +23,7 @@
 #include <protura/fs/inode_table.h>
 #include <protura/fs/file_system.h>
 #include <protura/fs/vfs.h>
+#include <protura/fs/pipe.h>
 #include <protura/fs/ext2.h>
 #include "ext2_internal.h"
 
@@ -48,6 +49,9 @@ void ext2_inode_setup_ops(struct inode *inode)
     } else if (S_ISLNK(inode->mode)) {
         inode->default_fops = NULL;
         inode->ops = &ext2_inode_ops_symlink;
+    } else if (S_ISFIFO(inode->mode)) {
+        inode->default_fops = &fifo_default_file_ops;
+        inode->ops = &inode_ops_null;
     }
 }
 
