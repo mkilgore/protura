@@ -59,4 +59,6 @@ $(DISK_BINDIR)/ed:
 	$(Q)cd ./disk/utils/protura-ed; make >/dev/null
 	@echo " CP      $@"
 	$(Q)cp ./disk/utils/protura-ed/ed $@
+	@echo " OBJCOPY $@"
+	$(Q)$(OBJCOPY) --strip-unneeded $@
 
