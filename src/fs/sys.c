@@ -71,11 +71,14 @@ int sys_open(const char *__user path, int flags, mode_t mode)
     if (ret)
         return ret;
 
-    if (flags & O_RDWR)
+    /* Note, the state of no read/write flag set is valid. Other operations can
+     * still be performed. */
+
+    if (IS_RDWR(flags))
         file_flags = F(FILE_READABLE) | F(FILE_WRITABLE);
-    else if (flags & O_WRONLY)
+    else if (IS_WRONLY(flags))
         file_flags = F(FILE_WRITABLE);
-    else
+    else if (IS_RDONLY(flags))
         file_flags = F(FILE_READABLE);
 
     if (flags & O_APPEND)

@@ -29,4 +29,12 @@
 
 #define FD_CLOEXEC 1
 
+#ifdef __KERNEL__
+
+#define IS_RDWR(mode) (((mode) & O_RDWR) == O_RDWR)
+#define IS_RDONLY(mode) (((mode) & O_RDONLY) == O_RDONLY)
+#define IS_WRONLY(mode) (((mode) & O_WRONLY) == O_WRONLY)
+
+#endif
+
 #endif
