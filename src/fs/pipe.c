@@ -146,6 +146,37 @@ static int pipe_write_release(struct file *filp)
     return pipe_release(filp, 0, 1);
 }
 
+static int pipe_rdwr_release(struct file *filp)
+{
+    return pipe_release(filp, 1, 1);
+}
+
+/*
+ * A simple wrapper for sleeping on a wait_queue tied to the associated pinfo.
+ *
+ * Normally this isn't valid (The condition is checked before calling this
+ * function). However, it is valid if you're checking variables locked under
+ * pipe_buf_lock - those will not change until we release the pipe_buf_lock,
+ * which happens after we start sleeping.
+ */
+static int __pipe_sleep_on_wait_queue(struct pipe_info *pinfo, struct wait_queue *queue)
+{
+    sleep_intr_with_wait_queue(queue) {
+        not_using_mutex(&pinfo->pipe_buf_lock) {
+            kp(KP_TRACE, "pipe %p: Sleeping task %d(%p)\n", pinfo, cpu_get_local()->current->pid, cpu_get_local()->current);
+            scheduler_task_yield();
+            kp(KP_TRACE, "pipe %p: task %d(%p) is awake!\n", pinfo, cpu_get_local()->current->pid, cpu_get_local()->current);
+
+            if (has_pending_signal(cpu_get_local()->current)) {
+                wait_queue_unregister(&cpu_get_local()->current->wait);
+                return -ERESTARTSYS;
+            }
+        }
+    }
+
+    return 0;
+}
+
 static int pipe_read(struct file *filp, void *data, size_t size)
 {
     size_t original_size = size;
@@ -159,7 +190,7 @@ static int pipe_read(struct file *filp, void *data, size_t size)
 
     using_mutex(&pinfo->pipe_buf_lock) {
         kp(KP_NORMAL, "PIPE read: got Mutex!\n");
-        while (size) {
+        while (size == original_size) {
 
             kp(KP_NORMAL, "PIPE read: in loop!\n");
             list_foreach_take_entry(&pinfo->bufs, p, page_list_node) {
@@ -206,7 +237,7 @@ static int pipe_read(struct file *filp, void *data, size_t size)
                 break;
             }
 
-            if (size) {
+            if (size == original_size) {
                 kp(KP_NORMAL, "PIPE read: size\n");
                 /* If we freed a page by reading data, then wake-up any writers
                  * that may have been waiting. */
@@ -354,7 +385,7 @@ static int pipe_poll(struct file *filp, struct poll_table *table, int events)
     int ret = 0;
 
     using_mutex(&pinfo->pipe_buf_lock) {
-        if (events & POLLIN) {
+        if (flag_test(&filp->flags, FILE_READABLE) && events & POLLIN) {
             if (!list_empty(&pinfo->bufs))
                 ret |= POLLIN;
             else if (!pinfo->writers)
@@ -363,7 +394,7 @@ static int pipe_poll(struct file *filp, struct poll_table *table, int events)
             poll_table_add(table, &pinfo->read_queue);
         }
 
-        if (events & POLLOUT) {
+        if (flag_test(&filp->flags, FILE_WRITABLE) && events & POLLOUT) {
             if (!list_empty(&pinfo->free_pages) || pinfo->total_pages < CONFIG_PIPE_MAX_PAGES)
                 ret |= POLLOUT;
             else if (!pinfo->readers)
@@ -372,6 +403,71 @@ static int pipe_poll(struct file *filp, struct poll_table *table, int events)
             poll_table_add(table, &pinfo->write_queue);
         }
     }
+
+    return ret;
+}
+
+static int fifo_open(struct inode *inode, struct file *filp)
+{
+    struct pipe_info *pinfo = &filp->inode->pipe_info;
+    int ret = 0;
+
+    kp(KP_TRACE, "fifo_open %p\n", pinfo);
+
+    if (flag_test(&filp->flags, FILE_READABLE) && flag_test(&filp->flags, FILE_WRITABLE)) {
+        kp(KP_TRACE, "fifo_open %p: Opening read/write...\n", pinfo);
+        using_mutex(&pinfo->pipe_buf_lock) {
+            pinfo->readers++;
+            pinfo->writers++;
+
+            wait_queue_wake(&pinfo->read_queue);
+            wait_queue_wake(&pinfo->write_queue);
+        }
+
+        filp->ops = &fifo_rdwr_file_ops;
+        kp(KP_TRACE, "fifo_open %p: Done opening read/write...\n", pinfo);
+    } else if (flag_test(&filp->flags, FILE_READABLE)) {
+        kp(KP_TRACE, "fifo_open %p: Opening read side...\n", pinfo);
+        /* Wait for any readers on the associated pipe */
+        using_mutex(&pinfo->pipe_buf_lock) {
+            if (!(pinfo->readers++))
+                wait_queue_wake(&pinfo->write_queue);
+
+            if (!pinfo->writers)
+                ret = __pipe_sleep_on_wait_queue(pinfo, &pinfo->read_queue);
+
+            if (ret == 0)
+                wait_queue_wake(&pinfo->read_queue);
+        }
+
+        if (!ret)
+            filp->ops = &fifo_read_file_ops;
+
+        kp(KP_TRACE, "fifo_open %p: Read side open!\n", pinfo);
+
+    } else if (flag_test(&filp->flags, FILE_WRITABLE)) {
+        kp(KP_TRACE, "fifo_open %p: Opening write side...\n", pinfo);
+        /* Wait for any readers on the associated pipe */
+        using_mutex(&pinfo->pipe_buf_lock) {
+            if (!(pinfo->writers++))
+                wait_queue_wake(&pinfo->read_queue);
+
+            if (!pinfo->readers)
+                ret = __pipe_sleep_on_wait_queue(pinfo, &pinfo->write_queue);
+
+            if (ret == 0)
+                wait_queue_wake(&pinfo->write_queue);
+        }
+
+        if (!ret)
+            filp->ops = &fifo_write_file_ops;
+
+        kp(KP_TRACE, "fifo_open %p: Write side open!\n", pinfo);
+    } else {
+        ret = -EINVAL;
+    }
+
+    kp(KP_TRACE, "fifo_open %p: Done, ret: %d\n", pinfo, ret);
 
     return ret;
 }
@@ -397,8 +493,31 @@ struct file_ops pipe_write_file_ops = {
     .write = pipe_write,
 };
 
+struct file_ops fifo_read_file_ops = {
+    .read = pipe_read,
+    .poll = pipe_poll,
+    .release = pipe_read_release,
+};
+
+struct file_ops fifo_write_file_ops = {
+    .write = pipe_write,
+    .poll = pipe_poll,
+    .release = pipe_write_release,
+};
+
+struct file_ops fifo_rdwr_file_ops = {
+    .write = pipe_write,
+    .read = pipe_read,
+    .poll = pipe_poll,
+    .release = pipe_rdwr_release,
+};
+
 struct file_ops pipe_default_file_ops = {
 
+};
+
+struct file_ops fifo_default_file_ops = {
+    .open = fifo_open,
 };
 
 int sys_pipe(int *fds)
