@@ -4,6 +4,7 @@ COREUTILS_CFLAGS := -Wall -std=gnu99 -I./disk/utils/coreutils/include
 COREUTILS_PROGS = \
 	cat \
 	false \
+	files \
 	head \
 	hexdump \
 	kill \
