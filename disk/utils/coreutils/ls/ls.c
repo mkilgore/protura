@@ -62,6 +62,7 @@ static const char *type_ids[] = {
     [S_IFBLK] = "b",
     [S_IFCHR] = "c",
     [S_IFLNK] = "l",
+    [S_IFIFO] = "f",
 };
 
 void list_items(DIR *directory)
