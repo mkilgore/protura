@@ -15,7 +15,7 @@
 
 #include "arg_parser.h"
 
-#define TASK_API_FILE "/proc/tasks_api"
+#define TASK_API_FILE "/proc/task_api"
 
 #define TASK_MAX 200
 
