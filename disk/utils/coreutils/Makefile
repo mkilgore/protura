@@ -13,6 +13,7 @@ COREUTILS_PROGS = \
 	ls \
 	mem \
 	mkdir \
+	mkfifo \
 	mknod \
 	more \
 	mount \
