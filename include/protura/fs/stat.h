@@ -71,5 +71,6 @@ struct stat {
 #define DT_BLK     MODE_TO_DT(_IFBLK)
 #define DT_REG     MODE_TO_DT(_IFREG)
 #define DT_LNK     MODE_TO_DT(_IFLNK)
+#define DT_FIFO    MODE_TO_DT(_IFIFO)
 
 #endif
