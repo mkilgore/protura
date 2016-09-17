@@ -11,3 +11,8 @@
 
 /dev/com1 c 3 0
 /dev/com2 c 3 1
+
+/dev/zero c 6 0
+/dev/full c 6 1
+/dev/null c 6 2
+
