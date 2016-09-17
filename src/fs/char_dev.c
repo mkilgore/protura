@@ -19,6 +19,7 @@
 #include <protura/drivers/screen.h>
 #include <protura/drivers/com.h>
 #include <protura/drivers/tty.h>
+#include <protura/drivers/mem.h>
 #include <protura/fs/file.h>
 #include <protura/fs/fs.h>
 #include <protura/fs/char.h>
@@ -53,6 +54,11 @@ static struct char_device devices[] = {
         .name = "tty",
         .major = CHAR_DEV_TTY,
         .fops = &tty_file_ops,
+    },
+    [CHAR_DEV_MEM] = {
+        .name = "mem",
+        .major = CHAR_DEV_MEM,
+        .fops = &mem_file_ops,
     },
 };
 
