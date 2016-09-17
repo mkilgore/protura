@@ -112,16 +112,30 @@ static int cd(struct prog_desc *prog)
 static int echo(struct prog_desc *prog)
 {
     int i;
+    int ret;
 
     if (prog->argc <= 1)
         return 0;
 
-    dprintf(prog->stdout_fd, "%s", prog->argv[1]);
+    ret = dprintf(prog->stdout_fd, "%s", prog->argv[1]);
+    if (ret == -1) {
+        perror("echo");
+        return 0;
+    }
 
-    for (i = 2; i < prog->argc; i++)
-        dprintf(prog->stdout_fd, " %s", prog->argv[i]);
+    for (i = 2; i < prog->argc; i++) {
+        ret = dprintf(prog->stdout_fd, " %s", prog->argv[i]);
+        if (ret == -1) {
+            perror("echo");
+            return 0;
+        }
+    }
 
-    write(prog->stdout_fd, &(const char){ '\n' }, 1);
+    ret = write(prog->stdout_fd, &(const char){ '\n' }, 1);
+    if (ret == -1) {
+        perror("echo");
+        return 0;
+    }
 
     return 0;
 }
