@@ -1,0 +1,269 @@
+/*
+ * Copyright (C) 2016 Matt Kilgore
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License v2 as published by the
+ * Free Software Foundation.
+ */
+
+#include <protura/types.h>
+#include <protura/debug.h>
+#include <protura/string.h>
+#include <protura/list.h>
+#include <protura/snprintf.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/mm/memlayout.h>
+#include <protura/drivers/term.h>
+#include <protura/dump_mem.h>
+#include <protura/scheduler.h>
+#include <protura/task.h>
+#include <protura/mm/palloc.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/file.h>
+#include <protura/fs/fs.h>
+#include <protura/wait.h>
+#include <protura/signal.h>
+
+
+pid_t __fork(struct task *current, pid_t pgrp)
+{
+    struct task *new;
+    new = task_fork(current);
+
+    if (new)
+        kp(KP_TRACE, "New task: %d\n", new->pid);
+    else
+        kp(KP_TRACE, "Fork failed\n");
+
+    if (new) {
+        if (pgrp == 0)
+            new->pgid = new->pid;
+        else if (pgrp > 0)
+            new->pgid = pgrp;
+
+        kp(KP_TRACE, "Task %s: Locking list of children\n", current->name);
+        using_spinlock(&current->children_list_lock)
+            list_add(&current->task_children, &new->task_sibling_list);
+        kp(KP_TRACE, "Task %s: Unlocking list of children: %d\n", current->name, list_empty(&current->task_children));
+
+        irq_frame_set_syscall_ret(new->context.frame, 0);
+        scheduler_task_add(new);
+    }
+
+    if (new)
+        return new->pid;
+    else
+        return -1;
+}
+
+pid_t sys_fork(void)
+{
+    struct task *t = cpu_get_local()->current;
+    return __fork(t, -1);
+}
+
+pid_t sys_fork_pgrp(pid_t pgrp)
+{
+    struct task *t = cpu_get_local()->current;
+    return __fork(t, pgrp);
+}
+
+pid_t sys_getpid(void)
+{
+    struct task *t = cpu_get_local()->current;
+    return t->pid;
+}
+
+pid_t sys_getppid(void)
+{
+    struct task *t = cpu_get_local()->current;
+    if (t->parent)
+        return t->parent->pid;
+    else
+        return -1;
+}
+
+void sys_exit(int code)
+{
+    struct task *t = cpu_get_local()->current;
+    t->ret_code = code;
+
+    kp(KP_TRACE, "Exit! %s(%p):%d\n", t->name, t, code);
+
+    /* At this point, we have to disable interrupts to ensure we don't get
+     * rescheduled. We're deleting the majority of our task information, and a
+     * reschedule back to us may not work after that. */
+    irq_disable();
+
+    /* We're going to delete our address-space, including our page-table, so we
+     * need to switch to the kernel's to ensure we don't attempt to keep using
+     * the deleted page-table. */
+    arch_address_space_switch_to_kernel();
+
+    task_make_zombie(t);
+
+    /* Compiler barrier guarentee's that t->parent will not be read *before*
+     * t->state is set to TASK_ZOMBIE. See details in task_make_zombie(). */
+    barrier();
+
+    if (t->parent)
+        scheduler_task_wake(t->parent);
+
+    /* If we're a kernel process, we will never be wait()'d on, so we mark
+     * ourselves dead */
+    if (flag_test(&t->flags, TASK_FLAG_KERNEL))
+        scheduler_task_mark_dead(t);
+
+    scheduler_task_yield();
+    panic("scheduler_task_yield() returned after sys_exit()!!!\n");
+}
+
+pid_t sys_wait(int *ret)
+{
+    return sys_waitpid(-1, ret, 0);
+}
+
+pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
+{
+    int have_child = 0, have_no_children = 0;
+    struct task *child = NULL;
+    struct task *t = cpu_get_local()->current;
+
+    /* We enter a 'sleep loop' here. We sleep until we're woke-up directly,
+     * which is fine because we're waiting for any children to call sys_exit(),
+     * which will wake us up. */
+  sleep_again:
+    sleep_intr {
+        kp(KP_TRACE, "Task %s: Locking child list for wait4\n", t->name);
+        using_spinlock(&t->children_list_lock) {
+            if (list_empty(&t->task_children)) {
+                have_no_children = 1;
+                break;
+            }
+
+            list_foreach_entry(&t->task_children, child, task_sibling_list) {
+                kp(KP_TRACE, "Checking child %s(%p, %d)\n", child->name, child, child->pid);
+                if (childpid == 0) {
+                    if (child->pgid != t->pgid)
+                        continue;
+                } else if (childpid > 0) {
+                    if (child->pid != childpid)
+                        continue;
+                } else if (childpid < -1) {
+                    if (child->pgid != -childpid)
+                        continue;
+                }
+                if (child->state == TASK_ZOMBIE) {
+                    list_del(&child->task_sibling_list);
+                    kp(KP_TRACE, "Found zombie child: %d\n", child->pid);
+                    have_child = 1;
+                    break;
+                }
+            }
+        }
+        kp(KP_TRACE, "Task %s: Unlocking child list for wait4\n", t->name);
+
+        if (!have_no_children && !have_child && !(options & WNOHANG)) {
+            scheduler_task_yield();
+            if (has_pending_signal(t))
+                return -ERESTARTSYS;
+            goto sleep_again;
+        }
+    }
+
+    if (!have_child && options & WNOHANG)
+        return 0;
+
+    if (!have_child)
+        return -ECHILD;
+
+    if (wstatus)
+        *wstatus = child->ret_code;
+
+    scheduler_task_mark_dead(child);
+    return child->pid;
+}
+
+int sys_dup(int oldfd)
+{
+    struct task *current = cpu_get_local()->current;
+    struct file *filp = fd_get(oldfd);
+    int newfd;
+    int ret;
+
+    ret = fd_get_checked(oldfd, &filp);
+    if (ret)
+        return ret;
+
+    newfd = fd_get_empty();
+
+    fd_assign(newfd, file_dup(filp));
+
+    FD_CLR(newfd, &current->close_on_exec);
+
+    return newfd;
+}
+
+int sys_dup2(int oldfd, int newfd)
+{
+    struct task *current = cpu_get_local()->current;
+    struct file *old_filp;
+    struct file *new_filp;
+    int ret;
+
+    ret = fd_get_checked(oldfd, &old_filp);
+    if (ret)
+        return ret;
+
+    if (newfd > NOFILE || newfd < 0)
+        return -EBADF;
+
+    new_filp = fd_get(newfd);
+
+    if (new_filp)
+        vfs_close(new_filp);
+
+    fd_assign(newfd, file_dup(old_filp));
+
+    FD_CLR(newfd, &current->close_on_exec);
+
+    return newfd;
+}
+
+int sys_setpgid(pid_t pid, pid_t pgid)
+{
+    struct task *current = cpu_get_local()->current;
+
+    if (pid) {
+        struct task *t = scheduler_task_get(pid);
+
+        if (!t)
+            return -ESRCH;
+
+        if (!pgid)
+            pgid = pid;
+
+        t->pgid = pgid;
+
+        scheduler_task_put(t);
+        return 0;
+    }
+
+    if (!pgid)
+        pgid = current->pid;
+
+    current->pgid = pgid;
+
+    return 0;
+}
+
+int sys_getpgrp(pid_t *pgrp)
+{
+    struct task *current = cpu_get_local()->current;
+
+    *pgrp = current->pgid;
+
+    return 0;
+}
+
+
