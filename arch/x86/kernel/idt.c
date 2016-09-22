@@ -98,6 +98,18 @@ void unhandled_cpu_exception(struct irq_frame *frame)
         frame->esp,
         frame->ebp);
 
+    kp(KP_ERROR, "CS: 0x%04x SS: 0x%04x\n",
+        frame->cs,
+        frame->ss);
+
+    kp(KP_ERROR, "DS: 0x%04x ES: 0x%04x\n",
+        frame->ds,
+        frame->es);
+
+    kp(KP_ERROR, "FS: 0x%04x GS: 0x%04x\n",
+        frame->fs,
+        frame->gs);
+
     kp(KP_ERROR, "Stack backtrace:\n");
     dump_stack_ptr((void *)frame->ebp);
     if (current && !flag_test(&current->flags, TASK_FLAG_KERNEL)) {
