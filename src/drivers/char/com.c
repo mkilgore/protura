@@ -54,6 +54,11 @@ struct com_port {
 
 static struct com_port com_ports[];
 
+static int com_write_ready(struct com_port *com)
+{
+    return inb(com->ioport + UART_LSR) & UART_LSR_THRE;
+}
+
 static void com_int_handler(struct com_port *com)
 {
     char b;
@@ -162,8 +167,11 @@ static int com_file_write(struct file *filp, const void *vbuf, size_t len)
 
     using_spinlock(&com->buf_lock) {
         int i;
-        for (i = 0; i < len; i++)
+        for (i = 0; i < len; i++) {
+            while (!com_write_ready(com))
+                ;
             outb(com->ioport + UART_TX, buf[i]);
+        }
     }
 
     return len;
@@ -247,8 +255,11 @@ static int com_tty_write(struct tty *tty, const char *buf, size_t len)
 
     using_spinlock(&com->buf_lock) {
         int i;
-        for (i = 0; i < len; i++)
+        for (i = 0; i < len; i++) {
+            while (!com_write_ready(com))
+                ;
             outb(com->ioport + UART_TX, buf[i]);
+        }
     }
 
     return len;
@@ -322,8 +333,11 @@ static void com_putnstr(struct printf_backbone *b, const char *s, size_t len)
     int i;
     struct printf_backbone_com *com = container_of(b, struct printf_backbone_com, backbone);
 
-    for (i = 0; i < len; i++)
+    for (i = 0; i < len; i++) {
+        while (!com_write_ready(com_ports + com->com_id))
+            ;
         outb(com_ports[com->com_id].ioport + UART_TX, s[i]);
+    }
 }
 
 void com1_printfv(const char *fmt, va_list lst)
