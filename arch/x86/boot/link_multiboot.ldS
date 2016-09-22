@@ -1,7 +1,7 @@
 
 #include <protura/mm/memlayout.h>
 
-ENTRY(start)
+ENTRY(_start)
 
 SECTIONS
 {
