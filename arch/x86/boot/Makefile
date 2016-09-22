@@ -20,5 +20,5 @@ build-iso: $(imgs_pfix)multiboot
 	cp $(imgs_pfix)multiboot ./imgs/isodir/boot
 	mkdir -p ./imgs/isodir/grub
 	cp grub.cfg ./imgs/isodir/grub/grub.cfg
-	grub2-mkrescue -o ./imgs/protura.iso ./imgs/isodir
+	grub-mkrescue -o ./imgs/protura.iso ./imgs/isodir
 
