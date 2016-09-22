@@ -21,11 +21,6 @@
 
 static struct cpu_info cpu;
 
-static void loadgs(uint16_t gs)
-{
-    asm volatile("movw %0, %%gs": : "r" (gs));
-}
-
 static void cpu_gdt(struct cpu_info *c)
 {
     c->gdt_entries[_GDT_NULL] = (struct gdt_entry){ 0 };
@@ -43,7 +38,21 @@ static void cpu_gdt(struct cpu_info *c)
 
     gdt_flush(c->gdt_entries, sizeof(c->gdt_entries));
 
-    loadgs(_CPU_VAR);
+    /* Reload CS and IP */
+    asm volatile(
+            "jmpl $" Q(_KERNEL_CS)", $1f\n"
+            "1:\n"
+            : : : "memory");
+
+    /* Reset the segment registers to use the new GDT */
+    asm volatile(
+            "movw %w0, %%ss\n"
+            "movw %w0, %%ds\n"
+            "movw %w0, %%es\n"
+            "movw %w0, %%fs\n"
+            "movw %w1, %%gs\n"
+         : : "r" (_KERNEL_DS), "r" (_CPU_VAR)
+         : "memory");
 }
 
 static void cpu_tss(struct cpu_info *c)
