@@ -77,6 +77,9 @@
 
 #define SYSCALL_POLL 0x46
 
+#define SYSCALL_SETSID 0x47
+#define SYSCALL_GETSID 0x48
+
 #ifdef __KERNEL__
 #ifndef ASM
 

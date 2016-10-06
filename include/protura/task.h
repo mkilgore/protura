@@ -17,6 +17,7 @@
 
 struct file;
 struct inode;
+struct tty;
 
 /* Indicates the current state of a task. It should be noted that these states
  * are separate from preemption. Tasks can be preempted and restarted at any
@@ -44,6 +45,7 @@ enum {
     TASK_FLAG_KERNEL,
     TASK_FLAG_KILLED,
     TASK_FLAG_USER_PTR_CHECK,
+    TASK_FLAG_SESSION_LEADER,
 };
 
 struct task {
@@ -52,6 +54,8 @@ struct task {
     pid_t session_id;
 
     enum task_state state;
+
+    struct tty *tty;
 
     flags_t flags;
 
@@ -111,6 +115,8 @@ pid_t sys_fork(void);
 pid_t sys_fork_pgrp(pid_t pgrp); /* Fork and set pgrp - Protura exclusive */
 pid_t sys_getpid(void);
 pid_t sys_getppid(void);
+pid_t sys_setsid(void);
+pid_t sys_getsid(pid_t pid);
 void sys_exit(int code) __noreturn;
 int sys_dup(int oldfd);
 int sys_dup2(int olfd, int newfd);

@@ -34,10 +34,12 @@ struct file {
     off_t offset;
 
     struct file_ops *ops;
+
+    void *priv_data;
 };
 
 struct file_ops {
-    int (*open) (struct inode *inode, struct file *);
+    int (*open) (struct inode *inode, struct file *, mode_t);
     int (*release) (struct file *);
     int (*read) (struct file *, void *, size_t);
     int (*readdir) (struct file *, struct file_readdir_handler *);

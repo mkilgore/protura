@@ -292,8 +292,8 @@ static struct tty_ops ops = {
 
 static struct tty_driver driver = {
     .name = "com-tty",
-    .minor_start = 1,
-    .minor_end = 2,
+    .minor_start = 2,
+    .minor_end = 3,
     .ops = &ops,
 };
 

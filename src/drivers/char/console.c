@@ -70,8 +70,8 @@ static struct tty_ops ops = {
 
 static struct tty_driver driver = {
     .name = "console-tty",
-    .minor_start = 0,
-    .minor_end = 0,
+    .minor_start = 1,
+    .minor_end = 1,
     .ops = &ops,
 };
 

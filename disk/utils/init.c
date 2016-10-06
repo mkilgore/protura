@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -14,22 +15,160 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
 
+#define LOGFILE "/tmp/init.log"
+#define INITTAB "/etc/inittab"
+
+FILE *ilog;
+
+char *const env_vars[] = { "PATH=/bin", "HOME=/home", NULL };
+
+enum tab_action {
+    TAB_RESPAWN,
+    TAB_ONCE,
+};
+
+struct tab_ent {
+    pid_t pid;
+
+    unsigned int start :1;
+
+    int level;
+
+    char *id;
+    char **args;
+
+    enum tab_action action;
+
+    struct tab_ent *next;
+};
+
+struct tab_ent *tab_list;
+
 pid_t shell[2];
+
+static int ilogf(const char *format, ...)
+{
+    int ret;
+    va_list lst;
+    va_start(lst, format);
+
+    ret = vfprintf(ilog, format, lst);
+    fflush(ilog);
+    sync();
+
+    va_end(lst);
+
+    return ret;
+}
+
+static char **parse_args(char *prog)
+{
+    int count = 0;
+    char *l;
+    char **args;
+
+    args = malloc(sizeof(*args) * (count + 1));
+    *args = NULL;
+
+    l = prog;
+
+    while (*l) {
+        char *s;
+        while (*l && (*l == ' ' || *l == '\t'))
+            l++;
+
+        if (!*l)
+            break;
+
+        args = realloc(args, sizeof(*args) * (count + 2));
+        args[count + 1] = NULL;
+
+        s = l;
+
+        while (*l && *l != ' ' && *l != '\t')
+            l++;
+
+        if (*l) {
+            *l = '\0';
+            l++;
+        }
+
+        args[count] = strdup(s);
+        count++;
+    }
+
+    return args;
+}
+
+static void load_tab(const char *tab)
+{
+    FILE *file = fopen(tab, "r");
+    char *line;
+    size_t buf_len;
+    ssize_t len;
+
+    while ((len = getline(&line, &buf_len, file)) != EOF) {
+        char *l = line;
+        char *next_ptr = NULL;
+        struct tab_ent *ent;
+
+        line[len - 1] = '\0';
+
+        ilogf("inittab: %s\n", line);
+
+        while (*l && (*l == ' ' || *l == '\t'))
+            l++;
+
+        if (!*l)
+            continue;
+
+        if (*l == '#')
+            continue;
+
+        ent = malloc(sizeof(*ent));
+        memset(ent, 0, sizeof(*ent));
+
+        ent->pid = -1;
+        ent->start = 1;
+
+        ent->id = strdup(strtok_r(l, ":", &next_ptr));
+        ent->level = strtol(strtok_r(NULL, ":", &next_ptr), NULL, 10);
+        if (strcmp(strtok_r(NULL, ":", &next_ptr), "respawn") == 0)
+            ent->action = TAB_RESPAWN;
+        else
+            ent->action = TAB_ONCE;
+
+        ilogf("inittab: id: %s, level: %d, action: %d\n", ent->id, ent->level, ent->action);
+        ilogf("inittab: next_ptr: %s\n", next_ptr);
+        ent->args = parse_args(next_ptr);
+
+        ent->next = tab_list;
+        tab_list = ent;
+    }
+}
 
 /* Reap children */
 static void handle_children(int sig)
 {
+    struct tab_ent *ent;
     pid_t child;
-    printf("Waiting on children!\n");
 
     while ((child = waitpid(-1, NULL, WNOHANG)) > 0) {
-        printf("Reaped %d\n", child);
+        ilogf("Init: Reaped %d\n", child);
 
-        int i;
-        for (i = 0; i < ARRAY_SIZE(shell); i++) {
-            if (shell[i] == child) {
-                printf("Syncing...\n");
-                sync();
+        for (ent = tab_list; ent; ent = ent->next) {
+            if (ent->pid == child) {
+                ent->pid = -1;
+                switch (ent->action) {
+                case TAB_RESPAWN:
+                    ent->start = 1;
+                    break;
+
+                case TAB_ONCE:
+                    break;
+                }
+
+                break;
             }
         }
     }
@@ -39,7 +178,7 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 {
     pid_t child_pid;
 
-    switch ((child_pid = fork_pgrp(0))) {
+    switch ((child_pid = fork())) {
     case -1:
         /* Fork error */
         return -1;
@@ -57,9 +196,13 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 
 int main(int argc, char **argv)
 {
-    int consolefd, keyboardfd, stderrfd;
     int ret;
     struct sigaction action;
+    struct tab_ent *ent;
+    sigset_t sigset;
+
+    ilog = fopen(LOGFILE, "w+");
+    ilogf("Init: Booting\n");
 
     memset(&action, 0, sizeof(action));
 
@@ -67,32 +210,34 @@ int main(int argc, char **argv)
     action.sa_handler = handle_children;
     sigaction(SIGCHLD, &action, NULL);
 
-    keyboardfd = open("/dev/tty0", O_RDONLY);
-    consolefd = open("/dev/tty0", O_WRONLY);
-    stderrfd = open("/dev/tty0", O_WRONLY);
-
+    ilogf("Init: Mounting proc.\n");
     /* Mount proc if we can */
     ret = mount(NULL, "/proc", "proc", 0, NULL);
     if (ret)
-        perror("mount proc");
+        ilogf("Init: Error mounting proc: %s\n", strerror(errno));
 
     setpgid(0, 0);
 
-    shell[0] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", "HOME=/home", NULL });
+    ilogf("Init: Loading %s\n", INITTAB);
 
-    close(keyboardfd);
-    close(consolefd);
-    close(stderrfd);
+    load_tab(INITTAB);
 
-    keyboardfd = open("/dev/ttyS1", O_RDONLY);
-    consolefd = open("/dev/ttyS1", O_WRONLY);
-    stderrfd = open("/dev/ttyS1", O_WRONLY);
+    sigfillset(&sigset);
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
 
-    shell[1] = start_prog("/bin/sh", NULL, (char *const[]) { "PATH=/bin", "HOME=/home", NULL });
+    sigemptyset(&sigset);
 
-    /* Sleep forever */
-    while (1)
-        pause();
+    while (1) {
+        ilogf("Init: Checking for processes to restart\n");
+        for (ent = tab_list; ent; ent = ent->next) {
+            if (ent->start) {
+                ent->start = 0;
+                ilogf("Init: Starting %s\n", ent->args[0]);
+                ent->pid = start_prog(ent->args[0], ent->args, env_vars);
+            }
+        }
+        sigsuspend(&sigset);
+    }
 
     return 0;
 }

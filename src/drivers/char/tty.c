@@ -20,6 +20,7 @@
 #include <protura/drivers/term.h>
 #include <arch/asm.h>
 #include <protura/fs/char.h>
+#include <protura/fs/fcntl.h>
 #include <protura/drivers/screen.h>
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/console.h>
@@ -186,9 +187,7 @@ static struct tty *tty_find(dev_t minor)
 
 static int tty_read(struct file *filp, void *vbuf, size_t len)
 {
-    struct inode *i = filp->inode;
-    dev_t minor = DEV_MINOR(i->dev_no);
-    struct tty *tty = tty_find(minor);
+    struct tty *tty = filp->priv_data;
     size_t orig_len = len;
     int ret = 0;
 
@@ -244,9 +243,7 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
 
 static int tty_write(struct file *filp, const void *vbuf, size_t len)
 {
-    struct inode *i = filp->inode;
-    dev_t minor = DEV_MINOR(i->dev_no);
-    struct tty *tty = tty_find(minor);
+    struct tty *tty = filp->priv_data;
     size_t orig_len = len;
 
     if (!tty)
@@ -262,9 +259,7 @@ static int tty_write(struct file *filp, const void *vbuf, size_t len)
 
 static int tty_poll(struct file *filp, struct poll_table *table, int events)
 {
-    struct inode *i = filp->inode;
-    dev_t minor = DEV_MINOR(i->dev_no);
-    struct tty *tty = tty_find(minor);
+    struct tty *tty = filp->priv_data;
     int ret = 0;
 
     if (!tty)
@@ -285,7 +280,35 @@ static int tty_poll(struct file *filp, struct poll_table *table, int events)
     return ret;
 }
 
+static int tty_open(struct inode *inode, struct file *filp, mode_t mode)
+{
+    struct task *current = cpu_get_local()->current;
+    int noctty = mode & O_NOCTTY;
+    dev_t minor = DEV_MINOR(inode->dev_no);
+    struct tty *tty;
+
+    if (minor == 0) {
+        if (!current->tty)
+            return -ENXIO;
+
+        filp->priv_data = current->tty;
+        return 0;
+    }
+
+    tty = tty_find(minor);
+    filp->priv_data = tty;
+
+    if (!noctty && flag_test(&current->flags, TASK_FLAG_SESSION_LEADER) && !current->tty && tty->session_id == 0) {
+        current->tty = tty;
+        tty->session_id = current->session_id;
+        tty->pgid = current->pgid;
+    }
+
+    return 0;
+}
+
 struct file_ops tty_file_ops = {
+    .open = tty_open,
     .read = tty_read,
     .write = tty_write,
     .poll = tty_poll,

@@ -210,6 +210,7 @@ struct task *task_fork(struct task *parent)
         if (parent->files[i])
             new->files[i] = file_dup(parent->files[i]);
 
+    new->tty = parent->tty;
     new->pgid = parent->pgid;
     new->session_id = parent->session_id;
     new->close_on_exec = parent->close_on_exec;

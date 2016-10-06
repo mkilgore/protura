@@ -13,7 +13,7 @@
 #include <protura/fs/char.h>
 #include <protura/drivers/mem.h>
 
-static int mem_open(struct inode *inode, struct file *filp)
+static int mem_open(struct inode *inode, struct file *filp, mode_t mode)
 {
     dev_t minor = DEV_MINOR(inode->dev_no);
     int ret = 0;

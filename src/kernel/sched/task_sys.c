@@ -266,4 +266,48 @@ int sys_getpgrp(pid_t *pgrp)
     return 0;
 }
 
+pid_t sys_setsid(void)
+{
+    struct task *current = cpu_get_local()->current;
+
+    kp(KP_TRACE, "%d: setsid\n", current->pid);
+    kp(KP_TRACE, "%d: pgrp: %d, session_leader: %d\n", current->pid, current->pgid, flag_test(&current->flags, TASK_FLAG_SESSION_LEADER));
+
+    if (flag_test(&current->flags, TASK_FLAG_SESSION_LEADER)
+        || current->pid == current->pgid)
+        return -EPERM;
+
+    kp(KP_TRACE, "Setting setsid...\n");
+
+    flag_set(&current->flags, TASK_FLAG_SESSION_LEADER);
+    current->session_id = current->pgid = current->pid;
+
+    return current->pid;
+}
+
+pid_t sys_getsid(pid_t pid)
+{
+    struct task *current = cpu_get_local()->current;
+    struct task *t;
+    int ret;
+
+    kp(KP_TRACE, "%d: getsid: %d\n", current->pid, pid);
+
+    if (pid == 0)
+        return current->session_id;
+
+    if (pid < 0)
+        return -ESRCH;
+
+    t = scheduler_task_get(pid);
+
+    if (t->session_id != current->session_id)
+        ret = -EPERM;
+    else
+        ret = t->session_id;
+
+    scheduler_task_put(t);
+
+    return ret;
+}
 

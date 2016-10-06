@@ -5,6 +5,7 @@ COREUTILS_PROGS = \
 	cat \
 	false \
 	files \
+	getty \
 	head \
 	hexdump \
 	kill \

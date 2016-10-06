@@ -390,7 +390,7 @@ static int pipe_poll(struct file *filp, struct poll_table *table, int events)
     return ret;
 }
 
-static int fifo_open(struct inode *inode, struct file *filp)
+static int fifo_open(struct inode *inode, struct file *filp, mode_t mode)
 {
     struct pipe_info *pinfo = &filp->inode->pipe_info;
     int ret = 0;

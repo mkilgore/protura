@@ -19,8 +19,8 @@
  * As a note: __sys_open is similar to vfs_open, but will also assign a fd for
  * you. Useful if you want to avoid the overhead of namei because you already
  * have the inode. */
-int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp);
-int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *filp);
+int vfs_open(struct inode *inode, unsigned int file_flags, mode_t mode, struct file **filp);
+int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, mode_t mode, struct file *filp);
 int vfs_close(struct file *filp);
 int vfs_read(struct file *filp, void *buf, size_t len);
 int vfs_write(struct file *filp, void *buf, size_t len);

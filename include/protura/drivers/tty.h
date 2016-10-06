@@ -77,6 +77,9 @@ struct tty {
     /* Device number for the driver Minor number is equal to this + minor_start */
     dev_t device_no;
 
+    pid_t session_id;
+    pid_t pgid;
+
     struct termios termios;
     struct tty_driver *driver;
 

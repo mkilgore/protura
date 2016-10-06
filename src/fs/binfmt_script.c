@@ -67,7 +67,7 @@ static int load_script(struct exe_params *params, struct irq_frame *frame)
 
     old_exe = params->exe;
 
-    ret = vfs_open(script_ino, F(FILE_READABLE), &params->exe);
+    ret = vfs_open(script_ino, F(FILE_READABLE), 0, &params->exe);
     if (ret)
         goto cleanup_inode;
 

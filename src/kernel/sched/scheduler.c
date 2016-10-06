@@ -419,6 +419,7 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
         tinfo->ppid = 0;
 
     tinfo->pgid = task->pgid;
+    tinfo->sid = task->session_id;
 
     switch (task->state) {
     case TASK_RUNNING:
