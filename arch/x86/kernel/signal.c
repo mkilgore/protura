@@ -11,6 +11,7 @@
 #include <protura/task.h>
 #include <protura/irq.h>
 #include <arch/paging.h>
+#include <protura/scheduler.h>
 #include <protura/signal.h>
 
 /* This is the contents of the stack - keep in mind, the stack grows downward */
@@ -136,10 +137,20 @@ static void signal_default(struct task *current, int signum)
 
     case SIGSTOP:
     case SIGTSTP:
-        /* Stop process */
+    case SIGTTIN:
+    case SIGTTOU:
+        kp(KP_TRACE, "task %d: Handling stop (%d)\n", current->pid, signum);
+        current->ret_signal = TASK_SIGNAL_STOP | signum;
+        current->state = TASK_STOPPED;
+
+        if (current->parent)
+            scheduler_task_wake(current->parent);
+
+        scheduler_task_yield();
         break;
 
     default:
+        current->ret_signal = signum;
         sys_exit(0);
     }
 }

@@ -35,6 +35,7 @@ enum task_state {
     TASK_SLEEPING,
     TASK_INTR_SLEEPING,
     TASK_RUNNING,
+    TASK_STOPPED,
     TASK_ZOMBIE,
     TASK_DEAD,
 };
@@ -59,7 +60,10 @@ struct task {
 
     flags_t flags;
 
-    int ret_code;
+#define TASK_SIGNAL_STOP 0x100
+#define TASK_SIGNAL_CONT 0x200
+
+    int ret_code, ret_signal;
 
     int wake_up; /* Tick number to wake-up on */
 

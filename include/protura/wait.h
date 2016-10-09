@@ -11,9 +11,9 @@
 #include <protura/list.h>
 #include <protura/time.h>
 #include <arch/spinlock.h>
+#include <protura/waitbits.h>
 
 struct task;
-
 
 #define WAKEUP_LIST_MAX_TASKS 20
 
@@ -104,10 +104,28 @@ int wait_queue_wake_all(struct wait_queue *);
     using_nocheck(sleep_intr_with_wait_queue_begin(queue), \
             (sleep_with_wait_queue_end()))
 
-#define WNOHANG 1
-
 pid_t sys_waitpid(pid_t pid, int *wstatus, int options);
 
 pid_t sys_wait(int *ret);
+
+#define WNOHANG      __kWNOHANG
+#define WUNTRACED    __kWUNTRACED
+#define WSTOPPED     __kWSTOPPED
+#define WCONTINUED   __kWCONTINUED
+
+#define WIFEXITED    __kWIFEXITED
+#define WIFSIGNALED  __kWIFSIGNALED
+#define WIFSTOPPED   __kWIFSTOPPED
+
+#define WEXITSTATUS  __kWEXITSTATUS
+#define WTERMSIG     __kWTERMSIG
+#define WSTOPSIG     __kWSTOPSIG
+
+#define WIFCONTINUED __kWIFCONTINUED
+
+#define WCONTINUED_MAKE() (__kWCONTINUEDBITS)
+#define WEXIT_MAKE(ret) (((ret) << 8) | 0)
+#define WSIGNALED_MAKE(sig) (sig)
+#define WSTOPPED_MAKE(sig) (((sig) << 8) | 0x7F)
 
 #endif

@@ -11,6 +11,7 @@ enum task_api_state {
     TASK_API_SLEEPING,
     TASK_API_INTR_SLEEPING,
     TASK_API_RUNNING,
+    TASK_API_STOPPED,
     TASK_API_ZOMBIE,
 };
 

@@ -126,8 +126,10 @@ pid_t sys_wait(int *ret)
 pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
 {
     int have_child = 0, have_no_children = 0;
+    int kill_child = 0;
     struct task *child = NULL;
     struct task *t = cpu_get_local()->current;
+    int ret_status = 0;
 
     /* We enter a 'sleep loop' here. We sleep until we're woke-up directly,
      * which is fine because we're waiting for any children to call sys_exit(),
@@ -153,9 +155,42 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
                     if (child->pgid != -childpid)
                         continue;
                 }
+
                 if (child->state == TASK_ZOMBIE) {
                     list_del(&child->task_sibling_list);
                     kp(KP_TRACE, "Found zombie child: %d\n", child->pid);
+
+                    if (child->ret_signal)
+                        ret_status = WSIGNALED_MAKE(child->ret_signal);
+                    else
+                        ret_status = WEXIT_MAKE(child->ret_code);
+
+                    kill_child = 1;
+                    have_child = 1;
+                    break;
+                }
+
+                if (!(options & WUNTRACED) && !(options & WCONTINUED))
+                    continue;
+
+                kp(KP_TRACE,"Checking %d for continue.\n", child->pid);
+                if ((child->ret_signal & TASK_SIGNAL_CONT) && (options & WCONTINUED)) {
+                    kp(KP_TRACE, "Found continued child: %d\n", child->pid);
+                    ret_status = WCONTINUED_MAKE();
+
+                    child->ret_signal = 0;
+                    have_child = 1;
+                    break;
+                }
+
+                kp(KP_TRACE,"Checking %d for stop.\n", child->pid);
+                if ((child->ret_signal & TASK_SIGNAL_STOP) && (options & WUNTRACED)){
+                    int status = child->ret_signal & ~TASK_SIGNAL_STOP;
+
+                    kp(KP_TRACE, "Found stopped child: %d\n", child->pid);
+                    ret_status = WSTOPPED_MAKE(status);
+
+                    child->ret_signal = 0;
                     have_child = 1;
                     break;
                 }
@@ -178,9 +213,11 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
         return -ECHILD;
 
     if (wstatus)
-        *wstatus = child->ret_code;
+        *wstatus = ret_status;
 
-    scheduler_task_mark_dead(child);
+    if (kill_child)
+        scheduler_task_mark_dead(child);
+
     return child->pid;
 }
 

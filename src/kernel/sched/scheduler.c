@@ -221,11 +221,57 @@ int scheduler_task_exists(pid_t pid)
 
 static void send_sig(struct task *t, int signal, int force)
 {
+    int notify_parent = 0;
+
+    /* Deciding what to do when sending a signal is a little complex:
+     *
+     * If we get a SIGCONT, then:
+     *   1. If we're actually stopped, then we set ret_signal to tell our
+     *      parent about it.
+     *   3. We force the task state to TASK_RUNNING if it is TASK_STOPPED
+     *   2. We discard any currently pending 'stop' signals
+     *
+     * If we get a 'stop' (SIGSTOP, SIGTSTP, SIGTTOU, SIGTTIN), then:
+     *   1. We discard any pending SIGCONT signals.
+     *
+     * If we get a SIGKILL (Unblockable), then:
+     *   1. We force the task into TASK_RUNNING if it is TASK_STOPPED, thus
+     *      forcing it to handle the SIGKILL and die.
+     */
+    if (signal == SIGCONT) {
+        if (t->state == TASK_STOPPED) {
+            t->ret_signal = TASK_SIGNAL_CONT;
+            t->state = TASK_RUNNING;
+            notify_parent = 1;
+        }
+
+        SIGSET_UNSET(&t->sig_pending, SIGSTOP);
+        SIGSET_UNSET(&t->sig_pending, SIGTSTP);
+        SIGSET_UNSET(&t->sig_pending, SIGTTOU);
+        SIGSET_UNSET(&t->sig_pending, SIGTTIN);
+    }
+
+    if (signal == SIGSTOP || signal == SIGTSTP
+            || signal == SIGTTOU || signal == SIGTTIN)
+        SIGSET_UNSET(&t->sig_pending, SIGCONT);
+
+    if (signal == SIGKILL && t->state == TASK_STOPPED)
+        t->state = TASK_RUNNING;
+
     SIGSET_SET(&t->sig_pending, signal);
     if (force)
         SIGSET_UNSET(&t->sig_blocked, signal);
 
     scheduler_task_intr_wake(t);
+
+    /* Notify our parent about any state changes due to signals.
+     *
+     * The NULL check is kinda a red-herring. Only kernel tasks have a NULL
+     * parent. The rest of the tasks are guarenteed to always have a valid
+     * parent pointer, even when being orphaned and adopped by init.
+     * */
+    if (notify_parent && t->parent)
+        scheduler_task_wake(t->parent);
 }
 
 int scheduler_task_send_signal(pid_t pid, int signal, int force)
@@ -339,6 +385,10 @@ void scheduler(void)
                 }
                 break;
 
+            /* Stopped tasks are skipped */
+            case TASK_STOPPED:
+                break;
+
             /* Dead tasks can be removed and freed - They should already be
              * attached to ktasks.dead and not in this list.
              *
@@ -436,6 +486,10 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 
     case TASK_INTR_SLEEPING:
         tinfo->state = TASK_API_INTR_SLEEPING;
+        break;
+
+    case TASK_STOPPED:
+        tinfo->state = TASK_API_STOPPED;
         break;
 
     case TASK_DEAD:
