@@ -101,6 +101,20 @@ static int tty_kernel_thread(void *p)
                 wait_queue_wake(&tty->in_wait_queue);
                 break;
 
+            case '\x03': /* ^C */
+                if (tty->fg_pgrp) {
+                    kp(KP_TRACE, "tty: ^C: Sending SIGINT to %d\n", tty->fg_pgrp);
+                    scheduler_task_send_signal(-tty->fg_pgrp, SIGINT, 0);
+                }
+                break;
+
+            case '\x1A': /* ^Z */
+                if (tty->fg_pgrp) {
+                    kp(KP_TRACE, "tty: ^Z: Sending SIGTSTP to %d\n", tty->fg_pgrp);
+                    scheduler_task_send_signal(-tty->fg_pgrp, SIGTSTP, 0);
+                }
+                break;
+
             default:
                 driver->ops->write(tty, buf + i, 1);
                 line_buf[start++] = buf[i];
@@ -301,10 +315,54 @@ static int tty_open(struct inode *inode, struct file *filp, mode_t mode)
     if (!noctty && flag_test(&current->flags, TASK_FLAG_SESSION_LEADER) && !current->tty && tty->session_id == 0) {
         current->tty = tty;
         tty->session_id = current->session_id;
-        tty->pgid = current->pgid;
+        tty->fg_pgrp = current->pgid;
     }
 
     return 0;
+}
+
+static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
+{
+    pid_t *parg;
+    int ret;
+    struct task *current = cpu_get_local()->current;
+    struct tty *tty = filp->priv_data;
+
+    kp(KP_TRACE, "tty_ioctl: tty: %p, ctty: %p\n", tty, current->tty);
+
+    if ((cmd >> 8) != __TIO && tty != current->tty)
+        return -ENOTTY;
+
+    switch (cmd) {
+    case TIOCGPGRP:
+        parg = (pid_t *)arg;
+        ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        *parg = tty->fg_pgrp;
+        return 0;
+
+    case TIOCSPGRP:
+        parg = (pid_t *)arg;
+        ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_READ));
+        if (ret)
+            return ret;
+
+        tty->fg_pgrp = *parg;
+        return 0;
+
+    case TIOCGSID:
+        parg = (pid_t *)arg;
+        ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        *parg = tty->session_id;
+        return 0;
+    }
+
+    return -EINVAL;
 }
 
 struct file_ops tty_file_ops = {
@@ -312,6 +370,7 @@ struct file_ops tty_file_ops = {
     .read = tty_read,
     .write = tty_write,
     .poll = tty_poll,
+    .ioctl = tty_ioctl,
 };
 
 void tty_subsystem_init(void)

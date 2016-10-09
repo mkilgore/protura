@@ -49,6 +49,12 @@ struct termios {
 #define VLNEXT 15
 #define VEOL2 16
 
+#define __TIO 90
+
+#define TIOCGPGRP ((__TIO << 8) + 0)
+#define TIOCSPGRP ((__TIO << 8) + 1)
+#define TIOCGSID  ((__TIO << 8) + 2)
+
 #if __KERNEL__
 
 extern struct file_ops tty_file_ops;
@@ -78,7 +84,7 @@ struct tty {
     dev_t device_no;
 
     pid_t session_id;
-    pid_t pgid;
+    pid_t fg_pgrp;
 
     struct termios termios;
     struct tty_driver *driver;
