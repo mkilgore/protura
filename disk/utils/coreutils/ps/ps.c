@@ -56,6 +56,7 @@ static const char *task_state_strs[] = {
     [TASK_API_SLEEPING] = "sleep",
     [TASK_API_INTR_SLEEPING] = "isleep",
     [TASK_API_RUNNING] = "running",
+    [TASK_API_STOPPED] = "stopped",
     [TASK_API_ZOMBIE] = "zombie",
 };
 
