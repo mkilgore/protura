@@ -253,72 +253,28 @@ int job_bg(struct prog_desc *desc)
     return 0;
 }
 
-void job_update_background(void)
-{
-    int wstatus;
-
-    while (1) {
-        pid_t pid = waitpid(-1, &wstatus, WUNTRACED | WCONTINUED | WNOHANG);
-        int job_id;
-        struct prog_desc *prog;
-        struct job *job = job_pid_find(pid, &job_id, &prog);
-
-        if (pid <= 0)
-            break;
-
-        if (WIFEXITED(wstatus) || WIFSIGNALED(wstatus)) {
-            if (!job || !prog)
-                continue;
-
-            prog->pid = -1;
-
-            if (job_is_exited(job)) {
-                job_remove(job);
-                job_clear(job);
-                free(job);
-
-                if (WIFEXITED(wstatus))
-                    printf("[%d] Finished: %d\n", job_id, WEXITSTATUS(wstatus));
-                else if (WIFSIGNALED(wstatus))
-                    printf("[%d] Killed by signal %d\n", job_id, WTERMSIG(wstatus));
-            }
-        } else if (WIFSTOPPED(wstatus)) {
-            if (job->state == JOB_STOPPED)
-                continue;
-
-            job_stop(job);
-            printf("[%d] Stopped\n", job_id);
-        } else if (WIFCONTINUED(wstatus)) {
-            job_start(job);
-        }
-    }
-
-    return ;
-}
-
 void job_make_forground(struct job *forground_job)
 {
-    static int inc = 0;
     int wstatus;
+    int waitpid_flags = WUNTRACED | WCONTINUED;
 
-    job_start(forground_job);
-
-    tcsetpgrp(STDIN_FILENO, forground_job->pgrp);
+    if (forground_job) {
+        job_start(forground_job);
+        tcsetpgrp(STDIN_FILENO, forground_job->pgrp);
+    } else {
+        waitpid_flags |= WNOHANG;
+    }
 
     while (1) {
-        pid_t pid = waitpid(-1, &wstatus, WUNTRACED | WCONTINUED);
+        pid_t pid = waitpid(-1, &wstatus, waitpid_flags);
         int job_id;
         struct prog_desc *prog;
-        struct job *job = job_pid_find(pid, &job_id, &prog);
+        struct job *job;
 
-        if (pid == -1 && errno == ECHILD) {
-            /* Hmm... */
-            printf("Exiting job loop, fg_job: %s, is_empty: %d\n", forground_job->name, job_is_empty(forground_job));
+        if (pid == -1 || pid == 0)
             return ;
-        } else if (pid == -1) {
-            perror("waitpid");
-            return ;
-        }
+
+        job = job_pid_find(pid, &job_id, &prog);
 
         if (WIFEXITED(wstatus) || WIFSIGNALED(wstatus)) {
             prog->pid = -1;
@@ -345,16 +301,24 @@ void job_make_forground(struct job *forground_job)
 
             job_stop(job);
 
-            tcsetpgrp(STDIN_FILENO, getpid());
-            printf("[%d] Stopped (%d)\n", job_id, inc++);
+            if (forground_job)
+                tcsetpgrp(STDIN_FILENO, getpid());
+
+            printf("[%d] Stopped\n", job_id);
 
             if (job == forground_job)
                 return ;
 
-            tcsetpgrp(STDIN_FILENO, forground_job->pgrp);
+            if (forground_job)
+                tcsetpgrp(STDIN_FILENO, forground_job->pgrp);
         } else if (WIFCONTINUED(wstatus)) {
             job_start(job);
         }
     }
+}
+
+void job_update_background(void)
+{
+    job_make_forground(NULL);
 }
 
