@@ -20,6 +20,7 @@ DISK_UTIL_SRCS := \
 	./disk/utils/time.c \
 	./disk/utils/poll_test.c \
 	./disk/utils/fifo_test.c \
+	./disk/utils/waitpid_test.c \
 
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
 DISK_UTIL_EXTRA_OBJS :=
