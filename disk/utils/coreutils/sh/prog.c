@@ -23,7 +23,27 @@
 
 #include "prog.h"
 
-static void start_child(const struct prog_desc *prog)
+void prog_close(struct prog_desc *prog)
+{
+    char **arg;
+    if (prog->argv)
+        for (arg = prog->argv; *arg != NULL; arg++)
+            free(*arg);
+
+    free(prog->argv);
+
+    free(prog->file);
+}
+
+void prog_add_arg(struct prog_desc *prog, const char *str, size_t len)
+{
+    prog->argc++;
+    prog->argv = realloc(prog->argv, (prog->argc + 1) * sizeof(*prog->argv));
+    prog->argv[prog->argc - 1] = strndup(str, len);
+    prog->argv[prog->argc] = NULL;
+}
+
+static void start_child(struct prog_desc *prog)
 {
     int ret, i;
     sigset_t blocked;
@@ -49,6 +69,11 @@ static void start_child(const struct prog_desc *prog)
     sigemptyset(&blocked);
     sigprocmask(SIG_SETMASK, &blocked, NULL);
 
+    if (prog->is_builtin) {
+        int ret = (prog->builtin) (prog);
+        exit(ret);
+    }
+
     if ((ret = execvp(prog->file, prog->argv)) == -1) {
         perror(prog->file);
         exit(1);
@@ -58,22 +83,21 @@ static void start_child(const struct prog_desc *prog)
     exit(1);
 }
 
-int prog_start(const struct prog_desc *prog, pid_t *child_pid)
+int prog_run(struct prog_desc *prog)
 {
     sigset_t original_set, blocked;
 
     sigfillset(&blocked);
     sigprocmask(SIG_SETMASK, &blocked, &original_set);
 
-    pid_t pid = fork_pgrp(prog->pgid);
+    prog->pid = fork_pgrp(prog->pgid);
 
-    if (pid == -1)
+
+    if (prog->pid == -1)
         return 1; /* fork() returned an error - abort */
 
-    if (pid == 0) /* 0 is returned to the child process */
+    if (prog->pid == 0) /* 0 is returned to the child process */
         start_child(prog);
-
-    *child_pid = pid;
 
     /* Now that prog is started, we close the original inputs */
     if (prog->stdin_fd != STDIN_FILENO)
@@ -88,5 +112,6 @@ int prog_start(const struct prog_desc *prog, pid_t *child_pid)
     sigprocmask(SIG_SETMASK, &original_set, NULL);
 
     return 0;
+
 }
 

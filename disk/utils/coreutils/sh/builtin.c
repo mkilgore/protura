@@ -151,8 +151,29 @@ static struct builtin_cmd cmds[] = {
     { .id = "cd", .cmd = cd },
     { .id = "echo", .cmd = echo },
     { .id = "pwd", .cmd = pwd },
+    { .id = "jobs", .cmd = job_output_list },
+    { .id = "fg", .cmd = job_fg },
+    { .id = "bg", .cmd = job_bg },
     { .id = NULL, .cmd = NULL }
 };
+
+int try_builtin_create(struct prog_desc *prog)
+{
+    struct builtin_cmd *cmd = cmds;
+
+    if (!prog->file)
+        return 0;
+
+    for (; cmd->id; cmd++) {
+        if (strcmp(prog->file, cmd->id) == 0) {
+            prog->is_builtin = 1;
+            prog->builtin = cmd->cmd;
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 int builtin_exec(struct prog_desc *prog, int *ret)
 {

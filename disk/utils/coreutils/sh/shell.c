@@ -20,56 +20,37 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
+
+#include <protura/drivers/tty.h>
 
 #include "input_lexer.h"
 #include "builtin.h"
 #include "prog.h"
-
-static void close_prog(struct prog_desc *prog)
-{
-    char **arg;
-    if (prog->argv)
-        for (arg = prog->argv; *arg != NULL; arg++)
-            free(*arg);
-
-    free(prog->argv);
-
-    free(prog->file);
-}
-
-static void prog_init(struct prog_desc *prog)
-{
-    memset(prog, 0, sizeof(*prog));
-    prog->stdin_fd = STDIN_FILENO;
-    prog->stdout_fd = STDOUT_FILENO;
-    prog->stderr_fd = STDERR_FILENO;
-}
-
-static void prog_add_arg(struct prog_desc *prog, const char *str, size_t len)
-{
-    prog->argc++;
-    prog->argv = realloc(prog->argv, (prog->argc + 1) * sizeof(*prog->argv));
-    prog->argv[prog->argc - 1] = strndup(str, len);
-    prog->argv[prog->argc] = NULL;
-}
+#include "job.h"
+#include "shell.h"
 
 #define PROC_MAX 20
 
-static void parse_line(const char *line)
+static struct job *parse_line(const char *line)
 {
-    int i;
-    int proc_count = 0;
-    pid_t children[20];
-    pid_t pgid = 0;
-    struct prog_desc prog = { 0 };
+    struct job *job;
+    struct prog_desc *prog;
+    int start_in_background = 0;
+
     enum input_token token;
     struct input_lexer state = { 0 };
     char *tmp;
 
+    job = malloc(sizeof(*job));
+    job_init(job);
+
+    job->name = strdup(line);
+
     state.input = line;
 
-    prog_init(&prog);
-    prog.pgid = 0;
+    prog = malloc(sizeof(*prog));
+    prog_desc_init(prog);
 
     while ((token = lexer_next_token(&state)) != TOK_EOF) {
         enum input_token tok2;
@@ -82,11 +63,11 @@ static void parse_line(const char *line)
             goto handle_newline;
 
         case TOK_STRING:
-            if (!prog.file) {
-                prog.file = strndup(state.str, state.len);
-                prog.argc = 0;
+            if (!prog->file) {
+                prog->file = strndup(state.str, state.len);
+                prog->argc = 0;
             }
-            prog_add_arg(&prog, state.str, state.len);
+            prog_add_arg(prog, state.str, state.len);
             break;
 
         case TOK_REDIRECT_OUT:
@@ -98,11 +79,11 @@ static void parse_line(const char *line)
                 tmp = strndup(state.str, state.len);
 
                 if (token == TOK_REDIRECT_OUT)
-                    prog.stdout_fd = open(tmp, O_WRONLY | O_CREAT, 0777);
+                    prog->stdout_fd = open(tmp, O_WRONLY | O_CREAT, 0777);
                 else if (token == TOK_REDIRECT_APPEND_OUT)
-                    prog.stdout_fd = open(tmp, O_WRONLY | O_CREAT | O_APPEND, 0777);
+                    prog->stdout_fd = open(tmp, O_WRONLY | O_CREAT | O_APPEND, 0777);
                 else
-                    prog.stdin_fd = open(tmp, O_RDONLY);
+                    prog->stdin_fd = open(tmp, O_RDONLY);
 
                 free(tmp);
             } else {
@@ -114,26 +95,17 @@ static void parse_line(const char *line)
         handle_newline:
         case TOK_EOF:
         case TOK_NEWLINE:
-            if (!prog.file)
-                goto done_exec;
+            if (!prog->file) {
+                free(prog);
+                goto done_with_job;
+            }
 
-            if (builtin_exec(&prog, NULL) == 0)
-                goto done_exec;
+            try_builtin_create(prog);
+            job_add_prog(job, prog);
 
-            prog_start(&prog, &children[proc_count++]);
-
-            if (!pgid)
-                pgid = children[proc_count - 1];
-
-            /*
-            ret = waitpid(child, NULL, 0);
-
-            child = 0;*/
-
-         done_exec:
-            close_prog(&prog);
-            prog_init(&prog);
-            prog.pgid = pgid;
+         done_with_job:
+            prog = malloc(sizeof(*prog));
+            prog_desc_init(prog);
             break;
 
         case TOK_PIPE:
@@ -144,17 +116,20 @@ static void parse_line(const char *line)
             fcntl(pipefd[0], F_SETFD, fcntl(pipefd[0], F_GETFD) | FD_CLOEXEC);
             fcntl(pipefd[1], F_SETFD, fcntl(pipefd[1], F_GETFD) | FD_CLOEXEC);
 
-            prog.stdout_fd = pipefd[1];
-            prog_start(&prog, &children[proc_count++]);
+            prog->stdout_fd = pipefd[1];
 
-            if (!pgid)
-                pgid = children[proc_count - 1];
+            try_builtin_create(prog);
 
-            close_prog(&prog);
-            prog_init(&prog);
-            prog.pgid = pgid;
-            prog.stdin_fd = pipefd[0];
+            job_add_prog(job, prog);
+
+            prog = malloc(sizeof(*prog));
+            prog_desc_init(prog);
+            prog->stdin_fd = pipefd[0];
         }
+            break;
+
+        case TOK_BACKGROUND:
+            start_in_background = 1;
             break;
 
         default:
@@ -162,44 +137,38 @@ static void parse_line(const char *line)
         }
     }
 
-    if (prog.file) {
-        if (builtin_exec(&prog, NULL) != 0) {
-            prog_start(&prog, &children[proc_count++]);
-            if (!pgid)
-                pgid = children[proc_count - 1];
-        }
+    if (prog->file) {
+        try_builtin_create(prog);
+        job_add_prog(job, prog);
+    } else {
+        free(prog->file);
+        free(prog);
     }
 
-    if (proc_count) {
-        int ret = 0, child_left = proc_count;
-        int found[20] = { 0 };
-
-        for (; child_left && ret == 0; child_left--) {
-            pid_t new = waitpid(-pgid, &ret, 0);
-
-            for (i = 0; i < proc_count; i++)
-                if (children[i] == new)
-                    found[i] = 1;
-        }
-
-        if (child_left) {
-            kill(-pgid, SIGINT);
-
-            for (i = 0; i < proc_count; i++)
-                if (!found[i])
-                    waitpid(children[i], NULL, 0);
-        }
+    if (job_is_empty(job)) {
+        job_clear(job);
+        free(job);
+        return NULL;
     }
+
+    if (start_in_background) {
+        job_add(job);
+        job_first_start(job);
+        job_start(job);
+        job = NULL;
+    }
+
+    return job;
 
 cleanup:
-    close_prog(&prog);
-    return ;
+    free(prog);
+    job_clear(job);
+    free(job);
+    return NULL;
 }
 
-void shell_run_line(char *line)
+struct job *shell_parse_job(char *line)
 {
-    parse_line(line);
-
-    return ;
+    return parse_line(line);
 }
 

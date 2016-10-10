@@ -93,9 +93,9 @@ int main(int argc, char **argv)
     chdir(cwd);
 
     if (is_script)
-        input_script_loop(fd);
+        script_input_loop(fd);
     else
-        input_loop();
+        keyboard_input_loop();
 
     return 0;
 }

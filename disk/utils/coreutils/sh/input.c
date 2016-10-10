@@ -14,67 +14,83 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-/*
-#include <readline/readline.h>
-#include <readline/history.h>
-*/
 
 #include "shell.h"
 
 #define INPUT_MAX 100
 
-static void input_new_line(char *buf, size_t len)
-{
-    memset(buf, 0, len);
+static int interactive = 0;
+static FILE *inp_file;
 
-    printf("%s $ ", cwd);
-    fgets(buf, len, stdin);
+struct job *current_job;
+
+static ssize_t get_input(char **line, size_t *buf_len)
+{
+    ssize_t len;
+
+    if (interactive)
+        printf("%s $ ", cwd);
+
+    len = getline(line, buf_len, inp_file);
+
+    (*line)[len - 1] = '\0';
+    len--;
+
+    return len;
 }
 
-void input_loop(void)
-{
-    int exit_loop = 0;
-    char line[INPUT_MAX + 1];
-
-    do {
-        input_new_line(line, sizeof(line));
-        /*
-        line = readline(prompt);
-        if (line && *line)
-            add_history(line);
-        else
-            continue;
-            */
-
-        if (strcmp(line, "exit") == 0)
-            exit_loop = 1;
-        else
-            shell_run_line(line);
-    } while (!exit_loop && !feof(stdin));
-
-    /*
-    clear_history();
-    */
-
-    return ;
-}
-
-void input_script_loop(int fd)
+static void input_loop(void)
 {
     char *line = NULL;
     size_t buf_len = 0;
-    int len;
-    FILE *fin = fdopen(fd, "r");
+    struct job *job;
 
-    while ((len = getline(&line, &buf_len, fin)) != -1) {
+    while (!feof(inp_file)) {
+        job_update_background();
+
+        if (current_job) {
+            job_make_forground(current_job);
+            current_job = NULL;
+            continue;
+        }
+
+        get_input(&line, &buf_len);
+
         if (strcmp(line, "exit") == 0)
             break;
-        else
-            shell_run_line(line);
+
+        job = shell_parse_job(line);
+
+        if (!job)
+            continue;
+
+        if (job_is_simple_builtin(job)) {
+            job_builtin_run(job);
+            job_clear(job);
+            free(job);
+            continue;
+        }
+
+        job_add(job);
+        job_first_start(job);
+        current_job = job;
     }
 
     free(line);
 
     return ;
+}
+
+void keyboard_input_loop(void)
+{
+    interactive = 1;
+    inp_file = stdin;
+    input_loop();
+}
+
+void script_input_loop(int scriptfile)
+{
+    inp_file = fdopen(scriptfile, "r");
+    input_loop();
 }
 

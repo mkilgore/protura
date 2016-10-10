@@ -50,8 +50,10 @@ enum input_token lexer_next_token(struct input_lexer *lex)
         return TOK_REDIRECT_OUT;
 
     case '&':
-        if (lex->input[lex->location] != '&')
-            return TOK_UNKNOWN;
+        if (lex->input[lex->location] != '&') {
+            lex->len = 1;
+            return TOK_BACKGROUND;
+        }
 
         lex->location++;
         lex->len = 2;
