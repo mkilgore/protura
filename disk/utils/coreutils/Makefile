@@ -30,6 +30,7 @@ COREUTILS_PROGS = \
 	tee \
 	touch \
 	true \
+	tty \
 	umount \
 	uniq \
 	unlink \
