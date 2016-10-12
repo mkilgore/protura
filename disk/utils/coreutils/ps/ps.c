@@ -79,13 +79,14 @@ static void print_list_format(void)
 {
     struct task_api_info *t, *end = tinfo + task_count;
 
-    printf("PID   PPID  PGRP  SID   STATE    CMD\n");
+    printf("PID   PPID  PGRP  TTY   SID   STATE    CMD\n");
 
     for (t = tinfo; t != end; t++)
-        printf("%-5d %-5d %-5d %-5d %-8s %s\n",
+        printf("%-5d %-5d %-5d %-5s %-5d %-8s %s\n",
                 t->pid,
                 t->ppid,
                 t->pgid,
+                (t->has_tty)? t->tty: "?",
                 t->sid,
                 task_state_strs[t->state],
                 get_name(t));
