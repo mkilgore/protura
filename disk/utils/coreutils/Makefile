@@ -21,6 +21,7 @@ COREUTILS_PROGS = \
 	mount \
 	mv \
 	ps \
+	rm \
 	rmdir \
 	seq \
 	sh \
