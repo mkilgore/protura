@@ -26,7 +26,9 @@ struct task_api_info {
     sigset_t sig_pending, sig_blocked;
 
     unsigned int is_kernel :1;
+    unsigned int has_tty :1;
 
+    char tty[12];
     char name[128];
 };
 

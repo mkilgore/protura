@@ -27,7 +27,7 @@
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
 
-int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, mode_t mode, struct file *filp)
+int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *filp)
 {
     int ret = 0;
 
@@ -42,7 +42,7 @@ int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, mode_t mode, 
     atomic_inc(&filp->ref);
 
     if (file_has_open(filp))
-        ret = filp->ops->open(inode, filp, mode);
+        ret = filp->ops->open(inode, filp);
 
     if (ret < 0)
         goto cleanup_filp;
@@ -55,7 +55,7 @@ int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, mode_t mode, 
     return ret;
 }
 
-int vfs_open(struct inode *inode, unsigned int file_flags, mode_t mode, struct file **filp_ret)
+int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_ret)
 {
     int ret = 0;
     struct file *filp;
@@ -66,7 +66,7 @@ int vfs_open(struct inode *inode, unsigned int file_flags, mode_t mode, struct f
 
     filp = kzalloc(sizeof(*filp), PAL_KERNEL);
 
-    ret = vfs_open_noalloc(inode, file_flags, mode, filp);
+    ret = vfs_open_noalloc(inode, file_flags, filp);
 
     if (!ret)
         *filp_ret = filp;

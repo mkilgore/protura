@@ -124,7 +124,7 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
     if (envp == NULL)
         envp = (const char *[]) { file, NULL };
 
-    ret = vfs_open(inode, F(FILE_READABLE), 0, &filp);
+    ret = vfs_open(inode, F(FILE_READABLE), &filp);
     if (ret)
         return ret;
 

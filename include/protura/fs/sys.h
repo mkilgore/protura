@@ -43,7 +43,7 @@ int sys_symlink(const char *__user path, const char *__user linkpath);
 /* Called internally by sys_open - Performs the same function, but takes
  * arguments relating to inode's and file's rather then a path name and
  * userspace flags. If you have to use sys_open in the kernel. */
-int __sys_open(struct inode *inode, unsigned int file_flags, mode_t mode, struct file **filp);
+int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp);
 
 int sys_execve(const char *__user executable, const char *const __user argv[], const char *const __user envp[], struct irq_frame *);
 

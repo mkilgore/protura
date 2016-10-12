@@ -151,20 +151,17 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->driver = driver;
     tty->device_no = devno;
 
-    if (driver->minor_end == driver->minor_start) {
-        tty->name = kstrdup(driver->name, PAL_KERNEL);
-    } else {
-        kp(KP_TRACE, "TTY number name\n");
-        int digits = (devno < 10)? 1:
-                     (devno < 100)? 2: 3;
-        size_t name_len = strlen(driver->name) + digits;
-        kp(KP_TRACE, "TTY digits: %d, devno: %d, name_len: %d\n", digits, devno, name_len);
+    kp(KP_TRACE, "TTY number name\n");
+    int ttyno = devno;
+    int digits = (ttyno < 10)? 1:
+                 (ttyno < 100)? 2: 3;
+    size_t name_len = strlen(driver->name) + digits;
+    kp(KP_TRACE, "TTY digits: %d, devno: %d, name_len: %d\n", digits, ttyno, name_len);
 
-        tty->name = kmalloc(name_len + 1, PAL_KERNEL);
-        snprintf(tty->name, name_len + 1, "%s%d", driver->name, devno);
-    }
+    tty->name = kmalloc(name_len + 1, PAL_KERNEL);
+    snprintf(tty->name, name_len + 1, "%s%d", driver->name, ttyno);
 
-    kp(KP_TRACE, "TTY %s%d name: %s\n", driver->name, devno, tty->name);
+    kp(KP_TRACE, "TTY %s%d name: %s\n", driver->name, ttyno, tty->name);
 
     tty->input_buf.buffer = palloc_va(0, PAL_KERNEL);
     tty->input_buf.len = PG_SIZE;
@@ -294,10 +291,10 @@ static int tty_poll(struct file *filp, struct poll_table *table, int events)
     return ret;
 }
 
-static int tty_open(struct inode *inode, struct file *filp, mode_t mode)
+static int tty_open(struct inode *inode, struct file *filp)
 {
     struct task *current = cpu_get_local()->current;
-    int noctty = mode & O_NOCTTY;
+    int noctty = flag_test(&filp->flags, FILE_NOCTTY);
     dev_t minor = DEV_MINOR(inode->dev_no);
     struct tty *tty;
 
@@ -311,6 +308,9 @@ static int tty_open(struct inode *inode, struct file *filp, mode_t mode)
 
     tty = tty_find(minor);
     filp->priv_data = tty;
+
+    kp(KP_TRACE, "tty_open: noctty: %d, slead: %d, cur->tty: %p, id: %d\n",
+            noctty, flag_test(&current->flags, TASK_FLAG_SESSION_LEADER), current->tty, tty->session_id);
 
     if (!noctty && flag_test(&current->flags, TASK_FLAG_SESSION_LEADER) && !current->tty && tty->session_id == 0) {
         current->tty = tty;

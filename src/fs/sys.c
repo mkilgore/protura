@@ -33,7 +33,7 @@
  * that these 'sys_*' functions are responsable for checking the userspace
  * pointers. */
 
-int __sys_open(struct inode *inode, unsigned int file_flags, mode_t mode, struct file **filp)
+int __sys_open(struct inode *inode, unsigned int file_flags, struct file **filp)
 {
     int ret = 0;
     int fd;
@@ -52,7 +52,7 @@ int __sys_open(struct inode *inode, unsigned int file_flags, mode_t mode, struct
         goto filp_release;
     }
 
-    ret = vfs_open_noalloc(inode, file_flags, mode, *filp);
+    ret = vfs_open_noalloc(inode, file_flags, *filp);
 
     if (ret < 0)
         goto ret_fd_release;
@@ -95,6 +95,9 @@ int sys_open(const char *__user path, int flags, mode_t mode)
     if (flags & O_NONBLOCK)
         file_flags |= F(FILE_NONBLOCK);
 
+    if (flags & O_NOCTTY)
+        file_flags |= F(FILE_NOCTTY);
+
     memset(&name, 0, sizeof(name));
     name.path = path;
     name.cwd = current->cwd;
@@ -119,7 +122,7 @@ int sys_open(const char *__user path, int flags, mode_t mode)
 
     kp(KP_TRACE, "Result: %d, name.found: %p, name.parent: %p\n", ret, name.found, name.parent);
 
-    ret = __sys_open(name.found, file_flags, mode, &filp);
+    ret = __sys_open(name.found, file_flags, &filp);
 
     if (ret < 0)
         goto cleanup_namei;

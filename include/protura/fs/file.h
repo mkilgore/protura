@@ -39,7 +39,7 @@ struct file {
 };
 
 struct file_ops {
-    int (*open) (struct inode *inode, struct file *, mode_t);
+    int (*open) (struct inode *inode, struct file *);
     int (*release) (struct file *);
     int (*read) (struct file *, void *, size_t);
     int (*readdir) (struct file *, struct file_readdir_handler *);
@@ -61,6 +61,7 @@ enum file_flags {
     FILE_WRITABLE,
     FILE_APPEND,
     FILE_NONBLOCK,
+    FILE_NOCTTY,
 };
 
 #define file_is_readable(file) (bit_test(&(file)->flags, FILE_READABLE))

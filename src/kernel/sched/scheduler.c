@@ -22,6 +22,7 @@
 #include <protura/fs/procfs.h>
 #include <protura/task_api.h>
 #include <protura/fs/file.h>
+#include <protura/drivers/tty.h>
 
 #include <arch/fake_task.h>
 #include <arch/kernel_task.h>
@@ -470,6 +471,10 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 
     tinfo->pgid = task->pgid;
     tinfo->sid = task->session_id;
+    if (task->tty) {
+        tinfo->has_tty = 1;
+        strncpy(tinfo->tty, task->tty->name, sizeof(tinfo->tty));
+    }
 
     switch (task->state) {
     case TASK_RUNNING:
