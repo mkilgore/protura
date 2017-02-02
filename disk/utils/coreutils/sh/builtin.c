@@ -72,15 +72,22 @@ static int cd(struct prog_desc *prog)
 {
     int ret;
     char *cwd_new;
-    size_t cwd_len = strlen(cwd);
+    size_t cwd_len;
     const char *dir_start, *dir_end;
 
     if (prog->argc <= 1)
         return 1;
 
-    cwd_new = strdup(cwd);
-
     dir_end = prog->argv[1];
+
+    if (dir_end[0] != '/') {
+        cwd_len = strlen(cwd);
+        cwd_new = strdup(cwd);
+    } else {
+        cwd_len = 1;
+        cwd_new = strdup("/");
+        dir_end++;
+    }
 
     do {
         dir_start = dir_end;

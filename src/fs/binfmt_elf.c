@@ -142,7 +142,6 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
             starting_offset = 0;
 
-            kp(KP_TRACE, "Page: %p\n", p);
             list_add_tail(&new_sect->page_list, &p->page_list_node);
         }
 

@@ -34,7 +34,19 @@ static __always_inline uint16_t inw(uint16_t port)
 
 static __always_inline void outw(uint16_t port, uint16_t value)
 {
-    asm volatile("outw %1, $0": : "dN" (port), "a" (value));
+    asm volatile("outw %1, %0": : "dN" (port), "a" (value));
+}
+
+static __always_inline uint32_t inl(uint16_t port)
+{
+    uint32_t ret;
+    asm volatile("inl %1, %0" : "=a" (ret) : "dN" (port));
+    return ret;
+}
+
+static __always_inline void outl(uint16_t port, uint32_t value)
+{
+    asm volatile("outl %1, %0": : "dN" (port), "a" (value));
 }
 
 static __always_inline void outsl(uint16_t port, void *data, int32_t count)

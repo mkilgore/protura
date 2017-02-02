@@ -226,6 +226,9 @@ void irq_global_handler(struct irq_frame *iframe)
 
     if (ident->handler != NULL)
         (ident->handler) (iframe);
+    else
+        kp(KP_NORMAL, "Unhandled IRQ: %d\n", iframe->intno);
+
 
     if (frame_flag && t && t->sig_pending)
         signal_handle(t, iframe);

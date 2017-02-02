@@ -11,6 +11,7 @@ directory ./arch/x86/mm
 target remote localhost:1234
 #layout split
 #layout regs
+set pagination off
 
 dashboard -output /tmp/dash_fifo
 

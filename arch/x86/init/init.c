@@ -18,6 +18,7 @@
 #include <protura/fs/char.h>
 #include <protura/fs/file_system.h>
 #include <protura/fs/pipe.h>
+#include <protura/drivers/pci.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/term.h>
@@ -42,6 +43,7 @@ char kernel_cmdline[2048];
 struct sys_init arch_init_systems[] = {
     { "pic8259_timer", pic8259_timer_init },
     { "syscall", syscall_init },
+    { "pci", pci_init },
     { "block-cache", block_cache_init },
     { "block-device", block_dev_init },
     { "char-device", char_dev_init },

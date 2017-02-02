@@ -53,10 +53,16 @@ void kprintfv_internal(const char *s, va_list);
 void kp_output_register(void (*print) (const char *fmt, va_list lst), const char *name);
 void kp_output_unregister(void (*print) (const char *fmt, va_list lst));
 
+#ifdef CONFIG_KERNEL_LOG_SRC_LINE
+# define KP_CUR_LINE Q(__LINE__) ":" __FILE__ ": "
+#else
+# define KP_CUR_LINE " "
+#endif
+
 #define kp(level, str, ...) \
     do { \
         if (level <= CONFIG_KERNEL_LOG_LEVEL) { \
-            kprintf_internal("[%05ld]" TP(KP_STR, level) ":" Q(__LINE__) ":" __FILE__ ": " str, protura_uptime_get(), ## __VA_ARGS__); \
+            kprintf_internal("[%05ld]" TP(KP_STR, level) ":" KP_CUR_LINE str, protura_uptime_get(), ## __VA_ARGS__); \
         } \
     } while (0)
 

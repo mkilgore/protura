@@ -16,7 +16,28 @@
                "y": 0
             },
             "name": "bash",
-            "percent": 0.75,
+            "percent": 0.4,
+            "swallows": [
+               {
+                   "title": "^qemu-log$"
+               // "class": "^URxvt$",
+               // "instance": "^urxvt$",
+               // "title": "^bash$"
+               }
+            ],
+            "type": "con"
+        },
+        {
+            "border": "pixel",
+            "floating": "auto_off",
+            "geometry": {
+               "height": 304,
+               "width": 484,
+               "x": 0,
+               "y": 0
+            },
+            "name": "bash",
+            "percent": 0.35,
             "swallows": [
                {
                    "title": "^objdump$"
@@ -105,10 +126,10 @@
                                "y": 0
                             },
                             "name": "bash",
-                            "percent": 0.6,
+                            "percent": 0.3,
                             "swallows": [
                                {
-                                   "title": "^qemu-log$"
+                                   "title": "^qemu-monitor$"
                                // "class": "^URxvt$",
                                // "instance": "^urxvt$",
                                // "title": "^bash$"
@@ -126,7 +147,7 @@
                                "y": 0
                             },
                             "name": "bash",
-                            "percent": 0.4,
+                            "percent": 0.2,
                             "swallows": [
                                {
                                    "title": "^qemu-debug$"

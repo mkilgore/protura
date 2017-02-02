@@ -47,7 +47,7 @@ void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, cons
 
     procfs_entry_init(entry);
 
-    entry->node.name = name;
+    entry->node.name = kstrdup(name, PAL_KERNEL);
     entry->node.len = strlen(name);
     entry->node.mode = S_IFREG | 0777;
     entry->node.parent = parent;
@@ -64,11 +64,8 @@ struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *na
 
     new = kmalloc(sizeof(*new), PAL_KERNEL);
 
-    kp(KP_TRACE, "new: %p\n", new);
-    kp(KP_TRACE, "parent: %p\n", parent);
-
     procfs_dir_init(new);
-    new->node.name = name;
+    new->node.name = kstrdup(name, PAL_KERNEL);
     new->node.len = strlen(name);
     new->node.mode = S_IFDIR | 0777;
     new->node.parent = parent;

@@ -23,7 +23,7 @@
  */
 
 struct procfs_node {
-    const char *name;
+    char *name;
     size_t len;
 
     ino_t ino;

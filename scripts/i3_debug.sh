@@ -32,6 +32,7 @@ fi
 qemu_line="qemu-system-i386 \
     -serial file:./qemu.log \
     -serial telnet:127.0.0.1:5346,nowait \
+    -monitor telnet:127.0.0.1:5345,nowait \
     -curses \
     -s \
     -S \
@@ -39,14 +40,15 @@ qemu_line="qemu-system-i386 \
     -d cpu_reset \
     -drive format=raw,file=./disk.img,media=disk,index=0,if=ide \
     -drive format=raw,file=./disk2.img,media=disk,index=1,if=ide \
+    -net nic \
     -kernel ./imgs/protura_x86_multiboot \
     $kernel_cmdline"
 
 urxvt -title qemu-log -e bash -c "stty -icanon -echo; nc -v -l -p 5346 | tee ./com2.log" &
 TERM_PID=$!
 
-#urxvt -title qemu-monitor -e bash -c "stty -icanon -echo; nc -v -l -p 5345 | tee ./qemu_monitor.log" &
-#MON_PID=$!
+urxvt -title qemu-monitor -e bash -c "stty -icanon -echo; nc -v -l -p 5345 | tee ./qemu_monitor.log" &
+MON_PID=$!
 
 sleep .1
 
