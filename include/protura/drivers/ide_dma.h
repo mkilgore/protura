@@ -22,7 +22,7 @@ struct ide_dma_info {
     struct ide_dma_prd prd_table[PRD_MAX];
 };
 
-void ide_dma_init(struct ide_dma_info *);
+void ide_dma_init(struct ide_dma_info *, struct pci_dev *);
 
 int ide_dma_setup_read(struct ide_dma_info *, struct block *);
 int ide_dma_setup_write(struct ide_dma_info *, struct block *);

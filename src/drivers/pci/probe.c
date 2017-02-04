@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Matt Kilgore
+ * Copyright (C) 2017 Matt Kilgore
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License v2 as published by the
@@ -15,7 +15,23 @@
 #include <arch/asm.h>
 
 #include <protura/fs/procfs.h>
+#include <protura/drivers/ide.h>
 #include <protura/drivers/pci.h>
+#include <protura/drivers/pci_ids.h>
+
+static const struct pci_driver pci_drivers[] = {
+    {
+        .name = "Intel PIIX3 IDE DMA",
+        .vendor = PCI_VENDOR_ID_INTEL,
+        .device = PCI_DEVICE_ID_82371SB_PIIX3_IDE,
+        .device_init = ide_dma_device_init,
+    },
+    {
+        .name = NULL,
+        .vendor = 0,
+        .device = 0,
+    }
+};
 
 static list_head_t pci_dev_list = LIST_HEAD_INIT(pci_dev_list);
 
@@ -85,7 +101,7 @@ static const char *pci_class_names[] = {
     [PCI_CLASS_UNKNOWN] = "PCI Class Unknown",
 };
 
-static const char **pci_class_device_names[] = {
+static const char **pci_class_device_names[PCI_CLASS_UNKNOWN] = {
     [PCI_CLASS_MASS_STORAGE] = pci_class_storage_names,
 };
 
@@ -191,7 +207,7 @@ static uint32_t pci_get_revision(struct pci_dev *dev)
     return pci_config_read_uint32(dev, 8) & 0xFF;
 }
 
-static void pci_output_name(int class, int subclass)
+static void pci_output_name(uint8_t class, uint8_t subclass)
 {
     const char *cla = NULL, *sub = NULL;
 
@@ -205,10 +221,11 @@ static void pci_output_name(int class, int subclass)
         }
     }
 
-    if (cla && sub)
-        kp(KP_NORMAL, "  - %s, %s\n", cla, sub);
-    else if (cla)
+    if (cla && sub) {
+        kp(KP_NORMAL, "(%d)%p  - %s, %s\n", class, sub, cla, sub);
+    } else if (cla) {
         kp(KP_NORMAL, "  - %s\n", cla);
+    }
 
     return ;
 }
@@ -249,22 +266,25 @@ static void enum_pci(void)
     }
 }
 
-int pci_find_device(uint16_t vendor, uint16_t device, struct pci_dev *dev)
+static void pci_load_device(struct pci_dev *dev, uint16_t vendor, uint16_t device)
+{
+    const struct pci_driver *driver;
+    for (driver = pci_drivers; driver->name; driver++)
+        if (driver->vendor == vendor && driver->device == device)
+            (driver->device_init) (dev);
+}
+
+static void load_pci_devices(void)
 {
     struct pci_dev_entry *entry;
 
-    list_foreach_entry(&pci_dev_list, entry, pci_dev_node) {
-        if (entry->vendor == vendor && entry->device == device) {
-            *dev = entry->id;
-            return 0;
-        }
-    }
-
-    return -ENODEV;
+    list_foreach_entry(&pci_dev_list, entry, pci_dev_node)
+        pci_load_device(&entry->id, entry->vendor, entry->device);
 }
 
 void pci_init(void)
 {
     enum_pci();
+    load_pci_devices();
 }
 

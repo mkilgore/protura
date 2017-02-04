@@ -7,10 +7,14 @@ struct pci_dev {
     uint8_t bus, slot, func;
 };
 
+struct pci_driver {
+    const char *name;
+    uint16_t vendor, device;
+    void (*device_init) (struct pci_dev *);
+};
+
 #define PRpci_dev "%d:%d:%d"
 #define Ppci_dev(dev) (dev)->bus, (dev)->slot, (dev)->func
-
-int pci_find_device(uint16_t vendor, uint16_t device, struct pci_dev *dev);
 
 void pci_init(void);
 
@@ -30,5 +34,21 @@ void pci_config_write_uint8(struct pci_dev *dev, uint8_t regno, uint8_t value);
 #define PCI_COMMAND     0x04
 #define PCI_STATUS      0x06
 #define PCI_REVISION_ID 0x08
+
+
+/*
+ * Bits for the PCI_COMMAND config register
+ * Bits 7, and 11 to 15 are reserved.
+ */
+#define PCI_COMMAND_IO_SPACE        (1 << 0) /* I/O Space */
+#define PCI_COMMAND_MEM_SPACE       (1 << 1) /* Memory Space */
+#define PCI_COMMAND_BUS_MASTER      (1 << 2) /* Bus Master */
+#define PCI_COMMAND_SPEC_CYCLES     (1 << 3) /* Special Cycles */
+#define PCI_COMMAND_MEM_ERR         (1 << 4) /* Memory Write and Invalidate Enable */
+#define PCI_COMMAND_VGA_PAL         (1 << 5) /* VGA Palette Snoop */
+#define PCI_COMMAND_PERR_RESPONSE   (1 << 6) /* Parity Error Response */
+#define PCI_COMMAND_SERR_ENABLE     (1 << 8) /* SERR Driver Enable */
+#define PCI_COMMAND_FAST_B2B_ENABLE (1 << 9) /* Fast Back-to-Back Enable */
+#define PCI_COMMAND_INT_DISABLE     (1 << 10 /* Interrupt Disable */
 
 #endif

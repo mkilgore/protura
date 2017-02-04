@@ -1,3 +1,3 @@
 
-objs-y += enumerate.o
+objs-y += probe.o
 

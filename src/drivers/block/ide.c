@@ -19,6 +19,8 @@
 #include <arch/drivers/pic8259.h>
 #include <arch/asm.h>
 #include <protura/fs/block.h>
+#include <protura/drivers/pci.h>
+#include <protura/drivers/pci_ids.h>
 #include <protura/drivers/ide.h>
 #include <protura/drivers/ide_dma.h>
 
@@ -98,7 +100,7 @@ static struct ide_state ide_state = {
     .block_queue_master = LIST_HEAD_INIT(ide_state.block_queue_master),
     .block_queue_slave = LIST_HEAD_INIT(ide_state.block_queue_slave),
 
-    .use_dma = { 1, 0 },
+    .use_dma = { 1, 1 },
 };
 
 #define ide_queue_empty(ide_state) \
@@ -138,7 +140,7 @@ static void __ide_start_queue(void)
         ide_state.next_is_slave = 1;
     }
 
-    if (ide_state.use_dma[ide_state.next_is_slave])
+    if (ide_state.use_dma[ide_state.next_is_slave] && ide_state.dma.is_enabled)
         use_dma = 1;
 
     /* We don't actually remove this block from the queue here. That will be
@@ -237,7 +239,7 @@ static void __ide_handle_intr(struct irq_frame *frame)
     if (list_empty(block_queue))
         return ;
 
-    use_dma = ide_state.use_dma[ide_state.next_is_slave];
+    use_dma = ide_state.use_dma[ide_state.next_is_slave] && ide_state.dma.is_enabled;
 
     b = list_take_first(block_queue, struct block, block_list_node);
 
@@ -317,8 +319,6 @@ void ide_init(void)
 
     block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0), IDE_SECTOR_SIZE);
     block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_SLAVE, 0), IDE_SECTOR_SIZE);
-
-    ide_dma_init(&ide_state.dma);
 }
 
 static void ide_sync_block(struct block *b, int master_or_slave)
@@ -369,4 +369,9 @@ struct block_device_ops ide_master_block_device_ops = {
 struct block_device_ops ide_slave_block_device_ops = {
     .sync_block = ide_sync_block_slave,
 };
+
+void ide_dma_device_init(struct pci_dev *dev)
+{
+    ide_dma_init(&ide_state.dma, dev);
+}
 

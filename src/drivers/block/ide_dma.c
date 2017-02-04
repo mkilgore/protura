@@ -87,37 +87,28 @@ int ide_dma_check(struct ide_dma_info *info)
     return inb(info->dma_io_base + IDE_DMA_IO_STAT1);
 }
 
-void ide_dma_init(struct ide_dma_info *info)
+void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev)
 {
-    struct pci_dev dev;
     uint16_t command_reg;
 
-    if (pci_find_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_82371SB_PIIX3_IDE, &dev))
-        return ;
+    kp(KP_NORMAL, "Found Intel PIIX3 IDE DMA PCI device: "PRpci_dev"\n", Ppci_dev(dev));
 
-    kp(KP_NORMAL, "Found IDE DMA PCI device: "PRpci_dev"\n", Ppci_dev(&dev));
-
-    command_reg = pci_config_read_uint16(&dev, PCI_COMMAND);
+    command_reg = pci_config_read_uint16(dev, PCI_COMMAND);
 
     kp(KP_NORMAL, "  PCI CMD: 0x%04x\n", command_reg);
 
-    if (command_reg & (1 << 2)) {
-        kp(KP_NORMAL, "  PCI BUS MASTERING ALREADY ENABLED\n");
-    } else {
-        pci_config_write_uint16(&dev, PCI_COMMAND, command_reg | (1 << 2));
+    if (!(command_reg & PCI_COMMAND_BUS_MASTER)) {
+        pci_config_write_uint16(dev, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER);
         kp(KP_NORMAL, "  PCI BUS MASTERING ENABLED\n");
     }
 
-    info->dma_io_base = pci_config_read_uint32(&dev, PCI_REG_BAR(4)) & 0xFFF0;
-    info->dma_irq = 14;
-
-    //pci_config_write_uint8(&dev, PCI_REG_INTERRUPT_LINE, info->dma_irq);
-
-    //irq_register_callback(info->dma_irq + PIC8259_IRQ0, ide_dma_handle_intr, "IDE DMA", IRQ_INTERRUPT);
+    info->is_enabled = 1;
+    info->dma_io_base = pci_config_read_uint32(dev, PCI_REG_BAR(4)) & 0xFFF0;
+    info->dma_irq = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
 
     kp(KP_NORMAL, "  BAR4: 0x%04x\n", info->dma_io_base);
-    kp(KP_NORMAL, "  INT Line: %d\n", pci_config_read_uint8(&dev, PCI_REG_INTERRUPT_LINE));
-    kp(KP_NORMAL, "  Timing: 0x%08x\n", pci_config_read_uint32(&dev, 0x40));
+    kp(KP_NORMAL, "  INT Line: %d\n", pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE));
+    kp(KP_NORMAL, "  Timing: 0x%08x\n", pci_config_read_uint32(dev, 0x40));
 
     outb(info->dma_io_base + IDE_DMA_IO_STAT1, inb(info->dma_io_base + IDE_DMA_IO_STAT1) | (0x30));
 }
