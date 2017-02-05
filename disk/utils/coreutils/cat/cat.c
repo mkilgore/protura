@@ -84,21 +84,8 @@ int main(int argc, char **argv) {
 void output_file(int in, const char *filename, int out) {
   static char buffer[BUFFER_SZ];
   size_t sz;
-  /* fd_set rdfds; */
 
   do {
-      int sel;
-      /*
-      FD_ZERO(&rdfds);
-      FD_SET(in, &rdfds);
-
-      sel = select(in + 1, &rdfds, NULL, NULL, NULL);
-
-      if (sel == -1) {
-          perror(filename);
-          return ;
-      } */
-
       sz = read(in, buffer, sizeof(buffer));
       if (sz == 0)
           break;
