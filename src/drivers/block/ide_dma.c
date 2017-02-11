@@ -107,7 +107,6 @@ void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev)
     info->dma_irq = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
 
     kp(KP_NORMAL, "  BAR4: 0x%04x\n", info->dma_io_base);
-    kp(KP_NORMAL, "  INT Line: %d\n", pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE));
     kp(KP_NORMAL, "  Timing: 0x%08x\n", pci_config_read_uint32(dev, 0x40));
 
     outb(info->dma_io_base + IDE_DMA_IO_STAT1, inb(info->dma_io_base + IDE_DMA_IO_STAT1) | (0x30));

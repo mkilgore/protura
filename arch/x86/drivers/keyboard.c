@@ -79,7 +79,7 @@ int arch_keyboard_get_char(void)
     return ch;
 }
 
-static void arch_keyboard_interrupt_handler(struct irq_frame *frame)
+static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param)
 {
     int scancode;
     short asc_char = 0;
@@ -150,7 +150,7 @@ void arch_keyboard_init(void)
     char_buf_init(&keyboard.buf, keyboard.buffer, sizeof(keyboard.buffer));
     wakeup_list_init(&keyboard.watch_list);
 
-    irq_register_callback(PIC8259_IRQ0 + 1, arch_keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT);
+    irq_register_callback(PIC8259_IRQ0 + 1, arch_keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT, NULL);
     pic8259_enable_irq(1);
 
     return ;

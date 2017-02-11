@@ -13,6 +13,26 @@
 
 #define LOCK_PREFIX "lock "
 
+#define DEFINE_REG_ACCESS_FUNCTIONS(prefix, arg, base) \
+    static inline void prefix##_outb(arg, uint16_t reg, uint8_t value) { \
+        outb((base) + reg, value); \
+    } \
+    static inline void prefix##_outw(arg, uint16_t reg, uint16_t value) { \
+        outw((base) + reg, value); \
+    } \
+    static inline void prefix##_outl(arg, uint16_t reg, uint32_t value) { \
+        outl((base) + reg, value); \
+    } \
+    static inline uint8_t prefix##_inb(arg, uint8_t reg) { \
+        return inb((base) + reg); \
+    } \
+    static inline uint16_t prefix##_inw(arg, uint8_t reg) { \
+        return inw((base) + reg); \
+    } \
+    static inline uint32_t prefix##_inl(arg, uint8_t reg) { \
+        return inl((base) + reg); \
+    }
+
 static __always_inline void outb(uint16_t port, uint8_t value)
 {
     asm volatile("outb %1, %0" : : "dN" (port), "a" (value));

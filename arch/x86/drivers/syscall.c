@@ -389,7 +389,7 @@ static struct syscall_handler {
     SYSCALL(GETSID, sys_handler_getsid),
 };
 
-static void syscall_handler(struct irq_frame *frame)
+static void syscall_handler(struct irq_frame *frame, void *param)
 {
     if (frame->eax < ARRAY_SIZE(syscall_handlers))
         (syscall_handlers[frame->eax].handler) (frame);
@@ -397,6 +397,6 @@ static void syscall_handler(struct irq_frame *frame)
 
 void syscall_init(void)
 {
-    irq_register_callback(INT_SYSCALL, syscall_handler, "syscall", IRQ_SYSCALL);
+    irq_register_callback(INT_SYSCALL, syscall_handler, "syscall", IRQ_SYSCALL, NULL);
 }
 

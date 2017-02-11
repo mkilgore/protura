@@ -118,7 +118,7 @@ static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
 
 #define SEG_FAULT_MSG "Seg-fault - Program terminated\n"
 
-static void page_fault_handler(struct irq_frame *frame)
+static void page_fault_handler(struct irq_frame *frame, void *param)
 {
     uintptr_t p;
 
@@ -204,7 +204,7 @@ void paging_setup_kernelspace(void **kbrk)
 
     set_current_page_directory(v_to_p(&kernel_dir));
 
-    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_INTERRUPT);
+    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_INTERRUPT, NULL);
 
     return ;
 }

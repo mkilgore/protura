@@ -20,7 +20,7 @@
 
 static atomic32_t ticks;
 
-static void timer_callback(struct irq_frame *frame)
+static void timer_callback(struct irq_frame *frame, void *param)
 {
     atomic32_inc(&ticks);
 
@@ -56,6 +56,6 @@ void pic8259_timer_init(void)
 
     pic8259_enable_irq(PIC8259_TIMER_IRQ);
 
-    irq_register_callback(PIC8259_IRQ0, timer_callback, "PIC 8259 Timer", IRQ_INTERRUPT);
+    irq_register_callback(PIC8259_IRQ0, timer_callback, "PIC 8259 Timer", IRQ_INTERRUPT, NULL);
 }
 

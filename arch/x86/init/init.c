@@ -19,6 +19,7 @@
 #include <protura/fs/file_system.h>
 #include <protura/fs/pipe.h>
 #include <protura/drivers/pci.h>
+#include <protura/net.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/term.h>
@@ -49,6 +50,7 @@ struct sys_init arch_init_systems[] = {
     { "char-device", char_dev_init },
     { "file-systems", file_systems_init },
     { "pipe", pipe_init },
+    { "net", net_init },
     { NULL, NULL }
 };
 

@@ -16,6 +16,8 @@
 
 #include <protura/fs/procfs.h>
 #include <protura/drivers/ide.h>
+#include <protura/drivers/e1000.h>
+#include <protura/drivers/rtl.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
 
@@ -25,6 +27,12 @@ static const struct pci_driver pci_drivers[] = {
         .vendor = PCI_VENDOR_ID_INTEL,
         .device = PCI_DEVICE_ID_82371SB_PIIX3_IDE,
         .device_init = ide_dma_device_init,
+    },
+    {
+        .name = "RealTek RTL8139 Fast Ethernet",
+        .vendor = PCI_VENDOR_ID_REALTEK,
+        .device = PCI_DEVICE_ID_RTL8139_NET,
+        .device_init = rtl_device_init,
     },
     {
         .name = NULL,
@@ -222,7 +230,7 @@ static void pci_output_name(uint8_t class, uint8_t subclass)
     }
 
     if (cla && sub) {
-        kp(KP_NORMAL, "(%d)%p  - %s, %s\n", class, sub, cla, sub);
+        kp(KP_NORMAL, "  - %s, %s\n", cla, sub);
     } else if (cla) {
         kp(KP_NORMAL, "  - %s\n", cla);
     }

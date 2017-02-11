@@ -1,5 +1,5 @@
 
 subdir-y += block
 subdir-y += char
-subdir-y += pci
+subdir-y += net
 

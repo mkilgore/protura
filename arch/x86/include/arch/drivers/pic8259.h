@@ -8,6 +8,8 @@
 #ifndef INCLUDE_ARCH_DRIVERS_PIC8259_H
 #define INCLUDE_ARCH_DRIVERS_PIC8259_H
 
+#include <protura/types.h>
+
 #define PIC8259_IO_PIC1  0x20
 #define PIC8259_IO_PIC2  0xA0
 
@@ -21,5 +23,7 @@ void pic8259_enable_irq(int irq);
 
 void pic8259_init(void);
 
+uint8_t pic8259_read_master_isr(void);
+uint8_t pic8259_read_slave_isr(void);
 
 #endif

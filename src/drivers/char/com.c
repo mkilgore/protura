@@ -41,8 +41,6 @@ struct com_port {
     int baud;
     int irq;
 
-    void (*irq_handler) (struct irq_frame *);
-
     int exists :1;
 
     char buffer[CONFIG_COM_BUFSZ];
@@ -59,9 +57,10 @@ static int com_write_ready(struct com_port *com)
     return inb(com->ioport + UART_LSR) & UART_LSR_THRE;
 }
 
-static void com_int_handler(struct com_port *com)
+static void com_int_handler(struct irq_frame *frame, void *param)
 {
     char b;
+    struct com_port *com = param;
 
     using_spinlock(&com->buf_lock) {
         do {
@@ -73,22 +72,11 @@ static void com_int_handler(struct com_port *com)
     }
 }
 
-static void com1_int_handler(struct irq_frame *frame)
-{
-    com_int_handler(com_ports + COM1);
-}
-
-static void com2_int_handler(struct irq_frame *frame)
-{
-    com_int_handler(com_ports + COM2);
-}
-
 static struct com_port com_ports[] = {
     [COM1] = {
         .ioport = 0x3F8,
         .baud = 38400,
         .irq = PIC8259_IRQ0 + 4,
-        .irq_handler = com1_int_handler,
         .exists = 1,
         .buf_lock = SPINLOCK_INIT("com1"),
         .buf.buffer = com_ports[COM1].buffer,
@@ -98,7 +86,6 @@ static struct com_port com_ports[] = {
         .ioport = 0x2F8,
         .baud = 38400,
         .irq = PIC8259_IRQ0 + 3,
-        .irq_handler = com2_int_handler,
         .exists = 1,
         .buf_lock = SPINLOCK_INIT("com2"),
         .buf.buffer = com_ports[COM2].buffer,
@@ -219,7 +206,7 @@ static void com_init_ports(void)
 
         kp(KP_DEBUG, "Registering COM%d IRQ\n", i);
 
-        irq_register_callback(com_ports[i].irq, com_ports[i].irq_handler, "com", IRQ_INTERRUPT);
+        irq_register_callback(com_ports[i].irq, com_int_handler, "com", IRQ_INTERRUPT, com_ports + i);
         pic8259_enable_irq(com_ports[i].irq);
 
         outb(com_ports[i].ioport + UART_IER, UART_IER_RDI);

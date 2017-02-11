@@ -10,6 +10,8 @@
 #include <arch/asm.h>
 #include <arch/drivers/pic8259.h>
 
+#define PIC_READ_ISR 0x0b
+
 static uint16_t irqmask = 0xFFFF & ~(1<<PIC8259_IRQ_SLAVE);
 
 static void pic_set_mask(void)
@@ -28,6 +30,18 @@ void pic8259_enable_irq(int irq)
 {
     irqmask = irqmask & ~(1 << irq);
     pic_set_mask();
+}
+
+uint8_t pic8259_read_master_isr(void)
+{
+    outb(PIC8259_IO_PIC1, PIC_READ_ISR);
+    return inb(PIC8259_IO_PIC1);
+}
+
+uint8_t pic8259_read_slave_isr(void)
+{
+    outb(PIC8259_IO_PIC2, PIC_READ_ISR);
+    return inb(PIC8259_IO_PIC2);
 }
 
 void pic8259_init(void)

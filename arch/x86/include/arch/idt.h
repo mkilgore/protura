@@ -58,7 +58,7 @@ void idt_flush(uint32_t);
 void idt_init(void);
 
 void irq_global_handler(struct irq_frame *);
-void irq_register_callback(uint8_t irqno, void (*callback)(struct irq_frame *), const char *id, enum irq_type);
+void irq_register_callback(uint8_t irqno, void (*callback)(struct irq_frame *, void *), const char *id, enum irq_type, void *param);
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
