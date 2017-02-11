@@ -8,7 +8,15 @@
 
 mv ./qemu.log ./qemu.log.bak
 
-i3-msg workspace $2
+if whereis jq; then
+    OLD_WORKSPACE=`i3-msg -t get_workspaces | jq ".[] | select(.visible == true) | .name"`A
+    NEW_WORKSPACE=Debug
+else
+    OLD_WORKSPACE=$1
+    NEW_WORKSPACE=$2
+fi
+
+i3-msg workspace $NEW_WORKSPACE
 
 i3-msg append_layout $(pwd)/scripts/i3_debug_layout.json
 
@@ -40,7 +48,8 @@ qemu_line="qemu-system-i386 \
     -d cpu_reset \
     -drive format=raw,file=./disk.img,media=disk,index=0,if=ide \
     -drive format=raw,file=./disk2.img,media=disk,index=1,if=ide \
-    -net nic \
+    -net nic,model=rtl8139 \
+    -net tap,ifname=tap0,script=no,downscript=no \
     -kernel ./imgs/protura_x86_multiboot \
     $kernel_cmdline"
 
@@ -68,6 +77,5 @@ kill $MON_PID
 kill $WAIT_PID
 kill $TERM_PID
 
-i3-msg workspace $1
-
+i3-msg workspace $OLD_WORKSPACE
 
