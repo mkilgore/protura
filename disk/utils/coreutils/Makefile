@@ -8,6 +8,7 @@ COREUTILS_PROGS = \
 	getty \
 	head \
 	hexdump \
+	ifconfig \
 	kill \
 	link \
 	ln \
