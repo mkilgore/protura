@@ -12,6 +12,7 @@
 #include <protura/time.h>
 #include <arch/spinlock.h>
 #include <protura/waitbits.h>
+#include <protura/signal.h>
 
 struct task;
 
@@ -68,6 +69,9 @@ void wait_queue_node_init(struct wait_queue_node *);
 /* Register or unregister the current task to wakeup from this wait-queue. */
 void wait_queue_register(struct wait_queue *, struct wait_queue_node *);
 void wait_queue_unregister(struct wait_queue_node *);
+
+void wait_queue_register_task(struct wait_queue *, struct task *);
+void wait_queue_unregister_task(struct wait_queue *, struct task *);
 
 /* Special version of unregister - if we're already unregistered, then the next
  * person in the queue is woken-up for us */

@@ -19,6 +19,7 @@
 #include <arch/task.h>
 #include <arch/drivers/pic8259_timer.h>
 #include <protura/fs/sys.h>
+#include <protura/net/sys.h>
 #include <protura/signal.h>
 
 /* 
@@ -321,6 +322,56 @@ static void sys_handler_getsid(struct irq_frame *frame)
     frame->eax = sys_getsid(frame->ebx);
 }
 
+static void sys_handler_socket(struct irq_frame *frame)
+{
+    frame->eax = sys_socket(frame->ebx, frame->ecx, frame->edx);
+}
+
+static void sys_handler_sendto(struct irq_frame *frame)
+{
+    frame->eax = sys_sendto(frame->ebx, (const void *)frame->ecx, (size_t)frame->edx, frame->esi, (const struct sockaddr *)frame->edi, (socklen_t)frame->ebp);
+}
+
+static void sys_handler_recvfrom(struct irq_frame *frame)
+{
+    frame->eax = sys_recvfrom(frame->ebx, (void *)frame->ecx, (size_t)frame->edx, frame->esi, (struct sockaddr *)frame->edi, (socklen_t *)frame->ebp);
+}
+
+static void sys_handler_bind(struct irq_frame *frame)
+{
+    frame->eax = sys_bind(frame->ebx, (const struct sockaddr *)frame->ecx, (socklen_t)frame->edx);
+}
+
+static void sys_handler_setsockopt(struct irq_frame *frame)
+{
+    frame->eax = sys_setsockopt(frame->ebx, frame->ecx, frame->edx, (const void *)frame->esi, (socklen_t)frame->edi);
+}
+
+static void sys_handler_getsockopt(struct irq_frame *frame)
+{
+    frame->eax = sys_getsockopt(frame->ebx, frame->ecx, frame->edx, (void *)frame->esi, (socklen_t *)frame->edi);
+}
+
+static void sys_handler_shutdown(struct irq_frame *frame)
+{
+    frame->eax = sys_shutdown(frame->ebx, frame->ecx);
+}
+
+static void sys_handler_getsockname(struct irq_frame *frame)
+{
+    frame->eax = sys_getsockname(frame->ebx, (struct sockaddr *)frame->ecx, (socklen_t *)frame->edx);
+}
+
+static void sys_handler_send(struct irq_frame *frame)
+{
+    frame->eax = sys_send(frame->ebx, (const void *)frame->ecx, (size_t)frame->edx, frame->esi);
+}
+
+static void sys_handler_recv(struct irq_frame *frame)
+{
+    frame->eax = sys_recv(frame->ebx, (void *)frame->ecx, (size_t)frame->edx, frame->esi);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -387,6 +438,16 @@ static struct syscall_handler {
     SYSCALL(POLL, sys_handler_poll),
     SYSCALL(SETSID, sys_handler_setsid),
     SYSCALL(GETSID, sys_handler_getsid),
+    SYSCALL(SOCKET, sys_handler_socket),
+    SYSCALL(SENDTO, sys_handler_sendto),
+    SYSCALL(RECVFROM, sys_handler_recvfrom),
+    SYSCALL(BIND, sys_handler_bind),
+    SYSCALL(SETSOCKOPT, sys_handler_setsockopt),
+    SYSCALL(GETSOCKOPT, sys_handler_getsockopt),
+    SYSCALL(GETSOCKNAME, sys_handler_getsockname),
+    SYSCALL(SHUTDOWN, sys_handler_shutdown),
+    SYSCALL(SEND, sys_handler_send),
+    SYSCALL(RECV, sys_handler_recv),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

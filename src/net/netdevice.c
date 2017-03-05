@@ -20,6 +20,7 @@
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
 #include <protura/net.h>
+#include <protura/net/arphrd.h>
 #include <protura/net/netdevice.h>
 
 mutex_t net_interface_list_lock = MUTEX_INIT(net_interface_list_lock, "net-interface-list-lock");
@@ -41,6 +42,7 @@ static struct net_interface *__find_netdev_name(const char *name, int *index)
 
     if (index)
         *index = -1;
+
     return NULL;
 }
 
@@ -62,110 +64,137 @@ void netdev_put(struct net_interface *iface)
     atomic_dec(&iface->refs);
 }
 
-static int ifrequest(int cmd, struct ifreq *ifreq)
+static int ifreq_get_hwaddr(struct ifreq *ifreq, struct net_interface *iface)
 {
-    struct sockaddr_in *inet;
-    struct sockaddr_ether *ether;
-    struct net_interface *iface;
+    struct sockaddr_ether *ether = (struct sockaddr_ether *)&ifreq->ifr_hwaddr;
 
-    switch (cmd) {
-    case SIOCGIFHWADDR:
-        ether = (struct sockaddr_ether *)&ifreq->ifr_hwaddr;
-
-        iface = netdev_get(ifreq->ifr_name);
-        if (iface) {
-            ether->sa_family = ARPHRD_ETHER;
-            memcpy(ether->sa_mac, iface->mac, 6);
-
-            netdev_put(iface);
-        } else {
-            kp(KP_NORMAL, "Error: Net Interface %s not found\n", ifreq->ifr_name);
-        }
-
-        if (!iface)
-            return -ENODEV;
-
-        break;
-
-    case SIOCGIFADDR:
-        inet = (struct sockaddr_in *)&ifreq->ifr_addr;
-
-        iface = netdev_get(ifreq->ifr_name);
-        if (iface) {
-            inet->sin_family = AF_INET;
-            inet->sin_addr.s_addr = iface->in_addr;
-
-            netdev_put(iface);
-        } else {
-            kp(KP_NORMAL, "Error: Net Interface %s not found\n", ifreq->ifr_name);
-        }
-
-        if (!iface)
-            return -ENODEV;
-
-        break;
-
-    case SIOCSIFADDR:
-        inet = (struct sockaddr_in *)&ifreq->ifr_addr;
-
-        iface = netdev_get(ifreq->ifr_name);
-        if (iface) {
-            using_netdev_write(iface)
-                iface->in_addr = inet->sin_addr.s_addr;
-
-            netdev_put(iface);
-        } else {
-            kp(KP_NORMAL, "Error: Net Interface %s not found\n", ifreq->ifr_name);
-        }
-
-        if (!iface)
-            return -ENODEV;
-
-        break;
-
-    case SIOCGIFNETMASK:
-        inet = (struct sockaddr_in *)&ifreq->ifr_netmask;
-
-        iface = netdev_get(ifreq->ifr_name);
-        if (iface) {
-            using_netdev_read(iface) {
-                inet->sin_family = AF_INET;
-                inet->sin_addr.s_addr = iface->in_netmask;
-            }
-
-            netdev_put(iface);
-        } else {
-            kp(KP_NORMAL, "Error: Net Interface %s not found\n", ifreq->ifr_name);
-        }
-
-        if (!iface)
-            return -ENODEV;
-
-        break;
-
-    case SIOCSIFNETMASK:
-        inet = (struct sockaddr_in *)&ifreq->ifr_netmask;
-
-        iface = netdev_get(ifreq->ifr_name);
-        if (iface) {
-            using_netdev_write(iface)
-                iface->in_netmask = inet->sin_addr.s_addr;
-
-            netdev_put(iface);
-        } else {
-            kp(KP_NORMAL, "Error: Net Interface %s not found\n", ifreq->ifr_name);
-        }
-
-        if (!iface)
-            return -ENODEV;
-
-        break;
-
-    case SIOCSIFHWADDR:
-        return -ENOTSUP;
+    using_netdev_read(iface) {
+        ether->sa_family = ARPHRD_ETHER;
+        memcpy(ether->sa_mac, iface->mac, 6);
     }
 
     return 0;
+}
+
+static int ifreq_set_hwaddr(struct ifreq *ifreq, struct net_interface *iface)
+{
+    return -ENOTSUP;
+}
+
+static int ifreq_set_addr(struct ifreq *ifreq, struct net_interface *iface)
+{
+    struct sockaddr_in *inet = (struct sockaddr_in *)&ifreq->ifr_addr;
+
+    using_netdev_write(iface) {
+        iface->in_addr = inet->sin_addr.s_addr;
+        kp(KP_NORMAL, "%s: New IPv4: "PRin_addr"\n", iface->netdev_name, Pin_addr(iface->in_addr));
+    }
+
+    return 0;
+}
+
+static int ifreq_get_addr(struct ifreq *ifreq, struct net_interface *iface)
+{
+    struct sockaddr_in *inet = (struct sockaddr_in *)&ifreq->ifr_addr;
+
+    using_netdev_read(iface) {
+        inet->sin_family = AF_INET;
+        inet->sin_addr.s_addr = iface->in_addr;
+    }
+
+    return 0;
+}
+
+static int ifreq_set_netmask(struct ifreq *ifreq, struct net_interface *iface)
+{
+    struct sockaddr_in *inet = (struct sockaddr_in *)&ifreq->ifr_netmask;
+
+    using_netdev_write(iface)
+        iface->in_netmask = inet->sin_addr.s_addr;
+
+    return 0;
+}
+
+static int ifreq_get_netmask(struct ifreq *ifreq, struct net_interface *iface)
+{
+    struct sockaddr_in *inet = (struct sockaddr_in *)&ifreq->ifr_netmask;
+
+    using_netdev_read(iface) {
+        inet->sin_family = AF_INET;
+        inet->sin_addr.s_addr = iface->in_netmask;
+    }
+
+    return 0;
+}
+
+static int ifreq_set_flags(struct ifreq *ifreq, struct net_interface *iface)
+{
+    using_netdev_write(iface) {
+        if (ifreq->ifr_flags & IFF_UP)
+            flag_set(&iface->flags, NET_IFACE_UP);
+        else
+            flag_clear(&iface->flags, NET_IFACE_UP);
+    }
+
+    return 0;
+}
+
+static int ifreq_get_flags(struct ifreq *ifreq, struct net_interface *iface)
+{
+    ifreq->ifr_flags = 0;
+    using_netdev_read(iface)
+        ifreq->ifr_flags |= flag_test(&iface->flags, NET_IFACE_UP)? IFF_UP: 0;
+
+    return 0;
+}
+
+static int ifrequest2(int cmd, struct ifreq *ifreq)
+{
+    int ret = -ENOTSUP;
+    struct net_interface *iface;
+
+    iface = netdev_get(ifreq->ifr_name);
+
+    if (!iface)
+        return -ENODEV;
+
+    switch (cmd) {
+    case SIOCGIFHWADDR:
+        ret = ifreq_get_hwaddr(ifreq, iface);
+        break;
+
+    case SIOCSIFHWADDR:
+        ret = ifreq_set_hwaddr(ifreq, iface);
+        break;
+
+    case SIOCGIFADDR:
+        ret = ifreq_get_addr(ifreq, iface);
+        break;
+
+    case SIOCSIFADDR:
+        ret = ifreq_set_addr(ifreq, iface);
+        break;
+
+    case SIOCGIFNETMASK:
+        ret = ifreq_get_netmask(ifreq, iface);
+        break;
+
+    case SIOCSIFNETMASK:
+        ret = ifreq_set_netmask(ifreq, iface);
+        break;
+
+    case SIOCGIFFLAGS:
+        ret = ifreq_get_flags(ifreq, iface);
+        break;
+
+    case SIOCSIFFLAGS:
+        ret = ifreq_set_flags(ifreq, iface);
+        break;
+    }
+
+    netdev_put(iface);
+
+    return ret;
 }
 
 static int netdev_ioctl(struct file *filp, int cmd, uintptr_t ptr)
@@ -193,6 +222,7 @@ static int netdev_ioctl(struct file *filp, int cmd, uintptr_t ptr)
 
             iface = container_of(node, struct net_interface, iface_entry);
             strcpy(addr->ifr_name, iface->netdev_name);
+            kp(KP_NORMAL, "Found iface: %s, %s, %d\n", iface->netdev_name, addr->ifr_name, addr->ifr_index);
         }
         break;
 
@@ -207,16 +237,13 @@ static int netdev_ioctl(struct file *filp, int cmd, uintptr_t ptr)
 
         break;
 
-    case SIOCGIFHWADDR:
-    case SIOCSIFHWADDR:
-    case SIOCGIFADDR:
-    case SIOCSIFADDR:
+    default:
         addr = (struct ifreq *)ptr;
         ret = user_check_region(addr, sizeof(*addr), F(VM_MAP_READ) | F(VM_MAP_WRITE));
         if (ret)
             return ret;
 
-        return ifrequest(cmd, addr);
+        return ifrequest2(cmd, addr);
     }
     return 0;
 }

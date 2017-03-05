@@ -80,6 +80,17 @@
 #define SYSCALL_SETSID 0x47
 #define SYSCALL_GETSID 0x48
 
+#define SYSCALL_SOCKET      0x49
+#define SYSCALL_SENDTO      0x4A
+#define SYSCALL_RECVFROM    0x4B
+#define SYSCALL_BIND        0x4C
+#define SYSCALL_SETSOCKOPT  0x4D
+#define SYSCALL_GETSOCKOPT  0x4E
+#define SYSCALL_GETSOCKNAME 0x4F
+#define SYSCALL_SHUTDOWN    0x50
+#define SYSCALL_SEND        0x51
+#define SYSCALL_RECV        0x52
+
 #ifdef __KERNEL__
 #ifndef ASM
 

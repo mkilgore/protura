@@ -80,8 +80,8 @@ static int super_put(struct super_block *super)
     using_mutex(&super_lock)
         list_del(&super->list_entry);
 
-    using_mutex(&super->super_block_lock);
-    sb_put(super);
+    using_mutex(&super->super_block_lock)
+        sb_put(super);
 
     return 0;
 }

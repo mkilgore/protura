@@ -4,6 +4,8 @@ directory ./src
 directory ./src/fs
 directory ./src/kernel
 directory ./src/mm
+directory ./src/net
+directory ./src/pci
 directory ./arch/x86
 directory ./arch/x86/drivers
 directory ./arch/x86/kernel

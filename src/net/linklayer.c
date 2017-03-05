@@ -15,8 +15,11 @@
 #include <protura/snprintf.h>
 #include <protura/list.h>
 
-#include <protura/net/ip.h>
+#include <protura/net/af/ipv4.h>
 #include <protura/net.h>
+#include <protura/net/arphrd.h>
+#include <protura/net/arp.h>
+#include <protura/net/linklayer.h>
 
 struct ether_header {
     char mac_dest[6];
@@ -25,21 +28,30 @@ struct ether_header {
     uint16_t ether_type;
 } __packed;
 
+struct ether {
+    struct address_family *ip, *arp;
+};
+
+static struct ether ether;
+
 void packet_linklayer_rx(struct packet *packet)
 {
     struct ether_header *ehead;
 
     ehead = packet->head;
+    packet->ll_head = ehead;
 
     packet->head += sizeof(struct ether_header);
 
     switch (ntohs(ehead->ether_type)) {
     case ETH_P_ARP:
-        arp_handle_packet(packet);
+        kp(KP_NORMAL, "ARP packet\n");
+        (ether.arp->ops->packet_rx) (ether.arp, packet);
         break;
 
     case ETH_P_IP:
-        ip_rx(packet);
+        kp(KP_NORMAL, "IP packet\n");
+        (ether.ip->ops->packet_rx) (ether.ip, packet);
         break;
 
     default:
@@ -55,7 +67,7 @@ void packet_linklayer_rx(struct packet *packet)
 void packet_linklayer_tx(struct packet *packet)
 {
     struct ether_header ehead;
-    memcpy(ehead.mac_dest, packet->mac_dest, sizeof(ehead.mac_dest));
+    memcpy(ehead.mac_dest, packet->dest_mac, sizeof(ehead.mac_dest));
     memcpy(ehead.mac_src, packet->iface_tx->mac, sizeof(ehead.mac_src));
     ehead.ether_type = packet->ll_type;
 
@@ -66,6 +78,15 @@ void packet_linklayer_tx(struct packet *packet)
 
     packet_add_header(packet, &ehead, sizeof(ehead));
 
-    (packet->iface_tx->packet_send) (packet->iface_tx, packet);
+    if (flag_test(&packet->iface_tx->flags, NET_IFACE_UP))
+        (packet->iface_tx->packet_send) (packet->iface_tx, packet);
+    else
+        packet_free(packet);
+}
+
+void linklayer_setup(void)
+{
+    ether.ip = address_family_lookup(AF_INET);
+    ether.arp = address_family_lookup(AF_ARP);
 }
 

@@ -29,12 +29,21 @@ static void packet_clear(struct packet *packet)
     packet->tail = packet->head;
 
     packet->ll_type = 0;
-    memset(packet->mac_dest, 0, 6);
+    packet->protocol_type = 0;
+
+    memset(&packet->src_addr, 0, sizeof(packet->src_addr));
+    packet->src_len = 0;
+
+    memset(&packet->dest_mac, 0, sizeof(packet->dest_mac));
 
     if (packet->iface_tx) {
         netdev_put(packet->iface_tx);
         packet->iface_tx = NULL;
     }
+
+    packet->ll_head = NULL;
+    packet->af_head = NULL;
+    packet->proto_head = NULL;
 }
 
 struct packet *packet_new(void)
@@ -71,19 +80,30 @@ struct packet *packet_dup(struct packet *packet)
 
     dup_packet->head = dup_packet->start + (packet->head - packet->start);
     dup_packet->tail = dup_packet->start + (packet->tail - packet->start);
-
     memcpy(dup_packet->head, packet->head, packet_len(packet));
+
+    dup_packet->flags = packet->flags;
+
+    dup_packet->src_addr = packet->src_addr;
+    dup_packet->src_len  = packet->src_len;
+
+    dup_packet->ll_type = packet->ll_type;
+    dup_packet->protocol_type = packet->protocol_type;
+
+    memcpy(dup_packet->dest_mac, packet->dest_mac, sizeof(packet->dest_mac));
+
+    dup_packet->iface_tx = netdev_dup(packet->iface_tx);
 
     return dup_packet;
 }
 
-void packet_add_header(struct packet *packet, void *header, size_t header_len)
+void packet_add_header(struct packet *packet, const void *header, size_t header_len)
 {
     packet->head -= header_len;
     memcpy(packet->head, header, header_len);
 }
 
-void packet_append_data(struct packet *packet, void *data, size_t data_len)
+void packet_append_data(struct packet *packet, const void *data, size_t data_len)
 {
     memcpy(packet->tail, data, data_len);
     packet->tail += data_len;

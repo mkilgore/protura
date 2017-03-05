@@ -23,34 +23,14 @@
 #include <protura/init/init_task.h>
 #include <protura/init/init_basic.h>
 
+#include <protura/net/af/ip_route.h>
+#include <protura/net/af/ipv4.h>
 #include <protura/net.h>
 
 /* Initial user task */
 struct task *task_pid1;
 
 int kernel_is_booting = 1;
-
-static int arp_test(void *p)
-{
-    int ret;
-    uint8_t mac[6];
-    in_addr_t addr = htonl(0x01020304);
-    struct net_interface *net;
-
-    kp(KP_NORMAL, "Testing ARP...\n");
-
-    kp(KP_NORMAL, "Finding iface for: "PRin_addr"\n", Pin_addr(addr));
-    net = netdev_get_network(addr);
-    kp(KP_NORMAL, "Found iface %s\n", net->netdev_name);
-
-    ret = arp_ipv4_to_mac(addr, mac, net);
-
-    kp(KP_NORMAL, "Found MAC: "PRmac"\n", Pmac(mac));
-
-    netdev_put(net);
-
-    return 0;
-}
 
 static int start_user_init(void *unused)
 {
@@ -63,9 +43,6 @@ static int start_user_init(void *unused)
     task_pid1->pid = 1;
 
     scheduler_task_add(task_pid1);
-
-    struct task *thread = task_kernel_new_interruptable("arp-test", arp_test, NULL);
-    scheduler_task_add(thread);
 
     return 0;
 }
@@ -99,10 +76,6 @@ void kmain(void)
     kp_output_unregister(term_printfv);
 
     scheduler_task_add(task_kernel_new("User Init Bootstrap", start_user_init, NULL));
-
-    /*
-    scheduler_task_add(task_kernel_new_interruptable("Keyboard watch", kernel_keyboard_thread, NULL));
-    */
 
     kp(KP_NORMAL, "Starting scheduler\n");
     cpu_start_scheduler();

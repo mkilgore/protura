@@ -18,11 +18,36 @@
 #include <protura/fs/procfs.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
+#include <protura/net/af/ip_route.h>
+#include <protura/net/socket.h>
+#include <protura/net/linklayer.h>
+#include <protura/net/arp.h>
+#include <protura/net/af/ipv4.h>
+#include <protura/net/proto/udp.h>
 #include <protura/net.h>
+#include "af/ipv4/ipv4.h"
 #include "internal.h"
+
+struct procfs_dir *net_dir_procfs;
 
 void net_init(void)
 {
+    net_dir_procfs = procfs_register_dir(&procfs_root, "net");
+
     net_packet_queue_init();
+    ip_route_init();
+    socket_subsystem_init();
+
+    arp_init();
+
+    ip_init();
+
+    udp_init();
+
+    address_family_setup();
+    linklayer_setup();
+
+    procfs_register_entry_ops(net_dir_procfs, "netdev", &netdevice_procfs);
+    procfs_register_entry_ops(net_dir_procfs, "sockets", &socket_procfs);
 }
 

@@ -156,29 +156,6 @@ static int pipe_rdwr_release(struct file *filp)
     return pipe_release(filp, 1, 1);
 }
 
-/*
- * A simple wrapper for sleeping on a wait_queue tied to the associated pinfo.
- *
- * Normally this isn't valid (The condition is checked before calling this
- * function). However, it is valid if you're checking variables locked under
- * pipe_buf_lock - those will not change until we release the pipe_buf_lock,
- * which happens after we start sleeping.
- */
-static int __pipe_sleep_on_wait_queue(struct pipe_info *pinfo, struct wait_queue *queue)
-{
-    sleep_intr_with_wait_queue(queue) {
-        not_using_mutex(&pinfo->pipe_buf_lock) {
-            scheduler_task_yield();
-            if (has_pending_signal(cpu_get_local()->current)) {
-                wait_queue_unregister(&cpu_get_local()->current->wait);
-                return -ERESTARTSYS;
-            }
-        }
-    }
-
-    return 0;
-}
-
 static int pipe_read(struct file *filp, void *data, size_t size)
 {
     size_t original_size = size;
@@ -242,7 +219,7 @@ static int pipe_read(struct file *filp, void *data, size_t size)
                 wake_writers = 0;
 
                 /* Sleep until more data */
-                ret = __pipe_sleep_on_wait_queue(pinfo, &pinfo->read_queue);
+                ret = wait_queue_event_intr_mutex(&pinfo->read_queue, !list_empty(&pinfo->bufs), &pinfo->pipe_buf_lock);
                 if (ret)
                     return ret;
             }
@@ -343,7 +320,7 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
 
                 wake_readers = 0;
 
-                ret = __pipe_sleep_on_wait_queue(pinfo, &pinfo->write_queue);
+                ret = wait_queue_event_intr_mutex(&pinfo->write_queue, !list_empty(&pinfo->free_pages), &pinfo->pipe_buf_lock);
                 if (ret)
                     return ret;
             }
@@ -412,8 +389,8 @@ static int fifo_open(struct inode *inode, struct file *filp)
                 wait_queue_wake(&pinfo->write_queue);
 
             /* Opening a non-blocking fifo for read always succeeds */
-            if (!pinfo->writers && !flag_test(&filp->flags, FILE_NONBLOCK))
-                ret = __pipe_sleep_on_wait_queue(pinfo, &pinfo->read_queue);
+            if (!flag_test(&filp->flags, FILE_NONBLOCK))
+                ret = wait_queue_event_intr_mutex(&pinfo->read_queue, pinfo->writers, &pinfo->pipe_buf_lock);
 
             if (ret == 0)
                 wait_queue_wake(&pinfo->read_queue);
@@ -435,8 +412,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
             if (!(pinfo->writers++))
                 wait_queue_wake(&pinfo->read_queue);
 
-            if (!pinfo->readers)
-                ret = __pipe_sleep_on_wait_queue(pinfo, &pinfo->write_queue);
+            ret = wait_queue_event_intr_mutex(&pinfo->write_queue, pinfo->readers, &pinfo->pipe_buf_lock);
 
             if (ret == 0)
                 wait_queue_wake(&pinfo->write_queue);
@@ -519,6 +495,20 @@ int sys_pipe(int *fds)
     filps[0] = kzalloc(sizeof(struct file), PAL_KERNEL);
     filps[1] = kzalloc(sizeof(struct file), PAL_KERNEL);
 
+    filps[P_READ]->mode = inode->mode;
+    filps[P_READ]->inode = inode_dup(inode);
+    filps[P_READ]->flags = F(FILE_READABLE);
+    filps[P_READ]->ops = &pipe_read_file_ops;
+    atomic_inc(&filps[P_READ]->ref);
+    inode->pipe_info.readers++;
+
+    filps[P_WRITE]->mode = inode->mode;
+    filps[P_WRITE]->inode = inode_dup(inode);
+    filps[P_WRITE]->flags = F(FILE_WRITABLE);
+    filps[P_WRITE]->ops = &pipe_write_file_ops;
+    atomic_inc(&filps[P_WRITE]->ref);
+    inode->pipe_info.writers++;
+
     fds[0] = fd_assign_empty(filps[0]);
 
     if (fds[0] == -1) {
@@ -532,23 +522,6 @@ int sys_pipe(int *fds)
         ret = -ENFILE;
         goto release_fd_0;
     }
-
-    filps[P_READ]->mode = inode->mode;
-    filps[P_READ]->inode = inode_dup(inode);
-    filps[P_READ]->flags = FILE_READABLE;
-    filps[P_READ]->ops = &pipe_read_file_ops;
-    atomic_inc(&filps[P_READ]->ref);
-    inode->pipe_info.readers++;
-
-    filps[P_WRITE]->mode = inode->mode;
-    filps[P_WRITE]->inode = inode_dup(inode);
-    filps[P_WRITE]->flags = FILE_WRITABLE;
-    filps[P_WRITE]->ops = &pipe_write_file_ops;
-    atomic_inc(&filps[P_WRITE]->ref);
-    inode->pipe_info.writers++;
-
-    fd_assign(fds[P_READ], filps[P_READ]);
-    fd_assign(fds[P_WRITE], filps[P_WRITE]);
 
     FD_CLR(fds[P_READ], &current->close_on_exec);
     FD_CLR(fds[P_WRITE], &current->close_on_exec);

@@ -97,8 +97,10 @@ static int tty_kernel_thread(void *p)
                 break;
 
             case '\x04':
-                tty->ret0 = 1;
-                wait_queue_wake(&tty->in_wait_queue);
+                using_mutex(&tty->inout_buf_lock) {
+                    tty->ret0 = 1;
+                    wait_queue_wake(&tty->in_wait_queue);
+                }
                 break;
 
             case '\x03': /* ^C */
@@ -231,17 +233,12 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
             }
 
             /* Nice little dance to wait for data or a singal */
-            sleep_intr_with_wait_queue(&tty->in_wait_queue) {
-                if (!char_buf_has_data(&tty->output_buf)) {
-                    not_using_mutex(&tty->inout_buf_lock)  {
-                        scheduler_task_yield();
-
-                        if (has_pending_signal(cpu_get_local()->current)) {
-                            wait_queue_unregister(&cpu_get_local()->current->wait);
-                            return -ERESTARTSYS;
-                        }
-                    }
-                }
+            kp(KP_NORMAL, "tty_read: tty->output_buf wait\n");
+            ret = wait_queue_event_intr_mutex(&tty->in_wait_queue, char_buf_has_data(&tty->output_buf) || tty->ret0, &tty->inout_buf_lock);
+            kp(KP_NORMAL, "tty_read: tty->output_buf end wait: %d\n", ret);
+            if (ret) {
+                kp(KP_NORMAL, "Exiting...\n");
+                return ret;
             }
         }
     }

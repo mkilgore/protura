@@ -168,17 +168,7 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 
 static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
-  sleep_again:
-    sleep_with_wait_queue(&alloc->maps[order].wait_for_free) {
-        if (alloc->free_pages < (1 << order)) {
-            kp(KP_DEBUG, "Calling __oom()!!!\n");
-            __oom();
-            not_using_spinlock(&alloc->lock)
-                scheduler_task_yield();
-
-            goto sleep_again;
-        }
-    }
+    wait_queue_event_spinlock(&alloc->maps[order].wait_for_free, alloc->free_pages >= (1 << order), &alloc->lock);
 }
 
 static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int order, unsigned int flags)

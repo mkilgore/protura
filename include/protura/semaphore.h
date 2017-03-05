@@ -18,7 +18,12 @@ struct semaphore {
     spinlock_t lock;
 
     int count;
-    struct wait_queue queue;
+    list_head_t queue;
+};
+
+struct semaphore_wait_entry {
+    list_node_t next;
+    struct task *task;
 };
 
 typedef struct semaphore semaphore_t;
@@ -26,7 +31,7 @@ typedef struct semaphore semaphore_t;
 #define SEM_INIT(sem, name, cnt) \
     { .lock = SPINLOCK_INIT(name), \
       .count = (cnt), \
-      .queue = WAIT_QUEUE_INIT((sem).queue, "SEM wait queue") }
+      .queue = LIST_HEAD_INIT((sem).queue) }
 
 static inline void sem_init(struct semaphore *sem, int value)
 {
@@ -34,15 +39,28 @@ static inline void sem_init(struct semaphore *sem, int value)
 
     spinlock_init(&sem->lock, "Sem lock");
     sem->count = value;
-    wait_queue_init(&sem->queue);
+    list_head_init(&sem->queue);
+}
+
+static inline void sem_wait_entry_init(struct semaphore_wait_entry *ent)
+{
+    list_node_init(&ent->next);
+    ent->task = NULL;
 }
 
 static inline void __sem_down(struct semaphore *sem)
 {
+    struct semaphore_wait_entry ent;
     kp(KP_LOCK, "semaphore %p: down: %d\n", sem, sem->count);
 
+    sem_wait_entry_init(&ent);
+    ent.task = cpu_get_local()->current;
+
   sleep_again:
-    sleep_with_wait_queue(&sem->queue) {
+    if (!list_node_is_in_list(&ent.next))
+        list_add_tail(&sem->queue, &ent.next);
+
+    sleep {
         if (sem->count <= 0) {
             not_using_spinlock(&sem->lock)
                 scheduler_task_yield();
@@ -51,6 +69,7 @@ static inline void __sem_down(struct semaphore *sem)
         }
     }
     sem->count--;
+    list_del(&ent.next);
 
     kp(KP_LOCK, "semaphore %p down result: %d\n", sem, sem->count);
 }
@@ -90,10 +109,15 @@ static inline int sem_try_down(struct semaphore *sem)
 
 static inline void __sem_up(struct semaphore *sem)
 {
-    int wake = -1;
+    struct semaphore_wait_entry *ent;
+    int wake = 0;
     sem->count++;
 
-    wake = wait_queue_wake(&sem->queue);
+    if (!list_empty(&sem->queue)) {
+        ent = list_take_first(&sem->queue, struct semaphore_wait_entry, next);
+        scheduler_task_wake(ent->task);
+        wake = 1;
+    }
 
     kp(KP_LOCK, "semaphore %p: up: %d, %d\n", sem, sem->count, wake);
 }

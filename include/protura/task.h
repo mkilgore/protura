@@ -209,4 +209,68 @@ static inline int signals_pending(void)
     return t->sig_pending & ~t->sig_blocked;
 }
 
+#define __wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2) \
+    ({ \
+        int ret = 0; \
+        while (1) { \
+            int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
+            \
+            wait_queue_register(queue, &cpu_get_local()->current->wait); \
+            if (is_intr) \
+                scheduler_set_intr_sleeping(); \
+            else \
+                scheduler_set_sleeping(); \
+            \
+            if (condition) \
+                break; \
+            \
+            if (sig_is_pending) { \
+                ret = -ERESTARTSYS; \
+                break; \
+            } \
+            \
+            cmd1; \
+            \
+            scheduler_task_yield(); \
+            \
+            cmd2; \
+        } \
+        wait_queue_unregister_wake(&cpu_get_local()->current->wait); \
+        scheduler_set_running(); \
+        ret; \
+    })
+
+#define wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2) \
+    ({ \
+        int __ret = 0; \
+        if (!(condition)) \
+            __ret = __wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2); \
+        __ret; \
+    })
+
+/*
+ * Wrappers around wait-queue functionality.
+ */
+#define wait_queue_event(queue, condition) \
+    wait_queue_event_generic(queue, condition, 0, 1, 1)
+
+#define wait_queue_event_intr(queue, condition) \
+    wait_queue_event_generic(queue, condition, 1, 1, 1)
+
+#define wait_queue_event_intr_cmd(queue, condition, cmd1, cmd2) \
+    wait_queue_event_generic(queue, condition, 1, cmd1, cmd2)
+
+#define wait_queue_event_spinlock(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 0, spinlock_release(lock), spinlock_acquire(lock))
+
+#define wait_queue_event_intr_spinlock(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 1, spinlock_release(lock), spinlock_acquire(lock))
+
+#define wait_queue_event_mutex(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 0, mutex_unlock(lock), mutex_lock(lock))
+
+#define wait_queue_event_intr_mutex(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 1, mutex_unlock(lock), mutex_lock(lock))
+
+
 #endif

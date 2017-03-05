@@ -62,8 +62,14 @@ static inline void wait_queue_wake_node(struct wait_queue_node *node)
 void wait_queue_register(struct wait_queue *queue, struct wait_queue_node *node)
 {
     using_spinlock(&queue->lock) {
-        list_add_tail(&queue->queue, &node->node);
-        node->queue = queue;
+        if (!list_node_is_in_list(&node->node)) {
+            list_add_tail(&queue->queue, &node->node);
+
+            node->queue = queue;
+            kp(KP_TRACE, "Task %p: Joining Wait queue: %p\n", node->task, node->queue);
+        } else if (node->queue != queue) {
+            panic("Task %p: Attempting to join multiple wait-queues\n", node->task);
+        }
     }
 }
 
@@ -77,9 +83,13 @@ void wait_queue_unregister(struct wait_queue_node *node)
     /* We get the spinlock *before* checking if we're actually in the list,
      * because it's entire possible that we'll be removed from the list while
      * we're doing the check. */
-    using_spinlock(&node->queue->lock)
+    using_spinlock(&node->queue->lock) {
+        kp(KP_TRACE, "Task %p: Leaving Wait queue: %p\n", node->task, node->queue);
         if (list_node_is_in_list(&node->node))
             list_del(&node->node);
+        else
+            kp(KP_TRACE, "Task %p: Queue is set but not is not in list\n", node->task);
+    }
 }
 
 static int __wait_queue_wake(struct wait_queue *queue)

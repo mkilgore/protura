@@ -17,12 +17,15 @@
 #include <arch/task.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
+#include <protura/ktimer.h>
 
 static atomic32_t ticks;
 
 static void timer_callback(struct irq_frame *frame, void *param)
 {
     atomic32_inc(&ticks);
+
+    timer_handle_timers(atomic32_get(&ticks));
 
     if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0)
         cpu_get_local()->reschedule = 1;

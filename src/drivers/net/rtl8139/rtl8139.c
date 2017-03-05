@@ -200,8 +200,6 @@ void rtl_device_init(struct pci_dev *dev)
     rtl_outw(rtl, REG_IMR, REG_IMR_TOK | REG_IMR_ROK);
     rtl_outb(rtl, REG_CR, REG_CR_TE | REG_CR_RE);
 
-    rtl->net.in_addr = 0x05030201;
-
     net_interface_register(&rtl->net);
 
     return ;

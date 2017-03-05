@@ -18,6 +18,8 @@
 #include <protura/fs/procfs.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
+#include <protura/net/proto.h>
+#include <protura/net/linklayer.h>
 #include <protura/net.h>
 
 static struct task *packet_process_task;
@@ -43,9 +45,10 @@ static int packet_process_thread(void *p)
             }
 
             sleep {
-                if (list_empty(&packet_queue))
+                if (list_empty(&packet_queue)) {
                     not_using_spinlock(&packet_queue_lock)
                         scheduler_task_yield();
+                }
             }
         }
     }
@@ -66,6 +69,11 @@ void net_packet_receive(struct packet *packet)
         kp(KP_NORMAL, "Waking packet processor\n");
         scheduler_task_wake(packet_process_task);
     }
+}
+
+void net_packet_transmit(struct packet *packet)
+{
+    packet_linklayer_tx(packet);
 }
 
 void net_packet_queue_init(void)
