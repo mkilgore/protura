@@ -98,8 +98,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    struct task_api_file tmp;
-
     printf("FD TYPE FLAGS  INODE  MAJOR  MINOR   OFFSET     SIZE\n");
 
     for (i = 0; i < NOFILE; i++) {

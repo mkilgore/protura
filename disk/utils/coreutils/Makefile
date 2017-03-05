@@ -24,6 +24,7 @@ COREUTILS_PROGS = \
 	ps \
 	rm \
 	rmdir \
+	route \
 	seq \
 	sh \
 	sort \

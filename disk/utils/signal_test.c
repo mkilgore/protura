@@ -48,14 +48,13 @@ pid_t start_signal_prog(void)
 
 int main(int argc, char **argv)
 {
-    int ret;
     pid_t child;
     struct sigaction action;
 
     memset(&action, 0, sizeof(action));
     action.sa_handler = handle_sig;
 
-    ret = sigaction(SIGUSR1, &action, NULL);
+    sigaction(SIGUSR1, &action, NULL);
 
     memset(&action, 0, sizeof(action));
     action.sa_handler = SIG_IGN;

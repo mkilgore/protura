@@ -45,8 +45,6 @@ static char type;
 static const char *node;
 static int dev_major, dev_minor;
 
-static dev_t device = 0;
-
 int main(int argc, char **argv) {
     enum arg_index ret;
     mode_t extra;

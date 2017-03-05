@@ -44,7 +44,6 @@ const char *tty_dev = NULL;
 int main(int argc, char **argv)
 {
     enum arg_index ret;
-    pid_t p;
     int fd;
 
     while ((ret = arg_parser(argc, argv, args)) != ARG_DONE) {
@@ -75,7 +74,7 @@ int main(int argc, char **argv)
         close(STDERR_FILENO);
     }
 
-    p = setsid();
+    setsid();
 
     if (tty_dev) {
         fd = open(tty_dev, O_RDWR);

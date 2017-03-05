@@ -17,6 +17,7 @@
 
 #define LOGFILE "/tmp/init.log"
 #define INITTAB "/etc/inittab"
+#define RCLOCAL "/etc/rc.local"
 
 FILE *ilog;
 
@@ -25,12 +26,14 @@ char *const env_vars[] = { "PATH=/bin", "HOME=/home", NULL };
 enum tab_action {
     TAB_RESPAWN,
     TAB_ONCE,
+    TAB_WAIT,
 };
 
 struct tab_ent {
     pid_t pid;
 
     unsigned int start :1;
+    unsigned int finished :1;
 
     int level;
 
@@ -54,7 +57,6 @@ static int ilogf(const char *format, ...)
 
     ret = vfprintf(ilog, format, lst);
     fflush(ilog);
-    sync();
 
     va_end(lst);
 
@@ -111,6 +113,7 @@ static void load_tab(const char *tab)
         char *l = line;
         char *next_ptr = NULL;
         struct tab_ent *ent;
+        char *type;
 
         line[len - 1] = '\0';
 
@@ -133,10 +136,14 @@ static void load_tab(const char *tab)
 
         ent->id = strdup(strtok_r(l, ":", &next_ptr));
         ent->level = strtol(strtok_r(NULL, ":", &next_ptr), NULL, 10);
-        if (strcmp(strtok_r(NULL, ":", &next_ptr), "respawn") == 0)
+
+        type = strtok_r(NULL, ":", &next_ptr);
+        if (strcmp(type, "respawn") == 0)
             ent->action = TAB_RESPAWN;
-        else
+        else if (strcmp(type, "once") == 0)
             ent->action = TAB_ONCE;
+        else
+            ent->action = TAB_WAIT;
 
         ilogf("inittab: id: %s, level: %d, action: %d\n", ent->id, ent->level, ent->action);
         ilogf("inittab: next_ptr: %s\n", next_ptr);
@@ -165,6 +172,8 @@ static void handle_children(int sig)
                     break;
 
                 case TAB_ONCE:
+                case TAB_WAIT:
+                    ent->finished = 1;
                     break;
                 }
 
@@ -226,6 +235,19 @@ int main(int argc, char **argv)
     sigprocmask(SIG_BLOCK, &sigset, NULL);
 
     sigemptyset(&sigset);
+
+    for (ent = tab_list; ent; ent = ent->next) {
+        if (ent->action != TAB_WAIT)
+            continue;
+
+        ent->pid = start_prog(ent->args[0], ent->args, env_vars);
+        ent->start = 0;
+
+        ilogf("Init: Running %s\n", ent->args[0]);
+
+        while (!ent->finished)
+            sigsuspend(&sigset);
+    }
 
     while (1) {
         ilogf("Init: Checking for processes to restart\n");

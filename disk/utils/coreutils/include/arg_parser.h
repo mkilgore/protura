@@ -17,7 +17,8 @@ struct arg {
 int arg_parser(int parser_argc, char **parser_argv, const struct arg *args);
 void display_help_text(const char *prog, const char *arg_str, const char *usage, const char *arg_desc_str, const struct arg *args);
 
-extern const char *argarg;
+extern int current_arg;
+extern char *argarg;
 
 #define ARG_ENUM(enu) ARG_##enu,
 
