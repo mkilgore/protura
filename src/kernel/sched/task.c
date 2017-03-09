@@ -199,6 +199,8 @@ struct task *task_fork(struct task *parent)
     if (!new)
         return NULL;
 
+    flag_set(&new->flags, TASK_FLAG_USER_PTR_CHECK);
+
     strcpy(new->name, parent->name);
 
     arch_task_setup_stack_user(new);
@@ -301,5 +303,17 @@ void task_make_zombie(struct task *t)
         scheduler_task_send_signal(t->parent->pid, SIGCHLD, 0);
 
     kp(KP_TRACE, "Task %s(%p): zombie\n", t->name, t);
+}
+
+void task_disable_user_ptr(void)
+{
+    struct task *current = cpu_get_local()->current;
+    flag_clear(&current->flags, TASK_FLAG_USER_PTR_CHECK);
+}
+
+void task_enable_user_ptr(void)
+{
+    struct task *current = cpu_get_local()->current;
+    flag_set(&current->flags, TASK_FLAG_USER_PTR_CHECK);
 }
 

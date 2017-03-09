@@ -162,7 +162,7 @@ int user_check_strn(const void *ptr, size_t size, flags_t vm_flags)
         return 0;
 
     list_foreach_entry(&addrspc->vm_maps, cur, address_space_entry) {
-        if (cur->addr.start <= ptr) {
+        if (cur->addr.start <= ptr && cur->addr.end > ptr) {
             va_t end = (va_t)ptr + size;
             if (end >= cur->addr.end)
                 end = cur->addr.end - 1;
@@ -171,7 +171,7 @@ int user_check_strn(const void *ptr, size_t size, flags_t vm_flags)
                 return -EFAULT;
 
             const char *c;
-            for (c = end; c >= (const char *)ptr; c--)
+            for (c = ptr; c <= (const char *)end; c++)
                 if (*c == '\0')
                     return 0;
 

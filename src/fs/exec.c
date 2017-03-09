@@ -177,11 +177,50 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
     return ret;
 }
 
+static int verify_param_list(const char *const *list)
+{
+    int ret, i = 0;
+
+    kp(KP_NORMAL, "Verify list: %p\n", list);
+    for (i = 0; list[i]; i++) {
+        ret = user_check_region(list + i, sizeof(*list), F(VM_MAP_READ));
+        if (ret)
+            return ret;
+
+        kp(KP_NORMAL, "list[%d]: %p\n", i, list[i]);
+        if (list[i]) {
+            kp(KP_NORMAL, "list[%d]: %s\n", i, list[i]);
+            ret = user_check_strn(list[i], 256, F(VM_MAP_READ));
+            if (ret)
+                return ret;
+        }
+    }
+
+    return 0;
+}
+
 int sys_execve(const char *file, const char *const argv[], const char *const envp[], struct irq_frame *frame)
 {
     struct inode *exe;
     struct task *current = cpu_get_local()->current;
     int ret;
+
+    ret = user_check_strn(file, 256, F(VM_MAP_READ));
+    kp(KP_NORMAL, "strn: %d, file: %p, %s\n", ret, file, file);
+    if (ret)
+        return ret;
+
+    if (argv) {
+        ret = verify_param_list(argv);
+        if (ret)
+            return ret;
+    }
+
+    if (envp) {
+        ret = verify_param_list(envp);
+        if (ret)
+            return ret;
+    }
 
     kp(KP_TRACE, "Executing: %s\n", file);
 
