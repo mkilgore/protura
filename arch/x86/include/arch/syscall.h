@@ -91,6 +91,8 @@
 #define SYSCALL_SEND        0x51
 #define SYSCALL_RECV        0x52
 
+#define SYSCALL_GETTIMEOFDAY 0x60
+
 #ifdef __KERNEL__
 #ifndef ASM
 

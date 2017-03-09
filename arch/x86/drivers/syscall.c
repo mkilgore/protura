@@ -372,6 +372,11 @@ static void sys_handler_recv(struct irq_frame *frame)
     frame->eax = sys_recv(frame->ebx, (void *)frame->ecx, (size_t)frame->edx, frame->esi);
 }
 
+static void sys_handler_gettimeofday(struct irq_frame *frame)
+{
+    frame->eax = sys_gettimeofday((struct timeval *)frame->ebx, (struct timezone *)frame->ecx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -448,6 +453,7 @@ static struct syscall_handler {
     SYSCALL(SHUTDOWN, sys_handler_shutdown),
     SYSCALL(SEND, sys_handler_send),
     SYSCALL(RECV, sys_handler_recv),
+    SYSCALL(GETTIMEOFDAY, sys_handler_gettimeofday),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

@@ -94,3 +94,18 @@ int sys_time(time_t *t)
     return 0;
 }
 
+int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+    int ret;
+    uint32_t tick = timer_get_ticks();
+
+    ret = user_check_region(tv, sizeof(*tv), F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    tv->tv_sec = tick / TIMER_TICKS_PER_SEC;
+    tv->tv_usec = (tick % (TIMER_TICKS_PER_SEC)) * (TIMER_TICKS_PER_SEC / 1000);
+
+    return 0;
+}
+
