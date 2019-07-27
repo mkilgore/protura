@@ -334,8 +334,6 @@ $(objtree)/.%.d: $(objtree)/%.S
 
 install-kernel-headers: | ./disk/root/usr/$(TARGET)/include
 	@echo " CP      include"
-	$(Q)cp -r ./arch/generic/include/* ./disk/root/usr/$(TARGET)/include/
-	@echo " CP      arch/generic/include"
 	$(Q)cp -r ./include/* ./disk/root/usr/$(TARGET)/include/
 	@echo " CP      arch/$(ARCH)/include"
 	$(Q)cp -r ./arch/$(ARCH)/include/* ./disk/root/usr/$(TARGET)/include/
