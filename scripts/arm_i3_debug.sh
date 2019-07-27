@@ -37,22 +37,24 @@ else
     kernel_cmdline="-append \"${@:2}\""
 fi
 
-qemu_line="qemu-system-i386 \
+qemu_line="qemu-system-arm \
+    -m 256 -M raspi2 \
+    -curses \
     -serial file:./qemu.log \
     -serial telnet:127.0.0.1:5346,nowait \
     -monitor telnet:127.0.0.1:5345,nowait \
-    -curses \
     -s \
     -S \
-    -debugcon file:./qemu_debug.log \
     -d cpu_reset \
-    -drive format=raw,file=./disk.img,media=disk,index=0,if=ide \
-    -drive format=raw,file=./disk2.img,media=disk,index=1,if=ide \
-    -net nic,model=rtl8139 \
-    -net nic,model=e1000 \
-    -net tap,ifname=tap0,script=no,downscript=no \
-    -kernel ./imgs/protura_x86_multiboot \
+    -kernel ./imgs/protura_arm_raspi \
     $kernel_cmdline"
+
+#    -debugcon file:./qemu_debug.log \
+#    -drive format=raw,file=./disk.img,media=disk,index=0,if=ide \
+#    -drive format=raw,file=./disk2.img,media=disk,index=1,if=ide \
+#    -net nic,model=rtl8139 \
+#    -net nic,model=e1000 \
+#    -net tap,ifname=tap0,script=no,downscript=no \
 
 urxvt -title qemu-log -e bash -c "stty -icanon -echo; nc -v -l -p 5346 | tee ./com2.log" &
 TERM_PID=$!
