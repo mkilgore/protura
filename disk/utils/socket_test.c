@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <protura/syscall.h>
 #include <protura/net/sockaddr.h>
-#include <protura/net/af/ipv4.h>
+#include <protura/net/ipv4/ipv4.h>
 
 #define QQ(x) #x
 #define Q(x) QQ(x)
