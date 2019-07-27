@@ -22,8 +22,11 @@
 #include <protura/fs/procfs.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
+#include <protura/net/arphrd.h>
 #include <protura/net.h>
 #include <protura/drivers/rtl.h>
+#include <protura/net/arp.h>
+#include <protura/net/linklayer.h>
 #include "internal.h"
 
 /* Defines the functions rtl_outb, rtl_outw, rtl_outl, rtl_inb, etc... */
@@ -42,13 +45,19 @@ static void rtl_handle_rx(struct net_interface_rtl *rtl)
 
         rx_buf = rtl->rx_buffer->virt + rtl->rx_cur_offset;
 
-        packet = packet_new();
+        if (rx_buf->len > 0) {
+            packet = packet_new();
 
-        memcpy(packet->start, rx_buf->packet, rx_buf->len);
-        packet->head = packet->start;
-        packet->tail = packet->head + rx_buf->len;
+            memcpy(packet->start, rx_buf->packet, rx_buf->len);
+            packet->head = packet->start;
+            packet->tail = packet->head + rx_buf->len;
 
-        net_packet_receive(packet);
+            packet->iface_rx = netdev_dup(&rtl->net);
+
+            net_packet_receive(packet);
+        } else {
+            kp(KP_NORMAL, "rtl8139: Recieved empty packet\n");
+        }
 
         /* The header is 4 bytes long, and 3 is used to align the offset to 4-bytes */
         rtl->rx_cur_offset += (rx_buf->len + 4 + 3) & ~3;
@@ -156,10 +165,13 @@ void rtl_device_init(struct pci_dev *dev)
     uint16_t command_reg;
     int int_line;
 
+    net_interface_init(&rtl->net);
+
     spinlock_init(&rtl->tx_lock, "rtl8139-lock");
-    mutex_init(&rtl->net.lock);
     list_head_init(&rtl->tx_packet_queue);
     rtl->net.packet_send = rtl_packet_send;
+    rtl->net.linklayer_tx = packet_linklayer_tx;
+    rtl->net.address_resolve = arp_tx;
 
     kp(KP_NORMAL, "Found RealTek RTL8139 Fast Ethernet: "PRpci_dev"\n", Ppci_dev(dev));
 
@@ -193,6 +205,7 @@ void rtl_device_init(struct pci_dev *dev)
     rtl->net.mac[3] = rtl_inb(rtl, REG_MAC3);
     rtl->net.mac[4] = rtl_inb(rtl, REG_MAC4);
     rtl->net.mac[5] = rtl_inb(rtl, REG_MAC5);
+    rtl->net.hwtype = ARPHRD_ETHER;
 
     rtl_device_init_rx(rtl);
     rtl_device_init_tx(rtl);
@@ -203,36 +216,5 @@ void rtl_device_init(struct pci_dev *dev)
     net_interface_register(&rtl->net);
 
     return ;
-
-    int i;
-    struct packet *packet;
-
-    packet = packet_new();
-    packet_append_data(packet, &(char []) {
-                0x00, 0x01,
-                0x08, 0x00,
-                0x06, 0x04, 0x00, 0x01,
-
-                0x54, 0x52, 0x00, 0x12, 0x34, 0x56,
-                0x01, 0x02, 0x03, 0x05,
-
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0x01, 0x02, 0x03, 0x04,
-                }, 28);
-
-    if (packet_len(packet) + 14 < 60)
-        packet_pad_zero(packet, 60 - (packet_len(packet) + 14));
-
-    packet_add_header(packet, &(char []) {
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0x54, 0x52, 0x00, 0x12, 0x34, 0x56,
-                0x08, 0x06,
-                }, 14);
-
-    for (i = 0; i < 20; i++) {
-        rtl_packet_send(&rtl->net, packet_dup(packet));
-    }
-
-    packet_free(packet);
 }
 
