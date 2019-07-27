@@ -14,12 +14,14 @@
 #include <protura/mm/memlayout.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/vm_area.h>
 #include <protura/fs/block.h>
 #include <protura/fs/char.h>
 #include <protura/fs/file_system.h>
 #include <protura/fs/pipe.h>
 #include <protura/drivers/pci.h>
 #include <protura/net.h>
+#include <protura/work.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/term.h>
@@ -42,15 +44,21 @@
 char kernel_cmdline[2048];
 
 struct sys_init arch_init_systems[] = {
+    { "vm_area", vm_area_allocator_init },
+    { "kwork", kwork_init },
     { "pic8259_timer", pic8259_timer_init },
     { "syscall", syscall_init },
+#ifdef CONFIG_PCI_SUPPORT
     { "pci", pci_init },
+#endif
     { "block-cache", block_cache_init },
     { "block-device", block_dev_init },
     { "char-device", char_dev_init },
     { "file-systems", file_systems_init },
     { "pipe", pipe_init },
+#ifdef CONFIG_NET_SUPPORT
     { "net", net_init },
+#endif
     { NULL, NULL }
 };
 
@@ -69,8 +77,8 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     term_init();
     kp_output_register(term_printfv, "TERM");
 
-    com_init_early();
-    kp_output_register(com1_printfv, "COM1");
+    if (com_init_early() == 0)
+        kp_output_register(com1_printfv, "COM1");
 
     kp(KP_NORMAL, "Protura booting...\n");
 
