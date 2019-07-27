@@ -158,6 +158,10 @@ static void display_hwaddr(struct sockaddr *hwaddr)
         printf("  Ethernet MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
                 ether->sa_mac[0], ether->sa_mac[1], ether->sa_mac[2], ether->sa_mac[3], ether->sa_mac[4], ether->sa_mac[5]);
         break;
+
+    case ARPHRD_LOOPBACK:
+        printf("  loop\n");
+        break;
     }
 }
 
@@ -196,7 +200,16 @@ static void display_flags(int flags)
     if (flags & IFF_UP)
         printf("UP ");
 
+    if (flags & IFF_LOOPBACK)
+        printf("LOOPBACK ");
+
     printf("\n");
+}
+
+static void display_metrics(struct ifmetrics *metrics)
+{
+    printf("  Rx Packets: %-8d Rx Bytes: %lld\n", metrics->rx_packets, metrics->rx_bytes);
+    printf("  Tx Packets: %-8d Tx Bytes: %lld\n", metrics->tx_packets, metrics->tx_bytes);
 }
 
 static void display_iface(struct ifreq *ifreq)
@@ -221,6 +234,10 @@ static void display_iface(struct ifreq *ifreq)
     ret = ioctl(netdev_fd, SIOCGIFHWADDR, ifreq);
     if (!ret)
         display_hwaddr(&ifreq->ifr_hwaddr);
+
+    ret = ioctl(netdev_fd, SIOCGIFMETRICS, ifreq);
+    if (!ret)
+        display_metrics(&ifreq->ifr_metrics);
 
     printf("\n");
 }

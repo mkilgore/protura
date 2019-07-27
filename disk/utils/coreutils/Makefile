@@ -21,6 +21,7 @@ COREUTILS_PROGS = \
 	more \
 	mount \
 	mv \
+	ping \
 	ps \
 	rm \
 	rmdir \
