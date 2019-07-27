@@ -38,6 +38,6 @@ static inline void ktimer_clear(struct ktimer *timer)
 
 void timer_handle_timers(uint64_t tick);
 void timer_add(struct ktimer *timer, uint64_t ms);
-void timer_del(struct ktimer *timer);
+int timer_del(struct ktimer *timer);
 
 #endif

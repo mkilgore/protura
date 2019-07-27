@@ -60,6 +60,10 @@ struct stat {
 #define		S_IWOTH	0000002	/* write permission, other */
 #define		S_IXOTH 0000001/* execute/search permission, other */
 
+#define S_IWRITE S_IWUSR
+#define S_IREAD  S_IRUSR
+#define S_IEXEC  S_IXUSR
+
 #define MODE_TO_DT(mode) (((mode) >> 12) & 15)
 
 #define DT_UNKNOWN 0

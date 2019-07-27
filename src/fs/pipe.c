@@ -549,5 +549,7 @@ void pipe_init(void)
     pipe_fake_super_block.dev = block_dev_anon_get();
     pipe_fake_super_block.bdev = 0;
     pipe_fake_super_block.ops = &pipe_fake_super_block_ops;
+
+    kp(KP_NORMAL, "Pipe dev: %d\n", pipe_fake_super_block.dev);
 }
 

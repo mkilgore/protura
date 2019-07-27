@@ -21,7 +21,7 @@ LD      := $(TARGET)ld
 AS      := $(TARGET)gas
 PERL    := perl -w -Mdiagnostics
 MKDIR   := mkdir
-OBJCOPY := objcopy
+OBJCOPY := $(TARGET)objcopy
 
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
@@ -198,7 +198,7 @@ $(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
 DEP_LIST := $(foreach file,$(REAL_OBJS_y),$(dir $(file)).$(notdir $(file)))
 DEP_LIST := $(DEP_LIST:.o=.d)
 
-ifeq ($(MAKECMDGOALS),kernel)
+ifneq (,$(filter $(MAKECMDGOALS),kernel disk))
 -include $(DEP_LIST)
 endif
 
@@ -214,9 +214,9 @@ REAL_BOOT_TARGETS += $$(_expand)
 
 CLEAN_LIST += $$(OBJS_$(1))
 
-$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1))
+$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(OBJS_EXTRA_$(1))
 	@echo " CCLD    $$@"
-	$$(Q)$$(LD) $$(LDFLAGS_$(1)) -o $$@ $$(OBJS_$(1)) $$<
+	$$(Q)$$(CC) $$(CPPFLAGS) $$(LDFLAGS) $$(LDFLAGS_$(1)) -o $$@ $$(OBJS_$(1)) $$(EXE_OBJ)
 	@echo " OBJCOPY $$@.sym"
 	$$(Q)$$(OBJCOPY) --only-keep-debug $$@ $$@.sym
 	@echo " OBJCOPY $$@"
@@ -332,19 +332,21 @@ $(objtree)/.%.d: $(objtree)/%.S
 	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
 
-install-kernel-headers: | ./disk/root/usr/i686-protura/include
+install-kernel-headers: | ./disk/root/usr/$(TARGET)/include
 	@echo " CP      include"
-	$(Q)cp -r ./include/* ./disk/root/usr/i686-protura/include/
+	$(Q)cp -r ./arch/generic/include/* ./disk/root/usr/$(TARGET)/include/
+	@echo " CP      arch/generic/include"
+	$(Q)cp -r ./include/* ./disk/root/usr/$(TARGET)/include/
 	@echo " CP      arch/$(ARCH)/include"
-	$(Q)cp -r ./arch/$(ARCH)/include/* ./disk/root/usr/i686-protura/include/
+	$(Q)cp -r ./arch/$(ARCH)/include/* ./disk/root/usr/$(TARGET)/include/
 	@echo " LN      include"
-	$(Q)ln -fs ./i686-protura/include ./disk/root/usr/include
+	$(Q)ln -fs ./$(TARGET)/include ./disk/root/usr/include
 	@echo " LN      lib"
-	$(Q)ln -fs ./i686-protura/lib ./disk/root/usr/lib
+	$(Q)ln -fs ./$(TARGET)/lib ./disk/root/usr/lib
 
 clean-kernel-headers:
 	@echo " RMDIR   include/protura"
-	$(Q)rm -fr ./disk/root/usr/i686-protura/include/protura
+	$(Q)rm -fr ./disk/root/usr/$(TARGET)/include/protura
 
 PHONY += cscope
 cscope:

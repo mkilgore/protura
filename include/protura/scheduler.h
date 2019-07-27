@@ -1,11 +1,11 @@
 #ifndef INCLUDE_ARCH_SCHEDULER_H
 #define INCLUDE_ARCH_SCHEDULER_H
 
-#include <arch/drivers/pic8259_timer.h>
 #include <protura/stddef.h>
 #include <protura/task.h>
 #include <protura/list.h>
 #include <protura/queue.h>
+#include <arch/timer.h>
 #include <arch/cpu.h>
 
 pid_t scheduler_next_pid(void);
@@ -134,5 +134,57 @@ void scheduler_task_entry(void);
 #define sleep using_nocheck(scheduler_set_sleeping(), scheduler_set_running())
 #define sleep_intr using_nocheck(scheduler_set_intr_sleeping(), scheduler_set_running())
 
+#define __sleep_event_generic(condition, is_intr, cmd1, cmd2) \
+    ({ \
+        int ret = 0; \
+        while (1) { \
+            int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
+            \
+            if (is_intr) \
+                scheduler_set_intr_sleeping(); \
+            else \
+                scheduler_set_sleeping(); \
+            \
+            if (condition) \
+                break; \
+            \
+            if (sig_is_pending) { \
+                ret = -ERESTARTSYS; \
+                break; \
+            } \
+            \
+            cmd1; \
+            \
+            scheduler_task_yield(); \
+            \
+            cmd2; \
+        } \
+        scheduler_set_running(); \
+        ret; \
+    })
+
+#define sleep_event(condition) \
+    __sleep_event_generic(condition, 0, 1, 1)
+
+#define sleep_intr_event(condition) \
+    __sleep_event_generic(condition, 1, 1, 1)
+
+#define sleep_event_cmd(condition, cmd1, cmd2) \
+    __sleep_event_generic(condition, 0, cmd1, cmd2)
+
+#define sleep_event_intr_cmd(condition, cmd1, cmd2) \
+    __sleep_event_generic(condition, 1, cmd1, cmd2)
+
+#define sleep_event_spinlock(condition, lock) \
+    __sleep_event_generic(condition, 0, spinlock_release(lock), spinlock_acquire(lock))
+
+#define sleep_event_intr_spinlock(condition, lock) \
+    __sleep_event_generic(condition, 1, spinlock_release(lock), spinlock_acquire(lock))
+
+#define sleep_event_mutex(condition, lock) \
+    __sleep_event_generic(condition, 0, mutex_unlock(lock), mutex_lock(lock))
+
+#define sleep_event_intr_mutex(condition, lock) \
+    __sleep_event_generic(condition, 1, mutex_unlock(lock), mutex_lock(lock))
 
 #endif

@@ -1,12 +1,14 @@
 
-objs-y += console.o
-objs-y += screen.o
-objs-y += keyboard.o
-objs-y += com.o
-objs-y += tty.o
+# objs-$(CONFIG_CONSOLE_DRIVER) += console.o
+# objs-$(CONFIG_CONSOLE_DRIVER) += screen.o
+# objs-$(CONFIG_CONSOLE_DRIVER) += keyboard.o
+# 
+# objs-$(CONFIG_TTY_DRIVER) += tty.o
+# 
+# objs-y += mem.o
+# objs-y += mem_zero.o
+# objs-y += mem_full.o
+# objs-y += mem_null.o
 
-objs-y += mem.o
-objs-y += mem_zero.o
-objs-y += mem_full.o
-objs-y += mem_null.o
+subdir-y += serial
 

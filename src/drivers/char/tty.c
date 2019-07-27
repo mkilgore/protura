@@ -372,7 +372,10 @@ struct file_ops tty_file_ops = {
 
 void tty_subsystem_init(void)
 {
+#ifdef CONFIG_CONSOLE_DRIVER
     console_init();
+#endif
     com_tty_init();
+    raspi_uart_tty_init();
 }
 

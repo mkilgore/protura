@@ -23,10 +23,6 @@
 #include <protura/init/init_task.h>
 #include <protura/init/init_basic.h>
 
-#include <protura/net/af/ip_route.h>
-#include <protura/net/af/ipv4.h>
-#include <protura/net.h>
-
 /* Initial user task */
 struct task *task_pid1;
 

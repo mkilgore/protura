@@ -2,6 +2,7 @@
 #define INCLUDE_PROTURA_LIST_H
 
 #include <protura/stddef.h>
+#include <protura/container_of.h>
 
 /* Very similar to the Linux-kernel list.h header (GPLv2) */
 
@@ -76,6 +77,21 @@ static inline void __list_del_entry(list_node_t *entry)
     __list_del(entry->prev, entry->next);
 }
 
+/*
+ * Adds the list 'list_to_add' inbetween prev and next
+ */
+static inline void __list_splice(list_node_t *prev, list_node_t *next, list_head_t *list_to_add)
+{
+    list_node_t *first = list_to_add->next;
+    list_node_t *last = list_to_add->prev;
+
+    first->prev = prev;
+    prev->next = first;
+
+    last->next = next;
+    next->prev = last;
+}
+
 static inline void list_del(list_node_t *entry)
 {
     __list_del_entry(entry);
@@ -88,6 +104,12 @@ static inline void list_replace(list_node_t *new, list_node_t *old)
     new->next->prev = new;
     new->prev = old->prev;
     new->prev->next = new;
+}
+
+static inline void list_replace_init(list_node_t *new, list_node_t *old)
+{
+    list_replace(new, old);
+    list_head_init(old);
 }
 
 static inline void list_move(list_head_t *head, list_node_t *entry)
@@ -124,6 +146,35 @@ static inline void list_rotate_right(list_head_t *head)
     if (!list_empty(head))
         list_move(head, head->prev);
 }
+
+static inline void list_splice(list_head_t *head, list_head_t *old_list)
+{
+    if (!list_empty(old_list))
+        __list_splice(head, head->next, old_list);
+}
+
+static inline void list_splice_tail(list_head_t *head, list_head_t *old_list)
+{
+    if (!list_empty(old_list))
+        __list_splice(head->prev, head, old_list);
+}
+
+static inline void list_splice_init(list_head_t *head, list_head_t *old_list)
+{
+    if (!list_empty(old_list)) {
+        __list_splice(head, head->next, old_list);
+        list_head_init(old_list);
+    }
+}
+
+static inline void list_splice_tail_init(list_head_t *head, list_head_t *old_list)
+{
+    if (!list_empty(old_list)) {
+        __list_splice(head->prev, head, old_list);
+        list_head_init(old_list);
+    }
+}
+
 
 /* Moves 'first', which is already in list 'head', to the position of the first
  * entry in 'head', by rotating the list.

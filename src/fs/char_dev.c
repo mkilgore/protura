@@ -18,6 +18,7 @@
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/screen.h>
 #include <protura/drivers/com.h>
+#include <protura/drivers/raspi_uart.h>
 #include <protura/drivers/tty.h>
 #include <protura/drivers/mem.h>
 #include <protura/fs/file.h>
@@ -30,6 +31,7 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_NONE,
         .fops = NULL,
     },
+#ifdef CONFIG_CONSOLE_DRIVER
     [CHAR_DEV_CONSOLE] = {
         .name = "console",
         .major = CHAR_DEV_CONSOLE,
@@ -40,21 +42,33 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_KEYBOARD,
         .fops = &keyboard_file_ops,
     },
-    [CHAR_DEV_COM] = {
-        .name = "com",
-        .major = CHAR_DEV_COM,
-        .fops = &com_file_ops,
-    },
     [CHAR_DEV_SCREEN] = {
         .name = "screen",
         .major = CHAR_DEV_SCREEN,
         .fops = &screen_file_ops,
     },
+#endif
+#ifdef CONFIG_PC_COM_SERIAL_DRIVER
+    [CHAR_DEV_COM] = {
+        .name = "com",
+        .major = CHAR_DEV_COM,
+        .fops = &com_file_ops,
+    },
+#endif
+#ifdef CONFIG_RASPI_UART_DRIVER
+    [CHAR_DEV_RASPI_UART] = {
+        .name = "rpiuart",
+        .major = CHAR_DEV_RASPI_UART,
+        .fops = &raspi_uart_file_ops,
+    },
+#endif
+#ifdef CONFIG_TTY_DRIVER
     [CHAR_DEV_TTY] = {
         .name = "tty",
         .major = CHAR_DEV_TTY,
         .fops = &tty_file_ops,
     },
+#endif
     [CHAR_DEV_MEM] = {
         .name = "mem",
         .major = CHAR_DEV_MEM,
@@ -77,6 +91,7 @@ struct char_device *char_dev_get(dev_t device)
 void char_dev_init(void)
 {
     com_init();
+    raspi_uart_init();
     tty_subsystem_init();
 }
 

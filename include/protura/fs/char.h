@@ -26,6 +26,7 @@ enum {
     CHAR_DEV_SCREEN = 4,
     CHAR_DEV_TTY = 5,
     CHAR_DEV_MEM = 6,
+    CHAR_DEV_RASPI_UART = 7,
 };
 
 void char_dev_init(void);

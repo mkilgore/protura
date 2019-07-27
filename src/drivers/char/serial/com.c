@@ -296,10 +296,12 @@ void com_init(void)
         com_init_ports();
 }
 
-void com_init_early(void)
+int com_init_early(void)
 {
     com_init_ports();
     com_init_was_early = 1;
+
+    return 0;
 }
 
 struct printf_backbone_com {

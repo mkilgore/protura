@@ -52,6 +52,8 @@ void ext2_inode_setup_ops(struct inode *inode)
     } else if (S_ISFIFO(inode->mode)) {
         inode->default_fops = &fifo_default_file_ops;
         inode->ops = &inode_ops_null;
+    } else {
+        kp(KP_NORMAL, "Uhh found the problem. mode: 0x%04x\n", inode->mode & S_IFMT);
     }
 }
 
