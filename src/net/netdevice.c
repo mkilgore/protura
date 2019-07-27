@@ -69,7 +69,7 @@ static int ifreq_get_hwaddr(struct ifreq *ifreq, struct net_interface *iface)
     struct sockaddr_ether *ether = (struct sockaddr_ether *)&ifreq->ifr_hwaddr;
 
     using_netdev_read(iface) {
-        ether->sa_family = ARPHRD_ETHER;
+        ether->sa_family = iface->hwtype;
         memcpy(ether->sa_mac, iface->mac, 6);
     }
 
@@ -142,8 +142,18 @@ static int ifreq_set_flags(struct ifreq *ifreq, struct net_interface *iface)
 static int ifreq_get_flags(struct ifreq *ifreq, struct net_interface *iface)
 {
     ifreq->ifr_flags = 0;
-    using_netdev_read(iface)
+    using_netdev_read(iface) {
         ifreq->ifr_flags |= flag_test(&iface->flags, NET_IFACE_UP)? IFF_UP: 0;
+        ifreq->ifr_flags |= flag_test(&iface->flags, NET_IFACE_LOOPBACK)? IFF_LOOPBACK: 0;
+    }
+
+    return 0;
+}
+
+static int ifreq_get_metrics(struct ifreq *ifreq, struct net_interface *iface)
+{
+    using_netdev_read(iface)
+        ifreq->ifr_metrics = iface->metrics;
 
     return 0;
 }
@@ -189,6 +199,10 @@ static int ifrequest2(int cmd, struct ifreq *ifreq)
 
     case SIOCSIFFLAGS:
         ret = ifreq_set_flags(ifreq, iface);
+        break;
+
+    case SIOCGIFMETRICS:
+        ret= ifreq_get_metrics(ifreq, iface);
         break;
     }
 
@@ -317,10 +331,13 @@ struct net_interface *netdev_get_hwaddr(uint8_t *mac, size_t len)
     return iface;
 }
 
+static int eth_next = 0;
+
 void net_interface_register(struct net_interface *iface)
 {
     using_mutex(&net_interface_list_lock) {
-        snprintf(iface->netdev_name, sizeof(iface->netdev_name), "%s0", iface->name);
+        if (!iface->netdev_name[0])
+            snprintf(iface->netdev_name, sizeof(iface->netdev_name), "%s%d", iface->name, eth_next++);
         list_add_tail(&net_interface_list, &iface->iface_entry);
     }
 

@@ -4,6 +4,7 @@
 #include <protura/types.h>
 
 void icmp_init(void);
+void icmp_init_delay(void);
 
 struct icmp_socket_private {
     n16 src_port;

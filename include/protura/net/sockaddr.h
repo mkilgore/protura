@@ -34,6 +34,8 @@ typedef __kn16    sa_family_t;
 
 #ifdef __KERNEL__
 
+#define SOCK_MASK 0xFF
+
 #define AF_ARP (AF_MAX + 1)
 
 #endif

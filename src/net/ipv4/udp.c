@@ -41,11 +41,7 @@ struct udp_protocol {
 static struct protocol_ops udp_protocol_ops;
 
 static struct udp_protocol udp_protocol = {
-    .proto = PROTOCOL_INIT(udp_protocol.proto),
-    .proto = {
-        .protocol_id = PROTOCOL_UDP,
-        .ops = &udp_protocol_ops,
-    },
+    .proto = PROTOCOL_INIT(udp_protocol.proto, PROTOCOL_UDP, &udp_protocol_ops),
     .lock = MUTEX_INIT(udp_protocol.lock, "udp-protocol-lock"),
     .next_port = UDP_LOWEST_AUTOBIND_PORT,
 };
@@ -170,30 +166,49 @@ void udp_rx(struct protocol *proto, struct packet *packet)
     }
 }
 
-static int udp_sendto(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
+int udp_tx(struct packet *packet)
 {
     const struct sockaddr_in *in;
     size_t plen;
     struct udp_header *header;
-
-    if (sizeof(*in) > len)
-        return -EFAULT;
-
-    in = (const struct sockaddr_in *)addr;
+    struct socket *sock = packet->sock;
+    struct address_family *af = sock->af;
 
     packet->head -= sizeof(*header);
     header = packet->head;
 
     plen = packet_len(packet);
 
-    header->source_port = sock->proto_private.udp.src_port;
+    in = (struct sockaddr_in *)&packet->src_addr;
+    header->source_port = in->sin_port;
+
+    in = (struct sockaddr_in *)&packet->dest_addr;
     header->dest_port = in->sin_port;
+
     header->length = htons(plen);
     header->checksum = 0;
 
     packet->protocol_type = IPPROTO_UDP;
 
-    return 0;
+    return af->ops->packet_tx(af, packet);
+}
+
+static int udp_sendto(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
+{
+    const struct sockaddr_in *in;
+
+    if (sizeof(*in) > len)
+        return -EFAULT;
+
+    in = (const struct sockaddr_in *)addr;
+
+    sockaddr_in_assign(&packet->dest_addr, in->sin_addr.s_addr, in->sin_port);
+    sockaddr_in_assign(&packet->src_addr, 0, sock->proto_private.udp.src_port);
+
+    packet->sock = socket_dup(sock);
+
+    sock->af->ops->process_sockaddr(sock->af, packet, addr, len);
+    return udp_tx(packet);
 }
 
 static int udp_bind(struct protocol *protocol, struct socket *sock, const struct sockaddr *addr, socklen_t len)
@@ -258,7 +273,6 @@ static int udp_getsockname(struct protocol *protocol, struct socket *sock, struc
     *len = sizeof(*in);
 
     return 0;
-
 }
 
 static struct protocol_ops udp_protocol_ops = {

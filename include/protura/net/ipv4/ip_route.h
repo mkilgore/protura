@@ -24,8 +24,6 @@ struct ip_route_entry {
     n32 dest_ip;
     n32 gateway_ip;
 
-    uint8_t dest_mac[6];
-
     struct net_interface *iface;
 };
 
@@ -43,6 +41,15 @@ void ip_route_add(n32 dest_ip, n32 gateway_ip, n32 netmask, struct net_interface
 int ip_route_del(n32 dest_ip, n32 netmask);
 
 int ip_route_get(n32 dest_ip, struct ip_route_entry *ent);
+
+static inline n32 ip_route_get_ip(struct ip_route_entry *ent)
+{
+    if (flag_test(&ent->flags, IP_ROUTE_GATEWAY))
+        return ent->gateway_ip;
+    else
+        return ent->dest_ip;
+}
+
 void ip_route_clear(struct ip_route_entry *entry);
 
 #endif

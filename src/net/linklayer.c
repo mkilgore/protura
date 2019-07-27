@@ -15,7 +15,7 @@
 #include <protura/snprintf.h>
 #include <protura/list.h>
 
-#include <protura/net/af/ipv4.h>
+#include <protura/net/ipv4/ipv4.h>
 #include <protura/net.h>
 #include <protura/net/arphrd.h>
 #include <protura/net/arp.h>
@@ -37,6 +37,11 @@ static struct ether ether;
 void packet_linklayer_rx(struct packet *packet)
 {
     struct ether_header *ehead;
+
+    using_netdev_write(packet->iface_rx) {
+        packet->iface_rx->metrics.rx_packets++;
+        packet->iface_rx->metrics.rx_bytes += packet_len(packet);
+    }
 
     ehead = packet->head;
     packet->ll_head = ehead;
@@ -64,7 +69,7 @@ void packet_linklayer_rx(struct packet *packet)
 /*
  * Only support ethernet right now...
  */
-void packet_linklayer_tx(struct packet *packet)
+int packet_linklayer_tx(struct packet *packet)
 {
     struct ether_header ehead;
     memcpy(ehead.mac_dest, packet->dest_mac, sizeof(ehead.mac_dest));
@@ -78,10 +83,18 @@ void packet_linklayer_tx(struct packet *packet)
 
     packet_add_header(packet, &ehead, sizeof(ehead));
 
-    if (flag_test(&packet->iface_tx->flags, NET_IFACE_UP))
+    if (flag_test(&packet->iface_tx->flags, NET_IFACE_UP)) {
+        using_netdev_write(packet->iface_tx) {
+            packet->iface_tx->metrics.tx_packets++;
+            packet->iface_tx->metrics.tx_bytes += packet_len(packet);
+        }
+
         (packet->iface_tx->packet_send) (packet->iface_tx, packet);
-    else
+    } else {
         packet_free(packet);
+    }
+
+    return 0;
 }
 
 void linklayer_setup(void)

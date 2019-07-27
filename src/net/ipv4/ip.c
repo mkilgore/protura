@@ -16,33 +16,15 @@
 #include <protura/list.h>
 #include <arch/asm.h>
 
-#include <protura/net/udp.h>
 #include <protura/net/socket.h>
 #include <protura/net/proto.h>
 #include <protura/net/netdevice.h>
 #include <protura/net/arphrd.h>
-#include <protura/net/af/ipv4.h>
-#include <protura/net/af/ip_route.h>
+#include <protura/net/ipv4/ipv4.h>
+#include <protura/net/ipv4/ip_route.h>
+#include <protura/net/linklayer.h>
 #include <protura/net.h>
 #include "ipv4.h"
-
-struct ip_header {
-    uint8_t ihl :4;
-    uint8_t version :4;
-
-    uint8_t tos;
-
-    uint16_t total_length;
-
-    uint16_t id;
-
-    uint16_t frag_off;
-    uint8_t ttl;
-    uint8_t protocol;
-    uint16_t csum;
-    uint32_t source_ip;
-    uint32_t dest_ip;
-} __packed;
 
 struct ip_private {
     in_addr_t bind_addr;
@@ -61,11 +43,7 @@ struct address_family_ip {
 static struct address_family_ops ip_address_family_ops;
 
 static struct address_family_ip ip_address_family = {
-    .af = ADDRESS_FAMILY_INIT(ip_address_family.af),
-    .af = {
-        .af_type = AF_INET,
-        .ops = &ip_address_family_ops,
-    },
+    .af = ADDRESS_FAMILY_INIT(ip_address_family.af, AF_INET, &ip_address_family_ops),
     .lock = MUTEX_INIT(ip_address_family.lock, "ip-address-family-lock"),
 };
 
@@ -91,11 +69,11 @@ in_addr_t inet_addr(const char *ip)
 static uint16_t ip_chksum(struct ip_header *header)
 {
     uint16_t *head = (uint16_t *)header;
-    int len = header->ihl * 2;
+    int len = header->ihl * 4;
     int i;
     uint32_t sum = 0;
 
-    for (i = 0; i < len; i++)
+    for (i = 0; i < len / 2; i++)
         sum += head[i];
 
     while (sum & 0xFFFF0000)
@@ -112,12 +90,18 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
     struct ip_header *header = packet->head;
     struct sockaddr_in *in;
     struct socket *socket;
+    struct protocol *proto = NULL;
 
+    packet->af_head = packet->head;
     packet->head += header->ihl * 4;
+    packet->tail = packet->head + ntohs(header->total_length) - header->ihl * 4;
 
     kp(KP_NORMAL, "IP packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(header->source_ip), Pin_addr(header->dest_ip));
     kp(KP_NORMAL, "  Version: %d, HL: %d, %d bytes\n", header->version, header->ihl, header->ihl * 4);
-    kp(KP_NORMAL, "  Protocol: 0x%04x, ID: 0x%04x, Len: 0x%04x\n", ntohs(header->protocol), ntohs(header->id), ntohs(header->total_length) - header->ihl * 4);
+    kp(KP_NORMAL, "  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", header->protocol, ntohs(header->id), ntohs(header->total_length) - header->ihl * 4);
+    kp(KP_NORMAL, "  Checksum:   0x%04x\n", header->csum);
+    header->csum = 0;
+    kp(KP_NORMAL, "  Calculated: 0x%04x\n", ip_chksum(header));
 
     in = (struct sockaddr_in *)&packet->src_addr;
 
@@ -127,7 +111,8 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
 
     using_mutex(&af->lock) {
         list_foreach_entry(&af->raw_sockets[header->protocol], socket, socket_entry) {
-            struct packet *dup_packet = packet_dup(packet);
+            kp(KP_NORMAL, "Sending copy to RAW Socket\n");
+            struct packet *dup_packet = packet_copy(packet);
 
             using_mutex(&socket->recv_lock) {
                 list_add_tail(&socket->recv_queue, &dup_packet->packet_entry);
@@ -136,15 +121,20 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
         }
 
         if (af->protos[header->protocol])
-            (af->protos[header->protocol]->ops->packet_rx) (af->protos[header->protocol], packet);
-        else
-            packet_free(packet);
+            proto = af->protos[header->protocol];
     }
+
+    if (proto)
+        (proto->ops->packet_rx) (proto, packet);
+    else
+        packet_free(packet);
 }
 
-static void ip_build_header(struct address_family *af, struct packet *packet, struct ip_route_entry *ip)
+int ip_tx(struct address_family *afamily, struct packet *packet)
 {
+    struct ip_route_entry route;
     struct ip_header *header;
+    struct sockaddr_in *in = (struct sockaddr_in *)&packet->dest_addr;
     size_t data_len;
 
     data_len = packet_len(packet);
@@ -163,25 +153,29 @@ static void ip_build_header(struct address_family *af, struct packet *packet, st
     header->protocol = packet->protocol_type;
     header->total_length = htons(data_len + sizeof(*header));
 
-    using_netdev_read(ip->iface)
-        header->source_ip = ip->iface->in_addr;
+    int ret = ip_route_get(in->sin_addr.s_addr, &route);
+    if (ret)
+        return -EACCES;
 
-    if (ip->flags & IP_ROUTE_GATEWAY)
-        header->dest_ip = ip->gateway_ip;
-    else
-        header->dest_ip = ip->dest_ip;
+    packet->iface_tx = route.iface;
+    packet->ll_type = htons(ETH_P_IP);
 
+    using_netdev_read(route.iface)
+        header->source_ip = route.iface->in_addr;
+
+    packet->route_addr = ip_route_get_ip(&route);
+
+    header->dest_ip = in->sin_addr.s_addr;
     header->csum = 0;
     header->csum = ip_chksum(header);
 
-    kp(KP_NORMAL, "Ip route: "PRin_addr", len: %d, csum: 0x%04x\n", Pin_addr(ip->gateway_ip), data_len, header->csum);
+    kp(KP_NORMAL, "Ip route: "PRin_addr", len: %d, csum: 0x%04x\n", Pin_addr(packet->route_addr), data_len, header->csum);
+
+    return (packet->iface_tx->address_resolve) (packet);
 }
 
-static int ip_sendto(struct address_family *af, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
+static int ip_process_sockaddr(struct address_family *afamily, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
-    struct ip_route_entry route;
-
-
     if (addr) {
         const struct sockaddr_in *in;
 
@@ -190,25 +184,25 @@ static int ip_sendto(struct address_family *af, struct socket *sock, struct pack
 
         in = (const struct sockaddr_in *)addr;
 
-        int ret = ip_route_get(in->sin_addr.s_addr, &route);
-        if (ret)
-            return -EACCES;
-    } else if (flag_test(&sock->flags, SOCKET_IS_BOUND)) {
-        int ret = ip_route_get(sock->af_private.ipv4.bind_addr, &route);
-        if (ret)
-            return -EACCES;
+        sockaddr_in_assign_addr(&packet->dest_addr, in->sin_addr.s_addr);
+    } else if (flag_test(&packet->sock->flags, SOCKET_IS_BOUND)) {
+        sockaddr_in_assign_addr(&packet->dest_addr, packet->sock->af_private.ipv4.bind_addr);
     } else {
         return -EDESTADDRREQ;
     }
 
-    ip_build_header(af, packet, &route);
-    packet->ll_type = htons(ETH_P_IP);
-    memcpy(packet->dest_mac, route.dest_mac, 6);
-    packet->iface_tx = netdev_dup(route.iface);
-
-    ip_route_clear(&route);
-
     return 0;
+}
+
+static int ip_sendto(struct address_family *af, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
+{
+    const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
+
+    kp(KP_NORMAL, "IP_Sendto: Sock: %p, Packet: %p, Dest: "PRin_addr"\n", sock, packet, Pin_addr(in->sin_addr.s_addr));
+
+    ip_process_sockaddr(af, packet, addr, len);
+
+    return ip_tx(af, packet);
 }
 
 static int ip_create(struct address_family *family, struct socket *socket)
@@ -217,6 +211,7 @@ static int ip_create(struct address_family *family, struct socket *socket)
 
     if (socket->sock_type == SOCK_DGRAM
         && (socket->protocol == 0 || socket->protocol == IPPROTO_UDP)) {
+        kp(KP_NORMAL, "Looking up UDP protocol\n");
         socket->proto = protocol_lookup(PROTOCOL_UDP);
     } else if (socket->sock_type == SOCK_RAW) {
         if (socket->protocol > 255 || socket->protocol < 0)
@@ -234,6 +229,14 @@ static int ip_create(struct address_family *family, struct socket *socket)
 
 static int ip_delete(struct address_family *family, struct socket *socket)
 {
+    struct address_family_ip *ip = (struct address_family_ip *)family;
+
+    if (socket->sock_type == SOCK_RAW) {
+        using_mutex(&ip->lock) {
+            list_del(&socket->socket_entry);
+        }
+    }
+
     return 0;
 }
 
@@ -243,6 +246,8 @@ static void ip_setup(struct address_family *fam)
 
     using_mutex(&ip->lock) {
         ip->protos[IPPROTO_UDP] = protocol_lookup(PROTOCOL_UDP);
+        ip->protos[IPPROTO_TCP] = protocol_lookup(PROTOCOL_TCP);
+        ip->protos[IPPROTO_ICMP] = protocol_lookup(PROTOCOL_ICMP);
     }
 }
 
@@ -281,10 +286,12 @@ static int ip_getsockname(struct address_family *family, struct socket *sock, st
 static struct address_family_ops ip_address_family_ops = {
     .setup_af = ip_setup,
     .packet_rx = ip_rx,
+    .packet_tx = ip_tx,
     .create = ip_create,
     .delete = ip_delete,
     .sendto = ip_sendto,
 
+    .process_sockaddr = ip_process_sockaddr,
     .bind = ip_bind,
     .autobind = ip_autobind,
     .getsockname = ip_getsockname,

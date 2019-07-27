@@ -63,7 +63,7 @@ void net_packet_receive(struct packet *packet)
         packet_queue_length++;
     }
 
-    kp(KP_NORMAL, "Queued packet\n");
+    kp(KP_NORMAL, "Queued packet, length: %d\n", packet_len(packet));
 
     if (packet_process_task) {
         kp(KP_NORMAL, "Waking packet processor\n");

@@ -1,3 +1,0 @@
-
-subdir-y += ipv4
-

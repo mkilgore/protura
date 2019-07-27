@@ -56,7 +56,8 @@ struct arp_entry {
 
     unsigned int waiting_for_response :1;
     unsigned int does_not_exist :1;
-    struct wait_queue packet_wait_queue;
+
+    list_head_t packet_queue;
 };
 
 /*
@@ -75,8 +76,8 @@ static void arp_entry_init(struct arp_entry *entry)
     list_node_init(&entry->cache_entry);
     ktimer_init(&entry->timeout_timer);
     spinlock_init(&entry->lock, "arp-entry-lock");
-    wait_queue_init(&entry->packet_wait_queue);
     atomic_inc(&entry->refs);
+    list_head_init(&entry->packet_queue);
 }
 
 static void arp_send_response(in_addr_t dest, uint8_t *dest_mac, struct net_interface *iface)
@@ -147,19 +148,41 @@ static void arp_timeout_handler(struct ktimer *timer)
 {
     struct arp_entry *entry = container_of(timer, struct arp_entry, timeout_timer);
 
+    kp(KP_NORMAL, "ARP Timeout\n");
+
     using_spinlock(&entry->lock) {
         if (entry->waiting_for_response) {
             entry->waiting_for_response = 0;
             entry->does_not_exist = 1;
-            wait_queue_wake_all(&entry->packet_wait_queue);
+            struct packet *packet;
+
+            list_foreach_take_entry(&entry->packet_queue, packet, packet_entry)
+                packet_free(packet);
         }
     }
+}
+
+static void arp_process_packet_queue(struct arp_entry *entry)
+{
+    struct packet *packet;
+
+    list_foreach_entry(&entry->packet_queue, packet, packet_entry)
+        memcpy(packet->dest_mac, entry->mac, 6);
+}
+
+static void arp_process_packet_list(list_head_t *packet_list)
+{
+    struct packet *packet;
+
+    list_foreach_take_entry(packet_list, packet, packet_entry)
+        (packet->iface_tx->linklayer_tx) (packet);
 }
 
 static void arp_handle_packet(struct address_family *af, struct packet *packet)
 {
     struct arp_header *arp_head;
     struct net_interface *iface;
+    list_head_t packets_to_process = LIST_HEAD_INIT(packets_to_process);
 
     arp_head = packet->head;
 
@@ -182,7 +205,10 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
                         entry->waiting_for_response = 0;
                         entry->does_not_exist = 0;
 
-                        wait_queue_wake_all(&entry->packet_wait_queue);
+                        arp_process_packet_queue(entry);
+
+                        /* Move the list to our local list_head_t for processing outside the lock */
+                        list_replace_init(&packets_to_process, &entry->packet_queue);
                         break;
                     }
                 }
@@ -201,70 +227,72 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
         break;
     }
 
+    arp_process_packet_list(&packets_to_process);
+
     packet_free(packet);
 }
 
-static int __arp_wait_for_mac(struct arp_entry *entry, uint8_t *mac)
-{
-    int ret;
-
-    wait_queue_event_spinlock(&entry->packet_wait_queue, !entry->waiting_for_response, &entry->lock);
-
-    ret = entry->does_not_exist;
-    if (!entry->does_not_exist)
-        memcpy(mac, entry->mac, 6);
-
-    return ret;
-}
-
-int arp_ipv4_to_mac(in_addr_t inet_addr, uint8_t *mac, struct net_interface *iface)
+int arp_tx(struct packet *packet)
 {
     struct arp_entry *entry;
-    int ret = 0, found = 0;
+    int found = 0;
+    in_addr_t addr = packet->route_addr;
 
     using_mutex(&arp_cache_lock) {
         list_foreach_entry(&arp_cache, entry, cache_entry) {
-            if (entry->addr == inet_addr) {
+            if (entry->addr == addr) {
                 kp(KP_NORMAL, "Found ARP entry.\n");
-                //ret = __arp_wait_for_mac(entry, mac);
-                atomic_inc(&entry->refs);
                 found = 1;
                 break;
+
             }
         }
 
-    }
-    if (found) {
-        ret = __arp_wait_for_mac(entry, mac);
-        atomic_dec(&entry->refs);
-    } else {
-        /* No entry, create a new one */
-        kp(KP_NORMAL, "Creating new arp_entry: %d\n", arp_cache_length);
-        entry = kmalloc(sizeof(*entry), PAL_KERNEL);
-        arp_entry_init(entry);
+        if (found) {
+            scoped_spinlock(&entry->lock) {
+                if (entry->waiting_for_response) {
+                    list_add_tail(&entry->packet_queue, &packet->packet_entry);
+                    return 0;
+                }
 
-        entry->timeout_timer.callback = arp_timeout_handler;
+                if (entry->does_not_exist) {
+                    packet_free(packet);
+                    return -1;
+                } else {
+                    memcpy(packet->dest_mac, entry->mac, 6);
+                }
+            }
 
-        entry->addr = inet_addr;
-        entry->iface = iface;
-        entry->waiting_for_response = 1;
+            goto pass_on_packet;
+        } else {
+            /* No entry, create a new one */
+            kp(KP_NORMAL, "Creating new arp_entry: %d\n", arp_cache_length);
+            entry = kmalloc(sizeof(*entry), PAL_KERNEL);
+            arp_entry_init(entry);
 
-        using_mutex(&arp_cache_lock) {
+            entry->timeout_timer.callback = arp_timeout_handler;
+
+            entry->addr = addr;
+            entry->iface = packet->iface_tx;
+            entry->waiting_for_response = 1;
+
+            list_add_tail(&entry->packet_queue, &packet->packet_entry);
+
             list_add_tail(&arp_cache, &entry->cache_entry);
             arp_cache_length++;
         }
-
-        kp(KP_NORMAL, "Sending ARP request for: "PRin_addr"\n", Pin_addr(inet_addr));
-        arp_send_request(inet_addr, iface);
-        kp(KP_NORMAL, "Waiting for ARP response.\n");
-
-        timer_add(&entry->timeout_timer, ARP_MAX_RESPONSE_TIME);
-
-        using_spinlock(&entry->lock)
-            ret = __arp_wait_for_mac(entry, mac);
     }
 
-    return ret;
+    kp(KP_NORMAL, "Sending ARP request for: "PRin_addr"\n", Pin_addr(addr));
+    arp_send_request(addr, packet->iface_tx);
+    kp(KP_NORMAL, "Waiting for ARP response.\n");
+
+    timer_add(&entry->timeout_timer, ARP_MAX_RESPONSE_TIME);
+
+    return 0;
+
+  pass_on_packet:
+    return (packet->iface_tx->linklayer_tx) (packet);
 }
 
 static void arp_setup_af(struct address_family *af)
@@ -282,11 +310,7 @@ static struct address_family_ops arp_ops = {
 };
 
 static struct address_family_arp address_family_arp = {
-    .af = ADDRESS_FAMILY_INIT(address_family_arp.af),
-    .af = {
-        .af_type = AF_ARP,
-        .ops = &arp_ops,
-    },
+    .af = ADDRESS_FAMILY_INIT(address_family_arp.af, AF_ARP, &arp_ops),
 };
 
 void arp_init(void)

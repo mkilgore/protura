@@ -19,8 +19,8 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/inode_table.h>
 #include <protura/fs/vfs.h>
-#include <protura/net/af/ip_route.h>
-#include <protura/net/af/ipv4.h>
+#include <protura/net/ipv4/ip_route.h>
+#include <protura/net/ipv4/ipv4.h>
 #include <protura/net/linklayer.h>
 #include <protura/net/socket.h>
 #include <protura/net/sys.h>
@@ -63,13 +63,7 @@ static int socket_release(struct file *filp)
     inode = container_of(filp->inode, struct inode_socket, i);
     socket = inode->socket;
 
-    if (flag_test(&socket->flags, SOCKET_IS_CLOSED))
-        return 0;
-
-    (socket->af->ops->delete) (socket->af, socket);
-    (socket->proto->ops->delete) (socket->proto, socket);
-
-    flag_set(&socket->flags, SOCKET_IS_CLOSED);
+    socket_shutdown(socket, SHUT_RDWR);
 
     return 0;
 }

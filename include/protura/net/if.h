@@ -21,6 +21,15 @@
 #define SIOCGIFFLAGS 0x8909
 #define SIOCSIFFLAGS 0x890A
 
+#define SIOCGIFMETRICS 0x890B
+
+struct ifmetrics {
+    __kuint32_t rx_packets;
+    __kuint32_t tx_packets;
+    __kuint64_t rx_bytes;
+    __kuint64_t tx_bytes;
+};
+
 struct ifreq {
     char ifr_name[IFNAMSIZ];
     union {
@@ -29,10 +38,13 @@ struct ifreq {
         struct sockaddr ifr_netmask;
         int ifr_flags;
         int ifr_index;
+
+        struct ifmetrics ifr_metrics;
     };
 };
 
 #define IFF_UP 0x0001
+#define IFF_LOOPBACK 0x0002
 
 #ifdef __KERNEL__
 # include <protura/fs/procfs.h>

@@ -5,6 +5,7 @@
 #define ETH_P_IP  0x0800
 
 #define ARPHRD_ETHER 1
+#define ARPHRD_LOOPBACK 772
 
 #define	ARPOP_REQUEST 1
 #define	ARPOP_REPLY   2

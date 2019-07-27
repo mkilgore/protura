@@ -19,6 +19,7 @@ struct sockaddr_in {
 
 #define IPPROTO_IP   0
 #define IPPROTO_ICMP 1
+#define IPPROTO_TCP  6
 #define IPPROTO_UDP  17
 #define IPOROTO_RAW  255
 #define IPOROTO_MAX  256
@@ -42,6 +43,7 @@ in_addr_t inet_addr(const char *ip);
 
 struct ipv4_socket_private {
     in_addr_t bind_addr;
+    in_addr_t dest_addr;
 };
 
 static inline void sockaddr_in_assign(struct sockaddr *sock, in_addr_t addr, in_port_t port)
@@ -49,6 +51,18 @@ static inline void sockaddr_in_assign(struct sockaddr *sock, in_addr_t addr, in_
     struct sockaddr_in *in = (struct sockaddr_in *)sock;
     in->sin_family = AF_INET;
     in->sin_addr.s_addr = addr;
+    in->sin_port = port;
+}
+
+static inline void sockaddr_in_assign_addr(struct sockaddr *sock, in_addr_t addr)
+{
+    struct sockaddr_in *in = (struct sockaddr_in *)sock;
+    in->sin_addr.s_addr = addr;
+}
+
+static inline void sockaddr_in_assign_port(struct sockaddr *sock, in_port_t port)
+{
+    struct sockaddr_in *in = (struct sockaddr_in *)sock;
     in->sin_port = port;
 }
 

@@ -1,3 +1,0 @@
-
-objs-y += udp.o
-

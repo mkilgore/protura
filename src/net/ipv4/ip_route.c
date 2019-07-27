@@ -19,8 +19,8 @@
 #include <protura/net/route.h>
 #include <protura/net.h>
 #include <protura/net/arp.h>
-#include <protura/net/af/ipv4.h>
-#include <protura/net/af/ip_route.h>
+#include <protura/net/ipv4/ipv4.h>
+#include <protura/net/ipv4/ip_route.h>
 
 struct ip_forward_route {
     list_node_t route_entry;
@@ -148,23 +148,12 @@ int ip_route_get(n32 dest_ip, struct ip_route_entry *ret)
         }
 
         if (found) {
-            uint8_t mac[6];
-            int check;
+            ip_route_entry_init(ret);
 
-            if (flag_test(&found->flags, IP_ROUTE_GATEWAY))
-                check = arp_ipv4_to_mac(found->gateway_ip, mac, found->iface);
-            else
-                check = arp_ipv4_to_mac(dest_ip, mac, found->iface);
-
-            if (!check) {
-                ip_route_entry_init(ret);
-
-                ret->flags = found->flags;
-                ret->dest_ip = dest_ip;
-                ret->gateway_ip = found->gateway_ip;
-                ret->iface = netdev_dup(found->iface);
-                memcpy(ret->dest_mac, mac, 6);
-            }
+            ret->flags = found->flags;
+            ret->dest_ip = dest_ip;
+            ret->gateway_ip = found->gateway_ip;
+            ret->iface = netdev_dup(found->iface);
         }
     }
 
