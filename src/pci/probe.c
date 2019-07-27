@@ -16,6 +16,7 @@
 
 #include <protura/fs/procfs.h>
 #include <protura/drivers/ide.h>
+#include <protura/drivers/e1000.h>
 #include <protura/drivers/rtl.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
@@ -35,6 +36,14 @@ static const struct pci_driver pci_drivers[] = {
         .vendor = PCI_VENDOR_ID_REALTEK,
         .device = PCI_DEVICE_ID_RTL8139_NET,
         .device_init = rtl_device_init,
+    },
+#endif
+#ifdef CONFIG_NET_E1000_DRIVER
+    {
+        .name = "Intel E1000 Fast Ethernet",
+        .vendor = PCI_VENDOR_ID_INTEL,
+        .device = PCI_DEVICE_ID_E1000_NET,
+        .device_init = e1000_device_init,
     },
 #endif
     {

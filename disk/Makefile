@@ -13,8 +13,8 @@ endef
 $(eval $(call dir_rule,disk/root,))
 $(eval $(call dir_rule,disk/root/bin,disk/root))
 $(eval $(call dir_rule,disk/root/usr,disk/root))
-$(eval $(call dir_rule,disk/root/usr/i686-protura,disk/root/usr))
-$(eval $(call dir_rule,disk/root/usr/i686-protura/include,disk/root/usr/i686-protura))
+$(eval $(call dir_rule,disk/root/usr/$(TARGET),disk/root/usr))
+$(eval $(call dir_rule,disk/root/usr/$(TARGET)/include,disk/root/usr/$(TARGET)))
 
 PHONY += disk clean-disk
 disk: disk.img disk2.img
@@ -29,9 +29,9 @@ clean-disk:
 
 PHONY += toolchain clean-toolchain
 toolchain: | ./disk/root ./disk/root/usr
-	$(Q)git submodule update --init --depth 1
-	$(Q)cd ./disk/toolchain; git submodule update --init --depth 1
-	$(Q)cd ./disk/toolchain; ./build_toolchain.sh $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
+	#$(Q)git submodule update --init --depth 1
+	#$(Q)cd ./disk/toolchain; git submodule update --init --depth 1
+	$(Q)cd ./disk/toolchain; ./build_toolchain.sh $(TARGET) $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
 
 clean-toolchain:
 	@echo " RM      ./disk/root"
@@ -41,13 +41,15 @@ clean-toolchain:
 
 PHONY += rebuild-newlib
 rebuild-newlib:
-	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
+	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(TARGET) $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
 
 .SECONDARY: $(DISK_UTIL_OBJS)
 
 DISK_PROGS += $(DISK_UTIL_PROGS)
 
-disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gendisk.sh
+DISK_EXTRA_FILES := $(wildcard ./disk/etc/*) $(wildcard ./disk/home/*)
+
+disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gendisk.sh $(DISK_EXTRA_FILES)
 	@echo " GENDISK $@"
 	$(Q)sudo ./scripts/gendisk.sh
 
