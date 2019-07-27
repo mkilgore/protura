@@ -11,17 +11,17 @@ BITS   := 32
 PROTURA_DIR := $(PWD)
 
 # TARGET := i686-elf-
-TARGET := i686-protura-
+TARGET := i686-protura
 TOOLCHAIN_DIR := $(PROTURA_DIR)/toolchain
 
 # Compiler settings
-CC      := $(TARGET)gcc
-CPP     := $(TARGET)gcc -E
-LD      := $(TARGET)ld
-AS      := $(TARGET)gas
+CC      := $(TARGET)-gcc
+CPP     := $(TARGET)-gcc -E
+LD      := $(TARGET)-ld
+AS      := $(TARGET)-gas
 PERL    := perl -w -Mdiagnostics
 MKDIR   := mkdir
-OBJCOPY := $(TARGET)objcopy
+OBJCOPY := $(TARGET)-objcopy
 
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
