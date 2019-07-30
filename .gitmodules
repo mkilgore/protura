@@ -1,7 +1,7 @@
 [submodule "disk/toolchain"]
 	path = disk/toolchain
-	url = https://github.com/DSMan195276/protura-toolchain
+	url = https://github.com/mkilgore/protura-toolchain
 [submodule "disk/utils/protura-ed"]
 	path = disk/utils/protura-ed
-	url = https://github.com/DSMan195276/protura-ed
+	url = https://github.com/mkilgore/protura-ed
 	branch = master
