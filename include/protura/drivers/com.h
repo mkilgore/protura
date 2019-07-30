@@ -11,15 +11,28 @@
 #include <protura/types.h>
 #include <protura/fs/char.h>
 
+#ifdef CONFIG_PC_COM_SERIAL_DRIVER
 void com_init(void);
 void com_tty_init(void);
 
-extern struct file_ops com_file_ops;
-
-void com_init_early(void);
+int com_init_early(void);
 
 void com1_printfv(const char *fmt, va_list lst);
 void com2_printfv(const char *fmt, va_list lst);
+
+extern struct file_ops com_file_ops;
+#else
+static inline void com_init(void) { }
+static inline void com_tty_init(void) { }
+
+static inline int com_init_early(void)
+{
+    return -ENOTSUP;
+}
+
+static inline void com1_printfv(const char *fmt, va_list lst) { }
+static inline void com2_printfv(const char *fmt, va_list lst) { }
+#endif
 
 /*
  * Below definitions copied from Linux kernel source code: ./include/linux/serial.h

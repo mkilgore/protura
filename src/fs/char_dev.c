@@ -30,6 +30,7 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_NONE,
         .fops = NULL,
     },
+#ifdef CONFIG_CONSOLE_DRIVER
     [CHAR_DEV_CONSOLE] = {
         .name = "console",
         .major = CHAR_DEV_CONSOLE,
@@ -40,21 +41,26 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_KEYBOARD,
         .fops = &keyboard_file_ops,
     },
-    [CHAR_DEV_COM] = {
-        .name = "com",
-        .major = CHAR_DEV_COM,
-        .fops = &com_file_ops,
-    },
     [CHAR_DEV_SCREEN] = {
         .name = "screen",
         .major = CHAR_DEV_SCREEN,
         .fops = &screen_file_ops,
     },
+#endif
+#ifdef CONFIG_PC_COM_SERIAL_DRIVER
+    [CHAR_DEV_COM] = {
+        .name = "com",
+        .major = CHAR_DEV_COM,
+        .fops = &com_file_ops,
+    },
+#endif
+#ifdef CONFIG_TTY_DRIVER
     [CHAR_DEV_TTY] = {
         .name = "tty",
         .major = CHAR_DEV_TTY,
         .fops = &tty_file_ops,
     },
+#endif
     [CHAR_DEV_MEM] = {
         .name = "mem",
         .major = CHAR_DEV_MEM,

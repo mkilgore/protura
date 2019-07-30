@@ -95,6 +95,7 @@ struct net_interface_e1000 {
     struct net_interface net;
 
     io_t io_base;
+    void *mem_base;
     char mac[6];
     struct task *recv_helper;
     struct pci_dev dev;

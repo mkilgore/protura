@@ -91,6 +91,7 @@ void output_file(int in, const char *filename, int out) {
           break;
 
       if (sz == -1) {
+          //printf("read error\n");
           perror(filename);
           return ;
       }

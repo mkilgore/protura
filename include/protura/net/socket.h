@@ -4,8 +4,9 @@
 #include <protura/fs/inode.h>
 #include <protura/hlist.h>
 #include <protura/net/sockaddr.h>
-#include <protura/net/af/ipv4.h>
-#include <protura/net/proto/udp.h>
+#include <protura/net/ipv4/ipv4.h>
+#include <protura/net/ipv4/udp.h>
+#include <protura/net/ipv4/tcp.h>
 
 struct packet;
 struct address_family;
@@ -38,6 +39,7 @@ struct socket {
 
     union {
         struct udp_socket_private udp;
+        struct tcp_socket_private tcp;
     } proto_private;
 
     mutex_t recv_lock;
@@ -78,5 +80,21 @@ static inline void socket_put(struct socket *socket)
 void socket_subsystem_init(void);
 
 extern struct procfs_entry_ops socket_procfs;
+
+int socket_open(int domain, int type, int protocol, struct socket **sock_ret);
+
+int socket_send(struct socket *, const void *buf, size_t len, int flags);
+int socket_recv(struct socket *, void *buf, size_t len, int flags);
+
+int socket_sendto(struct socket *, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen, int nonblock);
+int socket_recvfrom(struct socket *, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen, int nonblock);
+
+int socket_bind(struct socket *, const struct sockaddr *addr, socklen_t addrlen);
+int socket_getsockname(struct socket *, struct sockaddr *addr, socklen_t *addrlen);
+
+int socket_setsockopt(struct socket *, int level, int optname, const void *optval, socklen_t optlen);
+int socket_getsockopt(struct socket *, int level, int optname, void *optval, socklen_t *optlen);
+
+int socket_shutdown(struct socket *, int how);
 
 #endif

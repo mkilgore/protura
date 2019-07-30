@@ -19,8 +19,8 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/inode_table.h>
 #include <protura/fs/vfs.h>
-#include <protura/net/af/ip_route.h>
-#include <protura/net/af/ipv4.h>
+#include <protura/net/ipv4/ip_route.h>
+#include <protura/net/ipv4/ipv4.h>
 #include <protura/net/linklayer.h>
 #include <protura/net/socket.h>
 #include <protura/net/sys.h>
@@ -70,116 +70,132 @@ static struct inode_socket *new_socket_inode(void)
     inode->ino = next_socket_ino++;
     inode->sb_dev = socket_fake_super_block.dev;
     inode->sb = &socket_fake_super_block;
+    inode->mode = S_IFSOCK;
 
     return container_of(inode, struct inode_socket, i);
 }
 
-int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+static int fd_get_socket(int sockfd, struct socket **sock)
 {
+    int ret;
     struct file *filp;
     struct inode_socket *inode;
-    struct socket *socket;
-    int ret;
 
     ret = fd_get_checked(sockfd, &filp);
     if (ret)
         return ret;
 
+    if (!S_ISSOCK(filp->inode->mode))
+        return -ENOTSOCK;
+
     inode = container_of(filp->inode, struct inode_socket, i);
-    socket = inode->socket;
-
-    if (flag_test(&socket->flags, SOCKET_IS_BOUND))
-        return -EINVAL;
-
-    ret = socket->af->ops->bind(socket->af, socket, addr, addrlen);
-    if (ret)
-        return ret;
-
-    ret = socket->proto->ops->bind(socket->proto, socket, addr, addrlen);
-    if (ret)
-        return ret;
-
-    flag_set(&socket->flags, SOCKET_IS_BOUND);
+    *sock = inode->socket;
 
     return 0;
+}
+
+int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+{
+    struct socket *socket;
+    int ret;
+
+    ret = user_check_region(addr, addrlen, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    ret = fd_get_socket(sockfd, &socket);
+    if (ret)
+        return ret;
+
+    return socket_bind(socket, addr, addrlen);
 }
 
 int sys_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
-    struct file *filp;
-    struct inode_socket *inode;
     struct socket *socket;
     int ret;
 
-    ret = fd_get_checked(sockfd, &filp);
+    ret = user_check_region(addrlen, sizeof(*addrlen), F(VM_MAP_READ));
     if (ret)
         return ret;
 
-    inode = container_of(filp->inode, struct inode_socket, i);
-    socket = inode->socket;
-
-    if (!flag_test(&socket->flags, SOCKET_IS_BOUND))
-        return -EINVAL;
-
-    ret = socket->af->ops->getsockname(socket->af, socket, addr, addrlen);
+    ret = user_check_region(addr, *addrlen, F(VM_MAP_READ));
     if (ret)
         return ret;
 
-    ret = socket->proto->ops->getsockname(socket->proto, socket, addr, addrlen);
+    ret = fd_get_socket(sockfd, &socket);
     if (ret)
         return ret;
 
-    return 0;
+    return socket_getsockname(socket, addr, addrlen);
 }
 
 int sys_setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
 {
-    return -ENOTSUP;
+    struct socket *socket;
+    int ret;
+
+    ret = user_check_region(optval, optlen, F(VM_MAP_READ));
+    if (ret)
+        return ret;
+
+    ret = fd_get_socket(sockfd, &socket);
+    if (ret)
+        return ret;
+
+    return socket_setsockopt(socket, level, optname, optval, optlen);
 }
 
 int sys_getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen)
 {
-    return -ENOTSUP;
+    struct socket *socket;
+    int ret;
+
+    ret = user_check_region(optlen, sizeof(*optlen), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    ret = user_check_region(optval, *optlen, F(VM_MAP_READ) | F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    ret = fd_get_socket(sockfd, &socket);
+    if (ret)
+        return ret;
+
+    return socket_getsockopt(socket, level, optname, optval, optlen);
 }
 
 int __sys_sendto(struct file *filp, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen)
 {
-    int ret;
     struct inode_socket *inode;
     struct socket *socket;
-    struct packet *packet;
 
-    kp(KP_NORMAL, "Sendto\n");
+    if (!S_ISSOCK(filp->inode->mode))
+        return -ENOTSOCK;
 
     inode = container_of(filp->inode, struct inode_socket, i);
     socket = inode->socket;
 
-    packet = packet_new();
-
-    packet_append_data(packet, buf, len);
-
-    ret = socket->proto->ops->sendto(socket->proto, socket, packet, dest, addrlen);
-    if (ret) {
-        packet_free(packet);
-        return ret;
-    }
-
-    ret = socket->af->ops->sendto(socket->af, socket, packet, dest, addrlen);
-    if (ret) {
-        packet_free(packet);
-        return ret;
-    }
-
-    packet_linklayer_tx(packet);
-
-    return 0;
-
+    return socket_sendto(socket, buf, len, flags, dest, addrlen, flag_test(&filp->flags, FILE_NONBLOCK));
 }
 
 int sys_sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen)
 {
     struct file *filp;
     int ret;
+
+    kp(KP_NORMAL, "dest: %p\n", dest);
+
+    ret = user_check_region(buf, len, F(VM_MAP_READ) | F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    if (dest) {
+        ret = user_check_region(dest, addrlen, F(VM_MAP_READ));
+        if (ret)
+            return ret;
+    }
 
     if (len > 1500)
         return -EMSGSIZE;
@@ -198,83 +214,36 @@ int sys_send(int sockfd, const void *buf, size_t len, int flags)
 
 int __sys_recvfrom(struct file *filp, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *addrlen)
 {
-    int ret = 0;
     struct inode_socket *inode;
     struct socket *socket;
-    struct packet *packet = NULL;
+
+    if (!S_ISSOCK(filp->inode->mode))
+        return -ENOTSOCK;
 
     inode = container_of(filp->inode, struct inode_socket, i);
     socket = inode->socket;
 
-    using_mutex(&socket->recv_lock) {
-        if (list_empty(&socket->recv_queue)) {
-            if (!flag_test(&filp->flags, FILE_NONBLOCK))
-                ret = wait_queue_event_intr_mutex(&socket->recv_wait_queue, !list_empty(&socket->recv_queue), &socket->recv_lock);
-            else
-                ret = -EAGAIN;
-        }
-
-        if (!ret)
-            packet = list_take_first(&socket->recv_queue, struct packet, packet_entry);
-
-#if 0
-      sleep_again:
-        if (!list_empty(&socket->recv_queue)) {
-            packet = list_take_first(&socket->recv_queue, struct packet, packet_entry);
-        } else if (!flag_test(&filp->flags, FILE_NONBLOCK)) {
-            ret = wait_queue_event_intr_mutex(&socket->recv_wait_queue, !list_empty(&socket->recv_queue), &socket->recv_lock);
-            if (ret) {
-                mutex_unlock(&socket->recv_lock);
-                return ret;
-            }
-            goto sleep_again;
-            sleep_intr_with_wait_queue(&socket->recv_wait_queue) {
-                not_using_mutex(&socket->recv_lock) {
-                    scheduler_task_yield();
-                    if (has_pending_signal(cpu_get_local()->current)) {
-                        wait_queue_unregister(&cpu_get_local()->current->wait);
-                        return -ERESTARTSYS;
-                    }
-                }
-                goto sleep_again;
-            }
-        }
-#endif
-    }
-
-    if (ret)
-        return ret;
-
-    size_t plen = packet_len(packet);
-
-    kp(KP_NORMAL, "Found packet, len:%d\n", plen);
-
-    if (plen < len) {
-        memcpy(buf, packet->head, plen);
-        ret = plen;
-    } else {
-        memcpy(buf, packet->head, len);
-        ret = len;
-    }
-
-    if (addr && *addrlen > packet->src_len) {
-        memcpy(addr, &packet->src_addr, packet->src_len);
-        *addrlen = packet->src_len;
-    } else if (addr) {
-        memcpy(addr, &packet->src_addr, *addrlen);
-        *addrlen = packet->src_len;
-    }
-
-    packet_free(packet);
-
-    return ret;
-
+    return socket_recvfrom(socket, buf, len, flags, addr, addrlen, flag_test(&filp->flags, FILE_NONBLOCK));
 }
 
 int sys_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *addrlen)
 {
     struct file *filp;
     int ret;
+
+    ret = user_check_region(buf, len, F(VM_MAP_READ) | F(VM_MAP_WRITE));
+    if (ret)
+        return ret;
+
+    if (addr) {
+        ret = user_check_region(addrlen, sizeof(*addrlen), F(VM_MAP_READ));
+        if (ret)
+            return ret;
+
+        ret = user_check_region(addr, *addrlen, F(VM_MAP_READ));
+        if (ret)
+            return ret;
+    }
 
     ret = fd_get_checked(sockfd, &filp);
     if (ret)
@@ -285,12 +254,19 @@ int sys_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *
 
 int sys_recv(int sockfd, void *buf, size_t len, int flags)
 {
-    return sys_recvfrom(sockfd, buf, len, flags, NULL, 0);
+    return sys_recvfrom(sockfd, buf, len, flags, NULL, NULL);
 }
 
 int sys_shutdown(int sockfd, int how)
 {
-    return -ENOTSUP;
+    struct socket *socket;
+    int ret;
+
+    ret = fd_get_socket(sockfd, &socket);
+    if (ret)
+        return ret;
+
+    return socket_shutdown(socket, how);
 }
 
 int sys_socket(int afamily, int type, int protocol)
@@ -309,21 +285,9 @@ int sys_socket(int afamily, int type, int protocol)
     inode_dup(&inode->i);
 
     /* We initalize the socket first */
-    inode->socket = socket_alloc();
-
-    inode->socket->address_family = afamily;
-    inode->socket->sock_type = type;
-    inode->socket->protocol = protocol;
-
-    inode->socket->af = address_family_lookup(afamily);
-
-    ret = (inode->socket->af->ops->create) (inode->socket->af, inode->socket);
+    ret = socket_open(afamily, type & SOCK_MASK, protocol, &inode->socket);
     if (ret)
-        goto release_socket;
-
-    ret = (inode->socket->proto->ops->create) (inode->socket->proto, inode->socket);
-    if (ret)
-        goto release_socket;
+        goto release_inode;
 
     filp = kzalloc(sizeof(*filp), PAL_KERNEL);
 
@@ -333,6 +297,9 @@ int sys_socket(int afamily, int type, int protocol)
     filp->ops = &socket_file_ops;
     atomic_inc(&filp->ref);
 
+    if (type & SOCK_NONBLOCK)
+        flag_set(&filp->flags, FILE_NONBLOCK);
+
     fd = fd_assign_empty(filp);
 
     if (fd == -1) {
@@ -340,7 +307,10 @@ int sys_socket(int afamily, int type, int protocol)
         goto release_filp;
     }
 
-    FD_CLR(fd, &current->close_on_exec);
+    if (type & SOCK_CLOEXEC)
+        FD_SET(fd, &current->close_on_exec);
+    else
+        FD_CLR(fd, &current->close_on_exec);
 
     kp(KP_NORMAL, "Created socket: "PRinode"\n", Pinode(&inode->i));
 
@@ -349,10 +319,9 @@ int sys_socket(int afamily, int type, int protocol)
     fd_release(fd);
   release_filp:
     kfree(filp);
-  release_socket:
     socket_put(inode->socket);
 
-    /* Inode currently has no references - create one and then drop it */
+  release_inode:
     inode_put(&inode->i);
     return ret;
 }

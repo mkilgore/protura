@@ -20,6 +20,4 @@ void ide_sync_block_slave(struct block_device *, struct block *);
 extern struct block_device_ops ide_master_block_device_ops;
 extern struct block_device_ops ide_slave_block_device_ops;
 
-void ide_dma_device_init(struct pci_dev *dev);
-
 #endif

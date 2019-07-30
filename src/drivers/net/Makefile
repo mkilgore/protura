@@ -1,5 +1,6 @@
 
-subdir-y += e1000
-subdir-y += rtl8139
+subdir-$(CONFIG_NET_RTL8139_DRIVER) += rtl8139
+subdir-$(CONFIG_NET_E1000_DRIVER) += e1000
+subdir-$(CONFIG_NET_LOOPBACK_DRIVER) += loopback
 
 

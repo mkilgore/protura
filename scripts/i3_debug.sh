@@ -9,7 +9,7 @@
 mv ./qemu.log ./qemu.log.bak
 
 if whereis jq; then
-    OLD_WORKSPACE=`i3-msg -t get_workspaces | jq ".[] | select(.visible == true) | .name"`A
+    OLD_WORKSPACE=`i3-msg -t get_workspaces | jq ".[] | select(.visible == true) | .name"`
     NEW_WORKSPACE=Debug
 else
     OLD_WORKSPACE=$1
@@ -49,6 +49,7 @@ qemu_line="qemu-system-i386 \
     -drive format=raw,file=./disk.img,media=disk,index=0,if=ide \
     -drive format=raw,file=./disk2.img,media=disk,index=1,if=ide \
     -net nic,model=rtl8139 \
+    -net nic,model=e1000 \
     -net tap,ifname=tap0,script=no,downscript=no \
     -kernel ./imgs/protura_x86_multiboot \
     $kernel_cmdline"

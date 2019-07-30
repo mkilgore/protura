@@ -15,19 +15,26 @@ struct address_family {
     struct address_family_ops *ops;
 };
 
-#define ADDRESS_FAMILY_INIT(af)\
+#define ADDRESS_FAMILY_INIT(af, type, op)\
     { \
         .af_entry = LIST_NODE_INIT((af).af_entry), \
+        .af_type = type, \
+        .ops = op, \
     }
 
-static inline void address_family_init(struct address_family *af)
+static inline void address_family_init(struct address_family *af, int af_type, struct address_family_ops *ops)
 {
-    *af = (struct address_family)ADDRESS_FAMILY_INIT(*af);
+    *af = (struct address_family)ADDRESS_FAMILY_INIT(*af, af_type, ops);
 }
 
 struct address_family_ops {
     void (*packet_rx) (struct address_family *, struct packet *);
+    int (*packet_tx) (struct address_family *, struct packet *);
+
     void (*setup_af) (struct address_family *);
+
+    /* Parses the sockaddr (can be NULL) or uses other information to add routing informatiog to the packet */
+    int (*process_sockaddr) (struct address_family *, struct packet *, const struct sockaddr *, socklen_t len);
 
     int (*create) (struct address_family *, struct socket *);
     int (*delete) (struct address_family *, struct socket *);
@@ -37,6 +44,9 @@ struct address_family_ops {
     int (*bind) (struct address_family *, struct socket *, const struct sockaddr *, socklen_t);
     int (*autobind) (struct address_family *, struct socket *);
     int (*getsockname) (struct address_family *, struct socket *, struct sockaddr *, socklen_t *);
+
+    int (*connect) (struct address_family *, struct socket *, const struct sockaddr *, socklen_t);
+    int (*accept) (struct address_family *, struct socket *, struct socket **, struct sockaddr *, socklen_t *);
 };
 
 void address_family_register(struct address_family *);

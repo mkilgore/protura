@@ -5,33 +5,49 @@
 #include <protura/list.h>
 #include <protura/bits.h>
 #include <protura/rwlock.h>
+#include <protura/work.h>
 #include <protura/string.h>
 #include <protura/net/sockaddr.h>
+#include <protura/net/ipv4/ipv4.h>
 
 struct net_interface;
 
 /*
 enum packet_flags {
 };
-*/
+ */
 
 struct packet {
     list_node_t packet_entry;
     flags_t flags;
 
-    struct net_interface *iface_tx;
+    struct delay_work dwork;
 
+    /* Data-link layer */
+    struct net_interface *iface_tx;
+    struct net_interface *iface_rx;
+
+    /* address-resolution layer */
     n16 ll_type;
-    n16 protocol_type;
     char dest_mac[6];
 
+    /* Address-family layer */
+    in_addr_t route_addr;
+    n16 protocol_type;
+
+    /* Protocol layer */
     struct sockaddr src_addr;
     socklen_t src_len;
+
+    struct sockaddr dest_addr;
+    socklen_t dest_len;
 
     struct page *page;
     void *start, *head, *tail, *end;
 
     void *ll_head, *af_head, *proto_head;
+
+    struct socket *sock;
 };
 
 #define PACKET_RESERVE_HEADER_SPACE 1024
@@ -51,7 +67,7 @@ void net_packet_transmit(struct packet *);
 
 struct packet *packet_new(void);
 void packet_free(struct packet *);
-struct packet *packet_dup(struct packet *);
+struct packet *packet_copy(struct packet *);
 
 void packet_add_header(struct packet *, const void *header, size_t header_len);
 void packet_append_data(struct packet *, const void *data, size_t data_len);
@@ -64,7 +80,8 @@ static inline size_t packet_len(struct packet *packet)
 
 static inline void packet_to_buffer(struct packet *packet, void *buf, size_t buf_len)
 {
-    size_t len = (buf_len < packet_len(packet))? packet_len(packet): buf_len;
+    size_t plen = packet_len(packet);
+    size_t len = (buf_len < plen)? plen: buf_len;
     memcpy(buf, packet->head, len);
 }
 

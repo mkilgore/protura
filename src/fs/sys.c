@@ -847,8 +847,6 @@ int sys_ioctl(int fd, int cmd, uintptr_t arg)
     struct file *filp;
     int ret;
 
-    kp(KP_TRACE, "ioctl: %d, %d, %d\n", fd, cmd, arg);
-
     ret = fd_get_checked(fd, &filp);
     if (ret)
         return ret;
@@ -863,7 +861,7 @@ int sys_ioctl(int fd, int cmd, uintptr_t arg)
         return 0;
     }
 
-    if (filp->ops->ioctl)
+    if (filp->ops && filp->ops->ioctl)
         return (filp->ops->ioctl) (filp, cmd, arg);
 
     return -EINVAL;

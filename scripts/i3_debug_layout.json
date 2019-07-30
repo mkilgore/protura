@@ -16,7 +16,7 @@
                "y": 0
             },
             "name": "bash",
-            "percent": 0.4,
+            "percent": 0.2,
             "swallows": [
                {
                    "title": "^qemu-log$"
@@ -37,7 +37,7 @@
                "y": 0
             },
             "name": "bash",
-            "percent": 0.35,
+            "percent": 0.55,
             "swallows": [
                {
                    "title": "^objdump$"

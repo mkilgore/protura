@@ -111,4 +111,3 @@ void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev)
 
     outb(info->dma_io_base + IDE_DMA_IO_STAT1, inb(info->dma_io_base + IDE_DMA_IO_STAT1) | (0x30));
 }
-

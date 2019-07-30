@@ -220,6 +220,9 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_inc_nlinks(dir);
 
+    using_super_block(newdir->sb)
+        sb->sb.ops->inode_write(&sb->sb, newdir);
+
   cleanup_newdir:
     inode_put(newdir);
     return ret;
@@ -263,6 +266,9 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
 
     kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&ino->ref));
 
+    using_super_block(ino->sb)
+        ino->sb->ops->inode_write(ino->sb, ino);
+
     if (result)
         *result = ino;
 
@@ -300,6 +306,9 @@ static int ext2_dir_mknod(struct inode *dir, const char *name, size_t len, mode_
 
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
+
+    using_super_block(inode->sb)
+        inode->sb->ops->inode_write(inode->sb, inode);
 
     return 0;
 }
@@ -510,6 +519,9 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
     inode_set_dirty(dir);
 
     kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&symlink->ref));
+
+    using_super_block(symlink->sb)
+        symlink->sb->ops->inode_write(symlink->sb, symlink);
 
     inode_put(symlink);
 

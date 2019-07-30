@@ -12,15 +12,14 @@
 
 #ifdef __KERNEL__
 
+#include <protura/container_of.h>
+#include <protura/compiler.h>
+
 #define NULL __kNULL
 
 # define offsetof(s, m) ((size_t)&(((s *)0)->m))
 
 # define alignof(t) __alignof__(t)
-
-# define container_of(ptr, type, member) ({ \
-         const typeof(((type *)0)->member) *__mptr = (ptr); \
-         (type *)((char *)__mptr - offsetof(type, member)); })
 
 # define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
 
@@ -110,7 +109,7 @@
             goto TP(__using_temp_declare, __LINE__); \
         } else \
             TP(__using_temp_declare, __LINE__): \
-            for (typeof(arg) __using_temp __cleanup(cmd2) = arg;;) \
+            for (typeof(arg) __using_temp __unused __cleanup(cmd2) = arg;;) \
                 if (1) \
                     goto TP(__using_body, __LINE__); \
                 else \

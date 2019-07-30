@@ -15,8 +15,6 @@ target remote localhost:1234
 #layout regs
 set pagination off
 
-dashboard -output /tmp/dash_fifo
-
 dashboard -layout expressions registers stack assembly source !threads !memory !history
 dashboard stack -style limit 5
 

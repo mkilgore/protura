@@ -6,13 +6,14 @@
 #include <protura/bits.h>
 #include <protura/rwlock.h>
 #include <protura/string.h>
-#include <protura/net/af/ipv4.h>
+#include <protura/net/ipv4/ipv4.h>
 #include <protura/net/if.h>
 
 struct packet;
 
 enum net_interface_flags {
     NET_IFACE_UP,
+    NET_IFACE_LOOPBACK,
 };
 
 struct net_interface {
@@ -22,6 +23,8 @@ struct net_interface {
     atomic_t refs;
     mutex_t lock;
 
+    struct ifmetrics metrics;
+
     const char *name;
     char netdev_name[IFNAMSIZ];
 
@@ -29,9 +32,26 @@ struct net_interface {
     in_addr_t in_netmask;
     in_addr_t in_broadcast;
 
+    int hwtype;
     uint8_t mac[6];
+
+    int (*address_resolve) (struct packet *);
+    int (*linklayer_tx) (struct packet *);
+
     int (*packet_send) (struct net_interface *, struct packet *);
 };
+
+#define NET_INTERFACE_INIT(iface) \
+    { \
+        .iface_entry = LIST_NODE_INIT((iface).iface_entry), \
+        .refs = ATOMIC_INIT(0), \
+        .lock = MUTEX_INIT((iface).lock, "net-interface-lock"), \
+    }
+
+static inline void net_interface_init(struct net_interface *iface)
+{
+    *iface = (struct net_interface)NET_INTERFACE_INIT(*iface);
+}
 
 #define PRmac "%02x:%02x:%02x:%02x:%02x:%02x"
 #define Pmac(m) m[0], m[1], m[2], m[3], m[4], m[5]

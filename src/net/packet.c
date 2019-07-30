@@ -29,16 +29,30 @@ static void packet_clear(struct packet *packet)
     packet->tail = packet->head;
 
     packet->ll_type = 0;
+    memset(&packet->dest_mac, 0, sizeof(packet->dest_mac));
+
+    packet->route_addr = 0;
     packet->protocol_type = 0;
+
+    memset(&packet->dest_addr, 0, sizeof(packet->dest_addr));
+    packet->dest_len = 0;
 
     memset(&packet->src_addr, 0, sizeof(packet->src_addr));
     packet->src_len = 0;
 
-    memset(&packet->dest_mac, 0, sizeof(packet->dest_mac));
-
     if (packet->iface_tx) {
         netdev_put(packet->iface_tx);
         packet->iface_tx = NULL;
+    }
+
+    if (packet->iface_rx) {
+        netdev_put(packet->iface_rx);
+        packet->iface_rx = NULL;
+    }
+
+    if (packet->sock) {
+        socket_put(packet->sock);
+        packet->sock = NULL;
     }
 
     packet->ll_head = NULL;
@@ -74,7 +88,7 @@ void packet_free(struct packet *packet)
         list_add_tail(&packet_free_list, &packet->packet_entry);
 }
 
-struct packet *packet_dup(struct packet *packet)
+struct packet *packet_copy(struct packet *packet)
 {
     struct packet *dup_packet = packet_new();
 
@@ -84,15 +98,26 @@ struct packet *packet_dup(struct packet *packet)
 
     dup_packet->flags = packet->flags;
 
-    dup_packet->src_addr = packet->src_addr;
-    dup_packet->src_len  = packet->src_len;
-
     dup_packet->ll_type = packet->ll_type;
-    dup_packet->protocol_type = packet->protocol_type;
-
     memcpy(dup_packet->dest_mac, packet->dest_mac, sizeof(packet->dest_mac));
 
-    dup_packet->iface_tx = netdev_dup(packet->iface_tx);
+    dup_packet->route_addr = packet->route_addr;
+    dup_packet->protocol_type = packet->protocol_type;
+
+    dup_packet->dest_addr = packet->dest_addr;
+    dup_packet->dest_len  = packet->dest_len;
+
+    dup_packet->src_addr = packet->src_addr;
+    dup_packet->src_len = packet->src_len;
+
+    if (packet->iface_tx)
+        dup_packet->iface_tx = netdev_dup(packet->iface_tx);
+
+    if (packet->iface_rx)
+        dup_packet->iface_rx = netdev_dup(packet->iface_rx);
+
+    if (packet->sock)
+        dup_packet->sock = socket_dup(packet->sock);
 
     return dup_packet;
 }

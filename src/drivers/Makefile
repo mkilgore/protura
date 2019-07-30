@@ -1,5 +1,5 @@
 
 subdir-y += block
 subdir-y += char
-subdir-y += net
+subdir-$(CONFIG_NET_SUPPORT) += net
 

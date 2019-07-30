@@ -21,6 +21,6 @@ objs-y += binfmt_table.o
 objs-y += binfmt_elf.o
 objs-y += binfmt_script.o
 
-subdir-y += ext2
-subdir-y += procfs
+subdir-$(CONFIG_FS_EXT2_DRIVER) += ext2
+subdir-$(CONFIG_FS_PROCFS_DRIVER) += procfs
 

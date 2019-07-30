@@ -17,6 +17,11 @@ struct timeval {
     suseconds_t tv_usec;
 };
 
+struct timezone {
+    int tz_minuteswest;
+    int tz_dsttime;
+};
+
 /* Number of days from year 0 to the start of the Unix Epoch, 1970-01-01 */
 #define TIME_DAYS_TO_EPOCH 719499
 
@@ -39,6 +44,7 @@ extern struct procfs_entry_ops boot_time_ops;
 extern struct procfs_entry_ops current_time_ops;
 
 int sys_time(time_t *t);
+int sys_gettimeofday(struct timeval *tv, struct timezone *tz);
 
 #endif
 

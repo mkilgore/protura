@@ -13,6 +13,8 @@
 #include <protura/mm/memlayout.h>
 #include <protura/drivers/term.h>
 #include <protura/mm/palloc.h>
+#include <protura/mm/vm.h>
+#include <protura/mm/vm_area.h>
 #include <protura/task.h>
 #include <protura/fs/fs.h>
 #include <protura/fs/sys.h>
@@ -157,13 +159,17 @@ static void setup_kernel_pagedir(void **kbrk)
     int table_start = KMEM_KPAGE;
     int tbl_gbl_bit = (cpuid_has_pge())? PTE_GLOBAL: 0;
     int dir_gbl_bit = (cpuid_has_pge())? PDE_GLOBAL: 0;
+    va_t kmap_start = (va_t)CONFIG_KERNEL_KMAP_START;
+    int kmap_dir_start = PAGING_DIR_INDEX(kmap_start);
+
+    kp(KP_NORMAL, "kmap_end: %p, dir: 0x%03x\n", kmap_start, kmap_dir_start);
 
     /* We start at the last table from low-memory */
     /* We use 4MB pages if we're able to, since they're nicer and we're never
      * going to be editing this map again. */
     if (!cpuid_has_pse()) {
         *kbrk = PG_ALIGN(*kbrk);
-        for (cur_table = table_start; cur_table < 0x3FF; cur_table++) {
+        for (cur_table = table_start; cur_table < kmap_dir_start; cur_table++) {
             new_page = V2P(*kbrk);
             page_tbl = *kbrk;
 
@@ -177,9 +183,21 @@ static void setup_kernel_pagedir(void **kbrk)
             page_dir->entries[cur_table].entry = new_page | PDE_PRESENT | PDE_WRITABLE;
         }
     } else {
-        for (cur_table = table_start; cur_table < 0x3FF; cur_table++)
+        for (cur_table = table_start; cur_table < kmap_dir_start; cur_table++)
             page_dir->entries[cur_table].entry = PAGING_MAKE_DIR_INDEX(cur_table - table_start)
                                                  | PDE_PRESENT | PDE_WRITABLE | PDE_PAGE_SIZE | dir_gbl_bit;
+    }
+
+    /* Setup directories for kmap */
+    for (cur_table = kmap_dir_start; cur_table < 0x400; cur_table++) {
+        new_page = V2P(*kbrk);
+        page_tbl = *kbrk;
+
+        *kbrk += PG_SIZE;
+
+        memset(page_tbl, 0, sizeof(PG_SIZE));
+
+        page_dir->entries[cur_table].entry = new_page | PDE_PRESENT | PDE_WRITABLE | dir_gbl_bit;
     }
 }
 
@@ -249,5 +267,50 @@ uintptr_t paging_get_phys(va_t virt)
         return 0;
 
     return cur_page_table->entries[page_off].entry & 0xFFFFF000;
+}
+
+void vm_area_map(va_t va, pa_t address, flags_t vm_flags)
+{
+    pgd_t *dir;
+    pgt_t *table;
+    uint32_t table_off, page_off;
+    uintptr_t table_entry;
+
+    table_entry = address | PTE_PRESENT;
+
+    if (flag_test(&vm_flags, VM_MAP_WRITE))
+        table_entry |= PTE_WRITABLE;
+
+    if (flag_test(&vm_flags, VM_MAP_NOCACHE))
+        table_entry |= PTE_CACHE_DISABLE;
+
+    if (flag_test(&vm_flags, VM_MAP_WRITETHROUGH))
+        table_entry |= PTE_WRITE_THROUGH;
+
+    table_off = PAGING_DIR_INDEX(va);
+    page_off = PAGING_TABLE_INDEX(va);
+
+    dir = P2V(get_current_page_directory());
+
+    table = P2V(PAGING_FRAME(dir->entries[table_off].entry));
+
+    table->entries[page_off].entry = table_entry;
+}
+
+void vm_area_unmap(va_t va)
+{
+    pgd_t *dir;
+    pgt_t *table;
+    uint32_t table_off, page_off;
+
+    table_off = PAGING_DIR_INDEX(va);
+    page_off = PAGING_TABLE_INDEX(va);
+
+    dir = P2V(get_current_page_directory());
+    table = P2V(PAGING_FRAME(dir->entries[table_off].entry));
+
+    table->entries[page_off].entry = 0;
+
+    flush_tlb_single(PG_ALIGN_DOWN(va));
 }
 

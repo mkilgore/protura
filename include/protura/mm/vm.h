@@ -59,6 +59,8 @@ enum vm_map_flags {
     VM_MAP_READ,
     VM_MAP_WRITE,
     VM_MAP_EXE,
+    VM_MAP_NOCACHE,
+    VM_MAP_WRITETHROUGH,
 };
 
 #define vm_map_is_readable(map)   flag_test(&(map)->flags, VM_MAP_READ)

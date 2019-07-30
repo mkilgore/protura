@@ -100,7 +100,11 @@ static struct ide_state ide_state = {
     .block_queue_master = LIST_HEAD_INIT(ide_state.block_queue_master),
     .block_queue_slave = LIST_HEAD_INIT(ide_state.block_queue_slave),
 
+#ifdef CONFIG_IDE_DMA_SUPPORT
     .use_dma = { 1, 1 },
+#else
+    .use_dma = { 0, 0 },
+#endif
 };
 
 #define ide_queue_empty(ide_state) \
@@ -374,4 +378,3 @@ void ide_dma_device_init(struct pci_dev *dev)
 {
     ide_dma_init(&ide_state.dma, dev);
 }
-

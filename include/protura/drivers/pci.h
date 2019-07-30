@@ -51,4 +51,8 @@ void pci_config_write_uint8(struct pci_dev *dev, uint8_t regno, uint8_t value);
 #define PCI_COMMAND_FAST_B2B_ENABLE (1 << 9) /* Fast Back-to-Back Enable */
 #define PCI_COMMAND_INT_DISABLE     (1 << 10 /* Interrupt Disable */
 
+#define PCI_BAR_IO 0x00000001
+
+size_t pci_bar_size(struct pci_dev *dev, uint8_t bar_reg);
+
 #endif

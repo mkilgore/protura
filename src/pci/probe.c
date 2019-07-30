@@ -16,24 +16,37 @@
 
 #include <protura/fs/procfs.h>
 #include <protura/drivers/ide.h>
+#include <protura/drivers/ide_dma.h>
 #include <protura/drivers/e1000.h>
 #include <protura/drivers/rtl.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
 
 static const struct pci_driver pci_drivers[] = {
+#ifdef CONFIG_IDE_DMA_SUPPORT
     {
         .name = "Intel PIIX3 IDE DMA",
         .vendor = PCI_VENDOR_ID_INTEL,
         .device = PCI_DEVICE_ID_82371SB_PIIX3_IDE,
         .device_init = ide_dma_device_init,
     },
+#endif
+#ifdef CONFIG_NET_RTL8139_DRIVER
     {
         .name = "RealTek RTL8139 Fast Ethernet",
         .vendor = PCI_VENDOR_ID_REALTEK,
         .device = PCI_DEVICE_ID_RTL8139_NET,
         .device_init = rtl_device_init,
     },
+#endif
+#ifdef CONFIG_NET_E1000_DRIVER
+    {
+        .name = "Intel E1000 Fast Ethernet",
+        .vendor = PCI_VENDOR_ID_INTEL,
+        .device = PCI_DEVICE_ID_E1000_NET,
+        .device_init = e1000_device_init,
+    },
+#endif
     {
         .name = NULL,
         .vendor = 0,
@@ -294,5 +307,17 @@ void pci_init(void)
 {
     enum_pci();
     load_pci_devices();
+}
+
+size_t pci_bar_size(struct pci_dev *dev, uint8_t bar_reg)
+{
+    uint32_t bar = pci_config_read_uint32(dev, bar_reg);
+    size_t size;
+
+    pci_config_write_uint32(dev, bar_reg, 0xFFFFFFFF);
+    size = pci_config_read_uint32(dev, bar_reg);
+    pci_config_write_uint32(dev, bar_reg, bar);
+
+    return (~size) + 1;
 }
 

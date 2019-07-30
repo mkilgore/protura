@@ -75,7 +75,7 @@ static int procfs_inode_read(struct super_block *sb, struct inode *inode)
     if (S_ISDIR(pinode->i.mode)) {
         pinode->i.ops = &procfs_dir_inode_ops;
         pinode->i.default_fops = &procfs_dir_file_ops;
-    } else if (S_ISREG(inode->mode)) {
+    } else if (S_ISREG(pinode->i.mode)) {
         pinode->i.ops = &procfs_file_inode_ops;
         pinode->i.default_fops = &procfs_file_file_ops;
     }

@@ -1,4 +1,4 @@
 
-objs-y += ide.o
-objs-y += ide_dma.o
+objs-$(CONFIG_IDE_DRIVER) += ide.o
+objs-$(CONFIG_IDE_DMA_SUPPORT) += ide_dma.o
 

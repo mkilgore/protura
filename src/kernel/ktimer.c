@@ -44,6 +44,9 @@ void timer_handle_timers(uint64_t tick)
         if (timer->wake_up_tick != tick)
             break;
 
+        /*
+         * FIXME: The callbacks should really be called outside of the spinlock.
+         */
         (timer->callback) (timer);
 
         list_foreach_take_entry(&timer->timer_list, next, timer_entry)
@@ -71,9 +74,12 @@ void timer_add(struct ktimer *timer, uint64_t ms)
     }
 }
 
-void timer_del(struct ktimer *timer)
+int timer_del(struct ktimer *timer)
 {
     using_spinlock(&timers_lock) {
+        if (!list_node_is_in_list(&timer->timer_entry))
+            return -1;
+
         if (list_empty(&timer->timer_list)) {
             list_del(&timer->timer_entry);
         } else {
@@ -110,5 +116,7 @@ void timer_del(struct ktimer *timer)
             list_replace(&timer->timer_entry, &next->timer_entry);
         }
     }
+
+    return 0;
 }
 

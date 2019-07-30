@@ -15,6 +15,7 @@
 #include <protura/string.h>
 #include <protura/kassert.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/kmmap.h>
 #include <protura/snprintf.h>
 #include <arch/asm.h>
 
@@ -32,14 +33,22 @@
  */
 static void e1000_command_write32(struct net_interface_e1000 *e1000, uint16_t addr, uint32_t value)
 {
-    outl(e1000->io_base, addr);
-    outl(e1000->io_base + 4, value);
+    if (e1000->mem_base) {
+        *(uint32_t *)(e1000->mem_base + addr) = value;
+    } else {
+        outl(e1000->io_base, addr);
+        outl(e1000->io_base + 4, value);
+    }
 }
 
 static uint32_t e1000_command_read32(struct net_interface_e1000 *e1000, uint16_t addr)
 {
-    outl(e1000->io_base, addr);
-    return inl(e1000->io_base + 4);
+    if (e1000->mem_base) {
+        return *(uint32_t *)(e1000->mem_base + addr);
+    } else {
+        outl(e1000->io_base, addr);
+        return inl(e1000->io_base + 4);
+    }
 }
 
 static void e1000_eeprom_detect(struct net_interface_e1000 *e1000)
@@ -88,10 +97,14 @@ static void e1000_read_mac(struct net_interface_e1000 *e1000)
         e1000->mac[4] = tmp & 0xFF;
         e1000->mac[5] = tmp >> 8;
 
-        kp(KP_ERROR, "E1000 MAC: "PRmac"\n", Pmac(e1000->mac));
     } else {
-        kp(KP_ERROR, "E1000: No EEPROM, not supported\n");
+        int i;
+        for (i = 0; i < 6; i++) {
+            e1000->mac[i] = ((uint8_t *)e1000->mem_base)[0x5400 + i];
+        }
     }
+
+    kp(KP_ERROR, "E1000 MAC: "PRmac"\n", Pmac(e1000->mac));
 }
 
 static int e1000_packet_send(struct net_interface *net, struct packet *packet)
@@ -104,6 +117,8 @@ void e1000_device_init(struct pci_dev *dev)
     struct net_interface_e1000 *e1000 = kzalloc(sizeof(*e1000), PAL_KERNEL);
     uint16_t command_reg;
 
+    net_interface_init(&e1000->net);
+
     kp(KP_NORMAL, "Found Intel E1000 NIC: "PRpci_dev"\n", Ppci_dev(dev));
 
     e1000->net.name = "eth";
@@ -113,12 +128,21 @@ void e1000_device_init(struct pci_dev *dev)
 
     /* Enable BUS Mastering and I/O Space*/
     command_reg = pci_config_read_uint16(dev, PCI_COMMAND);
-    pci_config_write_uint16(dev, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_IO_SPACE);
+    pci_config_write_uint16(dev, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_MEM_SPACE);
 
-    e1000->io_base = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFF8;
+    if (pci_config_read_uint32(dev, PCI_REG_BAR(0)) & PCI_BAR_IO) {
+        e1000->io_base = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFF8;
+    } else {
+        uint32_t mem = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFFFFFF0;
+        uint32_t size = pci_bar_size(dev, PCI_REG_BAR(0));
+
+        e1000->mem_base = kmmap(mem, size, F(VM_MAP_READ) | F(VM_MAP_WRITE) | F(VM_MAP_NOCACHE) | F(VM_MAP_WRITETHROUGH));
+        kp(KP_NORMAL, "  E1000 MEM: 0x%08x\n", mem);
+        kp(KP_NORMAL, "  E1000 MEM size: %d\n", size);
+    }
 
     kp(KP_NORMAL, "  E1000 IO base: 0x%04x\n", e1000->io_base);
-    kp(KP_NORMAL, "  E1000 IO base original: 0x%08x\n", pci_config_read_uint32(dev, PCI_REG_BAR(0)));
+    kp(KP_NORMAL, "  E1000 MEM base: %p\n", e1000->mem_base);
 
     e1000_eeprom_detect(e1000);
     e1000_read_mac(e1000);

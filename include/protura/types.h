@@ -10,7 +10,6 @@
 
 #include <arch/types.h>
 #include <protura/stddef.h>
-#include <protura/compiler.h>
 
 #if 0
 typedef __kuint8_t u8;
@@ -70,6 +69,8 @@ static inline __kn16 __khtons(__kuint16_t hosts)
 #define __kntohs(nets) __khtons(nets)
 
 #ifdef __KERNEL__
+
+#include <protura/compiler.h>
 
 # define SECTOR_INVALID ((sector_t)-1)
 

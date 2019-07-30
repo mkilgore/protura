@@ -142,6 +142,16 @@ void unhandled_cpu_exception(struct irq_frame *frame, void *param)
         hlt();
 }
 
+static void div_by_zero_handler(struct irq_frame *frame, void *param)
+{
+    if ((frame->cs & 0x03) != DPL_USER)
+        unhandled_cpu_exception(frame, param);
+
+    struct task *current = cpu_get_local()->current;
+
+    scheduler_task_send_signal(current->pid, SIGFPE, 1);
+}
+
 void idt_init(void)
 {
     int i;
@@ -159,6 +169,8 @@ void idt_init(void)
         idt_ids[i].name = "Unhandled CPU Exception";
         idt_ids[i].type = IRQ_INTERRUPT;
     }
+
+    irq_register_callback(0, div_by_zero_handler, "Divide By Zero Handler", IRQ_INTERRUPT, NULL);
 
     idt_flush(((uintptr_t)&idt_ptr));
 }
