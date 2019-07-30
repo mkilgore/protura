@@ -16,6 +16,7 @@
 
 #include <protura/fs/procfs.h>
 #include <protura/drivers/ide.h>
+#include <protura/drivers/ide_dma.h>
 #include <protura/drivers/e1000.h>
 #include <protura/drivers/rtl.h>
 #include <protura/drivers/pci.h>

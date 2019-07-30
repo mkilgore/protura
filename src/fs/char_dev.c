@@ -18,7 +18,6 @@
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/screen.h>
 #include <protura/drivers/com.h>
-#include <protura/drivers/raspi_uart.h>
 #include <protura/drivers/tty.h>
 #include <protura/drivers/mem.h>
 #include <protura/fs/file.h>
@@ -55,13 +54,6 @@ static struct char_device devices[] = {
         .fops = &com_file_ops,
     },
 #endif
-#ifdef CONFIG_RASPI_UART_DRIVER
-    [CHAR_DEV_RASPI_UART] = {
-        .name = "rpiuart",
-        .major = CHAR_DEV_RASPI_UART,
-        .fops = &raspi_uart_file_ops,
-    },
-#endif
 #ifdef CONFIG_TTY_DRIVER
     [CHAR_DEV_TTY] = {
         .name = "tty",
@@ -91,7 +83,6 @@ struct char_device *char_dev_get(dev_t device)
 void char_dev_init(void)
 {
     com_init();
-    raspi_uart_init();
     tty_subsystem_init();
 }
 

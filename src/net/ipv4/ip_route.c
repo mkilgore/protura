@@ -12,6 +12,7 @@
 #include <protura/kassert.h>
 #include <protura/dump_mem.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_ptr.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
 #include <arch/asm.h>
@@ -220,6 +221,7 @@ static int ip_route_ioctl(struct file *filp, int cmd, uintptr_t ptr)
     flags_t flags = 0;
     int ret = -ENOTSUP;
 
+
     switch (cmd) {
     case SIOCADDRT:
         ret = user_check_region(ent, sizeof(*ent), F(VM_MAP_READ));
@@ -233,6 +235,8 @@ static int ip_route_ioctl(struct file *filp, int cmd, uintptr_t ptr)
             flag_set(&flags, IP_ROUTE_GATEWAY);
 
         iface = netdev_get(ent->netdev);
+        if (!iface)
+            return -ENODEV;
 
         ip_route_add(dest->sin_addr.s_addr, gateway->sin_addr.s_addr, netmask->sin_addr.s_addr, iface, flags);
 

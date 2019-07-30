@@ -374,3 +374,7 @@ struct block_device_ops ide_slave_block_device_ops = {
     .sync_block = ide_sync_block_slave,
 };
 
+void ide_dma_device_init(struct pci_dev *dev)
+{
+    ide_dma_init(&ide_state.dma, dev);
+}

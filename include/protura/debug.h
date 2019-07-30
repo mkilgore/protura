@@ -59,8 +59,6 @@ void kp_output_unregister(void (*print) (const char *fmt, va_list lst));
 # define KP_CUR_LINE " "
 #endif
 
-static inline time_t protura_uptime_get(void) { return 0; }
-
 #define kp(level, str, ...) \
     do { \
         if (level <= CONFIG_KERNEL_LOG_LEVEL) { \

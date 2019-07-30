@@ -74,6 +74,7 @@ static int tty_kernel_thread(void *p)
         buf_len = (driver->ops->read) (tty, buf, sizeof(buf));
 
         for (i = 0; i < buf_len; i++) {
+            kp(KP_TRACE, "tty %s: Read char %d\n", driver->name, buf[i]);
             switch (buf[i]) {
             case '\n':
                 driver->ops->write(tty, buf + i, 1);
@@ -376,6 +377,5 @@ void tty_subsystem_init(void)
     console_init();
 #endif
     com_tty_init();
-    raspi_uart_tty_init();
 }
 

@@ -25,7 +25,7 @@ struct timezone {
 /* Number of days from year 0 to the start of the Unix Epoch, 1970-01-01 */
 #define TIME_DAYS_TO_EPOCH 719499
 
-//time_t protura_uptime_get(void);
+time_t protura_uptime_get(void);
 void protura_uptime_inc(void);
 
  /*
