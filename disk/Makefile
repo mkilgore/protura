@@ -29,8 +29,8 @@ clean-disk:
 
 PHONY += toolchain clean-toolchain
 toolchain: | ./disk/root ./disk/root/usr
-	#$(Q)git submodule update --init --depth 1
-	#$(Q)cd ./disk/toolchain; git submodule update --init --depth 1
+	$(Q)git submodule update --init --depth 1
+	$(Q)cd ./disk/toolchain; git submodule update --init --depth 1
 	$(Q)cd ./disk/toolchain; ./build_toolchain.sh $(TARGET) $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
 
 clean-toolchain:
