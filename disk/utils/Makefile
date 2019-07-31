@@ -22,6 +22,7 @@ DISK_UTIL_SRCS := \
 	./disk/utils/fifo_test.c \
 	./disk/utils/waitpid_test.c \
 	./disk/utils/socket_test.c \
+	./disk/utils/color_test.c \
 
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
 DISK_UTIL_EXTRA_OBJS :=

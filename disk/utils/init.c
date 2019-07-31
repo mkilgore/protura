@@ -21,7 +21,7 @@
 
 FILE *ilog;
 
-char *const env_vars[] = { "PATH=/bin", "HOME=/home", NULL };
+char *const env_vars[] = { "PATH=/bin:/usr/bin", "HOME=/home", NULL };
 
 enum tab_action {
     TAB_RESPAWN,

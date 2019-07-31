@@ -322,6 +322,7 @@ static int tty_open(struct inode *inode, struct file *filp)
 static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
 {
     pid_t *parg;
+    struct termios *tios;
     int ret;
     struct task *current = cpu_get_local()->current;
     struct tty *tty = filp->priv_data;
@@ -358,6 +359,24 @@ static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
 
         *parg = tty->session_id;
         return 0;
+
+    case TCGETS:
+        tios = (struct termios *)arg;
+        ret = user_check_region(tios, sizeof(*tios), F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        *tios = tty->termios;
+        break;
+
+    case TCSETS:
+        tios = (struct termios *)arg;
+        ret = user_check_region(tios, sizeof(*tios), F(VM_MAP_READ));
+        if (ret)
+            return ret;
+
+        tty->termios = *tios;
+        break;
     }
 
     return -EINVAL;
