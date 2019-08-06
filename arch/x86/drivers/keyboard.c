@@ -41,8 +41,6 @@ static struct keyboard {
     .buf_lock = SPINLOCK_INIT("Keyboard"),
 };
 
-#define toupper(c) ((c >= 'a' && c <= 'z')? (c | 32): c)
-
 #define KEY_READ_BUF_PORT (0x60)
 #define KEY_WRITE_BUF_PORT (0x60)
 #define KEY_READ_STATUS_PORT (0x64)

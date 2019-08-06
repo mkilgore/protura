@@ -91,6 +91,7 @@ void __super_sync(struct super_block *sb)
     struct inode *inode;
 
     if (sb->ops->inode_write) {
+        kp(KP_TRACE, "__sync: inode list empty: %d\n", list_empty(&sb->dirty_inodes));
         list_foreach_take_entry(&sb->dirty_inodes, inode, sb_dirty_entry) {
             kp(KP_TRACE, "took entry: "PRinode"\n", Pinode(inode));
             sb->ops->inode_write(sb, inode);

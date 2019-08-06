@@ -141,7 +141,8 @@ struct inode_ops {
         if (!bit_test(&(inode)->flags, INO_DIRTY)) { \
             bit_set(&(inode)->flags, INO_DIRTY); \
             kp(KP_TRACE, "Adding "PRinode": dirty\n", Pinode(inode)); \
-            list_add(&(inode)->sb->dirty_inodes, &(inode)->sb_dirty_entry); \
+            if (!list_node_is_in_list(&(inode)->sb_dirty_entry)) \
+                list_add(&(inode)->sb->dirty_inodes, &(inode)->sb_dirty_entry); \
         } \
     } while (0)
 

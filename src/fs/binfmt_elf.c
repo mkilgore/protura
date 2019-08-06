@@ -118,6 +118,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
          * already read.
          */
 
+        kp(KP_TRACE, "Allocating %d pages...\n", pages);
         for (k = 0; k < pages; k++) {
             off_t len;
             struct page *p = palloc(0, PAL_KERNEL);
@@ -184,6 +185,8 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
     irq_frame_set_stack(current->context.frame, new_addrspc->stack->addr.end);
     irq_frame_set_ip(current->context.frame, va_make(head.entry_vaddr));
+
+    kp(KP_TRACE, "ELF load complete\n");
 
     return 0;
 }

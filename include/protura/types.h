@@ -93,6 +93,22 @@ typedef __kn32 n32;
 #define ntohl(net) __kntohl(net)
 #define ntohs(net) __kntohs(net)
 
+#define tolower(c) \
+    ({ \
+        typeof(c) ____ctmp = (c); \
+        if (____ctmp >= 'A' && ____ctmp <= 'Z') \
+            ____ctmp |= 0x20; \
+        ____ctmp; \
+    })
+
+#define toupper(c) \
+    ({ \
+        typeof(c) ____ctmp = (c); \
+        if (____ctmp >= 'a' && ____ctmp <= 'z') \
+            ____ctmp &= ~0x20; \
+        ____ctmp; \
+    })
+
 #endif
 
 #endif

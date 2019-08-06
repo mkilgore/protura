@@ -338,6 +338,12 @@ static struct super_block *ext2_sb_read(dev_t dev)
             memcpy(&sb->disksb, sb_block->data + 1024, sizeof(sb->disksb));
         break;
 
+    case 4096:
+        sb->sb_block_nr = 0;
+        using_block(dev, 0, sb_block)
+            memcpy(&sb->disksb, sb_block->data + 1024, sizeof(sb->disksb));
+        break;
+
     default:
         panic("EXT2: Error, unable to handle block_size\n");
     }

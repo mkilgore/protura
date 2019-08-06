@@ -30,6 +30,13 @@ struct termios {
     cc_t c_cc[NCCS];
 };
 
+struct winsize {
+	unsigned short ws_row;
+	unsigned short ws_col;
+	unsigned short ws_xpixel;
+	unsigned short ws_ypixel;
+};
+
 /* c_cc characters */
 #define VINTR 0
 #define VQUIT 1
@@ -150,6 +157,8 @@ struct termios {
 #define TCXONC    ((__TIO << 8) + 5)
 #define TCFLSH    ((__TIO << 8) + 6)
 #define TCSBRK    ((__TIO << 8) + 7)
+#define TIOCGWINSZ ((__TIO << 8) + 8)
+#define TIOCSWINSZ ((__TIO << 8) + 9)
 
 #if __KERNEL__
 
@@ -171,7 +180,7 @@ struct tty_driver {
     const char *name;
     dev_t minor_start;
     dev_t minor_end;
-    struct tty_ops *ops;
+    const struct tty_ops *ops;
 };
 
 struct tty {
@@ -179,9 +188,12 @@ struct tty {
     /* Device number for the driver Minor number is equal to this + minor_start */
     dev_t device_no;
 
+    mutex_t lock;
+
     pid_t session_id;
     pid_t fg_pgrp;
 
+    struct winsize winsize;
     struct termios termios;
     struct tty_driver *driver;
 
@@ -189,7 +201,6 @@ struct tty {
      * NOTE: These are labeled from the kernel's point of view.
      * Processes read from the 'output_buf', and write to the 'input_buf'
      */
-    mutex_t inout_buf_lock;
     struct wait_queue in_wait_queue;
 
     struct char_buf output_buf;
@@ -197,11 +208,15 @@ struct tty {
     int ret0; /* ^D marker */
 
     struct task *kernel_task;
+
+    char *line_buf;
+    size_t line_buf_pos;
+    size_t line_buf_size;
 };
 
 #define TTY_INIT(tty) \
     { \
-        .inout_buf_lock = MUTEX_INIT((tty).inout_buf_lock, "tty-inout-buf-lock"), \
+        .lock = MUTEX_INIT((tty).lock, "tty-lock"), \
         .in_wait_queue = WAIT_QUEUE_INIT((tty).in_wait_queue, "tty-in-wait-queue"), \
     }
 
@@ -211,6 +226,29 @@ static inline void tty_init(struct tty *tty)
 }
 
 void tty_driver_register(struct tty_driver *driver);
+
+#define __TERMIOS_FLAG_OFLAG(termios, flag) (((termios)->c_oflag & (flag)) != 0)
+#define __TERMIOS_FLAG_CFLAG(termios, flag) (((termios)->c_cflag & (flag)) != 0)
+#define __TERMIOS_FLAG_LFLAG(termios, flag) (((termios)->c_lflag & (flag)) != 0)
+#define __TERMIOS_FLAG_IFLAG(termios, flag) (((termios)->c_iflag & (flag)) != 0)
+
+#define TERMIOS_OPOST(termios) __TERMIOS_FLAG_OFLAG((termios), OPOST)
+#define TERMIOS_ISIG(termios) __TERMIOS_FLAG_LFLAG((termios), ISIG)
+#define TERMIOS_ICANON(termios) __TERMIOS_FLAG_LFLAG((termios), ICANON)
+#define TERMIOS_ECHO(termios) __TERMIOS_FLAG_LFLAG((termios), ECHO)
+#define TERMIOS_ECHOE(termios) __TERMIOS_FLAG_LFLAG((termios), ECHOE)
+
+#define TERMIOS_IGNBRK(termios) __TERMIOS_FLAG_IFLAG((termios), IGNBRK)
+#define TERMIOS_ISTRIP(termios) __TERMIOS_FLAG_IFLAG((termios), ISTRIP)
+#define TERMIOS_INLCR(termios)  __TERMIOS_FLAG_IFLAG((termios), INLCR)
+#define TERMIOS_IGNCR(termios)  __TERMIOS_FLAG_IFLAG((termios), IGNCR)
+#define TERMIOS_ICRNL(termios)  __TERMIOS_FLAG_IFLAG((termios), ICRNL)
+#define TERMIOS_IUCLC(termios)  __TERMIOS_FLAG_IFLAG((termios), IUCLC)
+
+#define TERMIOS_OLCUC(termios)  __TERMIOS_FLAG_OFLAG((termios), OLCUC)
+#define TERMIOS_ONLCR(termios)  __TERMIOS_FLAG_OFLAG((termios), ONLCR)
+#define TERMIOS_OCRNL(termios)  __TERMIOS_FLAG_OFLAG((termios), OCRNL)
+#define TERMIOS_ONLRET(termios) __TERMIOS_FLAG_OFLAG((termios), ONLRET)
 
 #endif
 

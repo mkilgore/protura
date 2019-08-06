@@ -154,4 +154,13 @@ static __always_inline void *atomic_ptr_swap(volatile void *addr, void *new)
     return (void *)xchg(addr, (uint32_t)new);
 }
 
+static __always_inline uint64_t rdtsc(void)
+{
+   uint32_t a, d;
+
+   asm volatile("rdtsc" : "=a" (a), "=d" (d));
+
+   return ((uint64_t)a) | (((uint64_t)d) << 32);;
+}
+
 #endif

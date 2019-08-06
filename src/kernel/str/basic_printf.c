@@ -95,28 +95,37 @@ static void escape_integer(struct printf_backbone *backbone, const char *code, s
 {
     char buf[3 * sizeof(long long) + 2], *ebuf = buf + sizeof(buf) - 1;
     int digit;
-    int orig, i, count;
-    int zero_pad = 0, force_width = -1;
+    uint64_t i, count;
+    uint64_t orig;
+    size_t width = 0;
+    int zero_pad = 0, force_width = 0;
+    int l_count = 0;
 
     for (i = 0; i < len - 1; i++) {
         switch (code[i]) {
         case '0':
-            if (force_width == -1)
+            if (!force_width)
                 zero_pad = 1;
             else
                 force_width *= 10;
             break;
 
         case '1' ... '9':
-            if (force_width == -1)
-                force_width = code[i] - '0';
-            else
-                force_width = (force_width * 10) + (code[i] - '0');
+            width = (width * 10) + (code[i] - '0');
+            force_width = 1;
+            break;
+
+        case 'l':
+            l_count++;
             break;
         }
     }
 
-    orig = va_arg(*args, int);
+    if (l_count == 2)
+        orig = va_arg(*args, uint64_t);
+    else
+        orig = va_arg(*args, int);
+
     i = orig;
 
     count = 0;
@@ -135,9 +144,11 @@ static void escape_integer(struct printf_backbone *backbone, const char *code, s
         count++;
     }
 
-    while (count < force_width && zero_pad) {
-        *--ebuf = '0';
-        count++;
+    if (force_width) {
+        while (count < width && zero_pad) {
+            *--ebuf = '0';
+            count++;
+        }
     }
 
     if (orig < 0)
@@ -256,6 +267,7 @@ static struct printf_escape escape_codes[] = {
     { 'p', escape_hex },
     { 'P', escape_hex },
     { 'd', escape_integer },
+    { 'u', escape_integer },
     { 's', escape_string },
     { 'c', escape_char },
     { '\0', NULL }

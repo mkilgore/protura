@@ -26,6 +26,26 @@
 #include <protura/drivers/console.h>
 #include <protura/drivers/com.h>
 #include <protura/drivers/tty.h>
+#include "tty_termios.h"
+
+const struct termios default_termios = {
+    .c_iflag = ICRNL,
+    .c_oflag = OPOST | ONLCR,
+    .c_lflag = ISIG | ICANON | ECHO | ECHOE,
+    .c_cflag = B38400,
+    .c_cc = {
+        [VINTR] = 0x03,
+        [VERASE] = 0x7F,
+        [VSUSP] = 0x1A,
+    },
+};
+
+static const struct winsize default_winsize = {
+	.ws_row = 25,
+	.ws_col = 80,
+	.ws_xpixel = 0,
+	.ws_ypixel = 0,
+};
 
 /*
  * Complicated and messy
@@ -60,78 +80,13 @@ static struct tty *tty_array[MAX_MINOR];
 static int tty_kernel_thread(void *p)
 {
     struct tty *tty = p;
-    struct tty_driver *driver = tty->driver;
-    char line_buf[128];
-    size_t start = 0;
+    const struct tty_driver *driver = tty->driver;
 
     (driver->ops->register_for_wakeups) (tty);
 
     while (1) {
-        char buf[32];
-        size_t buf_len;
-        int i;
-
-        buf_len = (driver->ops->read) (tty, buf, sizeof(buf));
-
-        for (i = 0; i < buf_len; i++) {
-            kp(KP_TRACE, "tty %s: Read char %d\n", driver->name, buf[i]);
-            switch (buf[i]) {
-            case '\n':
-                driver->ops->write(tty, buf + i, 1);
-                line_buf[start++] = '\n';
-                line_buf[start] = '\0';
-                using_mutex(&tty->inout_buf_lock) {
-                    char_buf_write(&tty->output_buf, line_buf, start);
-                    wait_queue_wake(&tty->in_wait_queue);
-                }
-                start = 0;
-                break;
-
-            case '\b':
-            case '\x7f':
-                if (start > 0) {
-                    start--;
-                    driver->ops->write(tty, &(char){ '\b' }, 1);
-                    driver->ops->write(tty, &(char){ ' ' }, 1);
-                    driver->ops->write(tty, &(char){ '\b' }, 1);
-                }
-                break;
-
-            case '\x04':
-                using_mutex(&tty->inout_buf_lock) {
-                    tty->ret0 = 1;
-                    wait_queue_wake(&tty->in_wait_queue);
-                }
-                break;
-
-            case '\x03': /* ^C */
-                if (tty->fg_pgrp) {
-                    kp(KP_TRACE, "tty: ^C: Sending SIGINT to %d\n", tty->fg_pgrp);
-                    scheduler_task_send_signal(-tty->fg_pgrp, SIGINT, 0);
-                }
-                break;
-
-            case '\x1A': /* ^Z */
-                if (tty->fg_pgrp) {
-                    kp(KP_TRACE, "tty: ^Z: Sending SIGTSTP to %d\n", tty->fg_pgrp);
-                    scheduler_task_send_signal(-tty->fg_pgrp, SIGTSTP, 0);
-                }
-                break;
-
-            default:
-                driver->ops->write(tty, buf + i, 1);
-                line_buf[start++] = buf[i];
-                break;
-            }
-        }
-
-        /* For now, the process output is written directly to the hardware driver */
-        using_mutex(&tty->inout_buf_lock)
-            buf_len = char_buf_read(&tty->input_buf, buf, sizeof(buf));
-
-        if (buf_len) {
-            driver->ops->write(tty, buf, buf_len);
-        }
+        tty_process_input(tty);
+        tty_process_output(tty);
 
         sleep {
             if (!driver->ops->has_chars(tty) && !char_buf_has_data(&tty->input_buf))
@@ -172,6 +127,14 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->output_buf.buffer = palloc_va(0, PAL_KERNEL);
     tty->output_buf.len = PG_SIZE;
 
+    tty->winsize = default_winsize;
+    tty->termios = default_termios;
+    kp(KP_TRACE, "Termios setting: %d\n", tty->termios.c_lflag);
+
+    tty->line_buf = palloc_va(0, PAL_KERNEL);
+    tty->line_buf_size = PG_SIZE;
+    tty->line_buf_pos = 0;
+
     tty->kernel_task = task_kernel_new_interruptable(tty->name, tty_kernel_thread, tty);
     scheduler_task_add(tty->kernel_task);
 
@@ -181,7 +144,7 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
 void tty_driver_register(struct tty_driver *driver)
 {
     dev_t devices = driver->minor_end - driver->minor_start + 1;
-    int i;
+    size_t i;
 
     for (i = 0; i < devices; i++) {
         kp(KP_TRACE, "Creating %s%d\n", driver->name, i);
@@ -208,7 +171,7 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
     if (!tty)
         return -ENOTTY;
 
-    using_mutex(&tty->inout_buf_lock) {
+    using_mutex(&tty->lock) {
         while (orig_len == len) {
             size_t read_count;
 
@@ -233,9 +196,9 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
                 break;
             }
 
-            /* Nice little dance to wait for data or a singal */
+            /* Nice little dance to wait for data or a signal */
             kp(KP_NORMAL, "tty_read: tty->output_buf wait\n");
-            ret = wait_queue_event_intr_mutex(&tty->in_wait_queue, char_buf_has_data(&tty->output_buf) || tty->ret0, &tty->inout_buf_lock);
+            ret = wait_queue_event_intr_mutex(&tty->in_wait_queue, char_buf_has_data(&tty->output_buf) || tty->ret0, &tty->lock);
             kp(KP_NORMAL, "tty_read: tty->output_buf end wait: %d\n", ret);
             if (ret) {
                 kp(KP_NORMAL, "Exiting...\n");
@@ -258,7 +221,7 @@ static int tty_write(struct file *filp, const void *vbuf, size_t len)
     if (!tty)
         return -ENOTTY;
 
-    using_mutex(&tty->inout_buf_lock) {
+    using_mutex(&tty->lock) {
         char_buf_write(&tty->input_buf, vbuf, len);
         scheduler_task_wake(tty->kernel_task);
     }
@@ -274,7 +237,7 @@ static int tty_poll(struct file *filp, struct poll_table *table, int events)
     if (!tty)
         return POLLERR;
 
-    using_mutex(&tty->inout_buf_lock) {
+    using_mutex(&tty->lock) {
         if (events & POLLIN) {
             if (char_buf_has_data(&tty->output_buf))
                 ret |= POLLIN;
@@ -323,62 +286,98 @@ static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
 {
     pid_t *parg;
     struct termios *tios;
+    struct winsize *wins;
     int ret;
     struct task *current = cpu_get_local()->current;
     struct tty *tty = filp->priv_data;
 
-    kp(KP_TRACE, "tty_ioctl: tty: %p, ctty: %p\n", tty, current->tty);
+    kp(KP_TRACE, "tty_ioctl: tty: %p, cmd: %d, ctty: %p\n", tty, cmd, current->tty);
 
     if ((cmd >> 8) != __TIO && tty != current->tty)
         return -ENOTTY;
 
     switch (cmd) {
     case TIOCGPGRP:
+        kp(KP_TRACE, "tty_ioctl: gpgrp\n");
         parg = (pid_t *)arg;
         ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_WRITE));
         if (ret)
             return ret;
 
-        *parg = tty->fg_pgrp;
+        using_mutex(&tty->lock)
+            *parg = tty->fg_pgrp;
         return 0;
 
     case TIOCSPGRP:
+        kp(KP_TRACE, "tty_ioctl: spgrp\n");
         parg = (pid_t *)arg;
         ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_READ));
         if (ret)
             return ret;
 
-        tty->fg_pgrp = *parg;
+        using_mutex(&tty->lock)
+            tty->fg_pgrp = *parg;
         return 0;
 
     case TIOCGSID:
+        kp(KP_TRACE, "tty_ioctl: gsid\n");
         parg = (pid_t *)arg;
         ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_WRITE));
         if (ret)
             return ret;
 
-        *parg = tty->session_id;
+        using_mutex(&tty->lock)
+            *parg = tty->session_id;
         return 0;
 
     case TCGETS:
+        kp(KP_TRACE, "tty_ioctl: get termios\n");
         tios = (struct termios *)arg;
         ret = user_check_region(tios, sizeof(*tios), F(VM_MAP_WRITE));
         if (ret)
             return ret;
 
-        *tios = tty->termios;
-        break;
+        using_mutex(&tty->lock)
+            *tios = tty->termios;
+        return 0;
 
     case TCSETS:
+        kp(KP_TRACE, "tty_ioctl: set termios\n");
         tios = (struct termios *)arg;
         ret = user_check_region(tios, sizeof(*tios), F(VM_MAP_READ));
         if (ret)
             return ret;
 
-        tty->termios = *tios;
-        break;
+        using_mutex(&tty->lock)
+            tty->termios = *tios;
+
+        tty_line_buf_flush(tty);
+        return 0;
+
+    case TIOCGWINSZ:
+        kp(KP_TRACE, "tty_ioctl: get winsize\n");
+        wins = (struct winsize *)arg;
+        ret = user_check_region(wins, sizeof(*wins), F(VM_MAP_WRITE));
+        if (ret)
+            return ret;
+
+        using_mutex(&tty->lock)
+            *wins = tty->winsize;
+        return 0;
+
+    case TIOCSWINSZ:
+        kp(KP_TRACE, "tty_ioctl: set winsize\n");
+        wins = (struct winsize *)arg;
+        ret = user_check_region(wins, sizeof(*wins), F(VM_MAP_READ));
+        if (ret)
+            return ret;
+
+        using_mutex(&tty->lock)
+            tty->winsize = *wins;
+        return 0;
     }
 
+    kp(KP_TRACE, "tty_ioctl: INVALID CMD: 0x%04x\n", cmd);
     return -EINVAL;
 }
 

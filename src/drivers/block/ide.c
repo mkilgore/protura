@@ -121,7 +121,6 @@ static int __ide_wait_ready(void)
 
     do {
         ret = __ide_read_status();
-        kp(KP_IDE, "status ret: 0x%02x\n", ret);
     } while ((ret & (IDE_STATUS_BUSY | IDE_STATUS_READY)) != IDE_STATUS_READY);
 
     return ret;
@@ -183,10 +182,8 @@ static void __ide_start_queue(void)
     if (use_dma) {
         if (flag_test(&b->flags, BLOCK_DIRTY) && ide_dma_setup_write(&ide_state.dma, b) == 0) {
             /* DMA WRITE */
-            kp(KP_IDE, "Starting DMA write\n");
         } else if (!flag_test(&b->flags, BLOCK_VALID) && ide_dma_setup_read(&ide_state.dma, b) == 0) {
             /* DMA READ */
-            kp(KP_IDE, "Starting DMA read\n");
         } else {
             use_dma = 0;
         }
@@ -199,7 +196,6 @@ static void __ide_start_queue(void)
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_WRITE);
 
             ide_dma_start(&ide_state.dma);
-            kp(KP_IDE, "Finished DMA Write command\n");
         } else {
             /* Revert to PIO if DMA can't work */
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_PIO_LBA28_WRITE);
@@ -220,7 +216,6 @@ static void __ide_start_queue(void)
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_READ);
 
             ide_dma_start(&ide_state.dma);
-            kp(KP_IDE, "Finished DMA Read command\n");
         } else {
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_PIO_LBA28_READ);
         }
@@ -232,8 +227,6 @@ static void __ide_handle_intr(struct irq_frame *frame)
     struct block *b;
     list_head_t *block_queue;
     int use_dma;
-
-    kp(KP_IDE, "REGULAR IDE IRQ\n");
 
     if (ide_state.next_is_slave)
         block_queue = &ide_state.block_queue_slave;
@@ -250,29 +243,16 @@ static void __ide_handle_intr(struct irq_frame *frame)
     if (use_dma) {
         int dma_stat, st;
 
-        kp(KP_IDE, "DATA waiting for int to go low\n");
         dma_stat = ide_dma_check(&ide_state.dma);
 
-        kp(KP_IDE, "DATA int is low\n");
         ide_dma_abort(&ide_state.dma);
 
         st = __ide_read_status();
-        kp(KP_IDE, "DATA stat: 0x%02x, Flag: 0x%02x\n", st, IDE_STATUS_BUSY);
 
         if ((dma_stat & 7))
             kp(KP_IDE, "DATA READ ERROR: 0x%02x\n", dma_stat);
         else if ((st & (IDE_STATUS_BUSY | IDE_STATUS_DATA_READ)) != IDE_STATUS_DATA_READ)
             kp(KP_IDE, "DATA STATUS ERROR: 0x%02x\n", st);
-
-#if 0
-        static char dump_buf[4096];
-
-        dump_mem(dump_buf, sizeof(dump_buf), b->data, b->block_size, 0);
-
-        kp(KP_IDE, "Dumped mem:\n%s\n", dump_buf);
-
-        kp(KP_IDE, "IDE READY\n");
-#endif
     } else {
         /* If we were doing a read, then read the data now. We have to wait until
          * the drive is in the IDE_STATUS_READY state until we can start the read.

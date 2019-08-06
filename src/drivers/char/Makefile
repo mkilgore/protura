@@ -4,6 +4,7 @@ objs-$(CONFIG_CONSOLE_DRIVER) += screen.o
 objs-$(CONFIG_CONSOLE_DRIVER) += keyboard.o
 
 objs-$(CONFIG_TTY_DRIVER) += tty.o
+objs-$(CONFIG_TTY_DRIVER) += tty_termios.o
 
 objs-y += mem.o
 objs-y += mem_zero.o

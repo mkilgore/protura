@@ -12,6 +12,7 @@
 #include <protura/hlist.h>
 #include <protura/string.h>
 #include <arch/spinlock.h>
+#include <arch/asm.h>
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
 
