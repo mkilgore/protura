@@ -43,7 +43,7 @@ static const struct arg args[] = {
 #undef X
 };
 
-pid_t pid;
+pid_t pid = 1;
 
 int main(int argc, char **argv)
 {

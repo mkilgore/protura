@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
+#include <poll.h>
+#include <termios.h>
 
 #include "arg_parser.h"
 #include "file.h"
@@ -41,6 +44,7 @@ static const struct arg args[] = {
 static int file_count = 0;
 static FILE *file_list[MAX_FILES] = { 0 };
 
+static int tty_fd;
 static int screen_rows = 25;
 
 int page_file(FILE *file)
@@ -53,29 +57,34 @@ int page_file(FILE *file)
 
     while (!hit_eof) {
 
-        for (row = 0; row < screen_rows && !hit_eof; row++) {
+        for (row = 0; row < screen_rows - 1&& !hit_eof; row++) {
             len = getline(&line, &buf_len, file);
             hit_eof = len == -1;
 
-            if (line && !hit_eof) {
-                /* Get rid of newline if we're on the last row. */
-                if (row + 1 == screen_rows)
-                    line[len - 1] = '\0';
-
+            if (line && !hit_eof)
                 printf("%s", line);
-            }
         }
 
-        fflush(stdout);
-
-        /* We can't rely on stdin, since we allow piped in input. The hope is
-         * that there is that the underlying device (tty or otherwise) allows
-         * both input and output, and stdin/stdout/stderr are all connected to
-         * it. So reading from stderr gives us input from the user, which we
-         * otherwise can't get. */
         if (!hit_eof) {
-            fgetc(stderr);
-            putchar('\n');
+            printf("-- MORE --");
+            fflush(stdout);
+
+            struct pollfd pollfd;
+            memset(&pollfd, 0, sizeof(pollfd));
+
+            pollfd.fd = tty_fd;
+            pollfd.events = POLLIN;
+            do {
+                pollfd.revents = 0;
+                int ret = poll(&pollfd, 1, -1);
+            } while (!(pollfd.revents & POLLIN));
+
+            /* Clear out the newline character */
+            char c;
+            read(tty_fd, &c, 1);
+
+            printf("\r          \r");
+            fflush(stdout);
         }
     }
 
@@ -88,6 +97,8 @@ int page_file(FILE *file)
 int main(int argc, char **argv)
 {
     enum arg_index ret;
+    struct termios old_term, term;
+    struct winsize wsize;
     int i;
 
     while ((ret = arg_parser(argc, argv, args)) != ARG_DONE) {
@@ -124,10 +135,23 @@ int main(int argc, char **argv)
         file_list[0] = fopen_with_dash("-", "r");
     }
 
+    tty_fd = open("/dev/tty", O_RDONLY);
+    tcgetattr(tty_fd, &old_term);
+    ioctl(tty_fd, TIOCGWINSZ, &wsize);
+
+    screen_rows = wsize.ws_row;
+
+    term = old_term;
+    term.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL);
+
+    tcsetattr(tty_fd, TCSANOW, &term);
+
     for (i = 0; i < file_count; i++) {
         page_file(file_list[i]);
         fclose_with_dash(file_list[i]);
     }
+
+    tcsetattr(tty_fd, TCSANOW, &old_term);
 
     return 0;
 }
