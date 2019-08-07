@@ -1,10 +1,6 @@
 [submodule "disk/toolchain"]
 	path = disk/toolchain
 	url = https://github.com/mkilgore/protura-toolchain
-[submodule "disk/utils/protura-ed"]
-	path = disk/utils/protura-ed
-	url = https://github.com/mkilgore/protura-ed
-	branch = master
 [submodule "disk/extras/vim"]
 	path = disk/extras/vim
 	url = https://github.com/mkilgore/protura-vim
@@ -13,3 +9,7 @@
 	path = disk/extras/ncurses
 	url = https://github.com/mkilgore/protura-ncurses
 	branch = protura
+[submodule "disk/extras/ed"]
+	path = disk/extras/ed
+	url = https://github.com/mkilgore/protura-ed
+	branch = master

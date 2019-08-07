@@ -25,3 +25,15 @@ disk/extras/vim.built:
 	$(Q)touch ./disk/extras/vim.built
 
 DISK_CLEAN_EXTRA += ./disk/extras/vim.built
+
+.PHONY: extra-ed
+extra-ed: disk/extras/ed.built
+disk/extras/ed.built:
+	@echo " BUILD   ed"
+	$(Q)cd ./disk/extras/ed; ./configure \
+		"CC-$(CC)" \
+		--prefix=/usr
+	$(Q)cd ./disk/extras/ed; make
+	$(Q)cd ./disk/extras/ed; make install "DESTDIR=$(DISK_ROOT)"
+	@echo " TOUCH   $@"
+	$(Q)touch ./disk/extras/ed.built
