@@ -2,7 +2,10 @@
 DISK_DEP :=
 DISK_CLEAN_EXTRA :=
 
+DISK_ROOT := $(PROTURA_DIR)/disk/root
+
 include ./disk/utils/Makefile
+include ./disk/extras/Makefile
 
 define dir_rule
 $(1): | $(2)
@@ -31,7 +34,7 @@ PHONY += toolchain clean-toolchain
 toolchain: | ./disk/root ./disk/root/usr
 	$(Q)git submodule update --init --depth 1
 	$(Q)cd ./disk/toolchain; git submodule update --init --depth 1
-	$(Q)cd ./disk/toolchain; ./build_toolchain.sh $(TARGET) $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
+	$(Q)cd ./disk/toolchain; ./build_toolchain.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR)
 
 clean-toolchain:
 	@echo " RM      ./disk/root"
@@ -41,7 +44,7 @@ clean-toolchain:
 
 PHONY += rebuild-newlib
 rebuild-newlib:
-	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(TARGET) $(PROTURA_DIR)/disk/root /usr $(TOOLCHAIN_DIR)
+	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR)
 
 .SECONDARY: $(DISK_UTIL_OBJS)
 
@@ -49,7 +52,7 @@ DISK_PROGS += $(DISK_UTIL_PROGS)
 
 DISK_EXTRA_FILES := $(wildcard ./disk/etc/*) $(wildcard ./disk/home/*)
 
-disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gendisk.sh $(DISK_EXTRA_FILES)
+disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gendisk.sh $(DISK_EXTRA_FILES) $(wildcard ./disk/extras/*.built)
 	@echo " GENDISK $@"
 	$(Q)sudo ./scripts/gendisk.sh
 
@@ -59,7 +62,6 @@ disk2.img: ./scripts/gendisk2.sh
 
 gendisk: disk.img
 gendisk2: disk2.img
-
 
 ifeq ($(MAKECMDGOALS),disk)
 -include $(DISK_DEP)

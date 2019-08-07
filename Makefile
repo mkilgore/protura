@@ -35,7 +35,7 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
 CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
            -fno-strict-aliasing -nostdlib -fno-builtin -nostdinc
 
-LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc
+LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc -static-libgcc
 ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
 
 # Configuration -- Uncomment lines to enable option
@@ -216,7 +216,7 @@ CLEAN_LIST += $$(OBJS_$(1))
 
 $$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(OBJS_EXTRA_$(1))
 	@echo " CCLD    $$@"
-	$$(Q)$$(CC) $$(CPPFLAGS) $$(LDFLAGS) $$(LDFLAGS_$(1)) -o $$@ $$(OBJS_$(1)) $$(EXE_OBJ)
+	$$(Q)$$(CC) $$(CPPFLAGS) -o $$@ $$(OBJS_$(1)) $$(EXE_OBJ) $$(LDFLAGS) $$(LDFLAGS_$(1)) 
 	@echo " OBJCOPY $$@.sym"
 	$$(Q)$$(OBJCOPY) --only-keep-debug $$@ $$@.sym
 	@echo " OBJCOPY $$@"

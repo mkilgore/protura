@@ -5,3 +5,11 @@
 	path = disk/utils/protura-ed
 	url = https://github.com/mkilgore/protura-ed
 	branch = master
+[submodule "disk/extras/vim"]
+	path = disk/extras/vim
+	url = https://github.com/mkilgore/protura-vim
+	branch = protura
+[submodule "disk/extras/ncurses"]
+	path = disk/extras/ncurses
+	url = https://github.com/mkilgore/protura-ncurses
+	branch = protura
