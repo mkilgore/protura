@@ -134,8 +134,6 @@ int sys_dup2(int olfd, int newfd);
 int sys_setpgid(pid_t pid, pid_t pgid);
 int sys_getpgrp(pid_t *pgrp);
 
-int sys_setuid(uid_t uid);
-
 /* Used when a task is already killed and dead */
 void task_free(struct task *);
 

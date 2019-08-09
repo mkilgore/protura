@@ -21,6 +21,7 @@
 #include <protura/fs/sys.h>
 #include <protura/net/sys.h>
 #include <protura/signal.h>
+#include <protura/users.h>
 
 /* 
  * These simple functions serve as the glue between the underlying
