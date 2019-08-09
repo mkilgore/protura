@@ -131,33 +131,6 @@ void procfs_init(void)
 
     procfs_hash_add_node(&procfs_root.node);
 
-#if 0
-    struct procfs_dir *dir1, *dir2;
-    dir1 = procfs_register_dir(&procfs_root, "new_dir1");
-    dir2 = procfs_register_dir(&procfs_root, "new_dir2");
-
-    procfs_register_entry(&procfs_root, "entry1", NULL);
-    procfs_register_entry(&procfs_root, "entry2", NULL);
-    procfs_register_entry(&procfs_root, "entry3", NULL);
-    procfs_register_entry(&procfs_root, "entry4", NULL);
-    procfs_register_entry(&procfs_root, "entry5", NULL);
-    procfs_register_entry(&procfs_root, "entry6", NULL);
-
-    procfs_register_entry(dir1, "entry1", NULL);
-    procfs_register_entry(dir1, "entry2", NULL);
-    procfs_register_entry(dir1, "entry3", NULL);
-    procfs_register_entry(dir1, "entry4", NULL);
-    procfs_register_entry(dir1, "entry5", NULL);
-    procfs_register_entry(dir1, "entry6", NULL);
-
-    procfs_register_entry(dir2, "entry1", NULL);
-    procfs_register_entry(dir2, "entry2", NULL);
-    procfs_register_entry(dir2, "entry3", NULL);
-    procfs_register_entry(dir2, "entry4", NULL);
-    procfs_register_entry(dir2, "entry5", NULL);
-    procfs_register_entry(dir2, "entry6", NULL);
-#endif
-
     procfs_register_entry_ops(&procfs_root, "interrupts", &interrupt_ops);
     procfs_register_entry_ops(&procfs_root, "tasks", &tasks_ops);
     procfs_register_entry_ops(&procfs_root, "filesystems", &file_system_ops);

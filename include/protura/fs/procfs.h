@@ -14,6 +14,7 @@
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/fs/inode.h>
+#include <protura/fs/stat.h>
 
 /* 
  * procfs_dir and procfs_entry locks can be taken at the same time, as long as

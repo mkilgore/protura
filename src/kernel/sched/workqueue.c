@@ -56,7 +56,9 @@ void workqueue_stop(struct workqueue *queue)
 void workqueue_add_work(struct workqueue *queue, struct work *work)
 {
     using_spinlock(&queue->lock) {
-        list_add_tail(&queue->work_list, &work->work_entry);
+        if (!list_node_is_in_list(&work->work_entry))
+            list_add_tail(&queue->work_list, &work->work_entry);
+
         if (queue->work_thread)
             scheduler_task_wake(queue->work_thread);
     }
@@ -64,7 +66,10 @@ void workqueue_add_work(struct workqueue *queue, struct work *work)
 
 void kwork_schedule(struct work *work)
 {
-    workqueue_add_work(&kwork, work);
+    if (work->task)
+        scheduler_task_wake(work->task);
+    else
+        workqueue_add_work(&kwork, work);
 }
 
 static void kwork_delay_timer_callback(struct ktimer *timer)

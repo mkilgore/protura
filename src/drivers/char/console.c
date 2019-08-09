@@ -58,7 +58,7 @@ static int tty_console_write(struct tty *driver, const char *data, size_t size)
 
 static void tty_console_reigster_for_wakeups(struct tty *tty)
 {
-    arch_keyboard_wakeup_add(tty->kernel_task);
+    arch_keyboard_work_add(&tty->work);
 }
 
 static struct tty_ops ops = {

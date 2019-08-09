@@ -107,6 +107,9 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
 
             inode->dtime = disk_inode->dtime;
 
+            inode->i.uid = disk_inode->uid;
+            inode->i.gid = disk_inode->gid;
+
             if (S_ISCHR(disk_inode->mode) || S_ISBLK(disk_inode->mode)) {
                 /* Two possible dev formats: (Found in Linux Kernel source code)
                  * Major=M, Minor=I
@@ -208,6 +211,9 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
         dinode->ctime = inode->i.ctime;
         dinode->mtime = inode->i.mtime;
         dinode->dtime = inode->dtime;
+
+        dinode->uid = inode->i.uid;
+        dinode->gid = inode->i.gid;
 
         if (S_ISCHR(inode->i.mode) || S_ISBLK(inode->i.mode)) {
             dinode->blk_ptrs[0] = (uint32_t)inode->i.dev_no;

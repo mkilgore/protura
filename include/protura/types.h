@@ -86,6 +86,8 @@ typedef __kuseconds_t useconds_t;
 typedef __ksuseconds_t suseconds_t;
 typedef __kn16 n16;
 typedef __kn32 n32;
+typedef __kuid_t uid_t;
+typedef __kgid_t gid_t;
 
 #define htonl(host) __khtonl(host)
 #define htons(host) __khtons(host)

@@ -49,6 +49,9 @@ struct inode {
 
     time_t atime, mtime, ctime;
 
+    uid_t uid;
+    gid_t gid;
+
     flags_t flags;
 
     /* If set, this inode is a mount point - 'mount' is the root of the mounted

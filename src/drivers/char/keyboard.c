@@ -13,6 +13,7 @@
 #include <protura/signal.h>
 #include <protura/kassert.h>
 #include <protura/wait.h>
+#include <protura/scheduler.h>
 
 #include <arch/spinlock.h>
 #include <protura/drivers/term.h>
@@ -30,34 +31,35 @@ void keyboard_init(void)
 int keyboard_file_read(struct file *filp, void *vbuf, size_t len)
 {
     char *buf = vbuf;
-    int c, cur_pos = 0;
+    size_t c, cur_pos = 0;
+    int ret = 0;
     struct task *current = cpu_get_local()->current;
+    struct work keyboard_work = WORK_INIT_TASK(keyboard_work, current);
 
     kp(KP_TRACE, "Registering %d for keyboard\n", current->pid);
-    arch_keyboard_wakeup_add(current);
+    arch_keyboard_work_add(&keyboard_work);
 
-  sleep_again:
-    sleep_intr {
+    while (1) {
         while ((cur_pos != len && (c = arch_keyboard_has_char()))) {
             buf[cur_pos] = arch_keyboard_get_char();
             cur_pos++;
         }
 
-        /* Only sleep if there was no data to be gotten */
-        if (!cur_pos) {
-            scheduler_task_yield();
-            if (has_pending_signal(current)) {
-                arch_keyboard_wakeup_remove(current);
-                return -ERESTARTSYS;
-            }
-            goto sleep_again;
-        }
+        if (cur_pos == len)
+            break;
+
+        ret = sleep_event_intr(arch_keyboard_has_char());
+        if (ret)
+            goto cleanup;
     }
 
-    arch_keyboard_wakeup_remove(current);
+    ret = cur_pos;
+
+  cleanup:
+    arch_keyboard_work_remove(&keyboard_work);
     kp(KP_TRACE, "Unregistering %d for keyboard\n", current->pid);
 
-    return cur_pos;
+    return ret;
 }
 
 struct file_ops keyboard_file_ops = {

@@ -457,7 +457,7 @@ struct procfs_entry_ops tasks_ops = {
     .readpage = scheduler_tasks_read,
 };
 
-static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
+static void __fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 {
     memset(tinfo, 0, sizeof(*tinfo));
 
@@ -471,6 +471,10 @@ static void fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 
     tinfo->pgid = task->pgid;
     tinfo->sid = task->session_id;
+
+    tinfo->uid = task->uid;
+    tinfo->gid = task->gid;
+
     if (task->tty) {
         tinfo->has_tty = 1;
         strncpy(tinfo->tty, task->tty->name, sizeof(tinfo->tty));
@@ -533,7 +537,7 @@ static int scheduler_task_api_read(struct file *filp, void *p, size_t size)
         if (!found)
             break;
 
-        fill_task_api_info(&tinfo, found);
+        __fill_task_api_info(&tinfo, found);
     }
 
     if (found) {

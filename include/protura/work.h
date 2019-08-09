@@ -22,8 +22,14 @@ struct workqueue {
 };
 
 struct work {
+    /* Entry into the queue of work to be run */
     list_node_t work_entry;
+
+    /* Entry in a wakeup queue */
+    list_node_t wakeup_entry;
+
     void (*callback) (struct work *);
+    struct task *task;
 };
 
 struct delay_work {
@@ -40,7 +46,15 @@ struct delay_work {
 #define WORK_INIT(work, func) \
     { \
         .work_entry = LIST_NODE_INIT((work).work_entry), \
+        .wakeup_entry = LIST_NODE_INIT((work).wakeup_entry), \
         .callback = func, \
+    }
+
+#define WORK_INIT_TASK(work, t) \
+    { \
+        .work_entry = LIST_NODE_INIT((work).work_entry), \
+        .wakeup_entry = LIST_NODE_INIT((work).wakeup_entry), \
+        .task = t, \
     }
 
 #define DELAY_WORK_INIT(w, func) \
@@ -59,6 +73,11 @@ static inline void work_init(struct work *work, void (*callback) (struct work *)
     *work = (struct work)WORK_INIT(*work, callback);
 }
 
+static inline void work_init_task(struct work *work, struct task *task)
+{
+    *work = (struct work)WORK_INIT_TASK(*work, task);
+}
+
 static inline void delay_work_init(struct delay_work *work, void (*callback) (struct work *))
 {
     *work = (struct delay_work)DELAY_WORK_INIT(*work, callback);
@@ -72,7 +91,6 @@ void workqueue_add_work(struct workqueue *, struct work *);
 void kwork_schedule(struct work *);
 void kwork_delay_schedule(struct delay_work *, int delay_ms);
 int kwork_delay_unschedule(struct delay_work *work);
-
 
 /*
  * Convinence methods for setting the callback and scheduling in one go.

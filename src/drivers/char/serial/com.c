@@ -16,6 +16,7 @@
 #include <protura/kassert.h>
 #include <protura/wait.h>
 #include <protura/basic_printf.h>
+#include <protura/work.h>
 
 #include <arch/spinlock.h>
 #include <protura/drivers/term.h>
@@ -47,7 +48,7 @@ struct com_port {
 
     spinlock_t buf_lock;
     struct char_buf buf;
-    struct wakeup_list watch_list;
+    list_head_t work_list;
 };
 
 static struct com_port com_ports[];
@@ -61,13 +62,16 @@ static void com_int_handler(struct irq_frame *frame, void *param)
 {
     char b;
     struct com_port *com = param;
+    struct work *work;
 
     using_spinlock(&com->buf_lock) {
         do {
             b = inb(com->ioport + UART_RX);
 
             char_buf_write_char(&com->buf, b);
-            wakeup_list_wakeup(&com->watch_list);
+
+            list_foreach_entry(&com->work_list, work, wakeup_entry)
+                kwork_schedule(work);
         } while (inb(com->ioport + UART_LSR) & UART_LSR_DR);
     }
 }
@@ -81,6 +85,7 @@ static struct com_port com_ports[] = {
         .buf_lock = SPINLOCK_INIT("com1"),
         .buf.buffer = com_ports[COM1].buffer,
         .buf.len = sizeof(com_ports[COM1].buffer),
+        .work_list = LIST_HEAD_INIT(com_ports[COM1].work_list),
     },
     [COM2] = {
         .ioport = 0x2F8,
@@ -90,14 +95,16 @@ static struct com_port com_ports[] = {
         .buf_lock = SPINLOCK_INIT("com2"),
         .buf.buffer = com_ports[COM2].buffer,
         .buf.len = sizeof(com_ports[COM2].buffer),
+        .work_list = LIST_HEAD_INIT(com_ports[COM2].work_list),
     },
 };
 
 static int com_file_read(struct file *filp, void *vbuf, size_t len)
 {
     char *buf = vbuf;
-    int cur_pos = 0;
-    int com_id = DEV_MINOR(filp->inode->dev_no);
+    int ret = 0;
+    size_t cur_pos = 0;
+    size_t com_id = DEV_MINOR(filp->inode->dev_no);
     struct task *current = cpu_get_local()->current;
     struct com_port *com = com_ports + com_id;
 
@@ -110,40 +117,44 @@ static int com_file_read(struct file *filp, void *vbuf, size_t len)
     if (!vbuf)
         return -EFAULT;
 
-    kp(KP_TRACE, "Registering %d for COM%d\n", current->pid, com_id);
-    wakeup_list_add(&com->watch_list, current);
+    struct work com_work = WORK_INIT_TASK(com_work, current);
 
-  sleep_again:
-    sleep_intr {
-        using_spinlock(&com->buf_lock) {
+    kp(KP_TRACE, "Registering %d for COM%d\n", current->pid, com_id);
+    using_spinlock(&com->buf_lock)
+        list_add_tail(&com->work_list, &com_work.wakeup_entry);
+
+    scoped_spinlock(&com->buf_lock) {
+        while (1) {
             while ((cur_pos != len) && (com->buf.buf_len > 0)) {
                 buf[cur_pos] = char_buf_read_char(&com->buf);
                 cur_pos++;
                 kp(KP_TRACE, "%d: Reading from COM\n", current->pid);
             }
-        }
 
-        /* Sleep if there was no data in the buffer */
-        if (!cur_pos) {
-            scheduler_task_yield();
-            if (has_pending_signal(current)) {
-                wakeup_list_remove(&com->watch_list, current);
-                return -ERESTARTSYS;
-            }
-            goto sleep_again;
+            if (cur_pos == len)
+                break;
+
+            ret = sleep_event_intr_spinlock(com->buf.buf_len > 0, &com->buf_lock);
+            if (ret)
+                goto cleanup;
         }
     }
 
-    wakeup_list_remove(&com->watch_list, current);
+    ret = cur_pos;
+
+  cleanup:
+    using_spinlock(&com->buf_lock)
+        list_del(&com_work.wakeup_entry);
+
     kp(KP_TRACE, "Unregistering %d for COM%d\n", current->pid, com_id);
 
-    return cur_pos;
+    return ret;
 }
 
 static int com_file_write(struct file *filp, const void *vbuf, size_t len)
 {
     const char *buf = vbuf;
-    int com_id = DEV_MINOR(filp->inode->dev_no);
+    size_t com_id = DEV_MINOR(filp->inode->dev_no);
     struct com_port *com = com_ports + com_id;
 
     if (com_id > ARRAY_SIZE(com_ports))
@@ -153,7 +164,7 @@ static int com_file_write(struct file *filp, const void *vbuf, size_t len)
         return -ENODEV;
 
     using_spinlock(&com->buf_lock) {
-        int i;
+        size_t i;
         for (i = 0; i < len; i++) {
             while (!com_write_ready(com))
                 ;
@@ -175,7 +186,7 @@ struct file_ops com_file_ops = {
 
 static void com_init_ports(void)
 {
-    int i;
+    size_t i;
     irq_flags_t irq_flags;
 
     irq_flags = irq_save();
@@ -224,7 +235,7 @@ static void com_init_ports(void)
 static int com_tty_read(struct tty *tty, char *buf, size_t len)
 {
     struct com_port *com = com_ports + tty->device_no;
-    int cur_pos = 0;
+    size_t cur_pos = 0;
 
     using_spinlock(&com->buf_lock) {
         while ((cur_pos != len) && (com->buf.buf_len > 0)) {
@@ -241,7 +252,7 @@ static int com_tty_write(struct tty *tty, const char *buf, size_t len)
     struct com_port *com = com_ports + tty->device_no;
 
     using_spinlock(&com->buf_lock) {
-        int i;
+        size_t i;
         for (i = 0; i < len; i++) {
             while (!com_write_ready(com))
                 ;
@@ -267,7 +278,8 @@ static void com_tty_register_for_wakeups(struct tty *tty)
 {
     struct com_port *com = com_ports + tty->device_no;
 
-    wakeup_list_add(&com->watch_list, tty->kernel_task);
+    using_spinlock(&com->buf_lock)
+        list_add_tail(&com->work_list, &tty->work.wakeup_entry);
 }
 
 static struct tty_ops ops = {
@@ -319,7 +331,7 @@ static void com_putchar(struct printf_backbone *b, char ch)
 
 static void com_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
-    int i;
+    size_t i;
     struct printf_backbone_com *com = container_of(b, struct printf_backbone_com, backbone);
 
     for (i = 0; i < len; i++) {

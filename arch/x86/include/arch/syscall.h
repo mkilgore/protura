@@ -93,6 +93,8 @@
 
 #define SYSCALL_GETTIMEOFDAY 0x60
 
+#define SYSCALL_SETUID 0x61
+
 #ifdef __KERNEL__
 #ifndef ASM
 

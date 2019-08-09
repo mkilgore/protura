@@ -12,6 +12,8 @@
 #include <protura/atomic.h>
 #include <protura/scheduler.h>
 #include <protura/irq.h>
+#include <protura/list.h>
+#include <protura/work.h>
 
 #include <arch/spinlock.h>
 #include <arch/asm.h>
@@ -32,13 +34,14 @@ static struct keyboard {
 
     struct char_buf buf;
     spinlock_t buf_lock;
-    struct wakeup_list watch_list;
+    list_head_t work_list;
 } keyboard = {
     .led_status = 0,
     .control_keys = 0,
 
     .has_keys = ATOMIC32_INIT(0),
     .buf_lock = SPINLOCK_INIT("Keyboard"),
+    .work_list = LIST_HEAD_INIT(keyboard.work_list),
 };
 
 #define KEY_READ_BUF_PORT (0x60)
@@ -138,7 +141,12 @@ static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param
             char_buf_write_char(&keyboard.buf, asc_char);
             atomic32_inc(&keyboard.has_keys);
 
-            wakeup_list_wakeup(&keyboard.watch_list);
+            struct work *work;
+            kp(KP_TRACE, "keyboard: loop kwork.\n");
+            list_foreach_entry(&keyboard.work_list, work, wakeup_entry) {
+                kp(KP_TRACE, "keyboard: wakeup.\n");
+                kwork_schedule(work);
+            }
         }
     }
 }
@@ -146,7 +154,6 @@ static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param
 void arch_keyboard_init(void)
 {
     char_buf_init(&keyboard.buf, keyboard.buffer, sizeof(keyboard.buffer));
-    wakeup_list_init(&keyboard.watch_list);
 
     irq_register_callback(PIC8259_IRQ0 + 1, arch_keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT, NULL);
     pic8259_enable_irq(1);
@@ -164,14 +171,16 @@ static void clear_keyboard(void)
     } while (test & 0x02);
 }
 
-void arch_keyboard_wakeup_add(struct task *t)
+void arch_keyboard_work_add(struct work *work)
 {
-    wakeup_list_add(&keyboard.watch_list, t);
+    using_spinlock(&keyboard.buf_lock)
+        list_add_tail(&keyboard.work_list, &work->wakeup_entry);
 }
 
-void arch_keyboard_wakeup_remove(struct task *t)
+void arch_keyboard_work_remove(struct work *work)
 {
-    wakeup_list_remove(&keyboard.watch_list, t);
+    using_spinlock(&keyboard.buf_lock)
+        list_del(&work->wakeup_entry);
 }
 
 /* A fake IDT setup - Issuing an interrupt with this IDT will triple-fault the

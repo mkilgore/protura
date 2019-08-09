@@ -164,10 +164,10 @@ void scheduler_task_entry(void);
     })
 
 #define sleep_event(condition) \
-    __sleep_event_generic(condition, 0, 1, 1)
+    __sleep_event_generic(condition, 0, , )
 
-#define sleep_intr_event(condition) \
-    __sleep_event_generic(condition, 1, 1, 1)
+#define sleep_event_intr(condition) \
+    __sleep_event_generic(condition, 1, , )
 
 #define sleep_event_cmd(condition, cmd1, cmd2) \
     __sleep_event_generic(condition, 0, cmd1, cmd2)

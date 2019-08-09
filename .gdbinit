@@ -18,3 +18,6 @@ set pagination off
 dashboard -layout expressions registers stack assembly source !threads !memory !history
 dashboard stack -style limit 5
 
+
+macro define offsetof(_type, _memb) ((long)(&((_type *)0)->_memb))
+macro define container_of(_ptr, _type, _memb) ((_type *)((void *)(_ptr) - offsetof(_type, _memb)))

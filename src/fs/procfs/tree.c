@@ -49,7 +49,7 @@ void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, cons
 
     entry->node.name = kstrdup(name, PAL_KERNEL);
     entry->node.len = strlen(name);
-    entry->node.mode = S_IFREG | 0777;
+    entry->node.mode = S_IFREG | 0444;
     entry->node.parent = parent;
     entry->node.ctime = protura_current_time_get();
     entry->node.ino = procfs_next_ino();
@@ -67,7 +67,7 @@ struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *na
     procfs_dir_init(new);
     new->node.name = kstrdup(name, PAL_KERNEL);
     new->node.len = strlen(name);
-    new->node.mode = S_IFDIR | 0777;
+    new->node.mode = S_IFDIR | 0555;
     new->node.parent = parent;
     new->node.ctime = protura_current_time_get();
     new->node.ino = procfs_next_ino();
@@ -82,7 +82,7 @@ struct procfs_dir procfs_root = {
         .name = "",
         .len = 0,
         .ino = PROCFS_ROOT_INO,
-        .mode = S_IFDIR | 0777,
+        .mode = S_IFDIR | 0555,
         .nlinks = 1,
         .parent = &procfs_root,
         .parent_node = LIST_NODE_INIT(procfs_root.node.parent_node),

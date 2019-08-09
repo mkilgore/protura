@@ -14,6 +14,7 @@
 # include <protura/char_buf.h>
 # include <protura/spinlock.h>
 # include <protura/mutex.h>
+# include <protura/work.h>
 #endif
 
 typedef unsigned char cc_t;
@@ -190,6 +191,8 @@ struct tty {
 
     mutex_t lock;
 
+    struct work work;
+
     pid_t session_id;
     pid_t fg_pgrp;
 
@@ -207,16 +210,17 @@ struct tty {
     struct char_buf input_buf;
     int ret0; /* ^D marker */
 
-    struct task *kernel_task;
-
     char *line_buf;
     size_t line_buf_pos;
     size_t line_buf_size;
 };
 
+void tty_pump(struct work *);
+
 #define TTY_INIT(tty) \
     { \
         .lock = MUTEX_INIT((tty).lock, "tty-lock"), \
+        .work = WORK_INIT((tty).work, tty_pump), \
         .in_wait_queue = WAIT_QUEUE_INIT((tty).in_wait_queue, "tty-in-wait-queue"), \
     }
 

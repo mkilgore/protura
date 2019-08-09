@@ -245,8 +245,8 @@ int vfs_stat(struct inode *inode, struct stat *buf)
     buf->st_size = inode->size;
     buf->st_rdev = DEV_TO_USERSPACE(inode->dev_no);
 
-    buf->st_uid = 0;
-    buf->st_gid = 0;
+    buf->st_uid = inode->uid;
+    buf->st_gid = inode->gid;
 
     buf->st_atime = inode->atime;
     buf->st_ctime = inode->ctime;

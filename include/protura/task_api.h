@@ -20,6 +20,8 @@ struct task_api_info {
     __kpid_t ppid;
     __kpid_t pgid;
     __kpid_t sid;
+    __kuid_t uid;
+    __kgid_t gid;
     enum task_api_state state;
 
     fd_set close_on_exec;

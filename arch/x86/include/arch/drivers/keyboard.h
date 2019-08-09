@@ -15,6 +15,7 @@
 #include <protura/char_buf.h>
 #include <arch/task.h>
 #include <protura/scheduler.h>
+#include <protura/work.h>
 
 enum {
     KEY_HOME = 0x4700,
@@ -33,7 +34,7 @@ void arch_keyboard_init(void);
 int arch_keyboard_has_char(void);
 int arch_keyboard_get_char(void);
 
-void arch_keyboard_wakeup_add(struct task *);
-void arch_keyboard_wakeup_remove(struct task *);
+void arch_keyboard_work_add(struct work *);
+void arch_keyboard_work_remove(struct work *);
 
 #endif

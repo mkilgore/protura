@@ -49,6 +49,8 @@ enum {
     TASK_FLAG_SESSION_LEADER,
 };
 
+#define NGROUPS 32
+
 struct task {
     pid_t pid;
     pid_t pgid;
@@ -84,6 +86,11 @@ struct task {
 
     context_t context;
     void *kstack_bot, *kstack_top;
+
+    uid_t uid, euid, suid;
+    gid_t gid, egid, sgid;
+
+    gid_t sup_groups[NGROUPS];
 
     struct file *files[NOFILE];
     struct inode *cwd;
@@ -126,6 +133,8 @@ int sys_dup(int oldfd);
 int sys_dup2(int olfd, int newfd);
 int sys_setpgid(pid_t pid, pid_t pgid);
 int sys_getpgrp(pid_t *pgrp);
+
+int sys_setuid(uid_t uid);
 
 /* Used when a task is already killed and dead */
 void task_free(struct task *);

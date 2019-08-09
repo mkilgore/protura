@@ -76,25 +76,15 @@ static const struct winsize default_winsize = {
 
 static struct tty *tty_array[MAX_MINOR];
 
-/* Currently does a simple echo from the tty input to the tty output */
-static int tty_kernel_thread(void *p)
+void tty_pump(struct work *work)
 {
-    struct tty *tty = p;
+    struct tty *tty = container_of(work, struct tty, work);
     const struct tty_driver *driver = tty->driver;
 
-    (driver->ops->register_for_wakeups) (tty);
-
-    while (1) {
+    while (driver->ops->has_chars(tty) || char_buf_has_data(&tty->input_buf)) {
         tty_process_input(tty);
         tty_process_output(tty);
-
-        sleep {
-            if (!driver->ops->has_chars(tty) && !char_buf_has_data(&tty->input_buf))
-                scheduler_task_yield();
-        }
     }
-
-    return 0;
 }
 
 static void tty_create(struct tty_driver *driver, dev_t devno)
@@ -135,10 +125,9 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->line_buf_size = PG_SIZE;
     tty->line_buf_pos = 0;
 
-    tty->kernel_task = task_kernel_new_interruptable(tty->name, tty_kernel_thread, tty);
-    scheduler_task_add(tty->kernel_task);
-
     tty_array[devno + driver->minor_start] = tty;
+
+    driver->ops->register_for_wakeups(tty);
 }
 
 void tty_driver_register(struct tty_driver *driver)
@@ -223,7 +212,7 @@ static int tty_write(struct file *filp, const void *vbuf, size_t len)
 
     using_mutex(&tty->lock) {
         char_buf_write(&tty->input_buf, vbuf, len);
-        scheduler_task_wake(tty->kernel_task);
+        kwork_schedule(&tty->work);
     }
 
     return orig_len;
