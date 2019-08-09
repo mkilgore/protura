@@ -1,3 +1,6 @@
+
+#include "common.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,9 +121,6 @@ int arg_parser(int parser_argc, char **parser_argv, const struct arg *args) {
 
 #define ARG_LEN 20
 
-#define QQ(s) #s
-#define Q(s) QQ(s)
-
 void display_help_text(const char *prog, const char *arg_str, const char *usage, const char *arg_desc_str, const struct arg *args)
 {
     const struct arg *a;
@@ -135,7 +135,7 @@ void display_help_text(const char *prog, const char *arg_str, const char *usage,
         if (a->shrt != '\0')
             printf("-%c%c ", a->shrt, a->lng? ',': ' ');
         else
-            printf("     ");
+            printf("    ");
 
         if (a->lng && !a->has_arg) {
             printf("--%-" Q(ARG_LEN) "s ", a->lng);

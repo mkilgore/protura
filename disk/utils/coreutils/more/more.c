@@ -76,7 +76,7 @@ int page_file(FILE *file)
             pollfd.events = POLLIN;
             do {
                 pollfd.revents = 0;
-                int ret = poll(&pollfd, 1, -1);
+                poll(&pollfd, 1, -1);
             } while (!(pollfd.revents & POLLIN));
 
             /* Clear out the newline character */
@@ -136,6 +136,11 @@ int main(int argc, char **argv)
     }
 
     tty_fd = open("/dev/tty", O_RDONLY);
+    if (tty_fd == -1) {
+        perror(argv[0]);
+        return 1;
+    }
+
     tcgetattr(tty_fd, &old_term);
     ioctl(tty_fd, TIOCGWINSZ, &wsize);
 

@@ -13,6 +13,7 @@
 #include <protura/fs/fdset.h>
 #include <protura/task_api.h>
 
+#include "columns.h"
 #include "arg_parser.h"
 
 #define TASK_API_FILE "/proc/task_api"
@@ -60,50 +61,71 @@ static const char *task_state_strs[] = {
     [TASK_API_ZOMBIE] = "zombie",
 };
 
+static struct util_display display = UTIL_DISPLAY_INIT(display);
 static struct task_api_info tinfo[TASK_MAX];
 static int task_count;
 static enum ps_display display_choice = PS_NORMAL;
-
-static char *get_name(struct task_api_info *t)
-{
-    static char name[256];
-    if (t->is_kernel)
-        snprintf(name, sizeof(name), "[%s]", t->name);
-    else
-        snprintf(name, sizeof(name), "%s", t->name);
-
-    return name;
-}
 
 static void print_list_format(void)
 {
     struct task_api_info *t, *end = tinfo + task_count;
 
-    printf("PID   PPID  PGRP  TTY   SID   STATE    CMD\n");
+    struct util_line *header = util_display_next_line(&display);
+    util_line_strdup(header, "PID");
+    util_line_strdup(header, "PPID");
+    util_line_strdup(header, "PGRP");
+    util_line_strdup(header, "UID");
+    util_line_strdup(header, "GID");
+    util_line_strdup(header, "TTY");
+    util_line_strdup(header, "SID");
+    util_line_strdup(header, "STATE");
+    util_line_strdup(header, "CMD");
 
-    for (t = tinfo; t != end; t++)
-        printf("%-5d %-5d %-5d %-5s %-5d %-8s %s\n",
-                t->pid,
-                t->ppid,
-                t->pgid,
-                (t->has_tty)? t->tty: "?",
-                t->sid,
-                task_state_strs[t->state],
-                get_name(t));
+    for (t = tinfo; t != end; t++) {
+        struct util_line *line = util_display_next_line(&display);
+
+        util_line_printf_ar(line, "%d", t->pid);
+        util_line_printf_ar(line, "%d", t->ppid);
+        util_line_printf_ar(line, "%d", t->pgid);
+        util_line_printf_ar(line, "%d", t->uid);
+        util_line_printf_ar(line, "%d", t->gid);
+        util_line_printf(line, "%s", (t->has_tty)? t->tty: "?");
+        util_line_printf_ar(line, "%d", t->sid);
+        util_line_printf(line, "%s", task_state_strs[t->state]);
+
+        if (t->is_kernel)
+            util_line_printf(line, "[%s]", t->name);
+        else
+            util_line_printf(line, "%s", t->name);
+    }
+
+    util_display_render(&display);
 }
 
 static void print_signal_format(void)
 {
     struct task_api_info *t, *end = tinfo + task_count;
 
-    printf("PID   PENDING  BLOCKED  CMD\n");
+    struct util_line *header = util_display_next_line(&display);
+    util_line_strdup(header, "PID");
+    util_line_strdup(header, "PENDING");
+    util_line_strdup(header, "BLOCKED");
+    util_line_strdup(header, "CMD");
 
-    for (t = tinfo; t != end; t++)
-        printf("%-5d %08x %08x %s\n",
-                t->pid,
-                t->sig_pending,
-                t->sig_blocked,
-                get_name(t));
+    for (t = tinfo; t != end; t++) {
+        struct util_line *line = util_display_next_line(&display);
+
+        util_line_printf_ar(line, "%d", t->pid);
+        util_line_printf(line, "%08x", t->sig_pending);
+        util_line_printf(line, "%08x", t->sig_blocked);
+
+        if (t->is_kernel)
+            util_line_printf(line, "[%s]", t->name);
+        else
+            util_line_printf(line, "%s", t->name);
+    }
+
+    util_display_render(&display);
 }
 
 int main(int argc, char **argv)

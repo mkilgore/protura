@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
@@ -13,6 +14,8 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
+#include "list.h"
+#include "columns.h"
 #include "arg_parser.h"
 
 #define DIRMAX 200
@@ -27,7 +30,10 @@ static const char *arg_desc_str  = "Files: List of files to provide information 
     X(almost_all, "almost-all", 0, 'A', "All, but '.' and '..' are not listed") \
     X(lng, NULL,  0, 'l', "Use a long listing format") \
     X(dereference, "dereference", 0, 'L', "For symlinks: Show information on referenced file instead") \
-    X(help, "help", 0, 'h', "Display help") \
+    X(inode, "inode", 0, 'i', "Show Inode numbers") \
+    X(human, "human-readable", 0, 'h', "Show human-readable sizes") \
+    X(size, "size", 0, 's', "Show size of files") \
+    X(help, "help", 0, '\0', "Display help") \
     X(version, "version", 0, 'v', "Display version information") \
     X(last, NULL, 0, '\0', NULL)
 
@@ -52,28 +58,118 @@ enum all_option {
     SHOW_ALMOST_ALL,
 };
 
+static struct util_display display = UTIL_DISPLAY_INIT(display);
 static enum all_option show_all = SHOW_NORMAL;
 static int long_fmt = 0;
+static int show_inode = 0;
+static int show_size = 0;
 static int dereference_links = 0;
+static int human_readable_size = 0;
 
-static const char *type_ids[] = {
-    [S_IFREG] = "r",
-    [S_IFDIR] = "d",
-    [S_IFBLK] = "b",
-    [S_IFCHR] = "c",
-    [S_IFLNK] = "l",
-    [S_IFIFO] = "f",
+enum file_type {
+    TYPE_UNKNOWN,
+    TYPE_REG,
+    TYPE_DIR,
+    TYPE_BLK,
+    TYPE_CHR,
+    TYPE_LNK,
+    TYPE_FIFO,
+    TYPE_SOK,
 };
+
+static char type_ids[] = {
+    [TYPE_UNKNOWN] = 'u',
+    [TYPE_REG] = '-',
+    [TYPE_DIR] = 'd',
+    [TYPE_BLK] = 'b',
+    [TYPE_CHR] = 'c',
+    [TYPE_LNK] = 'l',
+    [TYPE_FIFO] = 'f',
+    [TYPE_SOK] = 's',
+};
+
+enum file_type mode_to_file_type(mode_t mode)
+{
+    switch (mode & S_IFMT) {
+    case S_IFREG:
+        return TYPE_REG;
+
+    case S_IFDIR:
+        return TYPE_DIR;
+
+    case S_IFBLK:
+        return TYPE_BLK;
+
+    case S_IFCHR:
+        return TYPE_CHR;
+
+    case S_IFLNK:
+        return TYPE_LNK;
+
+    case S_IFIFO:
+        return TYPE_FIFO;
+
+    case S_IFSOCK:
+        return TYPE_SOK;
+    }
+
+    return TYPE_UNKNOWN;
+}
+
+char mode_flag(mode_t mode, mode_t flag, char c)
+{
+    if (mode & flag)
+        return c;
+
+    return '-';
+}
+
+static void render_mode_flags(struct util_line *line, mode_t mode)
+{
+    util_line_printf(line,
+            "%c" "%c%c%c" "%c%c%c" "%c%c%c",
+            type_ids[mode_to_file_type(mode)],
+            mode_flag(mode, S_IRUSR, 'r'), mode_flag(mode, S_IWUSR, 'w'), mode_flag(mode, S_IXUSR, 'x'),
+            mode_flag(mode, S_IRGRP, 'r'), mode_flag(mode, S_IWGRP, 'w'), mode_flag(mode, S_IXGRP, 'x'),
+            mode_flag(mode, S_IROTH, 'r'), mode_flag(mode, S_IWOTH, 'w'), mode_flag(mode, S_IXOTH, 'x')
+            );
+}
+
+static void render_size(struct util_line *line, off_t size)
+{
+    struct util_column *column = util_line_next_column(line);
+
+    column->alignment = UTIL_ALIGN_RIGHT;
+    if (!human_readable_size) {
+        util_column_printf(column, "%d", (int)size);
+        return;
+    }
+
+    if (size < 1024) {
+        util_column_printf(column, "%d", (int)size);
+        return;
+    }
+
+    if (size < 1024 * 1024) {
+        util_column_printf(column, "%dK", (int)size >> 10);
+        return;
+    }
+
+    if (size < 1024 * 1024 * 1024) {
+        util_column_printf(column, "%dM", (int)size >> 20);
+        return;
+    }
+
+    util_column_printf(column, "%dG", (int)size >> 30);
+}
 
 void list_items(DIR *directory)
 {
     struct dirent *item;
-    int column_count;
-    char columns[10][20];
-    int i;
 
     while ((item = readdir(directory))) {
         struct stat st;
+        struct util_line *cur_line;
 
         if (show_all == SHOW_NORMAL && item->d_name[0] == '.')
             continue;
@@ -82,54 +178,53 @@ void list_items(DIR *directory)
             && (strcmp(item->d_name, ".") == 0 || strcmp(item->d_name, "..") == 0))
             continue;
 
-        if (!long_fmt) {
-            puts(item->d_name);
-            continue;
-        }
-
         if (!dereference_links)
             lstat(item->d_name, &st);
         else
             stat(item->d_name, &st);
 
-        column_count = 0;
+        cur_line = util_display_next_line(&display);
 
-        snprintf(columns[column_count], sizeof(columns[column_count]), "%s", type_ids[st.st_mode & S_IFMT]);
-        column_count++;
+        if (show_size)
+            render_size(cur_line, st.st_size);
 
-        snprintf(columns[column_count], sizeof(columns[column_count]), "%d", (int)st.st_ino);
-        column_count++;
+        if (show_inode)
+            util_line_printf(cur_line, "%d", (int)st.st_ino);
 
-        if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode)) {
-            snprintf(columns[column_count], sizeof(columns[column_count]), "%d", (int)st.st_size);
-            column_count++;
+        if (long_fmt) {
+            render_mode_flags(cur_line, st.st_mode);
+
+            util_line_printf(cur_line, "%d", (int)st.st_uid);
+
+            util_line_printf(cur_line, "%d", (int)st.st_gid);
+
+            if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode) || S_ISLNK(st.st_mode))
+                render_size(cur_line, st.st_size);
+
+            if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))
+                util_line_printf(cur_line, "%d, %d", (int)major(st.st_rdev), (int)minor(st.st_rdev));
+
+            struct util_column *col = util_line_next_column(cur_line);
+            col->buf = malloc(100);
+            strftime(col->buf, 100, "%b %e %H:%M", gmtime(&st.st_mtime));
         }
-
-        if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)){
-            snprintf(columns[column_count], sizeof(columns[column_count]), "%d, %d", (int)major(st.st_rdev), (int)minor(st.st_rdev));
-            column_count++;
-        }
-
-        strftime(columns[column_count], sizeof(columns[column_count]), "%D %T", gmtime(&st.st_mtime));
-        column_count++;
-
-        for (i = 0; i < column_count; i++)
-            printf("%s\t", columns[i]);
 
         if (!S_ISLNK(st.st_mode)) {
-            printf("%s\n", item->d_name);
+            util_line_strdup(cur_line, item->d_name);
         } else {
             char buf[255];
             readlink(item->d_name, buf, sizeof(buf));
 
-            printf("%s -> %s\n", item->d_name, buf);
+            util_line_printf(cur_line, "%s -> %s", item->d_name, buf);
         }
     }
+
+    util_display_render(&display);
 }
 
 
 int main(int argc, char **argv) {
-    int dirs = 0, i;
+    size_t dirs = 0, i;
     const char *dirarray[DIRMAX] = { NULL };
 
     enum arg_index ret;
@@ -157,6 +252,18 @@ int main(int argc, char **argv) {
 
         case ARG_dereference:
             dereference_links = 1;
+            break;
+
+        case ARG_inode:
+            show_inode = 1;
+            break;
+
+        case ARG_human:
+            human_readable_size = 1;
+            break;
+
+        case ARG_size:
+            show_size = 1;
             break;
 
         case ARG_EXTRA:

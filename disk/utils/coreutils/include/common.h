@@ -21,19 +21,17 @@
 #define TP2(x, y) x ## y
 #define TP(x, y) TP2(x, y)
 
-#ifndef UTILITY_NAME
-# error "Please define UTILITY_NAME macro before including common.h!"
+#ifdef UTILITY_NAME
+
+# define IU_VERSION_MAJOR 0
+# define IU_VERSION_MINOR 1
+# define IU_VERSION IU_VERSION_MAJOR.IU_VERSION_MINOR
+
+# define version_text (UTILITY_NAME " (iu-coreutils) " Q(IU_VERSION) "\n")
+
 #endif
 
-#define IU_VERSION_MAJOR 0
-#define IU_VERSION_MINOR 1
-#define IU_VERSION IU_VERSION_MAJOR.IU_VERSION_MINOR
-
-#define version_text (UTILITY_NAME " (iu-coreutils) " Q(IU_VERSION) "\n")
-
-#if 0
-static const char *version_text =
-    UTILITY_NAME " (iu-coreutils) " Q(IU_VERSION) "\n";
-#endif
+int a_sprintfv(char **buf, const char *format, va_list lst);
+int a_sprintf(char **buf, const char *format, ...);
 
 #endif

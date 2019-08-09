@@ -26,7 +26,7 @@ A collection of Coreutil programs designed for Protura. A current list of progra
 - `ps`: Display information on the currently running user and kernel processes
 - `rm`: Remove file and directories
 - `rmdir`: Remove directories
-- `route`: Setup the IP routing tableA
+- `route`: Setup the IP routing table
 - `seq`: Print sequencial numbers based on the provided arguments
 - `sh`: A *very* basic shell. It is *not* `bin/sh` compatible.
 - `sort`: Sort lines in the input
