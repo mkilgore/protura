@@ -136,7 +136,10 @@ static void __term_putchar_nocur(char ch)
 
     /* We do this up here so that ignore_next_nl gets cleared for every other
      * char. */
-    if ((ch == '\n' || ch == '\r') && !glob_term.ignore_next_nl) {
+    if (ch == '\r')
+        c = 0;
+
+    if (ch == '\n' && !glob_term.ignore_next_nl) {
         c = 0;
         r++;
     } else {
