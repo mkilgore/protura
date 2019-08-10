@@ -230,6 +230,7 @@ static inline void tty_init(struct tty *tty)
 }
 
 void tty_driver_register(struct tty_driver *driver);
+int tty_write_buf(struct tty *tty, const char *buf, size_t len);
 
 #define __TERMIOS_FLAG_OFLAG(termios, flag) (((termios)->c_oflag & (flag)) != 0)
 #define __TERMIOS_FLAG_CFLAG(termios, flag) (((termios)->c_cflag & (flag)) != 0)

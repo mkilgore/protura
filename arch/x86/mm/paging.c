@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/multiboot.h>
 #include <protura/string.h>
+#include <protura/snprintf.h>
 #include <protura/debug.h>
 #include <protura/mm/memlayout.h>
 #include <protura/drivers/term.h>
@@ -18,6 +19,7 @@
 #include <protura/task.h>
 #include <protura/fs/fs.h>
 #include <protura/fs/sys.h>
+#include <protura/drivers/tty.h>
 
 #include <arch/asm.h>
 #include <arch/cpu.h>
@@ -133,9 +135,16 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
         halt_and_dump_stack(frame, p);
 
     /* Program seg-faulted - Attempt to display message and exit. */
-    term_printf("Seg-fault - %d terminated\n", cpu_get_local()->current->pid);
 
-    flag_set(&cpu_get_local()->current->flags, TASK_FLAG_KILLED);
+    struct task *current = cpu_get_local()->current;
+    if (current->tty) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "Seg-Fauilt - %d terminated\n", current->pid);
+
+        tty_write_buf(current->tty, buf, strlen(buf));
+    }
+
+    flag_set(&current->flags, TASK_FLAG_KILLED);
 }
 
 /* All of kernel-space virtual memory directly maps onto the lowest part of

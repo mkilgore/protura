@@ -202,18 +202,28 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
         return ret;
 }
 
+/* Used for things like the seg-fault message */
+int tty_write_buf(struct tty *tty, const char *buf, size_t len)
+{
+    if (!tty)
+        return -ENOTTY;
+
+    using_mutex(&tty->lock) {
+        char_buf_write(&tty->input_buf, buf, len);
+        kwork_schedule(&tty->work);
+    }
+
+    return 0;
+}
+
 static int tty_write(struct file *filp, const void *vbuf, size_t len)
 {
     struct tty *tty = filp->priv_data;
     size_t orig_len = len;
 
-    if (!tty)
-        return -ENOTTY;
-
-    using_mutex(&tty->lock) {
-        char_buf_write(&tty->input_buf, vbuf, len);
-        kwork_schedule(&tty->work);
-    }
+    int ret = tty_write_buf(tty, vbuf, len);
+    if (ret)
+        return ret;
 
     return orig_len;
 }
