@@ -15,10 +15,15 @@ mkdir ./disk_ext2/mnt/slave
 mkdir ./disk_ext2/home
 cp -R ./disk/home/* ./disk_ext2/home/
 
-chown -R 1000:1000 ./disk_ext2/home
+chown -R 1000:1000 ./disk_ext2/home/mkilgore/
+chown -R 1001:1001 ./disk_ext2/home/exuser/
 
 mkdir ./disk_ext2/etc
 cp -R ./disk/etc/* ./disk_ext2/etc/
+
+mkdir ./disk_ext2/srv
+mkdir ./disk_ext2/srv/http
+chown -R 33:33 ./disk_ext2/srv
 
 mkdir ./disk_ext2/proc
 mkdir ./disk_ext2/tmp
