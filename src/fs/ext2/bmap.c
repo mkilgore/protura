@@ -94,6 +94,108 @@ void ext2_block_release(struct ext2_super_block *sb, sector_t orig_block)
     kp_ext2(sb, "block_release: %d\n", block);
 }
 
+static sector_t ext2_alloc_block_zero(struct ext2_super_block *sb)
+{
+    struct block *b;
+    sector_t iblock = ext2_block_alloc(sb);
+
+    using_block(sb->sb.dev, iblock, b) {
+        memset(b->data, 0, b->block_size);
+        block_mark_dirty(b);
+    }
+
+    return iblock;
+}
+
+static void ext2_map_indirect(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t inode_sector, sector_t alloc_sector)
+{
+    const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+    int single_blk = inode_sector / ptrs_per_blk;
+    int direct_blk = inode_sector % ptrs_per_blk;
+    struct block *b;
+
+    if (!inode->blk_ptrs_single[single_blk])
+        inode->blk_ptrs_single[single_blk] = ext2_alloc_block_zero(sb);
+
+    using_block(sb->sb.dev, inode->blk_ptrs_single[single_blk], b) {
+        ((uint32_t *)b->data)[direct_blk] = alloc_sector;
+        block_mark_dirty(b);
+    }
+}
+
+static void ext2_map_dindirect(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t inode_sector, sector_t alloc_sector)
+{
+    const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+    int double_blk = alloc_sector / ptrs_per_blk / ptrs_per_blk;
+    int single_blk = (alloc_sector / ptrs_per_blk) % ptrs_per_blk;;
+    int direct_blk = alloc_sector % ptrs_per_blk;
+    struct block *b;
+    sector_t indirect_block;
+
+    if (!inode->blk_ptrs_double[double_blk])
+        inode->blk_ptrs_double[double_blk] = ext2_alloc_block_zero(sb);
+
+    using_block(sb->sb.dev, inode->blk_ptrs_double[double_blk], b)
+        indirect_block = ((uint32_t *)b->data)[single_blk];
+
+    if (!indirect_block) {
+        indirect_block = ext2_alloc_block_zero(sb);
+
+        using_block(sb->sb.dev, inode->blk_ptrs_double[double_blk], b) {
+            ((uint32_t *)b->data)[single_blk] = indirect_block;
+            block_mark_dirty(b);
+        }
+    }
+
+    using_block(sb->sb.dev, indirect_block, b) {
+        ((uint32_t *)b->data)[direct_blk] = alloc_sector;
+        block_mark_dirty(b);
+    }
+}
+
+static void ext2_map_tindirect(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t inode_sector, sector_t alloc_sector)
+{
+    const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+    int triple_blk = inode_sector / ptrs_per_blk / ptrs_per_blk / ptrs_per_blk;
+    int double_blk = (inode_sector / ptrs_per_blk / ptrs_per_blk) % ptrs_per_blk;
+    int single_blk = (inode_sector / ptrs_per_blk) % ptrs_per_blk;;
+    int direct_blk = inode_sector % ptrs_per_blk;
+    struct block *b;
+    sector_t dindrect_block, indirect_block;
+
+    if (!inode->blk_ptrs_triple[triple_blk])
+        inode->blk_ptrs_triple[triple_blk] = ext2_alloc_block_zero(sb);
+
+    using_block(sb->sb.dev, inode->blk_ptrs_triple[triple_blk], b)
+        dindrect_block = ((uint32_t *)b->data)[double_blk];
+
+    if (!dindrect_block) {
+        dindrect_block = ext2_alloc_block_zero(sb);
+
+        using_block(sb->sb.dev, inode->blk_ptrs_triple[triple_blk], b) {
+            ((uint32_t *)b->data)[double_blk] = dindrect_block;
+            block_mark_dirty(b);
+        }
+    }
+
+    using_block(sb->sb.dev, dindrect_block, b)
+        indirect_block = ((uint32_t *)b->data)[single_blk];
+
+    if (!indirect_block) {
+        indirect_block = ext2_alloc_block_zero(sb);
+
+        using_block(sb->sb.dev, dindrect_block, b) {
+            ((uint32_t *)b->data)[single_blk] = indirect_block;
+            block_mark_dirty(b);
+        }
+    }
+
+    using_block(sb->sb.dev, indirect_block, b) {
+        ((uint32_t *)b->data)[direct_blk] = alloc_sector;
+        block_mark_dirty(b);
+    }
+}
+
 sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
 {
     const int ptrs_per_blk = i->sb->bdev->block_size / sizeof(uint32_t);
@@ -203,13 +305,36 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
     /* FIXME: This new block needs to be mapped back into the inode correctly. */
     if (inode_sector <= ARRAY_SIZE(i->blk_ptrs_direct)) {
         i->blk_ptrs_direct[inode_sector] = ret;
-
-        using_block(sb->sb.dev, ret, b) {
-            memset(b->data, 0, b->block_size);
-            block_mark_dirty(b);
-        }
     } else {
-        panic("Writing more then 12 blocks to a file not implemented!\n");
+        const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+
+        inode_sector -= ARRAY_SIZE(i->blk_ptrs_direct);
+
+        if (inode_sector < ARRAY_SIZE(i->blk_ptrs_single) * ptrs_per_blk) {
+            ext2_map_indirect(sb, i, inode_sector, ret);
+        } else {
+            inode_sector -= ARRAY_SIZE(i->blk_ptrs_single) * ptrs_per_blk;
+
+            if (inode_sector < ARRAY_SIZE(i->blk_ptrs_double) * ptrs_per_blk * ptrs_per_blk) {
+                ext2_map_dindirect(sb, i, inode_sector, ret);
+            } else {
+                inode_sector -= ARRAY_SIZE(i->blk_ptrs_double) * ptrs_per_blk * ptrs_per_blk;
+
+                if (inode_sector < ARRAY_SIZE(i->blk_ptrs_triple) * ptrs_per_blk * ptrs_per_blk * ptrs_per_blk) {
+                    ext2_map_tindirect(sb, i, inode_sector, ret);
+                } else {
+                    ext2_block_release(sb, ret);
+                    kp(KP_ERROR, "Error: File too large!\n");
+
+                    return SECTOR_INVALID;
+                }
+            }
+        }
+    }
+
+    using_block(sb->sb.dev, ret, b) {
+        memset(b->data, 0, b->block_size);
+        block_mark_dirty(b);
     }
 
     inode_set_dirty(inode);
