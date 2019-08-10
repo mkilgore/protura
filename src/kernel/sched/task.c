@@ -87,6 +87,8 @@ void task_init(struct task *task)
     task->kstack_bot = palloc_va(log2(KERNEL_STACK_PAGES), PAL_KERNEL);
     task->kstack_top = task->kstack_bot + PG_SIZE * KERNEL_STACK_PAGES - 1;
 
+    credentials_init(&task->creds);
+
     kp(KP_TRACE, "Created task %d\n", task->pid);
 }
 
