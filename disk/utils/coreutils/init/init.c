@@ -17,11 +17,11 @@
 
 #define LOGFILE "/tmp/init.log"
 #define INITTAB "/etc/inittab"
-#define RCLOCAL "/etc/rc.local"
 
-FILE *ilog;
+const char *prog_name;
 
-char *const env_vars[] = { "PATH=/bin:/usr/bin", "HOME=/home/mkilgore", "TERM=linux", NULL };
+static FILE *ilog;
+static char *const env_vars[] = { "PATH=/bin:/usr/bin", "HOME=/home/mkilgore", "TERM=linux", NULL };
 
 enum tab_action {
     TAB_RESPAWN,
@@ -209,6 +209,8 @@ int main(int argc, char **argv)
     struct sigaction action;
     struct tab_ent *ent;
     sigset_t sigset;
+
+    prog_name = argv[0];
 
     ilog = fopen(LOGFILE, "w+");
     ilogf("Init: Booting\n");

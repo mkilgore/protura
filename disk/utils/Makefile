@@ -8,7 +8,6 @@ DISK_DIRDEPEND := ./disk/root ./disk/root/bin ./disk/root/usr
 
 DISK_UTIL_SRCS := \
 	./disk/utils/echo.c \
-	./disk/utils/init.c \
 	./disk/utils/seg_fault.c \
 	./disk/utils/brk_test.c \
 	./disk/utils/arg_test.c \

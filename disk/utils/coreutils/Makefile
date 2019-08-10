@@ -43,6 +43,7 @@ COREUTILS_PROGS = \
 	db_display \
 	userdel \
 	usermod \
+	init \
 
 DISK_COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROGS))
 DISK_PROGS += $(DISK_COREUTILS_PROGS)
