@@ -76,7 +76,7 @@ tmux select-pane -t 5
 tmux send-keys "$QEMU_DEBUG_CMD" Enter
 
 tmux select-pane -t 1
-tmux resize-pane -x 70
+tmux resize-pane -x 70 -y 15
 
 tmux select-pane -t 4
 tmux resize-pane -y 26 -x 80
