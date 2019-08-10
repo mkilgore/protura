@@ -472,8 +472,12 @@ static void __fill_task_api_info(struct task_api_info *tinfo, struct task *task)
     tinfo->pgid = task->pgid;
     tinfo->sid = task->session_id;
 
-    tinfo->uid = task->uid;
-    tinfo->gid = task->gid;
+    struct credentials *creds = &task->creds;
+
+    using_creds(creds) {
+        tinfo->uid = creds->uid;
+        tinfo->gid = creds->gid;
+    }
 
     if (task->tty) {
         tinfo->has_tty = 1;

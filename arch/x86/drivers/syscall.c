@@ -383,6 +383,61 @@ static void sys_handler_setuid(struct irq_frame *frame)
     frame->eax = sys_setuid((uid_t)frame->ebx);
 }
 
+static void sys_handler_setreuid(struct irq_frame *frame)
+{
+    frame->eax = sys_setreuid((uid_t)frame->ebx, (uid_t)frame->ecx);
+}
+
+static void sys_handler_setresuid(struct irq_frame *frame)
+{
+    frame->eax = sys_setresuid((uid_t)frame->ebx, (uid_t)frame->ecx, (uid_t)frame->edx);
+}
+
+static void sys_handler_getuid(struct irq_frame *frame)
+{
+    frame->eax = sys_getuid();
+}
+
+static void sys_handler_geteuid(struct irq_frame *frame)
+{
+    frame->eax = sys_geteuid();
+}
+
+static void sys_handler_setgid(struct irq_frame *frame)
+{
+    frame->eax = sys_setgid((gid_t)frame->ebx);
+}
+
+static void sys_handler_setregid(struct irq_frame *frame)
+{
+    frame->eax = sys_setregid((gid_t)frame->ebx, (gid_t)frame->ecx);
+}
+
+static void sys_handler_setresgid(struct irq_frame *frame)
+{
+    frame->eax = sys_setresgid((gid_t)frame->ebx, (gid_t)frame->ecx, (gid_t)frame->edx);
+}
+
+static void sys_handler_getgid(struct irq_frame *frame)
+{
+    frame->eax = sys_getgid();
+}
+
+static void sys_handler_getegid(struct irq_frame *frame)
+{
+    frame->eax = sys_getegid();
+}
+
+static void sys_handler_setgroups(struct irq_frame *frame)
+{
+    frame->eax = sys_setgroups((size_t)frame->ebx, (const gid_t *)frame->ecx);
+}
+
+static void sys_handler_getgroups(struct irq_frame *frame)
+{
+    frame->eax = sys_setgroups((size_t)frame->ebx, (gid_t *)frame->ecx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -461,6 +516,17 @@ static struct syscall_handler {
     SYSCALL(RECV, sys_handler_recv),
     SYSCALL(GETTIMEOFDAY, sys_handler_gettimeofday),
     SYSCALL(SETUID, sys_handler_setuid),
+    SYSCALL(SETREUID, sys_handler_setreuid),
+    SYSCALL(SETRESUID, sys_handler_setresuid),
+    SYSCALL(GETUID, sys_handler_getuid),
+    SYSCALL(GETEUID, sys_handler_geteuid),
+    SYSCALL(SETGID, sys_handler_setgid),
+    SYSCALL(SETREGID, sys_handler_setregid),
+    SYSCALL(SETRESGID, sys_handler_setresgid),
+    SYSCALL(GETGID, sys_handler_getgid),
+    SYSCALL(GETEGID, sys_handler_getegid),
+    SYSCALL(SETGROUPS, sys_handler_setgroups),
+    SYSCALL(GETGROUPS, sys_handler_getgroups),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

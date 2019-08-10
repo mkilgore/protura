@@ -10,6 +10,7 @@
 #include <protura/mm/vm.h>
 #include <protura/signal.h>
 #include <protura/fs/fdset.h>
+#include <protura/users.h>
 #include <arch/context.h>
 #include <arch/paging.h>
 #include <arch/cpu.h>
@@ -49,8 +50,6 @@ enum {
     TASK_FLAG_SESSION_LEADER,
 };
 
-#define NGROUPS 32
-
 struct task {
     pid_t pid;
     pid_t pgid;
@@ -87,11 +86,6 @@ struct task {
     context_t context;
     void *kstack_bot, *kstack_top;
 
-    uid_t uid, euid, suid;
-    gid_t gid, egid, sgid;
-
-    gid_t sup_groups[NGROUPS];
-
     struct file *files[NOFILE];
     struct inode *cwd;
 
@@ -101,6 +95,8 @@ struct task {
     sigset_t sig_pending, sig_blocked;
 
     struct sigaction sig_actions[NSIG];
+
+    struct credentials creds;
 
     char name[128];
 };

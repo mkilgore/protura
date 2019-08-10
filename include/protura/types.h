@@ -73,6 +73,8 @@ static inline __kn16 __khtons(__kuint16_t hosts)
 #include <protura/compiler.h>
 
 # define SECTOR_INVALID ((sector_t)-1)
+# define UID_INVALID ((uid_t)-1)
+# define GID_INVALID ((gid_t)-1)
 
 typedef __koff_t off_t;
 typedef __kpid_t pid_t;

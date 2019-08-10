@@ -16,6 +16,7 @@
 #include <protura/mm/palloc.h>
 #include <protura/mm/user_ptr.h>
 #include <protura/task.h>
+#include <protura/scheduler.h>
 
 #include <protura/fs/file.h>
 #include <protura/fs/poll.h>
