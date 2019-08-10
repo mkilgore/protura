@@ -11,6 +11,29 @@
 
 #define PASSWD_FILE "/etc/passwd"
 
+struct passwd_entry *passwd_db_get_uid(struct passwd_db *db, uid_t uid)
+{
+    struct passwd_entry *ent;
+
+    list_foreach_entry(&db->pw_list, ent, entry)
+        if (ent->uid == uid)
+            return ent;
+
+    return NULL;
+}
+
+struct passwd_entry *passwd_db_get_user(struct passwd_db *db, const char *user)
+{
+    struct passwd_entry *ent;
+
+    list_foreach_entry(&db->pw_list, ent, entry)
+        if (ent->username)
+            if (strcmp(ent->username, user) == 0)
+                return ent;
+
+    return NULL;
+}
+
 struct passwd_entry *db_row_to_pw_entry(struct db_row *row)
 {
     struct passwd_entry *pw_ent = malloc(sizeof(*pw_ent));

@@ -17,6 +17,7 @@
 #include "list.h"
 #include "columns.h"
 #include "arg_parser.h"
+#include "db_passwd.h"
 
 #define DIRMAX 200
 
@@ -58,6 +59,8 @@ enum all_option {
     SHOW_ALMOST_ALL,
 };
 
+const char *prog_name;
+static struct passwd_db pwdb = PASSWD_DB_INIT(pwdb);
 static struct util_display display = UTIL_DISPLAY_INIT(display);
 static enum all_option show_all = SHOW_NORMAL;
 static int long_fmt = 0;
@@ -65,6 +68,7 @@ static int show_inode = 0;
 static int show_size = 0;
 static int dereference_links = 0;
 static int human_readable_size = 0;
+static int show_usernames = 1;
 
 enum file_type {
     TYPE_UNKNOWN,
@@ -163,6 +167,19 @@ static void render_size(struct util_line *line, off_t size)
     util_column_printf(column, "%dG", (int)size >> 30);
 }
 
+static void render_user(struct util_line *line, uid_t uid)
+{
+    struct passwd_entry *ent = NULL;
+
+    if (show_usernames)
+        ent = passwd_db_get_uid(&pwdb, uid);
+
+    if (ent)
+        util_line_printf(line, "%s", ent->username);
+    else
+        util_line_printf(line, "%d", (int)uid);
+}
+
 void list_items(DIR *directory)
 {
     struct dirent *item;
@@ -194,7 +211,7 @@ void list_items(DIR *directory)
         if (long_fmt) {
             render_mode_flags(cur_line, st.st_mode);
 
-            util_line_printf(cur_line, "%d", (int)st.st_uid);
+            render_user(cur_line, st.st_uid);
 
             util_line_printf(cur_line, "%d", (int)st.st_gid);
 
@@ -226,6 +243,8 @@ void list_items(DIR *directory)
 int main(int argc, char **argv) {
     size_t dirs = 0, i;
     const char *dirarray[DIRMAX] = { NULL };
+
+    prog_name = argv[0];
 
     enum arg_index ret;
 
@@ -282,6 +301,12 @@ int main(int argc, char **argv) {
 
     if (dirs == 0)
         dirarray[dirs++] = "./";
+
+    int err = passwd_db_load(&pwdb);
+    if (err) {
+        fprintf(stderr, "%s: Unable to parse /etc/passwd\n", argv[0]);
+        show_usernames = 0;
+    }
 
     for (i = 0; i < dirs; i++) {
         DIR *directory = opendir(dirarray[i]);

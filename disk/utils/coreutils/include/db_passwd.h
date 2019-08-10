@@ -46,4 +46,7 @@ int passwd_db_save(const struct passwd_db *);
 void passwd_entry_clear(struct passwd_entry *ent);
 void passwd_db_clear(struct passwd_db *pw);
 
+struct passwd_entry *passwd_db_get_user(struct passwd_db *, const char *);
+struct passwd_entry *passwd_db_get_uid(struct passwd_db *, uid_t);
+
 #endif
