@@ -124,7 +124,7 @@ int db_write(struct db *db, FILE *file)
         int is_first = 1;
 
         list_foreach_entry(&row->entry_list, ent, row_entry) {
-            if (!is_first && !list_is_last(&row->entry_list, &ent->row_entry))
+            if (!is_first)
                 fputc(':', file);
             else
                 is_first = 0;

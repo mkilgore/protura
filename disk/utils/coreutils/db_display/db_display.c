@@ -11,6 +11,7 @@
 
 #include "arg_parser.h"
 #include "db.h"
+#include "db_group.h"
 #include "file.h"
 
 static const char *arg_str = "[Flags] [File]";
@@ -54,6 +55,42 @@ static inline void db_disp(FILE *f)
     }
 }
 
+static inline void display_group(void)
+{
+    struct group_db group_db;
+    struct group *group;
+    struct group_member *member;
+
+    group_db_init(&group_db);
+
+    group_db_load(&group_db);
+
+    list_foreach_entry(&group_db.group_list, group, entry) {
+        printf("Group:\n");
+        printf("  Name: %s\n", group->group_name);
+        printf("  Password: %s\n", group->password);
+        printf("  GID: %d\n", group->gid);
+
+        printf("  Members:\n");
+        list_foreach_entry(&group->member_list, member, entry)
+            printf("    User: %s\n", member->username);
+    }
+
+    member = malloc(sizeof(*member));
+    group_member_init(member);
+    member->username = strdup("blah_user");
+
+    group = list_last_entry(&group_db.group_list, struct group, entry);
+
+    list_add_tail(&group->member_list, &member->entry);
+
+    printf("Saving...\n");
+    group_db_save(&group_db);
+
+    printf("Clearing...\n");
+    group_db_clear(&group_db);
+}
+
 int main(int argc, char **argv)
 {
     struct db_row *row = malloc(sizeof(*row));
@@ -94,6 +131,10 @@ int main(int argc, char **argv)
             return 0;
         }
     }
+
+    display_group();
+
+    printf("Done with groups!\n");
 
     file = fopen_with_dash(file_sel, "r+");
     if (!file) {

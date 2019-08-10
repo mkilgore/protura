@@ -1,0 +1,8 @@
+root:x:0:root
+sys:x:3:mkilgore
+log:x:19:mkilgore
+games:x:50:mkilgore,exuser
+http:x:33:mkilgore,http
+nobody:x:65534:
+mkilgore:x:1000:
+exuser:x:1001:

@@ -18,6 +18,7 @@
 #include "columns.h"
 #include "arg_parser.h"
 #include "db_passwd.h"
+#include "db_group.h"
 
 #define DIRMAX 200
 
@@ -61,6 +62,7 @@ enum all_option {
 
 const char *prog_name;
 static struct passwd_db pwdb = PASSWD_DB_INIT(pwdb);
+static struct group_db groupdb = GROUP_DB_INIT(groupdb);
 static struct util_display display = UTIL_DISPLAY_INIT(display);
 static enum all_option show_all = SHOW_NORMAL;
 static int long_fmt = 0;
@@ -69,6 +71,7 @@ static int show_size = 0;
 static int dereference_links = 0;
 static int human_readable_size = 0;
 static int show_usernames = 1;
+static int show_groups = 1;
 
 enum file_type {
     TYPE_UNKNOWN,
@@ -180,6 +183,19 @@ static void render_user(struct util_line *line, uid_t uid)
         util_line_printf(line, "%d", (int)uid);
 }
 
+static void render_group(struct util_line *line, gid_t gid)
+{
+    struct group *ent = NULL;
+
+    if (show_usernames)
+        ent = group_db_get_gid(&pwdb, gid);
+
+    if (ent)
+        util_line_printf(line, "%s", ent->group_name);
+    else
+        util_line_printf(line, "%d", (int)gid);
+}
+
 void list_items(DIR *directory)
 {
     struct dirent *item;
@@ -212,8 +228,7 @@ void list_items(DIR *directory)
             render_mode_flags(cur_line, st.st_mode);
 
             render_user(cur_line, st.st_uid);
-
-            util_line_printf(cur_line, "%d", (int)st.st_gid);
+            render_group(cur_line, st.st_gid);
 
             if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode) || S_ISLNK(st.st_mode))
                 render_size(cur_line, st.st_size);
@@ -306,6 +321,12 @@ int main(int argc, char **argv) {
     if (err) {
         fprintf(stderr, "%s: Unable to parse /etc/passwd\n", argv[0]);
         show_usernames = 0;
+    }
+
+    err = group_db_load(&groupdb);
+    if (err) {
+        fprintf(stderr, "%s: Unable to parse /etc/group\n", argv[0]);
+        show_groups = 0;
     }
 
     for (i = 0; i < dirs; i++) {
