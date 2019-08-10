@@ -178,21 +178,11 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
             kp(KP_TRACE, "poll %d: revents: %d...\n", i, fds[i].revents);
         }
 
-        /* We do this check before the sleep so that if the scheduler woke us
-         * up on a timeout, we do one last check for events. */
-        if ((timeout > 0 && current->wake_up == 0)
-            || (has_pending_signal(current)))
-            exit_poll = 1;
-
-        sleep_intr {
-            /* Note - the scheduler sets 'wake_up' to zero if it woke us up because
-             * the time occured. */
-            if (!exit_poll && !table.event && (current->wake_up || timeout < 0))
-                scheduler_task_yield();
-        }
+        if (!exit_poll)
+            sleep_event_intr(table.event || (current->wake_up == 0 && timeout > 0));
 
         poll_table_unwait(&table);
-    } while (!exit_poll);
+    } while (!exit_poll && !has_pending_signal(current) && !(current->wake_up == 0 && timeout > 0));
 
     current->wake_up = 0;
 

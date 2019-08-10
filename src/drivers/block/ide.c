@@ -324,16 +324,7 @@ static void ide_sync_block(struct block *b, int master_or_slave)
             __ide_start_queue();
     }
 
-    /* We sleep until the block is valid and not dirty. */
-  sleep_again:
-    sleep {
-        if (!flag_test(&b->flags, BLOCK_VALID) || flag_test(&b->flags, BLOCK_DIRTY)) {
-            scheduler_task_yield();
-            goto sleep_again;
-        }
-    }
-
-    return ;
+    sleep_event(flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY));
 }
 
 void ide_sync_block_master(struct block_device *__unused dev, struct block *b)
