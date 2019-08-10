@@ -31,6 +31,9 @@
 
 #endif
 
+extern const char *prog_name;
+
+char *strdupx(const char *str);
 int a_sprintfv(char **buf, const char *format, va_list lst);
 int a_sprintf(char **buf, const char *format, ...);
 

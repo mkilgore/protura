@@ -40,6 +40,9 @@ COREUTILS_PROGS = \
 	unlink \
 	wc \
 	stty \
+	db_display \
+	userdel \
+	usermod \
 
 DISK_COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROGS))
 DISK_PROGS += $(DISK_COREUTILS_PROGS)
