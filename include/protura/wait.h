@@ -16,22 +16,6 @@
 
 struct task;
 
-#define WAKEUP_LIST_MAX_TASKS 20
-
-/* Wakeup lists are for registering multiple tasks to be woke-up on various
- * types of events. For example, waiting until a keypress happens. These events
- * are typically things that multiple tasks will want to be notified of at the
- * same time, and the tasks will want to be notified for every event that
- * happens. */
-struct wakeup_list {
-    struct task *tasks[WAKEUP_LIST_MAX_TASKS];
-};
-
-void wakeup_list_init(struct wakeup_list *);
-void wakeup_list_add(struct wakeup_list *, struct task *);
-void wakeup_list_remove(struct wakeup_list *, struct task *);
-void wakeup_list_wakeup(struct wakeup_list *);
-
 /* Wakeup queues are for when multiple tasks need to be woke-up in series of
  * when they ask. For example, when wake-up queues can be used when multiple
  * tasks need access to a buffer. Each task asks for the buffer, and then gets
@@ -70,9 +54,6 @@ void wait_queue_node_init(struct wait_queue_node *);
 void wait_queue_register(struct wait_queue *, struct wait_queue_node *);
 void wait_queue_unregister(struct wait_queue_node *);
 
-void wait_queue_register_task(struct wait_queue *, struct task *);
-void wait_queue_unregister_task(struct wait_queue *, struct task *);
-
 /* Special version of unregister - if we're already unregistered, then the next
  * person in the queue is woken-up for us */
 int wait_queue_unregister_wake(struct wait_queue_node *);
@@ -82,9 +63,7 @@ int wait_queue_unregister_wake(struct wait_queue_node *);
 int wait_queue_wake(struct wait_queue *);
 int wait_queue_wake_all(struct wait_queue *);
 
-
 /* For explinations of the below macros, see the 'sleep' macro in scheduler.h */
-
 #define using_wait_queue(queue) \
     using_nocheck(wait_queue_register(queue, &cpu_get_local()->current->wait), wait_queue_unregister(&cpu_get_local()->current->wait))
 
