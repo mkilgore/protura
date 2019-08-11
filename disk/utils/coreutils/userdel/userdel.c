@@ -83,16 +83,11 @@ int main(int argc, char **argv)
     if (ret)
         return 1;
 
-    ret = group_db_load(&db);
+    ret = group_db_load(&group_db);
     if (ret)
         return 1;
 
-    struct passwd_entry *ent;
-
-    list_foreach_entry(&db.pw_list, ent, entry)
-        if (ent->username)
-            if (strcmp(ent->username, user) == 0)
-                break;
+    struct passwd_entry *ent = passwd_db_get_user(&db, user);;
 
     if (list_ptr_is_head(&db.pw_list, &ent->entry)) {
         fprintf(stderr, "%s: Unknown user: \"%s\"\n", argv[0], user);
