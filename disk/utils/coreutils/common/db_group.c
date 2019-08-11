@@ -11,6 +11,39 @@
 
 #define GROUP_FILE "/etc/group"
 
+void group_db_remove_user(struct group_db *db, const char *user)
+{
+    struct group *group;
+
+    list_foreach_entry(&db->group_list, group, entry) {
+        struct group_member *member;
+
+        list_foreach_entry(&group->member_list, member, entry)
+            if (strcmp(member->username, user) == 0)
+                break;
+
+        if (!list_ptr_is_head(&group->member_list, &member->entry)) {
+            list_del(&member->entry);
+            group_member_clear(member);
+            free(member);
+        }
+    }
+}
+
+void group_add_user(struct group *group, const char *user)
+{
+    struct group_member *member;
+
+    list_foreach_entry(&group->member_list, member, entry)
+        if (strcmp(member->username, user) == 0)
+            return;
+
+    member = malloc(sizeof(*member));
+    group_member_init(member);
+    member->username = strdupx(user);
+
+    list_add_tail(&group->member_list, &member->entry);
+}
 
 struct group *group_db_get_group(struct group_db *db, const char *name)
 {
@@ -49,13 +82,7 @@ static struct group_member *str_to_members(list_head_t *head, const char *tmp_st
     char *val;
     char *next_ptr = NULL;
 
-    val = strtok_r(str, ",", &next_ptr);
-    if (val) {
-        member = group_member_new(val);
-        list_add_tail(head, &member->entry);
-    }
-
-    while ((val = strtok_r(NULL, ",", &next_ptr)) != NULL) {
+    for (val = strtok_r(str, ",", &next_ptr); val; val = strtok_r(NULL, ",", &next_ptr)) {
         member = group_member_new(val);
         list_add_tail(head, &member->entry);
     }
@@ -194,7 +221,6 @@ int group_db_save(const struct group_db *group_db)
 
 void group_member_clear(struct group_member *member)
 {
-    printf("Member clear\n");
     free(member->username);
 }
 
@@ -202,13 +228,11 @@ void group_clear(struct group *group)
 {
     struct group_member *member;
 
-    printf("Group clear\n");
     free(group->group_name);
     free(group->password);
 
     list_foreach_take_entry(&group->member_list, member, entry) {
         group_member_clear(member);
-        printf("member free\n");
         free(member);
     }
 }
@@ -217,12 +241,8 @@ void group_db_clear(struct group_db *db)
 {
     struct group *group;
 
-    printf("Db clear\n");
     list_foreach_take_entry(&db->group_list, group, entry) {
         group_clear(group);
-        printf("Group free\n");
         free(group);
-        printf("Looping..\n");
     }
-    printf("DONE!\n");
 }

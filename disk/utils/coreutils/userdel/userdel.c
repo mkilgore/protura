@@ -11,6 +11,7 @@
 
 #include "arg_parser.h"
 #include "db_passwd.h"
+#include "db_group.h"
 #include "file.h"
 
 static const char *arg_str = "[Flags] [User]";
@@ -39,6 +40,7 @@ static const struct arg args[] = {
 };
 
 static struct passwd_db db = PASSWD_DB_INIT(db);
+static struct group_db group_db = GROUP_DB_INIT(group_db);
 const char *prog_name;
 
 int main(int argc, char **argv)
@@ -77,14 +79,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    printf("Loading password db...\n");
     int ret = passwd_db_load(&db);
+    if (ret)
+        return 1;
+
+    ret = group_db_load(&db);
     if (ret)
         return 1;
 
     struct passwd_entry *ent;
 
-    printf("Searching for username...\n");
     list_foreach_entry(&db.pw_list, ent, entry)
         if (ent->username)
             if (strcmp(ent->username, user) == 0)
@@ -97,6 +101,12 @@ int main(int argc, char **argv)
 
     list_del(&ent->entry);
     passwd_entry_clear(ent);
+    free(ent);
 
-    return passwd_db_save(&db);;
+    group_db_remove_user(&group_db, user);
+
+    passwd_db_save(&db);
+    group_db_save(&group_db);
+
+    return 0;
 }

@@ -60,6 +60,9 @@ void group_member_clear(struct group_member *);
 void group_clear(struct group *);
 void group_db_clear(struct group_db *);
 
+void group_db_remove_user(struct group_db *, const char *);
+void group_add_user(struct group *, const char *);
+
 struct group *group_db_get_group(struct group_db *, const char *);
 struct group *group_db_get_gid(struct group_db *, gid_t);
 

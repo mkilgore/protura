@@ -41,5 +41,5 @@ A collection of Coreutil programs designed for Protura. A current list of progra
 - `uniq`: Remove duplicate entries from the input
 - `unlink`: Unlink an existing file.
 - `wc`: Print the size of existng files in words/bytes.
-- `userdel`: Delete a system user (Half complete)
-- `usermod`: Modify a system user (Half complete)
+- `userdel`: Delete a system user
+- `usermod`: Modify a system user

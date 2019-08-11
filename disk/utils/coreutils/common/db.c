@@ -78,28 +78,15 @@ int db_read(struct db *db, FILE *file)
 
         list_add_tail(&db->rows, &row->db_entry);
 
-        val = strtok_r(l, ":", &next_ptr);
-        if (!val) {
-            if (db->column_count)
-                append_empty_entries(row, db->column_count);
-            continue;
-        }
-
         int count = 0;
-        struct db_entry *ent = malloc(sizeof(*ent));
-        db_entry_init(ent);
+        struct db_entry *ent;
 
-        ent->contents = strdupx(val);
-        list_add_tail(&row->entry_list, &ent->row_entry);
-        count++;
-
-        while ((val = strtok_r(NULL, ":", &next_ptr)) != NULL) {
+        for (val = strtok_r(l, ":", &next_ptr); val; val = strtok_r(NULL, ":", &next_ptr), count++) {
             ent = malloc(sizeof(*ent));
             db_entry_init(ent);
 
             ent->contents = strdupx(val);
             list_add_tail(&row->entry_list, &ent->row_entry);
-            count++;
         }
 
         if (db->column_count > count)

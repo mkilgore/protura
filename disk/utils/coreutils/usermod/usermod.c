@@ -11,6 +11,7 @@
 
 #include "arg_parser.h"
 #include "db_passwd.h"
+#include "db_group.h"
 #include "file.h"
 
 static const char *arg_str = "[Flags] [User]";
@@ -26,6 +27,8 @@ static const char *arg_desc_str  = "User: A user that exists on the system\n";
     X(login, "login", 'l', 1, "name", "Change the name of the user") \
     X(shell, "shell", 's', 1, "shell", "Change the login shell for the user") \
     X(home, "home", 'h', 1, "directory", "Change the home directory for the user") \
+    X(append, "append", 'a', 0, NULL, "Append groups instead of replace, with -G") \
+    X(groups, "groups", 'G', 1, "groups", "List of supplementary groups this user belongs too") \
     X(last, NULL, '\0', 0, NULL, NULL)
 
 enum arg_index {
@@ -44,6 +47,7 @@ static const struct arg args[] = {
 };
 
 static struct passwd_db db = PASSWD_DB_INIT(db);
+static struct group_db group_db = GROUP_DB_INIT(group_db);
 const char *prog_name;
 
 static const char *change_comment = NULL;
@@ -52,6 +56,8 @@ static gid_t change_gid = (gid_t)-1;
 static const char *change_login = NULL;
 static const char *change_shell = NULL;
 static const char *change_home = NULL;
+static char *change_groups = NULL;
+static int append_groups = 0;
 
 #define error(cond) \
     do { \
@@ -61,6 +67,17 @@ static const char *change_home = NULL;
         } \
     } while (0)
 
+static void change_sup_groups(const char *username)
+{
+    char *next_ptr = NULL;
+    char *val;
+
+    if (!append_groups)
+        group_db_remove_user(&group_db, username);
+
+    for (val = strtok_r(change_groups, ",", &next_ptr); val; val = strtok_r(NULL, ",", &next_ptr))
+        group_add_user(group_db_get_group(&group_db, val), username);
+}
 
 int main(int argc, char **argv)
 {
@@ -111,6 +128,16 @@ int main(int argc, char **argv)
             change_home = argarg;
             break;
 
+        case ARG_groups:
+            error(change_groups);
+            change_groups = argarg;
+            break;
+
+        case ARG_append:
+            error(append_groups);
+            append_groups = 1;
+            break;
+
         case ARG_EXTRA:
             if (user) {
                 fprintf(stderr, "%s: Unexpected argument: \"%s\"\n", argv[0], argarg);
@@ -132,6 +159,10 @@ int main(int argc, char **argv)
     }
 
     int ret = passwd_db_load(&db);
+    if (ret)
+        return 1;
+
+    ret = group_db_load(&group_db);
     if (ret)
         return 1;
 
@@ -173,5 +204,16 @@ int main(int argc, char **argv)
         ent->home_dir = strdupx(change_home);
     }
 
-    return passwd_db_save(&db);;
+    if (change_groups)
+        change_sup_groups(ent->username);
+
+    ret = passwd_db_save(&db);
+    if (ret)
+        fprintf(stderr, "%s: Error writing to /etc/passwd\n", argv[0]);
+
+    ret = group_db_save(&group_db);
+    if (ret)
+        fprintf(stderr, "%s: Error writing to /etc/group\n", argv[0]);
+
+    return 0;
 }
