@@ -69,13 +69,12 @@ static int append_groups = 0;
 
 static void change_sup_groups(const char *username)
 {
-    char *next_ptr = NULL;
     char *val;
 
     if (!append_groups)
         group_db_remove_user(&group_db, username);
 
-    for (val = strtok_r(change_groups, ",", &next_ptr); val; val = strtok_r(NULL, ",", &next_ptr))
+    while ((val = strsep(&change_groups, ",")))
         group_add_user(group_db_get_group(&group_db, val), username);
 }
 

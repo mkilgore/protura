@@ -57,7 +57,6 @@ int db_read(struct db *db, FILE *file)
 
     while ((len = getline(&line, &buf_len, file)) != EOF) {
         char *l = line;
-        char *next_ptr = NULL;
         char *val;
 
         /* Remove the newline character */
@@ -81,7 +80,7 @@ int db_read(struct db *db, FILE *file)
         int count = 0;
         struct db_entry *ent;
 
-        for (val = strtok_r(l, ":", &next_ptr); val; val = strtok_r(NULL, ":", &next_ptr), count++) {
+        while ((val = strsep(&l, ":"))) {
             ent = malloc(sizeof(*ent));
             db_entry_init(ent);
 

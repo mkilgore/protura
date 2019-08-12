@@ -80,9 +80,9 @@ static struct group_member *str_to_members(list_head_t *head, const char *tmp_st
     struct group_member *member;
     char *str = strdupx(tmp_str);
     char *val;
-    char *next_ptr = NULL;
+    char *next_ptr = str;
 
-    for (val = strtok_r(str, ",", &next_ptr); val; val = strtok_r(NULL, ",", &next_ptr)) {
+    while ((val = strsep(&next_ptr, ","))) {
         member = group_member_new(val);
         list_add_tail(head, &member->entry);
     }

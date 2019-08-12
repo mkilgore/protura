@@ -21,6 +21,7 @@ static const char *arg_desc_str  = "TTY device: The TTY device file to open.\n";
     X(help, "help", 'h', 0, NULL, "Display help") \
     X(version, "version", 'v', 0, NULL, "Display version information") \
     X(tty_device, "tty-device", 't', 1, "device", "The TTY device to open") \
+    X(login, "login", 'l', 1, "executable", "The login executable to run") \
     X(last, NULL, '\0', 0, NULL, NULL)
 
 enum arg_index {
@@ -38,7 +39,7 @@ static const struct arg args[] = {
 #undef X
 };
 
-const char *login = "/bin/sh";
+const char *login = "/bin/login";
 const char *tty_dev = NULL;
 
 int main(int argc, char **argv)
@@ -57,6 +58,10 @@ int main(int argc, char **argv)
 
         case ARG_tty_device:
             tty_dev = argarg;
+            break;
+
+        case ARG_login:
+            login = argarg;
             break;
 
         case ARG_EXTRA:

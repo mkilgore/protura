@@ -48,7 +48,7 @@ struct passwd_entry *db_row_to_pw_entry(struct db_row *row)
             pw_ent->username = strdupx(entry->contents);
             break;
 
-         case 1:
+        case 1:
             pw_ent->password = strdupx(entry->contents);
             break;
 

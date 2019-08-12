@@ -1,5 +1,5 @@
 
-COREUTILS_CFLAGS := -Wall -std=gnu99 -I./disk/utils/coreutils/include
+COREUTILS_CFLAGS := -Wall -std=gnu99 -I./disk/utils/coreutils/include -D_GNU_SOURCE
 
 COREUTILS_PROGS = \
 	cat \
@@ -44,6 +44,8 @@ COREUTILS_PROGS = \
 	userdel \
 	usermod \
 	init \
+	login \
+	id \
 
 DISK_COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROGS))
 DISK_PROGS += $(DISK_COREUTILS_PROGS)
