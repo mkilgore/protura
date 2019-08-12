@@ -11,6 +11,20 @@
 #include <protura/snprintf.h>
 #include <protura/scheduler.h>
 #include <protura/mm/vm.h>
+#include <protura/users.h>
+
+int __credentials_belong_to_gid(struct credentials *creds, gid_t gid)
+{
+    if (creds->egid == gid)
+        return 1;
+
+    size_t i = 0;
+    for (i = 0; i < NGROUPS; i++)
+        if (creds->sup_groups[i] == gid)
+            return 1;
+
+    return 0;
+}
 
 int sys_setuid(uid_t uid)
 {

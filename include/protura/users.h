@@ -29,6 +29,8 @@ static inline void credentials_init(struct credentials *creds)
 
 #define using_creds(cred) using_mutex(&(cred)->cred_lock)
 
+int __credentials_belong_to_gid(struct credentials *, gid_t);
+
 int sys_setuid(uid_t uid);
 int sys_setreuid(uid_t ruid, uid_t euid);
 int sys_setresuid(uid_t ruid, uid_t euid, uid_t suid);

@@ -220,6 +220,18 @@ struct task *task_fork(struct task *parent)
     new->close_on_exec = parent->close_on_exec;
     new->sig_blocked = parent->sig_blocked;
 
+    using_creds(&parent->creds) {
+        new->creds.uid = parent->creds.uid;
+        new->creds.euid = parent->creds.euid;
+        new->creds.suid = parent->creds.suid;
+
+        new->creds.gid = parent->creds.gid;
+        new->creds.egid = parent->creds.egid;
+        new->creds.sgid = parent->creds.sgid;
+
+        memcpy(&new->creds.sup_groups, &parent->creds.sup_groups, sizeof(new->creds.sup_groups));
+    }
+
     new->parent = parent;
     memcpy(new->context.frame, parent->context.frame, sizeof(*new->context.frame));
 

@@ -29,6 +29,42 @@
 #include <protura/fs/vfs.h>
 #include <protura/fs/binfmt.h>
 
+static int check_credentials(struct inode *inode, struct task *current)
+{
+    using_creds(&current->creds) {
+        if (inode->mode & S_IXOTH)
+            return 0;
+
+        if (inode->mode & S_IXGRP && __credentials_belong_to_gid(&current->creds, inode->gid))
+            return 0;
+
+        if (inode->mode & S_IXUSR && inode->uid == current->creds.euid)
+            return 0;
+
+        return -EACCES;
+    }
+}
+
+static void set_credentials(struct inode *inode, struct task *current)
+{
+    uid_t new_euid;
+    gid_t new_egid;
+
+    using_creds(&current->creds) {
+        new_euid = current->creds.euid;
+        new_egid = current->creds.egid;
+
+        if (inode->mode & S_ISUID)
+            new_egid = inode->uid;
+
+        if (inode->mode & S_ISGID)
+            new_egid = inode->gid;
+
+        current->creds.euid = current->creds.suid = new_euid;
+        current->creds.egid = current->creds.sgid = new_egid;
+    }
+}
+
 /* The end result of all this argument shifting is to end up with the below
  * setup:
  *
@@ -171,6 +207,8 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
 
     strcpy(current->name, new_name);
 
+    set_credentials(inode, current);
+
   close_fd:
     params_clear(&params);
     vfs_close(filp);
@@ -222,6 +260,13 @@ int sys_execve(const char *file, const char *const argv[], const char *const env
 
     ret = namex(file, current->cwd, &exe);
     if (ret) {
+        irq_frame_set_syscall_ret(frame, ret);
+        return 0;
+    }
+
+    ret = check_credentials(exe, current);
+    if (ret) {
+        inode_put(exe);
         irq_frame_set_syscall_ret(frame, ret);
         return 0;
     }

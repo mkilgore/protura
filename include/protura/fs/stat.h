@@ -59,6 +59,9 @@ struct stat {
 #define		S_IROTH	0000004	/* read permission, other */
 #define		S_IWOTH	0000002	/* write permission, other */
 #define		S_IXOTH 0000001/* execute/search permission, other */
+#define S_ISUID 04000 /* Set user ID on execution.  */
+#define S_ISGID 02000 /* Set group ID on execution.  */
+#define S_ISVTX 01000 /* Save swapped text after use (sticky).  */
 
 #define S_IWRITE S_IWUSR
 #define S_IREAD  S_IRUSR
