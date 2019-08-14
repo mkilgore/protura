@@ -120,6 +120,12 @@ void pfree(struct page *p, int order)
 {
     int i;
 
+    if (!p)
+        kp(KP_ERROR, "ERROR: pfree: %p\n", p);
+
+    if (!atomic_dec_and_test(&p->use_count))
+        return;
+
     using_spinlock(&buddy_allocator.lock) {
         __pfree_add_pages(&buddy_allocator, p->page_number, order);
 
@@ -194,6 +200,9 @@ static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int o
     buddy_allocator.free_pages -= 1 << order;
 
   return_page:
+    if (p)
+        atomic_inc(&p->use_count);
+
     return p;
 }
 

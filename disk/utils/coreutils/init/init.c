@@ -21,7 +21,7 @@
 const char *prog_name;
 
 static FILE *ilog;
-static char *const env_vars[] = { "PATH=/bin:/usr/bin", "HOME=/home/mkilgore", "TERM=linux", NULL };
+static char *const env_vars[] = { "PATH=/bin:/usr/bin", "TERM=linux", NULL };
 
 enum tab_action {
     TAB_RESPAWN,
@@ -59,7 +59,6 @@ static int ilogf(const char *format, ...)
     fflush(ilog);
 
     va_end(lst);
-
     return ret;
 }
 
@@ -216,7 +215,6 @@ int main(int argc, char **argv)
     ilogf("Init: Booting\n");
 
     memset(&action, 0, sizeof(action));
-
 
     action.sa_handler = handle_children;
     sigaction(SIGCHLD, &action, NULL);

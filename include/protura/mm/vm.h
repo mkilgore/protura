@@ -14,6 +14,7 @@
 #include <arch/task.h>
 
 #include <arch/paging.h>
+#include <arch/ptable.h>
 
 struct inode;
 struct page;
@@ -41,8 +42,7 @@ struct address_space {
  * pages in a task's address space. The virtual pages are contiguous, the
  * physical ones need not be.
  *
- * Note that 'addr' need not be page-aligned, though obviously the mapping is
- * done on page-sized chunks. The list of physical pages to map is 'page_list'.
+ * Note that these maps are assumed to be page aligned
   */
 struct vm_map {
     struct address_space *owner;
@@ -52,7 +52,8 @@ struct vm_map {
 
     flags_t flags;
 
-    list_head_t page_list;
+    struct file *filp;
+    off_t file_page_offset;
 };
 
 enum vm_map_flags {
@@ -80,18 +81,12 @@ enum vm_map_flags {
         .address_space_entry = LIST_NODE_INIT((vm_map).address_space_entry), \
         .addr = { 0, 0 }, \
         .flags = 0, \
-        .page_list = LIST_HEAD_INIT((vm_map).page_list), \
     }
 
 static inline void address_space_init(struct address_space *addrspc)
 {
     *addrspc = (struct address_space)ADDRESS_SPACE_INIT(*addrspc);
-    arch_address_space_init(addrspc);
-}
-
-static inline void address_space_clear(struct address_space *addrspc)
-{
-    arch_address_space_clear(addrspc);
+    addrspc->page_dir = page_table_new();
 }
 
 static inline void vm_map_init(struct vm_map *map)
@@ -99,11 +94,9 @@ static inline void vm_map_init(struct vm_map *map)
     *map = (struct vm_map)VM_MAP_INIT(*map);
 }
 
-void address_space_map_vm_entry(struct address_space *, va_t virtual, pa_t physical, flags_t vm_flags);
-void address_space_map_vm_map(struct address_space *, struct vm_map *map);
-
-void address_space_unmap_vm_entry(struct address_space *, va_t virtual);
-void address_space_unmap_vm_map(struct address_space *, struct vm_map *map);
+// void address_space_map_vm_entry(struct address_space *, va_t virtual, pa_t physical, flags_t vm_flags);
+// void address_space_unmap_vm_entry(struct address_space *, va_t virtual);
+// pa_t address_space_get_vm_entry(struct address_space *, va_t virtual);
 
 /* Resize a vm_map.
  *
@@ -111,12 +104,11 @@ void address_space_unmap_vm_map(struct address_space *, struct vm_map *map);
  * map/unmap the new space into that address_space. */
 void vm_map_resize(struct vm_map *map, struct vm_region new_size);
 
-/* Adds a 'vm_map' to this address_space's list of vm_map's, and maps any of
- * it's current pages */
-void address_space_vm_map_add(struct address_space *, struct vm_map *map);
-void address_space_vm_map_remove(struct address_space *, struct vm_map *map);
-
+void address_space_change(struct address_space *new);
+void address_space_clear(struct address_space *addrspc);
 void address_space_copy(struct address_space *new, struct address_space *old);
+void address_space_vm_map_add(struct address_space *, struct vm_map *);
+void address_space_vm_map_remove(struct address_space *, struct vm_map *);
 
 void *sys_sbrk(intptr_t increment);
 void sys_brk(va_t new_end);

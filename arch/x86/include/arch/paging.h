@@ -71,69 +71,12 @@
 
 #define PAGING_FRAME(entry) ((entry) & PAGING_FRAME_MASK)
 
-#define __PA_TO_PN(addr) ((pn_t)(addr) >> PG_SHIFT)
-#define __PN_TO_PA(pn) ((pa_t)((pn) << PG_SHIFT))
-
 #ifndef ASM
 
 #include <protura/types.h>
 #include <protura/multiboot.h>
 
 #include <protura/stddef.h>
-
-struct page_directory_entry {
-    union {
-        uint32_t entry;
-        struct {
-            uint32_t present :1;
-            uint32_t writable :1;
-            uint32_t user_page :1;
-            uint32_t write_through :1;
-            uint32_t cache_disabled :1;
-            uint32_t accessed :1;
-            uint32_t zero :1;
-            uint32_t page_size :1;
-            uint32_t ignored :1;
-            uint32_t reserved :3;
-            uint32_t addr :20;
-        };
-    };
-};
-
-struct page_table_entry {
-    union {
-        uint32_t entry;
-        struct {
-            uint32_t present :1;
-            uint32_t writable :1;
-            uint32_t user_page :1;
-            uint32_t write_through :1;
-            uint32_t cache_disabled :1;
-            uint32_t accessed :1;
-            uint32_t dirty :1;
-            uint32_t zero :1;
-            uint32_t global :1;
-            uint32_t reserved :3;
-            uint32_t addr :20;
-        };
-    };
-};
-
-struct page_directory {
-    struct page_directory_entry entries[1024];
-};
-
-struct page_table {
-    struct page_table_entry entries[1024];
-};
-
-typedef struct page_directory pgd_t;
-typedef struct page_table pgt_t;
-
-typedef struct page_directory_entry pde_t;
-typedef struct page_table_entry pte_t;
-
-extern struct page_directory kernel_dir;
 
 static __always_inline void paging_disable(void)
 {
@@ -165,6 +108,16 @@ static __always_inline void set_current_page_directory(pa_t page_directory)
 static __always_inline void flush_tlb_single(va_t addr)
 {
     asm volatile("invlpg (%0)"::"r" (addr): "memory");
+}
+
+static inline pn_t __PA_TO_PN(pa_t addr)
+{
+    return addr >> PG_SHIFT;
+}
+
+static inline pa_t __PN_TO_PA(pn_t pn)
+{
+    return pn << PG_SHIFT;
 }
 
 void paging_setup_kernelspace(void **kbrk);

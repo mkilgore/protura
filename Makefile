@@ -217,6 +217,8 @@ CLEAN_LIST += $$(OBJS_$(1))
 $$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(OBJS_EXTRA_$(1))
 	@echo " CCLD    $$@"
 	$$(Q)$$(CC) $$(CPPFLAGS) -o $$@ $$(OBJS_$(1)) $$(EXE_OBJ) $$(LDFLAGS) $$(LDFLAGS_$(1)) 
+	@echo " COPY    $$@.full"
+	$$(Q)cp $$@ $$@.full
 	@echo " OBJCOPY $$@.sym"
 	$$(Q)$$(OBJCOPY) --only-keep-debug $$@ $$@.sym
 	@echo " OBJCOPY $$@"

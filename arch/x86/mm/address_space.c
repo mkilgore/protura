@@ -18,157 +18,206 @@
 #include <protura/mm/palloc.h>
 
 #include <arch/paging.h>
-#include <arch/task.h>
+#include <arch/ptable.h>
 
-void arch_address_space_init(struct address_space *addrspc)
+pgd_t *page_table_new(void)
 {
-    addrspc->page_dir = palloc_va(0, PAL_KERNEL);
-    memcpy(addrspc->page_dir, &kernel_dir, PG_SIZE);
+    pgd_t *pgd = palloc_va(0, PAL_KERNEL);
+    memcpy(pgd, &kernel_dir, PG_SIZE);
+    return pgd;
 }
 
-void arch_address_space_clear(struct address_space *addrspc)
+void page_table_free(pgd_t *table)
 {
-    struct vm_map *map;
-    int i;
+    pde_t *pde;
+    pa_t pa;
 
-    kp(KP_TRACE, "Beginning address_space_clear\n");
-    list_foreach_take_entry(&addrspc->vm_maps, map, address_space_entry) {
-        kp(KP_TRACE, "Freeing map %p\n", map);
-        pfree_unordered(&map->page_list);
+    pgd_foreach_pde(table, pde) {
+        if (!pde_exists(pde))
+            continue;
 
-        kp(KP_TRACE, "Unmapping %p\n", map);
-        address_space_unmap_vm_map(addrspc, map);
+        if (!pde_is_user(pde))
+            continue;
 
-        kp(KP_TRACE, "Freeing map %p\n", map);
-        kfree(map);
+        /*
+        pgt_t *pgt = pde_to_pgt(pde);
+        pte_t *pte;
+
+        pgt_foreach_pte(pgt, pte) {
+            if (!pte_exists(pte))
+                continue;
+
+            if (!pte_is_user(pte))
+                continue;
+
+            pa = pte_get_pa(pte);
+            if (pa)
+                pfree_pa(pa, 0);
+        } */
+
+        pa = pde_get_pa(pde);
+        if (pa)
+            pfree_pa(pa, 0);
     }
 
-    pgd_t *dir = addrspc->page_dir;
-
-    kp(KP_TRACE, "Kmem_kpage: %d\n", KMEM_KPAGE);
-
-    for (i = 0; i < KMEM_KPAGE; i++) {
-        if (dir->entries[i].present) {
-            kp(KP_TRACE, "Freeing page at entry %d\n", i);
-            pfree_pa(PAGING_FRAME(dir->entries[i].entry), 0);
-        }
-    }
-
-    pfree_va(addrspc->page_dir, 0);
+    pfree_va(table, 0);
 }
 
-void arch_address_space_copy(struct address_space *new, struct address_space *old)
+void page_table_map_entry(pgd_t *dir, va_t virtual, pa_t physical, flags_t vm_flags)
 {
-    struct vm_map *map;
-    struct vm_map *new_map;
-
-    /* Make a copy of every map */
-    list_foreach_entry(&old->vm_maps, map, address_space_entry) {
-        struct page *oldp, *newp;
-
-        new_map = kmalloc(sizeof(*map), PAL_KERNEL);
-        vm_map_init(new_map);
-
-        if (old->code == map)
-            new->code = new_map;
-        else if (old->data == map)
-            new->data = new_map;
-        else if (old->stack == map)
-            new->stack = new_map;
-
-        new_map->addr = map->addr;
-        new_map->flags = map->flags;
-
-        /* Make a copy of each page in this map */
-        list_foreach_entry(&map->page_list, oldp, page_list_node) {
-            newp = palloc(0, PAL_KERNEL);
-
-            memcpy(newp->virt, oldp->virt, PG_SIZE);
-
-            list_add_tail(&new_map->page_list, &newp->page_list_node);
-        }
-
-        address_space_vm_map_add(new, new_map);
-    }
-}
-
-void arch_address_space_map_vm_entry(struct address_space *addrspc, va_t virtual, pa_t physical, flags_t vm_flags)
-{
-    int dir_index, table_index;
-    pgd_t *dir = addrspc->page_dir;
-    pgt_t *table;
-    uintptr_t table_entry;
-
-    table_entry = physical | PTE_PRESENT | PTE_USER;
+    pte_t table_entry = mk_pte(physical, PTE_PRESENT | PTE_USER);
 
     if (flag_test(&vm_flags, VM_MAP_WRITE))
-        table_entry |= PTE_WRITABLE;
+        pte_set_writable(&table_entry);
 
-    dir_index = PAGING_DIR_INDEX(virtual);
-    table_index = PAGING_TABLE_INDEX(virtual);
+    pde_t *pde = pgd_get_pde(dir, virtual);
 
-    if (dir->entries[dir_index].addr == 0) {
-        pa_t page = palloc_pa(0, PAL_KERNEL);
-        uintptr_t entry = page | PDE_PRESENT | PDE_WRITABLE | PDE_USER;
+    if (!pde_exists(pde)) {
+        pa_t page = pzalloc_pa(0, PAL_KERNEL);
 
-        dir->entries[dir_index].entry = entry;
+        *pde = mk_pde(page, PDE_PRESENT | PDE_WRITABLE | PDE_USER);
     }
 
-    table = P2V(PAGING_FRAME(dir->entries[dir_index].entry));
+    pgt_t *pgt = pde_to_pgt(pde);
 
-    table->entries[table_index].entry = table_entry;
+    pte_t *pte = pgt_get_pte(pgt, virtual);
+    *pte = table_entry;
 }
 
-void arch_address_space_unmap_vm_entry(struct address_space *addrspc, va_t addr)
+void page_table_unmap_entry(pgd_t *dir, va_t addr)
 {
-    int dir_index, table_index;
-    pgd_t *dir = addrspc->page_dir;
-    pgt_t *table;
+    pde_t *pde;
+    pgt_t *pgt;
+    pte_t *pte;
 
-    addr = PG_ALIGN_DOWN(addr);
+    pde = pgd_get_pde(dir, addr);
 
-    dir_index = PAGING_DIR_INDEX(addr);
-    table_index = PAGING_TABLE_INDEX(addr);
-
-    if (!dir->entries[dir_index].present)
+    if (!pde_exists(pde))
         return ;
 
-    table = P2V(PAGING_FRAME(dir->entries[dir_index].entry));
+    pgt = pde_to_pgt(pde);
+    pte = pgt_get_pte(pgt, addr);
 
-    table->entries[table_index].entry &= ~PTE_PRESENT;
-
+    pte_clear_pa(pte);
     flush_tlb_single(addr);
 }
 
-void arch_address_space_map_vm_map(struct address_space *addrspc, struct vm_map *map)
+pte_t *page_table_get_entry(pgd_t *dir, va_t addr)
 {
-    struct page *p;
-    va_t start, end;
+    pde_t *pde;
+    pgt_t *pgt;
 
-    start = PG_ALIGN_DOWN(map->addr.start);
-    end = PG_ALIGN(map->addr.end);
+    pde = pgd_get_pde(dir, addr);
 
-    list_foreach_entry(&map->page_list, p, page_list_node) {
-        arch_address_space_map_vm_entry(addrspc, start, __PN_TO_PA(p->page_number) ,map->flags);
-        start += PG_SIZE;
-        if (start >= end)
-            break;
+    if (!pde_exists(pde))
+        return NULL;
+
+    pgt = pde_to_pgt(pde);
+    return pgt_get_pte(pgt, addr);
+}
+
+void page_table_copy_range(pgd_t *new, pgd_t *old, va_t virtual, int pages)
+{
+    int dir = pgd_offset(virtual);
+    int pg = pgt_offset(virtual);
+
+    int dir_end = pgd_offset(virtual + pages * PG_SIZE);;
+    int pg_end = pgt_offset(virtual + pages * PG_SIZE);;
+
+    for (; dir <= dir_end; dir++) {
+        pde_t *pde_old = pgd_get_pde_offset(old, dir);
+        if (!pde_exists(pde_old))
+            continue;
+
+        pgt_t *pgt_old = pde_to_pgt(pde_old);
+        int end = PGT_INDEXES;
+
+        if (dir == dir_end)
+            end = pg_end;
+
+        pgt_t *pgt_new;
+
+        if (pg < end) {
+            pde_t *pde_new = pgd_get_pde_offset(new, dir);
+            if (!pde_exists(pde_new)) {
+                pa_t pde_page = pzalloc_pa(0, PAL_KERNEL);
+
+                pde_set_pa(pde_new, pde_page);
+                pde_set_writable(pde_new);
+                pde_set_user(pde_new);
+            }
+            pgt_new = pde_to_pgt(pde_new);
+        }
+
+        for (; pg < end; pg++) {
+            pte_t *pte_old = pgt_get_pte_offset(pgt_old, pg);
+            if (!pte_exists(pte_old))
+                continue;
+
+            void *page = P2V(pte_get_pa(pte_old));
+            void *new_page = palloc_va(0, PAL_KERNEL);
+
+            memcpy(new_page, page, PG_SIZE);
+
+            pte_t *pte_new = pgt_get_pte_offset(pgt_new, pg);
+            pte_set_pa(pte_new, V2P(new_page));
+            pte_set_user(pte_new);
+
+            if (pte_writable(pte_old))
+                pte_set_writable(pte_new);
+            else
+                pte_unset_writable(pte_new);
+        }
     }
 }
 
-void arch_address_space_unmap_vm_map(struct address_space *addrspc, struct vm_map *map)
+void page_table_free_range(pgd_t *table, va_t virtual, int pages)
 {
-    int pages, i;
-    va_t start, end;
+    kp(KP_TRACE, "page_table_free_range, table: %p, virtual: %p, pages: %d\n", table, virtual, pages);
 
-    start = PG_ALIGN_DOWN(map->addr.start);
-    end = PG_ALIGN_DOWN(map->addr.end);
+    int dir = pgd_offset(virtual);
+    int pg = pgt_offset(virtual);
 
-    pages = (end - start) / PG_SIZE;
+    int dir_end = pgd_offset(virtual + pages * PG_SIZE);;
+    int pg_end = pgt_offset(virtual + pages * PG_SIZE);;
 
-    for (i = 0; i < pages; i++) {
-        arch_address_space_unmap_vm_entry(addrspc, start);
-        start += PG_SIZE;
+    for (; dir <= dir_end; dir++) {
+        pde_t *pde = pgd_get_pde_offset(table, dir);
+        if (!pde_exists(pde))
+            continue;
+
+        pgt_t *pgt = pde_to_pgt(pde);
+
+        if (!pgt)
+            kp(KP_TRACE, "PGT: %p!!!! pgd: %p, pde: %p, *pde: %d\n", pgt, table, pde, pde->entry);
+
+        int end = PGT_INDEXES;
+
+        if (dir == dir_end)
+            end = pg_end;
+
+        for (; pg < end; pg++) {
+            pte_t *pte = pgt_get_pte_offset(pgt, pg);
+            if (!pte_exists(pte))
+                continue;
+
+            if (pte == NULL || pte->entry == 0) {
+                kp(KP_TRACE, "PTE: %p!!!\n", pte);
+                kp(KP_TRACE, "PGT: %p!!!! pgd: %p, pde: %p, *pde: %d\n", pgt, table, pde, pde->entry);
+            }
+
+            pa_t page = pte_get_pa(pte);
+            pn_t pn = __PA_TO_PN(page);
+            if (page) {
+                kp(KP_TRACE, "Freeing page: %p, %d\n", (void *)page, pn);
+                pfree_pa(page, 0);
+            }
+            pte_clear_pa(pte);
+        }
     }
 }
 
+void page_table_change(pgd_t *new)
+{
+    set_current_page_directory(V2P(new));
+}

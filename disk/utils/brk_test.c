@@ -3,7 +3,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <protura/syscall.h>
 
 #define INT_COUNT 128
 
@@ -12,7 +11,12 @@ int main(int argc, char **argv)
     int i;
     int *ints;
 
+    sleep(10);
+    printf("Calling sbrk...\n");
     ints = sbrk(INT_COUNT * sizeof(int));
+
+    printf("Sleeping for 20 seconds after allocation...\n");
+    sleep(20);
 
     for (i = 0; i < INT_COUNT; i++) {
         ints[i] = i;

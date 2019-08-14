@@ -13,7 +13,9 @@
 #include <protura/compiler.h>
 #include <protura/atomic.h>
 #include <protura/list.h>
+#include <protura/string.h>
 #include <protura/bits.h>
+#include <protura/rbtree.h>
 #include <arch/align.h>
 #include <arch/memlayout.h>
 #include <arch/paging.h>
@@ -92,6 +94,33 @@ static inline pa_t palloc_pa(int order, unsigned int flags)
         return 0;
 }
 
+static inline struct page *pzalloc(int order, unsigned int flags)
+{
+    struct page *page = palloc(order, flags);
+    if (page)
+        memset(page->virt, 0, PG_SIZE);
+
+    return page;
+}
+
+static inline void *pzalloc_va(int order, unsigned int flags)
+{
+    struct page *p = pzalloc(order, flags);
+    if (p)
+        return p->virt;
+    else
+        return NULL;
+}
+
+static inline pa_t pzalloc_pa(int order, unsigned int flags)
+{
+    struct page *p = pzalloc(order, flags);
+    if (p)
+        return __PN_TO_PA(p->page_number);
+    else
+        return 0;
+}
+
 
 /* Used for freeing addresses returned from the above palloc calls. Note that
  * you have to provide the order. */
@@ -119,5 +148,7 @@ void pfree_unordered(list_head_t *head);
 void palloc_init(void **kbrk, int pages);
 
 int palloc_free_page_count(void);
+
+enum rbcomp page_rb_compare(const struct rbnode *, const struct rbnode *);
 
 #endif

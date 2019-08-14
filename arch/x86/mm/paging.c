@@ -99,19 +99,24 @@ static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
     dump_stack_ptr((void *)frame->ebp);
     if (current && !flag_test(&current->flags, TASK_FLAG_KERNEL)) {
         kp(KP_ERROR, "Current running program: %s\n", current->name);
-        kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
-                current->context.frame->eax,
-                current->context.frame->ebx,
-                current->context.frame->ecx,
-                current->context.frame->edx);
 
-        kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
-                current->context.frame->esi,
-                current->context.frame->edi,
-                current->context.frame->esp,
-                current->context.frame->ebp);
-        kp(KP_ERROR, "User stack dump:\n");
-        dump_stack_ptr((void *)current->context.frame->ebp);
+        if (current->context.frame) {
+            kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
+                    current->context.frame->eax,
+                    current->context.frame->ebx,
+                    current->context.frame->ecx,
+                    current->context.frame->edx);
+
+            kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
+                    current->context.frame->esi,
+                    current->context.frame->edi,
+                    current->context.frame->esp,
+                    current->context.frame->ebp);
+            kp(KP_ERROR, "User stack dump:\n");
+            dump_stack_ptr((void *)current->context.frame->ebp);
+        } else {
+            kp(KP_ERROR, "Context Frame: null\n");
+        }
     }
     kp(KP_ERROR, "End of backtrace\n");
     kp(KP_ERROR, "Kernel halting\n");

@@ -70,8 +70,8 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
         struct vm_map *new_sect = kmalloc(sizeof(struct vm_map), PAL_KERNEL);
         vm_map_init(new_sect);
 
-        new_sect->addr.start = va_make(sect.vaddr);
-        new_sect->addr.end = va_make(sect.vaddr + sect.mem_size);
+        new_sect->addr.start = va_make(PG_ALIGN_DOWN(sect.vaddr));
+        new_sect->addr.end = va_make(PG_ALIGN(sect.vaddr + sect.mem_size));
 
         if (sect.flags & ELF_PROG_FLAG_EXEC)
             flag_set(&new_sect->flags, VM_MAP_EXE);
@@ -143,7 +143,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
             starting_offset = 0;
 
-            list_add_tail(&new_sect->page_list, &p->page_list_node);
+            page_table_map_entry(new_addrspc->page_dir, PG_ALIGN(new_sect->addr.start) + (k * PG_SIZE), page_to_pa(p), new_sect->flags);
         }
 
         address_space_vm_map_add(new_addrspc, new_sect);
@@ -166,7 +166,11 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     flag_set(&stack->flags, VM_MAP_WRITE);
     flag_set(&stack->flags, VM_MAP_EXE);
 
-    palloc_unordered(&stack->page_list, KMEM_STACK_LIMIT, PAL_KERNEL);
+    for (i = 0; i < KMEM_STACK_LIMIT; i++) {
+        pa_t p = pzalloc_pa(0, PAL_KERNEL);
+
+        page_table_map_entry(new_addrspc->page_dir, stack->addr.start + i * PG_SIZE, p, stack->flags);
+    }
 
     address_space_vm_map_add(new_addrspc, stack);
 
@@ -179,7 +183,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
     current = cpu_get_local()->current;
 
-    arch_task_change_address_space(new_addrspc);
+    address_space_change(new_addrspc);
 
     irq_frame_initalize(current->context.frame);
 
