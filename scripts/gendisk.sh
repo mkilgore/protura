@@ -15,6 +15,8 @@ mkdir ./disk_ext2/mnt/slave
 mkdir ./disk_ext2/home
 cp -R ./disk/home/* ./disk_ext2/home/
 
+mkdir ./disk_ext2/root
+
 chown -R 1000:1000 ./disk_ext2/home/mkilgore/
 chown -R 1001:1001 ./disk_ext2/home/exuser/
 
