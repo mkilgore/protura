@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <unistd.h>
 #include <termios.h>
 
@@ -54,8 +55,6 @@ static void exec_user(struct passwd_entry *user)
     list_foreach_entry(&group_db.group_list, group, entry) {
         list_foreach_entry(&group->member_list, member, entry) {
             if (strcmp(member->username, user->username) == 0) {
-                printf("Adding to group: %s\n", group->group_name);
-
                 group_count++;
                 gids = realloc(gids, group_count * sizeof(*gids));
                 gids[group_count - 1] = group->gid;
@@ -64,18 +63,24 @@ static void exec_user(struct passwd_entry *user)
         }
     }
 
-    printf("SETGROUPS\n");
+    int ret = chdir(user->home_dir);
+    if (ret)
+        printf("error: chdir: %s\n", strerror(errno));
+    else
+        setenv("PWD", user->home_dir, 1);
+
+    setenv("HOME", user->home_dir, 1);
+    setenv("USER", user->username, 1);
+
     setgroups(group_count, gids);
 
-    printf("SETGID\n");
     setgid(user->gid);
-    printf("SETuID\n");
     setuid(user->uid);
 
     /* setuid and then execute the shell */
-    printf("Exec: %s\n", user->shell);
     char **args = (char *[]) { user->shell, NULL };
     execv(user->shell, args);
+    exit(1);
 }
 
 static char *read_password(const char *prompt)
@@ -130,7 +135,6 @@ static void login(void)
                 continue;
             }
 
-            printf("EXEC USER\n");
             exec_user(ent);
         }
     }
