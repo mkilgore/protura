@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <limits.h>
 #include <sys/wait.h>
 #include <signal.h>
 #include <string.h>
@@ -85,12 +86,13 @@ int main(int argc, char **argv)
 
     sigprocmask(SIG_BLOCK, &blocked, NULL);
 
-    if (!getenv("HOME"))
-        cwd = strdup("/");
-    else
-        cwd = strdup(getenv("HOME"));
+    size_t cwd_len = 4096;
+    cwd = malloc(cwd_len);
 
-    chdir(cwd);
+    while ((getcwd(cwd, cwd_len)) == NULL) {
+        cwd_len *= 2;
+        cwd = realloc(cwd, cwd_len);
+    }
 
     if (is_script)
         script_input_loop(fd);

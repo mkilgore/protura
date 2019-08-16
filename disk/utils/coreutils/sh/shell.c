@@ -47,7 +47,11 @@ static struct job *parse_line(const char *line)
 
     job->name = strdup(line);
 
-    state.input = line;
+    char *temp_line = lexer_input_replace_env(line);
+    if (temp_line)
+        state.input = temp_line;
+    else
+        state.input = line;
 
     prog = malloc(sizeof(*prog));
     prog_desc_init(prog);
@@ -161,6 +165,7 @@ static struct job *parse_line(const char *line)
     return job;
 
 cleanup:
+    free(temp_line);
     free(prog);
     job_clear(job);
     free(job);

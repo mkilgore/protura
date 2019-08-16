@@ -65,6 +65,8 @@ static char *modify_cwd(char *new_cwd, size_t *len, const char *path, size_t pat
         free(new_cwd);
     }
 
+    setenv("PWD", modified_cwd, 1);
+
     return modified_cwd;
 }
 
@@ -154,6 +156,34 @@ static int pwd(struct prog_desc *prog)
     return 0;
 }
 
+static int export(struct prog_desc *prog)
+{
+    if (prog->argc != 2) {
+        dprintf(prog->stderr_fd, "export: invalid arguments: %d\n", prog->argc);
+        return 1;
+    }
+
+    char *name = prog->argv[1];
+    char *c = strchr(name, '=');
+    if (!c) {
+        dprintf(prog->stderr_fd, "export: Invalid argument format\n");
+        return 1;
+    }
+
+    char *value = c + 1;
+    *c = '\0';
+
+    printf("export: name: %s, value: %s\n", name, value);
+
+    int ret = setenv(name, value, 1);
+    if (ret) {
+        perror("export");
+        return 1;
+    }
+
+    return 0;
+}
+
 static struct builtin_cmd cmds[] = {
     { .id = "cd", .cmd = cd },
     { .id = "echo", .cmd = echo },
@@ -161,6 +191,7 @@ static struct builtin_cmd cmds[] = {
     { .id = "jobs", .cmd = job_output_list },
     { .id = "fg", .cmd = job_fg },
     { .id = "bg", .cmd = job_bg },
+    { .id = "export", .cmd = export },
     { .id = NULL, .cmd = NULL }
 };
 

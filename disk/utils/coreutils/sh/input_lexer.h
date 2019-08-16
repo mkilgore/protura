@@ -27,6 +27,7 @@ struct input_lexer {
     size_t len;
 };
 
+char *lexer_input_replace_env(char *line);
 enum input_token lexer_next_token(struct input_lexer *);
 
 
