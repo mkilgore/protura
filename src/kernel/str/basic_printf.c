@@ -91,44 +91,12 @@ static void escape_string(struct printf_backbone *backbone, const char *code, si
             backbone->putchar(backbone, ' ');
 }
 
-static void escape_integer(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
+static void display_integer(struct printf_backbone *backbone, uint64_t orig, size_t width, int zero_pad, int force_width, int is_neg)
 {
     char buf[3 * sizeof(long long) + 2], *ebuf = buf + sizeof(buf) - 1;
+    uint64_t count = 0;
+    uint64_t i = orig;
     int digit;
-    uint64_t i, count;
-    uint64_t orig;
-    size_t width = 0;
-    int zero_pad = 0, force_width = 0;
-    int l_count = 0;
-
-    for (i = 0; i < len - 1; i++) {
-        switch (code[i]) {
-        case '0':
-            if (!force_width)
-                zero_pad = 1;
-            else
-                force_width *= 10;
-            break;
-
-        case '1' ... '9':
-            width = (width * 10) + (code[i] - '0');
-            force_width = 1;
-            break;
-
-        case 'l':
-            l_count++;
-            break;
-        }
-    }
-
-    if (l_count == 2)
-        orig = va_arg(*args, uint64_t);
-    else
-        orig = va_arg(*args, int);
-
-    i = orig;
-
-    count = 0;
 
     if (i == 0) {
         *--ebuf = '0';
@@ -151,10 +119,69 @@ static void escape_integer(struct printf_backbone *backbone, const char *code, s
         }
     }
 
-    if (orig < 0)
+    if (is_neg)
         *--ebuf = '-';
 
     basic_printf_add_str(backbone, ebuf, buf + sizeof(buf) - ebuf - 1);
+}
+
+static void escape_integer(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
+{
+    uint64_t i;
+    uint64_t orig;
+    int64_t signed_orig;
+    size_t width = 0;
+    int zero_pad = 0, force_width = 0, is_neg = 0;
+    int l_count = 0;
+
+    for (i = 0; i < len - 1; i++) {
+        switch (code[i]) {
+        case '0':
+            if (!force_width)
+                zero_pad = 1;
+            else
+                force_width *= 10;
+            break;
+
+        case '1' ... '9':
+            width = (width * 10) + (code[i] - '0');
+            force_width = 1;
+            break;
+
+        case 'l':
+            l_count++;
+            break;
+        }
+    }
+
+    switch (code[len - 1]) {
+    case 'd':
+        if (l_count == 2)
+            signed_orig = va_arg(*args, int64_t);
+        else
+            signed_orig = va_arg(*args, int32_t);
+
+        if (signed_orig < 0) {
+            is_neg = 1;
+            signed_orig = -signed_orig;
+        }
+
+        orig = signed_orig;
+        break;
+
+    case 'u':
+        if (l_count == 2)
+            orig = va_arg(*args, uint64_t);
+        else
+            orig = va_arg(*args, uint32_t);
+        break;
+
+    default:
+        orig = 0;
+        break;
+    }
+
+    display_integer(backbone, orig, width, zero_pad, force_width, is_neg);
 }
 
 static void escape_hex(struct printf_backbone *backbone, const char *code, size_t len, va_list *args)
