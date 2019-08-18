@@ -24,21 +24,31 @@
 #include <protura/fs/vfs.h>
 
 /* Generic read implemented using bmap */
-int fs_file_generic_pread(struct file *filp, void *vbuf, size_t len, off_t off)
+int fs_file_generic_pread(struct file *filp, void *vbuf, size_t sizet_len, off_t off)
 {
     char *buf = vbuf;
-    size_t have_read = 0;
+    off_t len;
+    off_t have_read = 0;
     dev_t dev = filp->inode->sb_dev;
 
     if (!file_is_readable(filp))
         return -EBADF;
 
+    if (off < 0)
+        return -EINVAL;
+
+    /* We have to reconcile the difference between the unsigned size_t and signed off_t */
+    if ((off_t)sizet_len > __OFF_MAX && (off_t)sizet_len > 0)
+        return -EINVAL;
+
+    len = (off_t)sizet_len;
+
     /* Guard against reading past the end of the file */
-    if (off + (off_t)len > filp->inode->size)
+    if (off + len > filp->inode->size)
         len = filp->inode->size - off;
 
     /* Access the block device for this file, and get it's block size */
-    size_t block_size = filp->inode->sb->bdev->block_size;
+    off_t block_size = filp->inode->sb->bdev->block_size;
     sector_t sec = off / block_size;
     off_t sec_off = off - sec * block_size;
 

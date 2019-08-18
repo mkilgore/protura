@@ -11,5 +11,6 @@
 #include <protura/types.h>
 
 #define SIZE_MAX ((size_t)-1)
+#define __OFF_MAX 2147483647
 
 #endif
