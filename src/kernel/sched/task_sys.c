@@ -88,12 +88,15 @@ void sys_exit(int code)
     struct task *t = cpu_get_local()->current;
     t->ret_code = code;
 
-    kp(KP_TRACE, "Exit! %s(%p):%d\n", t->name, t, code);
+    kp(KP_TRACE, "Exit! %s(%p, %d):%d\n", t->name, t, t->pid, code);
 
     /* At this point, we have to disable interrupts to ensure we don't get
      * rescheduled. We're deleting the majority of our task information, and a
      * reschedule back to us may not work after that. */
     irq_disable();
+
+    if (t->pid == 1)
+        panic("PID 1 exited!@\n");
 
     /* We're going to delete our address-space, including our page-table, so we
      * need to switch to the kernel's to ensure we don't attempt to keep using
