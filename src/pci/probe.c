@@ -9,7 +9,6 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/kassert.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/snprintf.h>
 #include <arch/asm.h>

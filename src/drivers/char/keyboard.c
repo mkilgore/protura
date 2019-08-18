@@ -11,7 +11,6 @@
 #include <protura/string.h>
 #include <protura/scheduler.h>
 #include <protura/signal.h>
-#include <protura/kassert.h>
 #include <protura/wait.h>
 #include <protura/scheduler.h>
 

@@ -12,7 +12,6 @@
 #include <protura/list.h>
 #include <arch/spinlock.h>
 #include <protura/snprintf.h>
-#include <protura/kassert.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/memlayout.h>
 #include <protura/drivers/term.h>

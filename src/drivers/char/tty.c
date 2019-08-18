@@ -10,7 +10,6 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/scheduler.h>
-#include <protura/kassert.h>
 #include <protura/wait.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>

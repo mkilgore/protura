@@ -11,7 +11,6 @@
 #include <protura/dump_mem.h>
 #include <protura/string.h>
 #include <protura/scheduler.h>
-#include <protura/kassert.h>
 #include <protura/wait.h>
 
 #include <arch/spinlock.h>
