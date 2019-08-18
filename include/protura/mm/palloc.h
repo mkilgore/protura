@@ -15,7 +15,6 @@
 #include <protura/list.h>
 #include <protura/string.h>
 #include <protura/bits.h>
-#include <protura/rbtree.h>
 #include <arch/align.h>
 #include <arch/memlayout.h>
 #include <arch/paging.h>

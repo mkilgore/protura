@@ -16,6 +16,34 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/memlayout.h>
 #include <protura/mm/vm.h>
+#include <protura/fs/vfs.h>
+
+static int mmap_private_fill_page(struct vm_map *map, va_t address)
+{
+    struct page *p = pzalloc(0, PAL_KERNEL);
+    if (!p)
+        return -ENOSPC;
+
+    page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags);
+    return 0;
+}
+
+int address_space_handle_pagefault(struct address_space *addrspc, va_t address)
+{
+    struct vm_map *map;
+
+    list_foreach_entry(&addrspc->vm_maps, map, address_space_entry) {
+        if (address >= map->addr.start && address < map->addr.end) {
+            if (map->ops && map->ops->fill_page)
+                return (map->ops->fill_page) (map, address);
+            else
+                return mmap_private_fill_page(map, address);
+        }
+    }
+
+    kp(KP_TRACE, "addrspc: No handler for fault: %p\n", address);
+    return -EFAULT;
+}
 
 void address_space_change(struct address_space *new)
 {
@@ -33,15 +61,11 @@ void address_space_clear(struct address_space *addrspc)
 {
     struct vm_map *map;
 
-    kp(KP_TRACE, "Beginning address_space_clear\n");
     list_foreach_take_entry(&addrspc->vm_maps, map, address_space_entry) {
-        kp(KP_TRACE, "Freeing map %p\n", map);
         int page_count = (map->addr.end - map->addr.start) / PG_SIZE;
 
-        kp(KP_TRACE, "Unmapping %p\n", map);
         page_table_free_range(addrspc->page_dir, map->addr.start, page_count);
 
-        kp(KP_TRACE, "Freeing map %p\n", map);
         kfree(map);
     }
 
@@ -62,6 +86,17 @@ static struct vm_map *vm_map_copy(struct address_space *new, struct address_spac
     /* Make a copy of each page in this map */
     page_table_copy_range(new->page_dir, old->page_dir, old_map->addr.start, pages);
 
+    if (old_map->filp) {
+        int err = vfs_open(old_map->filp->inode, old_map->filp->flags, &new_map->filp);
+        if (err) {
+            kfree(new_map);
+            return NULL;
+        }
+
+        new_map->file_page_offset = old_map->file_page_offset;
+    }
+    new_map->ops = old_map->ops;
+
     return new_map;
 }
 
@@ -81,6 +116,8 @@ void address_space_copy(struct address_space *new, struct address_space *old)
             new->data = new_map;
         else if (old->stack == map)
             new->stack = new_map;
+        else if (old->bss == map)
+            new->bss = new_map;
 
         address_space_vm_map_add(new, new_map);
     }
@@ -103,21 +140,7 @@ static void vm_map_resize_start(struct vm_map *map, va_t new_start)
     pgd_t *pgd = map->owner->page_dir;
     kp(KP_TRACE, "vm_map: %p: start: %p, end: %p, resize start: %p\n", map, map->addr.start, map->addr.end, new_start);
 
-    if (map->addr.start > new_start) {
-        /* Count the number of new pages needed - Note that because
-         * map->addr.start, and new_start are not required to be page aligned,
-         * this number may actually be zero if both addresses are in the same
-         * page. Thus, we align both addresses to the containing page. */
-        int new_pages = (map->addr.start - new_start) / PG_SIZE;
-        int i;
-        va_t new_addr = map->addr.start - PG_SIZE;
-
-        for (i = 0; i < new_pages; i++, new_addr -= PG_SIZE) {
-            struct page *p = palloc(0, PAL_KERNEL);
-
-            page_table_map_entry(pgd, new_addr, page_to_pa(p), map->flags);
-        }
-    } else {
+    if (map->addr.start <= new_start) {
         int old_pages = (new_start - map->addr.start) / PG_SIZE;
         va_t new_addr = map->addr.start;
 
@@ -132,18 +155,7 @@ static void vm_map_resize_end(struct vm_map *map, va_t new_end)
     pgd_t *pgd = map->owner->page_dir;
     kp(KP_TRACE, "vm_map: %p: start: %p, end: %p, resize end: %p\n", map, map->addr.start, map->addr.end, new_end);
 
-    if (new_end > map->addr.end) {
-        int new_pages = (new_end - map->addr.end) / PG_SIZE;
-        int i;
-        va_t cur_page = map->addr.end;
-
-        for (i = 0; i < new_pages; i++, cur_page += PG_SIZE) {
-            kp(KP_TRACE, "vm_map resize: %p, cur_page: %p\n", map, cur_page);
-            struct page *p = pzalloc(0, PAL_KERNEL);
-
-            page_table_map_entry(pgd, cur_page, page_to_pa(p), map->flags);
-        }
-    } else {
+    if (new_end <= map->addr.end) {
         int old_pages = (map->addr.end - new_end) / PG_SIZE;
 
         if (old_pages)
@@ -171,10 +183,7 @@ int user_check_region(const void *ptr, size_t size, flags_t vm_flags)
     if (!user_ptr_check_is_on())
         return 0;
 
-    kp(KP_TRACE, "Checking user pointer %p(%d)\n", ptr, size);
-
     list_foreach_entry(&addrspc->vm_maps, cur, address_space_entry) {
-        kp(KP_TRACE, "Checking region %p-%p\n", cur->addr.start, cur->addr.end);
         if (cur->addr.start <= ptr && cur->addr.end >= ptr + size) {
             if ((cur->flags & vm_flags) == vm_flags)
                 return 0;
@@ -216,85 +225,82 @@ int user_check_strn(const void *ptr, size_t size, flags_t vm_flags)
     return -EFAULT;
 }
 
-static void create_data(struct address_space *addrspc, va_t new_end)
+static va_t get_new_bss_start(struct address_space *addrspc)
 {
-    struct vm_map *data;
-    va_t data_start = PG_ALIGN(addrspc->code->addr.end);
-    pgd_t *pgd = addrspc->page_dir;
+    if (addrspc->data)
+        return addrspc->data->addr.end;
+    else
+        return addrspc->code->addr.end;
+}
 
-    if (new_end > data_start) {
-        data = kmalloc(sizeof(*data), PAL_KERNEL);
-        vm_map_init(data);
+static struct vm_map *create_bss(struct address_space *addrspc)
+{
+    va_t bss_start = get_new_bss_start(addrspc);
+    struct vm_map *bss;
 
-        data->addr.start = data_start;
-        data->addr.end = new_end;
+    bss = kmalloc(sizeof(*bss), PAL_KERNEL);
+    vm_map_init(bss);
 
-        flag_set(&data->flags, VM_MAP_WRITE);
-        flag_set(&data->flags, VM_MAP_READ);
+    bss->addr.start = bss_start;
+    bss->addr.end = bss_start + PG_SIZE;
 
-        int pages = (new_end - data_start) / PG_SIZE;
+    flag_set(&bss->flags, VM_MAP_WRITE);
+    flag_set(&bss->flags, VM_MAP_READ);
 
-        int i;
-        for (i = 0; i < pages; i++) {
-            pa_t page = pzalloc_pa(0, PAL_KERNEL);
+    address_space_vm_map_add(addrspc, bss);
 
-            page_table_map_entry(pgd, PG_ALIGN_DOWN(data->addr.start) + pages * PG_SIZE, page, data->flags);
-        }
+    addrspc->bss = bss;
+    addrspc->brk = bss->addr.start;
 
-        address_space_vm_map_add(addrspc, data);
-
-        addrspc->data = data;
-    }
+    return bss;
 }
 
 void *sys_sbrk(intptr_t increment)
 {
-    struct vm_map *data;
+    struct vm_map *bss;
     va_t old;
     struct task *t = cpu_get_local()->current;
+    struct address_space *addrspc = t->addrspc;
 
-    kp(KP_TRACE, "%p: sbrk: %d\n", t, increment);
+    kp(KP_TRACE, "sbrk: %d\n", increment);
 
-    data = t->addrspc->data;
+    bss = addrspc->bss;
 
-    if (!data) {
-        va_t data_start = t->addrspc->code->addr.end;
+    if (!bss)
+        bss = create_bss(addrspc);
 
-        create_data(t->addrspc, PG_ALIGN(data_start + increment));
+    old = addrspc->brk;
 
-        if (t->addrspc->data)
-            return data_start;
-        else
-            return NULL;
-    }
+    if (increment == 0)
+        return old;
 
-    old = data->addr.end;
+    if (bss->addr.end < PG_ALIGN(old + increment))
+        vm_map_resize(bss, (struct vm_region) { .start = bss->addr.start, .end = PG_ALIGN(old + increment) });
 
-    vm_map_resize(data, (struct vm_region) { .start = data->addr.start, .end = PG_ALIGN(old + increment) });
+    addrspc->brk = old + increment;
 
     return old;
 }
 
 void sys_brk(va_t new_end)
 {
-    struct vm_map *data;
+    struct vm_map *bss;
     struct task *t = cpu_get_local()->current;
+    va_t new_end_aligned;
 
-    new_end = PG_ALIGN(new_end);
+    new_end_aligned = PG_ALIGN(new_end);
+    bss = t->addrspc->bss;
 
-    kp(KP_TRACE, "%p: brk: %p\n", t, new_end);
+    t->addrspc->brk = new_end;
 
-    data = t->addrspc->data;
-
-    /* Check if we have a data segment, and create a new one after the end of
+    /* Check if we have a bss segment, and create a new one after the end of
      * the code segment if we don't */
-    if (!data) {
-        create_data(t->addrspc, new_end);
-        return ;
-    }
+    if (!bss)
+        bss = create_bss(t->addrspc);
 
-    /* Else expand the current data segment */
-    if (data->addr.start >= new_end)
-        vm_map_resize(data, (struct vm_region) { .start = data->addr.start, .end = new_end });
+    /* Expand or shrink the current bss segment */
+    if (bss->addr.start >= new_end && bss->addr.end < new_end_aligned)
+        vm_map_resize(bss, (struct vm_region) { .start = bss->addr.start, .end = new_end_aligned });
+    else if (bss->addr.start > new_end) /* Can happen since the "bss" can start at the end of the data segment */
+        vm_map_resize(bss, (struct vm_region) { .start = bss->addr.start, .end = bss->addr.start + PG_SIZE });
 }
-

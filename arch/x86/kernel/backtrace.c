@@ -19,7 +19,7 @@ void dump_stack_ptr(void *start)
 
     kp(KP_ERROR, "  Stack: %p\n", start);
 
-    for (frame = 1; stack != 0 && (uintptr_t)stack > 0xC0000000UL; stack = stack->caller_stackframe, frame++)
+    for (frame = 1; stack != 0; stack = stack->caller_stackframe, frame++)
         kp(KP_ERROR, "  [%d][0x%08x]\n", frame, stack->return_addr);
 }
 

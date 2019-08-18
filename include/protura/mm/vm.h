@@ -35,12 +35,18 @@ struct address_space {
 
     pgd_t *page_dir;
 
-    struct vm_map *code, *data, *stack;
+    struct vm_map *code, *data, *bss, *stack;
+    va_t brk;
+};
+
+struct vm_map_ops {
+    int (*fill_page) (struct vm_map *, va_t address);
 };
 
 /* A description of a single contiguous map of physical pages to virtual
  * pages in a task's address space. The virtual pages are contiguous, the
- * physical ones need not be.
+ * physical ones need not be. Each map has a unique set of ops for handling
+ * page faults.
  *
  * Note that these maps are assumed to be page aligned
   */
@@ -54,6 +60,8 @@ struct vm_map {
 
     struct file *filp;
     off_t file_page_offset;
+
+    const struct vm_map_ops *ops;
 };
 
 enum vm_map_flags {
@@ -93,11 +101,6 @@ static inline void vm_map_init(struct vm_map *map)
 {
     *map = (struct vm_map)VM_MAP_INIT(*map);
 }
-
-// void address_space_map_vm_entry(struct address_space *, va_t virtual, pa_t physical, flags_t vm_flags);
-// void address_space_unmap_vm_entry(struct address_space *, va_t virtual);
-// pa_t address_space_get_vm_entry(struct address_space *, va_t virtual);
-
 /* Resize a vm_map.
  *
  * Note that if this vm_map is owned by an address_space, then it will also
@@ -109,6 +112,9 @@ void address_space_clear(struct address_space *addrspc);
 void address_space_copy(struct address_space *new, struct address_space *old);
 void address_space_vm_map_add(struct address_space *, struct vm_map *);
 void address_space_vm_map_remove(struct address_space *, struct vm_map *);
+int address_space_handle_pagefault(struct address_space *, va_t address);
+
+extern const struct vm_map_ops mmap_file_ops;
 
 void *sys_sbrk(intptr_t increment);
 void sys_brk(va_t new_end);

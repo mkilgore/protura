@@ -59,7 +59,7 @@ __align(0x1000) struct page_directory kernel_dir = {
 #define pg_err_was_read(err) (((err) & F(PG_ERR_FLAG_ACCESS_TYPE)) == PG_ERR_ACCESS_TYPE_READ)
 #define pg_err_was_write(err) (((err) & F(PG_ERR_FLAG_ACCESS_TYPE)) == PG_ERR_ACCESS_TYPE_WRITE)
 
-static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
+static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
 {
     static int page_fault_loop = 0;
     //term_setcurcolor(term_make_color(T_BLACK, T_RED));
@@ -120,6 +120,11 @@ static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
     }
     kp(KP_ERROR, "End of backtrace\n");
     kp(KP_ERROR, "Kernel halting\n");
+}
+
+static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
+{
+    paging_dump_stack(frame, p);
 
     while (1)
         hlt();
@@ -134,17 +139,23 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
     /* cr2 contains the address that we faulted on */
     asm ("movl %%cr2, %0": "=r" (p));
 
-    kp(KP_DEBUG, "Page faulted: %p\n", (void *)p);
+    struct task *current = cpu_get_local()->current;
+
+    /* Check if this page was a fault we can handle */
+    int ret = address_space_handle_pagefault(current->addrspc, (va_t)p);
+    if (!ret)
+        return;
+
+    paging_dump_stack(frame, p);
 
     if (pg_err_was_kernel(frame->err))
         halt_and_dump_stack(frame, p);
 
-    /* Program seg-faulted - Attempt to display message and exit. */
-
-    struct task *current = cpu_get_local()->current;
+    /* Program seg-faulted and we couldn't handle it - Attempt to display
+     * message and exit. */
     if (current->tty) {
         char buf[32];
-        snprintf(buf, sizeof(buf), "Seg-Fauilt - %d terminated\n", current->pid);
+        snprintf(buf, sizeof(buf), "Seg-Fault - %d terminated\n", current->pid);
 
         tty_write_buf(current->tty, buf, strlen(buf));
     }
@@ -236,7 +247,7 @@ void paging_setup_kernelspace(void **kbrk)
 
     set_current_page_directory(v_to_p(&kernel_dir));
 
-    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_INTERRUPT, NULL);
+    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_SYSCALL, NULL);
 
     return ;
 }

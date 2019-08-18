@@ -39,22 +39,6 @@ void page_table_free(pgd_t *table)
         if (!pde_is_user(pde))
             continue;
 
-        /*
-        pgt_t *pgt = pde_to_pgt(pde);
-        pte_t *pte;
-
-        pgt_foreach_pte(pgt, pte) {
-            if (!pte_exists(pte))
-                continue;
-
-            if (!pte_is_user(pte))
-                continue;
-
-            pa = pte_get_pa(pte);
-            if (pa)
-                pfree_pa(pa, 0);
-        } */
-
         pa = pde_get_pa(pde);
         if (pa)
             pfree_pa(pa, 0);
@@ -173,8 +157,6 @@ void page_table_copy_range(pgd_t *new, pgd_t *old, va_t virtual, int pages)
 
 void page_table_free_range(pgd_t *table, va_t virtual, int pages)
 {
-    kp(KP_TRACE, "page_table_free_range, table: %p, virtual: %p, pages: %d\n", table, virtual, pages);
-
     int dir = pgd_offset(virtual);
     int pg = pgt_offset(virtual);
 
@@ -188,9 +170,6 @@ void page_table_free_range(pgd_t *table, va_t virtual, int pages)
 
         pgt_t *pgt = pde_to_pgt(pde);
 
-        if (!pgt)
-            kp(KP_TRACE, "PGT: %p!!!! pgd: %p, pde: %p, *pde: %d\n", pgt, table, pde, pde->entry);
-
         int end = PGT_INDEXES;
 
         if (dir == dir_end)
@@ -201,17 +180,10 @@ void page_table_free_range(pgd_t *table, va_t virtual, int pages)
             if (!pte_exists(pte))
                 continue;
 
-            if (pte == NULL || pte->entry == 0) {
-                kp(KP_TRACE, "PTE: %p!!!\n", pte);
-                kp(KP_TRACE, "PGT: %p!!!! pgd: %p, pde: %p, *pde: %d\n", pgt, table, pde, pde->entry);
-            }
-
             pa_t page = pte_get_pa(pte);
-            pn_t pn = __PA_TO_PN(page);
-            if (page) {
-                kp(KP_TRACE, "Freeing page: %p, %d\n", (void *)page, pn);
+            if (page)
                 pfree_pa(page, 0);
-            }
+
             pte_clear_pa(pte);
         }
     }
