@@ -22,6 +22,7 @@
 int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp);
 int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *filp);
 int vfs_close(struct file *filp);
+int vfs_pread(struct file *filp, void *buf, size_t len, off_t off);
 int vfs_read(struct file *filp, void *buf, size_t len);
 int vfs_write(struct file *filp, void *buf, size_t len);
 off_t vfs_lseek(struct file *filp, off_t off, int whence);

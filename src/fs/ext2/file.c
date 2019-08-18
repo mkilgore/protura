@@ -27,6 +27,7 @@
 struct file_ops ext2_file_ops_file = {
     .open = NULL,
     .release = NULL,
+    .pread = fs_file_generic_pread,
     .read = fs_file_generic_read,
     .write = fs_file_generic_write,
     .lseek = fs_file_generic_lseek,

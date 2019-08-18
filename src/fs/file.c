@@ -24,7 +24,7 @@
 #include <protura/fs/vfs.h>
 
 /* Generic read implemented using bmap */
-int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
+int fs_file_generic_pread(struct file *filp, void *vbuf, size_t len, off_t off)
 {
     char *buf = vbuf;
     size_t have_read = 0;
@@ -34,13 +34,13 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
         return -EBADF;
 
     /* Guard against reading past the end of the file */
-    if (filp->offset + len > filp->inode->size)
-        len = filp->inode->size - filp->offset;
+    if (off + (off_t)len > filp->inode->size)
+        len = filp->inode->size - off;
 
     /* Access the block device for this file, and get it's block size */
     size_t block_size = filp->inode->sb->bdev->block_size;
-    sector_t sec = filp->offset / block_size;
-    off_t sec_off = filp->offset - sec * block_size;
+    sector_t sec = off / block_size;
+    off_t sec_off = off - sec * block_size;
 
     using_inode_lock_read(filp->inode) {
         while (have_read < len) {
@@ -68,12 +68,20 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
         }
     }
 
-    filp->offset += have_read;
-
     filp->inode->atime = protura_current_time_get();
     inode_set_dirty(filp->inode);
 
     return have_read;
+}
+
+int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
+{
+    int ret = fs_file_generic_pread(filp, vbuf, len, filp->offset);
+    if (ret < 0)
+        return ret;
+
+    filp->offset += ret;
+    return ret;
 }
 
 int fs_file_generic_write(struct file *filp, const void *vbuf, size_t len)

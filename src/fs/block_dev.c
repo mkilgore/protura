@@ -18,8 +18,7 @@
 
 #include <protura/drivers/ide.h>
 
-
-int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
+int block_dev_pread_generic(struct file *filp, void *vbuf, size_t len, off_t off)
 {
     char *buf = vbuf;
     size_t have_read = 0;
@@ -35,16 +34,16 @@ int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
      * Don't check if `len` is correct, because filp->inode->size will
      * currently always be zero.
 
-    if (filp->offset + len > filp->inode->size)
-        len = filp->inode->size - filp->offset;
+    if (off + len > filp->inode->size)
+        len = filp->inode->size - off;
 
      */
 
     kp(KP_TRACE, "len: %d\n", len);
     /* Access the block device for this file, and get it's block size */
     size_t block_size = bdev->block_size;
-    sector_t sec = filp->offset / block_size;
-    off_t sec_off = filp->offset - sec * block_size;
+    sector_t sec = off / block_size;
+    off_t sec_off = off - sec * block_size;
 
     while (have_read < len) {
         struct block *b;
@@ -67,9 +66,19 @@ int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
     return have_read;
 }
 
+int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
+{
+    int ret = block_dev_pread_generic(filp, vbuf, len, filp->offset);
+
+    filp->offset += ret;
+
+    return ret;
+}
+
 struct file_ops block_dev_file_ops_generic = {
     .open = NULL,
     .release = NULL,
+    .pread = block_dev_pread_generic,
     .read = block_dev_read_generic,
     .write = NULL,
     .lseek = fs_file_generic_lseek,

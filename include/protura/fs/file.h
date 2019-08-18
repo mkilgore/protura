@@ -42,6 +42,7 @@ struct file_ops {
     int (*open) (struct inode *inode, struct file *);
     int (*release) (struct file *);
     int (*read) (struct file *, void *, size_t);
+    int (*pread) (struct file *, void *, size_t, off_t);
     int (*readdir) (struct file *, struct file_readdir_handler *);
     int (*read_dent) (struct file *, struct dent *, size_t dent_size);
     off_t (*lseek) (struct file *, off_t offset, int whence);
@@ -77,6 +78,7 @@ enum file_flags {
 #define file_has_open(filp) ((filp)->ops && (filp)->ops->open)
 #define file_has_release(filp) ((filp)->ops && (filp)->ops->release)
 #define file_has_read(filp) ((filp)->ops && (filp)->ops->read)
+#define file_has_pread(filp) ((filp)->ops && (filp)->ops->pread)
 #define file_has_readdir(filp) ((filp)->ops && (filp)->ops->readdir)
 #define file_has_read_dent(filp) ((filp)->ops && (filp)->ops->read_dent)
 #define file_has_lseek(filp) ((filp)->ops && (filp)->ops->lseek)
@@ -87,6 +89,7 @@ void file_clear(struct file *);
 
 struct file *file_dup(struct file *);
 
+int fs_file_generic_pread(struct file *filp, void *vbuf, size_t len, off_t off);
 int fs_file_generic_read(struct file *, void *buf, size_t len);
 int fs_file_generic_write(struct file *, const void *buf, size_t len);
 off_t fs_file_generic_lseek(struct file *, off_t off, int whence);

@@ -183,7 +183,6 @@ static void verify_ext2_inode(struct super_block *super, struct ext2_inode *inod
 
 static int ext2_inode_write(struct super_block *super, struct inode *i)
 {
-    struct ext2_super_block *sb = container_of(super, struct ext2_super_block, sb);
     struct ext2_inode *inode = container_of(i, struct ext2_inode, i);
     struct block *b;
 

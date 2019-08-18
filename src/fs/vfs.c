@@ -109,6 +109,17 @@ int vfs_read(struct file *filp, void *buf, size_t len)
         return -ENOTSUP;
 }
 
+int vfs_pread(struct file *filp, void *buf, size_t len, off_t off)
+{
+    if (S_ISDIR(filp->inode->mode))
+        return -EISDIR;
+
+    if (file_has_pread(filp))
+        return filp->ops->pread(filp, buf, len, off);
+    else
+        return -ENOTSUP;
+}
+
 int vfs_read_dent(struct file *filp, struct dent *dent, size_t size)
 {
     if (!S_ISDIR(filp->inode->mode))
