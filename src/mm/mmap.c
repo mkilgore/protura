@@ -29,10 +29,8 @@ static int mmap_file_fill_page(struct vm_map *map, va_t address)
     off_t memoffset = address - map->addr.start;
     off_t offset = memoffset + map->file_page_offset;
 
-    vfs_lseek(map->filp, offset, SEEK_SET);
-
     user_ptr_check_off();
-    int err = vfs_read(map->filp, p->virt, PG_SIZE);
+    int err = vfs_pread(map->filp, p->virt, PG_SIZE, offset);
     user_ptr_check_on();
 
     if (err < 0)
