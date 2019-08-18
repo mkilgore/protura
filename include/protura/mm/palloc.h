@@ -148,6 +148,4 @@ void palloc_init(void **kbrk, int pages);
 
 int palloc_free_page_count(void);
 
-enum rbcomp page_rb_compare(const struct rbnode *, const struct rbnode *);
-
 #endif
