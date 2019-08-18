@@ -12,7 +12,9 @@ Current existing components/subsystems:
   - `kmalloc`: A more general-purpose allocator for smaller-sized structures
     - Implemented by the combination of multiple `slab` allocators, which allocate fixed-sized objects.
     - The `slab` allocators are backed by `palloc`.
-  - Uses `struct vm_area` objects to represent a generic layout of an address-space and what is mapped where.
+  - Uses `struct address_space` objects to represent the full memory layout of a process (IE. A full page-table).
+    - Contains a list of `struct vm_map` objects, which represents a single mapped entity (memory-mapped file, anonymous mapping, etc.)
+    - The `struct vm_map` objects are used to do dynamic loading of pages when they are used.
 - Processes
   - Task switching is software-based, though the TSS has to be used to swap the stack pointer and segment
   - Every user-space process has a coresponding kernel thread.
