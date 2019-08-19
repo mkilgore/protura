@@ -50,7 +50,7 @@ int main(int argc, char **argv)
             return 0;
 
         case ARG_EXTRA:
-            fd = open(argarg, O_RDONLY | O_CREAT, 0777);
+            fd = open(argarg, O_RDONLY | O_CREAT, 0666);
             if (fd == -1) {
                 perror(argarg);
                 return 0;
