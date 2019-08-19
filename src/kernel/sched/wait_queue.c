@@ -78,7 +78,6 @@ void wait_queue_unregister(struct wait_queue_node *node)
      * because it's entire possible that we'll be removed from the list while
      * we're doing the check. */
     using_spinlock(&node->queue->lock) {
-        kp(KP_TRACE, "Node %p: Leaving Wait queue: %p\n", node, node->queue);
         if (list_node_is_in_list(&node->node))
             list_del(&node->node);
         else

@@ -323,7 +323,7 @@ static void ide_sync_block(struct block *b, int master_or_slave)
             __ide_start_queue();
     }
 
-    kp(KP_TRACE, "Waiting on block queue: %p\n", &b->queue);
+    kp(KP_IDE, "Waiting on block queue: %p\n", &b->queue);
     wait_queue_event(&b->queue, flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY));
 }
 
