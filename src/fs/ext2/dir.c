@@ -170,6 +170,7 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     struct inode *newdir;
     struct ext2_inode *ino;
     struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
+    struct task *current = cpu_get_local()->current;
 
     mode &= ~S_IFMT;
     mode |= S_IFDIR;
@@ -192,6 +193,11 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     newdir->ops = &ext2_inode_ops_dir;
     newdir->default_fops = &ext2_file_ops_dir;
     newdir->size = 0;
+
+    using_creds(&current->creds) {
+        newdir->uid = current->creds.uid;
+        newdir->gid = current->creds.gid;
+    }
 
     ino = container_of(newdir, struct ext2_inode, i);
 
@@ -232,6 +238,7 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
 {
     int ret;
     struct inode *ino;
+    struct task *current = cpu_get_local()->current;
 
     mode &= ~S_IFMT;
     mode |= S_IFREG;
@@ -246,6 +253,11 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     ino->ops = &ext2_inode_ops_file;
     ino->default_fops = &ext2_file_ops_file;
     ino->size = 0;
+
+    using_creds(&current->creds) {
+        ino->uid = current->creds.uid;
+        ino->gid = current->creds.gid;
+    }
 
     using_inode_lock_write(dir)
         ret = __ext2_dir_add(dir, name, len, ino->ino, mode);
@@ -279,6 +291,7 @@ static int ext2_dir_mknod(struct inode *dir, const char *name, size_t len, mode_
 {
     int ret;
     struct inode *inode = NULL;
+    struct task *current = cpu_get_local()->current;
 
     ret = ext2_inode_new(dir->sb, &inode);
     if (ret)
@@ -288,6 +301,11 @@ static int ext2_dir_mknod(struct inode *dir, const char *name, size_t len, mode_
 
     inode->mode = mode;
     inode->dev_no = dev;
+
+    using_creds(&current->creds) {
+        inode->uid = current->creds.uid;
+        inode->gid = current->creds.gid;
+    }
 
     ext2_inode_setup_ops(inode);
 
@@ -469,6 +487,7 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
     size_t target_len;
     struct inode *symlink;
     struct ext2_inode *symlink_ext2;
+    struct task *current = cpu_get_local()->current;
 
     target_len = strlen(symlink_target);
 
@@ -482,6 +501,11 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
     symlink->ops = &ext2_inode_ops_symlink;
     symlink->default_fops = NULL;
     symlink->size = target_len;
+
+    using_creds(&current->creds) {
+        symlink->uid = current->creds.uid;
+        symlink->gid = current->creds.gid;
+    }
 
     using_inode_lock_write(dir)
         ret = __ext2_dir_add(dir, name, len, symlink->ino, S_IFLNK);
