@@ -15,6 +15,7 @@
 # include <protura/spinlock.h>
 # include <protura/mutex.h>
 # include <protura/work.h>
+# include <protura/wait.h>
 #endif
 
 typedef unsigned char cc_t;
@@ -220,7 +221,7 @@ void tty_pump(struct work *);
 #define TTY_INIT(tty) \
     { \
         .lock = MUTEX_INIT((tty).lock, "tty-lock"), \
-        .work = WORK_INIT((tty).work, tty_pump), \
+        .work = WORK_INIT_KWORK((tty).work, tty_pump), \
         .in_wait_queue = WAIT_QUEUE_INIT((tty).in_wait_queue, "tty-in-wait-queue"), \
     }
 

@@ -64,12 +64,24 @@ void workqueue_add_work(struct workqueue *queue, struct work *work)
     }
 }
 
-void kwork_schedule(struct work *work)
+void work_schedule(struct work *work)
 {
-    if (work->task)
-        scheduler_task_wake(work->task);
-    else
+    switch (work->type) {
+    case WORK_CALLBACK:
+        (work->callback) (work);
+        break;
+
+    case WORK_KWORK:
         workqueue_add_work(&kwork, work);
+        break;
+
+    case WORK_TASK:
+        scheduler_task_wake(work->task);
+        break;
+
+    case WORK_NONE:
+        break;
+    }
 }
 
 static void kwork_delay_timer_callback(struct ktimer *timer)

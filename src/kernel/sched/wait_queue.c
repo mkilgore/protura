@@ -51,10 +51,7 @@ void wait_queue_node_init(struct wait_queue_node *node)
 
 static inline void wait_queue_wake_node(struct wait_queue_node *node)
 {
-    if (node->wake_callback)
-        (node->wake_callback) (node);
-
-    scheduler_task_wake(node->task);
+    work_schedule(&node->on_complete);
 }
 
 void wait_queue_register(struct wait_queue *queue, struct wait_queue_node *node)
@@ -64,9 +61,8 @@ void wait_queue_register(struct wait_queue *queue, struct wait_queue_node *node)
             list_add_tail(&queue->queue, &node->node);
 
             node->queue = queue;
-            kp(KP_TRACE, "Task %p: Joining Wait queue: %p\n", node->task, node->queue);
         } else if (node->queue != queue) {
-            panic("Task %p: Attempting to join multiple wait-queues\n", node->task);
+            panic("Node %p: Attempting to join multiple wait-queues\n", node);
         }
     }
 }
@@ -82,69 +78,15 @@ void wait_queue_unregister(struct wait_queue_node *node)
      * because it's entire possible that we'll be removed from the list while
      * we're doing the check. */
     using_spinlock(&node->queue->lock) {
-        kp(KP_TRACE, "Task %p: Leaving Wait queue: %p\n", node->task, node->queue);
+        kp(KP_TRACE, "Node %p: Leaving Wait queue: %p\n", node, node->queue);
         if (list_node_is_in_list(&node->node))
             list_del(&node->node);
         else
-            kp(KP_TRACE, "Task %p: Queue is set but not is not in list\n", node->task);
+            kp(KP_TRACE, "Node %p: Queue is set but not is not in list\n", node);
     }
-}
-
-static int __wait_queue_wake(struct wait_queue *queue)
-{
-    int waken = 0;
-    struct wait_queue_node *node;
-
-    /* dequeue takes the next sleeping task off of the wait queue and wakes it up.
-     *
-     * It's important that we wake-up the next SLEEPING task, and not just the
-     * next task, beacuse to prevent lost wake-ups tasks will set themselves to
-     * SLEEPING, register for the wait-queue, and then check if they actually
-     * *need* to be in the wait-queue. If they don't, then they'll set their
-     * state to RUNNING and then unregister themselves from the queue. If a
-     * task changed it's state to RUNNING then it's as though it unregistered,
-     * even though it hasn't actually unregistered yet.
-     */
-    list_foreach_take_entry(&queue->queue, node, node) {
-        struct task *t = node->task;
-
-        kp(KP_TRACE, "Wait queue %p: Task %p: %d\n", queue, t, t->state);
-        if (t->state == TASK_SLEEPING || t->state == TASK_INTR_SLEEPING) {
-            kp(KP_TRACE, "Wait queue %p: Waking task %s(%p)\n", queue, t->name, t);
-            wait_queue_wake_node(node);
-            waken++;
-            break;
-        }
-    }
-
-    return waken;
-}
-
-int wait_queue_unregister_wake(struct wait_queue_node *node)
-{
-    int ret = 0;
-
-    using_spinlock(&node->queue->lock) {
-        if (list_node_is_in_list(&node->node))
-            list_del(&node->node);
-        else
-            ret = __wait_queue_wake(node->queue);
-    }
-
-    return ret;
 }
 
 int wait_queue_wake(struct wait_queue *queue)
-{
-    int waken = 0;
-
-    using_spinlock(&queue->lock)
-        waken = __wait_queue_wake(queue);
-
-    return waken;
-}
-
-int wait_queue_wake_all(struct wait_queue *queue)
 {
     int waken = 0;
     struct wait_queue_node *node;
@@ -158,4 +100,3 @@ int wait_queue_wake_all(struct wait_queue *queue)
 
     return waken;
 }
-

@@ -84,6 +84,8 @@ static struct block *block_new(void)
     list_node_init(&b->block_list_node);
     list_node_init(&b->block_lru_node);
 
+    wait_queue_init(&b->queue);
+
     return b;
 }
 

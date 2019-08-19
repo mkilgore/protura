@@ -45,16 +45,7 @@ static inline void rwlock_init(rwlock_t *rwlock)
 
 static inline void __rwlock_rlock(rwlock_t *rwlock)
 {
-  sleep_again:
-    sleep_with_wait_queue(&rwlock->readers) {
-        if (rwlock->count < 0) {
-            not_using_spinlock(&rwlock->lock)
-                scheduler_task_yield();
-
-            goto sleep_again;
-        }
-    }
-
+    wait_queue_event_spinlock(&rwlock->readers, rwlock->count >= 0, &rwlock->lock);
     rwlock->count++;
 }
 
@@ -74,7 +65,7 @@ static inline void __rwlock_runlock(rwlock_t *rwlock)
     if (rwlock->count == 0)
         wait_queue_wake(&rwlock->writers);
     else
-        wait_queue_wake_all(&rwlock->readers);
+        wait_queue_wake(&rwlock->readers);
 }
 
 static inline void rwlock_runlock(rwlock_t *rwlock)
@@ -85,16 +76,7 @@ static inline void rwlock_runlock(rwlock_t *rwlock)
 
 static inline void __rwlock_wlock(rwlock_t *rwlock)
 {
-  sleep_again:
-    sleep_with_wait_queue(&rwlock->writers) {
-        if (rwlock->count != 0) {
-            not_using_spinlock(&rwlock->lock)
-                scheduler_task_yield();
-
-            goto sleep_again;
-        }
-    }
-
+    wait_queue_event_spinlock(&rwlock->writers, rwlock->count == 0, &rwlock->lock);
     rwlock->count--;
 }
 
@@ -115,7 +97,7 @@ static inline void __rwlock_wunlock(rwlock_t *rwlock)
      * If we have no current writers sleeping in the queue, then we wake all
      * the readers. */
     if (wait_queue_wake(&rwlock->writers) == 0)
-        wait_queue_wake_all(&rwlock->readers);
+        wait_queue_wake(&rwlock->readers);
 }
 
 static inline void rwlock_wunlock(rwlock_t *rwlock)

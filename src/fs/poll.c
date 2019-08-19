@@ -11,6 +11,7 @@
 #include <protura/list.h>
 #include <protura/string.h>
 #include <arch/spinlock.h>
+#include <protura/scheduler.h>
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/palloc.h>
@@ -90,11 +91,12 @@ static inline void poll_table_init(struct poll_table *table)
     *table = (struct poll_table)POLL_TABLE_INIT(*table);
 }
 
-static void poll_table_wait_queue_callback(struct wait_queue_node *node)
+static void poll_table_wait_queue_callback(struct work *work)
 {
-    struct poll_table_entry *entry = container_of(node, struct poll_table_entry, wait_node);
+    struct poll_table_entry *entry = container_of(work, struct poll_table_entry, wait_node.on_complete);
 
     entry->table->event = 1;
+    scheduler_task_wake(work->task);
 }
 
 void poll_table_add(struct poll_table *table, struct wait_queue *queue)
@@ -104,8 +106,8 @@ void poll_table_add(struct poll_table *table, struct wait_queue *queue)
     poll_table_entry_init(entry);
     entry->table = table;
 
-    entry->wait_node.task = cpu_get_local()->current;
-    entry->wait_node.wake_callback = poll_table_wait_queue_callback;
+    work_init_callback(&entry->wait_node.on_complete, poll_table_wait_queue_callback);
+    entry->wait_node.on_complete.task = cpu_get_local()->current;
 
     wait_queue_register(queue, &entry->wait_node);
 
@@ -117,7 +119,7 @@ static void poll_table_unwait(struct poll_table *table)
     struct poll_table_entry *entry;
 
     list_foreach_take_entry(&table->entries, entry, poll_table_node) {
-        wait_queue_unregister_wake(&entry->wait_node);
+        wait_queue_unregister(&entry->wait_node);
         kfree(entry);
     }
 }

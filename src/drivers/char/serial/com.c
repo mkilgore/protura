@@ -70,7 +70,7 @@ static void com_int_handler(struct irq_frame *frame, void *param)
             char_buf_write_char(&com->buf, b);
 
             list_foreach_entry(&com->work_list, work, wakeup_entry)
-                kwork_schedule(work);
+                work_schedule(work);
         } while (inb(com->ioport + UART_LSR) & UART_LSR_DR);
     }
 }

@@ -130,7 +130,7 @@ void pfree(struct page *p, int order)
         __pfree_add_pages(&buddy_allocator, p->page_number, order);
 
         for (i = 0; i <= order; i++)
-            wait_queue_wake_all(&buddy_allocator.maps[i].wait_for_free);
+            wait_queue_wake(&buddy_allocator.maps[i].wait_for_free);
     }
 }
 

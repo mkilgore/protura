@@ -13,15 +13,13 @@
 #include <arch/spinlock.h>
 #include <protura/waitbits.h>
 #include <protura/signal.h>
+#include <protura/work.h>
 
-struct task;
-
-/* Wakeup queues are for when multiple tasks need to be woke-up in series of
- * when they ask. For example, when wake-up queues can be used when multiple
- * tasks need access to a buffer. Each task asks for the buffer, and then gets
- * put in a wakeup_queue. When the current task using the buffer releases it,
- * the next task in the queue will be woke-up and can then get access to the
- * buffer.
+/* Wait queues are used when waiting for 'events' to happen. When the event
+ * happens, all of the `struct work` entries in the queue are scheduled.
+ *
+ * Thus, the general way to use this is via a register/check/sleep loop, which is
+ * conviently wrapped up into the 'wait_event' macros below.
  *
  * When modifying the queue, 'lock' has to be held. */
 struct wait_queue {
@@ -32,11 +30,8 @@ struct wait_queue {
 struct wait_queue_node {
     list_node_t node;
     struct wait_queue *queue;
-    struct task *task;
 
-    /* If set, this callback will be called when this wait_queue_node is
-     * woken-up. Note that the callback will be called *before* waking-up task. */
-    void (*wake_callback) (struct wait_queue_node *);
+    struct work on_complete;
 };
 
 #define WAIT_QUEUE_INIT(q, name) \
@@ -45,6 +40,7 @@ struct wait_queue_node {
 
 #define WAIT_QUEUE_NODE_INIT(q) \
     { .node = LIST_NODE_INIT((q).node), \
+      .on_complete = WORK_INIT((q).on_complete), \
       .queue = NULL }
 
 void wait_queue_init(struct wait_queue *);
@@ -54,38 +50,9 @@ void wait_queue_node_init(struct wait_queue_node *);
 void wait_queue_register(struct wait_queue *, struct wait_queue_node *);
 void wait_queue_unregister(struct wait_queue_node *);
 
-/* Special version of unregister - if we're already unregistered, then the next
- * person in the queue is woken-up for us */
-int wait_queue_unregister_wake(struct wait_queue_node *);
-
 /* Called by the task that is done with whatever the tasks waiting in the queue
- * are waiting for. Returns the number of tasks woken-up. */
+ * are waiting for. */
 int wait_queue_wake(struct wait_queue *);
-int wait_queue_wake_all(struct wait_queue *);
-
-/* For explinations of the below macros, see the 'sleep' macro in scheduler.h */
-#define using_wait_queue(queue) \
-    using_nocheck(wait_queue_register(queue, &cpu_get_local()->current->wait), wait_queue_unregister(&cpu_get_local()->current->wait))
-
-#define sleep_with_wait_queue_begin(queue) \
-    (wait_queue_register(queue, &cpu_get_local()->current->wait), scheduler_set_sleeping())
-
-#define sleep_intr_with_wait_queue_begin(queue) \
-    (wait_queue_register(queue, &cpu_get_local()->current->wait), scheduler_set_intr_sleeping())
-
-#define sleep_with_wait_queue_end() \
-    (scheduler_set_running(), wait_queue_unregister(&cpu_get_local()->current->wait))
-
-/* While it would be nice if we could just combine the 'using_wait_queue' and
- * 'sleep' macros here, we can only have one 'using' macro per line, so we have
- * to settle for one 'using' macro that does both of the above. */
-#define sleep_with_wait_queue(queue) \
-    using_nocheck(sleep_with_wait_queue_begin(queue), \
-            (sleep_with_wait_queue_end()))
-
-#define sleep_intr_with_wait_queue(queue) \
-    using_nocheck(sleep_intr_with_wait_queue_begin(queue), \
-            (sleep_with_wait_queue_end()))
 
 pid_t sys_waitpid(pid_t pid, int *wstatus, int options);
 
@@ -110,5 +77,68 @@ pid_t sys_wait(int *ret);
 #define WEXIT_MAKE(ret) (((ret) << 8) | 0)
 #define WSIGNALED_MAKE(sig) (sig)
 #define WSTOPPED_MAKE(sig) (((sig) << 8) | 0x7F)
+
+#define __wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2) \
+    ({ \
+        int ret = 0; \
+        while (1) { \
+            int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
+            \
+            wait_queue_register(queue, &cpu_get_local()->current->wait); \
+            if (is_intr) \
+                scheduler_set_intr_sleeping(); \
+            else \
+                scheduler_set_sleeping(); \
+            \
+            if (condition) \
+                break; \
+            \
+            if (sig_is_pending) { \
+                ret = -ERESTARTSYS; \
+                break; \
+            } \
+            \
+            cmd1; \
+            \
+            scheduler_task_yield(); \
+            \
+            cmd2; \
+        } \
+        wait_queue_unregister(&cpu_get_local()->current->wait); \
+        scheduler_set_running(); \
+        ret; \
+    })
+
+#define wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2) \
+    ({ \
+        int __ret = 0; \
+        if (!(condition)) \
+            __ret = __wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2); \
+        __ret; \
+    })
+
+/*
+ * Wrappers around wait-queue functionality.
+ */
+#define wait_queue_event(queue, condition) \
+    wait_queue_event_generic(queue, condition, 0, do { ; } while (0), do { ; } while (0))
+
+#define wait_queue_event_intr(queue, condition) \
+    wait_queue_event_generic(queue, condition, 1, do { ; } while (0), do { ; } while (0))
+
+#define wait_queue_event_intr_cmd(queue, condition, cmd1, cmd2) \
+    wait_queue_event_generic(queue, condition, 1, cmd1, cmd2)
+
+#define wait_queue_event_spinlock(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 0, spinlock_release(lock), spinlock_acquire(lock))
+
+#define wait_queue_event_intr_spinlock(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 1, spinlock_release(lock), spinlock_acquire(lock))
+
+#define wait_queue_event_mutex(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 0, mutex_unlock(lock), mutex_lock(lock))
+
+#define wait_queue_event_intr_mutex(queue, condition, lock) \
+    wait_queue_event_generic(queue, condition, 1, mutex_unlock(lock), mutex_lock(lock))
 
 #endif

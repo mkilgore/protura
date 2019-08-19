@@ -12,6 +12,7 @@
 #include <protura/stddef.h>
 #include <protura/debug.h>
 #include <protura/scheduler.h>
+#include <protura/wait.h>
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/mutex.h>
@@ -54,9 +55,7 @@ struct block {
     uint16_t crc;
 #endif
 
-    /* If the block_mutex is currently locked, then this points to the task
-     * that currently holds that lock */
-    struct task *owner;
+    struct wait_queue queue;
 
     list_node_t block_list_node;
     struct hlist_node cache;
@@ -77,9 +76,6 @@ static inline int block_waiting(struct block *b)
 {
     return mutex_waiting(&b->block_mutex);
 }
-
-void block_init(struct block *);
-void block_clear(struct block *);
 
 struct block *bread(dev_t, sector_t);
 void brelease(struct block *);
@@ -160,7 +156,6 @@ static inline void block_lock(struct block *b)
 {
     kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
     mutex_lock(&b->block_mutex);
-    b->owner = cpu_get_local()->current;
     block_dev_sync_block(b->bdev, b);
     kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
 }
@@ -169,7 +164,6 @@ static inline int block_try_lock(struct block *b)
 {
     kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
     if (mutex_try_lock(&b->block_mutex)) {
-        b->owner = cpu_get_local()->current;
         block_dev_sync_block(b->bdev, b);
         kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
         return SUCCESS;
@@ -182,7 +176,6 @@ static inline void block_unlock(struct block *b)
 {
     kp(KP_LOCK, "block %d:%d: Unlocking\n", b->dev, b->sector);
     block_dev_sync_block(b->bdev, b);
-    b->owner = NULL;
     mutex_unlock(&b->block_mutex);
     kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
 }

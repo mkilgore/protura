@@ -209,7 +209,7 @@ int tty_write_buf(struct tty *tty, const char *buf, size_t len)
 
     using_mutex(&tty->lock) {
         char_buf_write(&tty->input_buf, buf, len);
-        kwork_schedule(&tty->work);
+        work_schedule(&tty->work);
     }
 
     return 0;
