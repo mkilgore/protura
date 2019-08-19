@@ -378,8 +378,11 @@ static struct super_block *ext2_sb_read(dev_t dev)
     kp_ext2(sb, "read_only_features=%d\n", \
             sb->disksb.read_only_features);
 
-    if (sb->disksb.read_only_features & ~(EXT2_RO_FEATURE_SPARSE_SB))
+    if (sb->disksb.read_only_features & ~(EXT2_RO_FEATURE_SPARSE_SB | EXT2_RO_FEATURE_64BIT_LEN))
         panic("EXT2: Error, unsupported ext2 read_only features!\n");
+
+    if (sb->disksb.read_only_features & EXT2_RO_FEATURE_64BIT_LEN)
+        kp(KP_WARNING, "EXT2: Ignoring unsupported 64bit length!\n");
 
     sb->block_group_count = sb->disksb.block_total / sb->disksb.blocks_per_block_group;
 

@@ -33,6 +33,7 @@ static struct slab_alloc kmalloc_slabs[] = {
     SLAB_ALLOC_INIT("kmalloc_512", 512),
     SLAB_ALLOC_INIT("kmalloc_1024", 1024),
     SLAB_ALLOC_INIT("kmalloc_2048", 2048),
+    SLAB_ALLOC_INIT("kmalloc_4096", 4096),
     { .slab_name = NULL }
 };
 

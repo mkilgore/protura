@@ -4,7 +4,7 @@ rm -f ./disk.img
 
 mkdir ./disk_ext2
 
-mkfs.ext2 -b 1024 -O ^large_file ./disk.img 128m
+mkfs.ext2 -b 4096 -O ^large_file,^dir_index ./disk.img 128m
 mount ./disk.img ./disk_ext2
 
 cp -R ./disk/root/* ./disk_ext2/
