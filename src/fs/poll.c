@@ -63,6 +63,7 @@ struct poll_table_entry {
     struct poll_table *table;
 
     list_node_t poll_table_node;
+    struct task *poll_task;
 };
 
 struct poll_table {
@@ -96,7 +97,7 @@ static void poll_table_wait_queue_callback(struct work *work)
     struct poll_table_entry *entry = container_of(work, struct poll_table_entry, wait_node.on_complete);
 
     entry->table->event = 1;
-    scheduler_task_wake(work->task);
+    scheduler_task_wake(entry->poll_task);
 }
 
 void poll_table_add(struct poll_table *table, struct wait_queue *queue)
@@ -105,9 +106,9 @@ void poll_table_add(struct poll_table *table, struct wait_queue *queue)
 
     poll_table_entry_init(entry);
     entry->table = table;
+    entry->poll_task = cpu_get_local()->current;
 
     work_init_callback(&entry->wait_node.on_complete, poll_table_wait_queue_callback);
-    entry->wait_node.on_complete.task = cpu_get_local()->current;
 
     wait_queue_register(queue, &entry->wait_node);
 
@@ -133,8 +134,6 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
     int ret;
     int exit_poll = 0;
     int event_count = 0;
-
-    kp(KP_TRACE, "poll: %d\n", nfds);
 
     if (nfds == 0 && timeout < 0)
         return -EINVAL;
@@ -178,7 +177,6 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
                     exit_poll = 1;
                 }
             }
-            kp(KP_TRACE, "poll %d: revents: %d...\n", i, fds[i].revents);
         }
 
         if (!exit_poll)
