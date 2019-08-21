@@ -98,7 +98,7 @@ static void icanon_char(struct tty *tty, struct termios *termios, char c)
 
     if (c == termios->c_cc[VERASE]) {
         using_mutex(&tty->lock) {
-            if (__tty_line_buf_remove(tty) && TERMIOS_ECHOE(termios)) {
+            if (__tty_line_buf_remove(tty) && TERMIOS_ECHO(termios) && TERMIOS_ECHOE(termios)) {
                 output_post_process(tty, termios, '\b');
                 output_post_process(tty, termios, ' ');
                 output_post_process(tty, termios, '\b');
