@@ -53,8 +53,6 @@ void *sys_sbrk(intptr_t increment)
     struct task *t = cpu_get_local()->current;
     struct address_space *addrspc = t->addrspc;
 
-    kp(KP_TRACE, "sbrk: %d\n", increment);
-
     bss = addrspc->bss;
 
     if (!bss)

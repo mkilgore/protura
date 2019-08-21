@@ -138,7 +138,6 @@ void address_space_vm_map_remove(struct address_space *addrspc, struct vm_map *m
 static void vm_map_resize_start(struct vm_map *map, va_t new_start)
 {
     pgd_t *pgd = map->owner->page_dir;
-    kp(KP_TRACE, "vm_map: %p: start: %p, end: %p, resize start: %p\n", map, map->addr.start, map->addr.end, new_start);
 
     if (map->addr.start <= new_start) {
         int old_pages = (new_start - map->addr.start) / PG_SIZE;
@@ -153,7 +152,6 @@ static void vm_map_resize_start(struct vm_map *map, va_t new_start)
 static void vm_map_resize_end(struct vm_map *map, va_t new_end)
 {
     pgd_t *pgd = map->owner->page_dir;
-    kp(KP_TRACE, "vm_map: %p: start: %p, end: %p, resize end: %p\n", map, map->addr.start, map->addr.end, new_end);
 
     if (new_end <= map->addr.end) {
         int old_pages = (map->addr.end - new_end) / PG_SIZE;
