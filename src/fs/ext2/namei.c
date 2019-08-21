@@ -227,7 +227,7 @@ int __ext2_dir_entry_exists(struct inode *dir, const char *name, size_t len)
 }
 
 /* Note: This does not check for duplicates. If a duplicate is a possibility,
- * call __ext2_dir_check() first. */
+ * call __ext2_dir_entry_exists() first. */
 int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, mode_t mode)
 {
     struct block *b;

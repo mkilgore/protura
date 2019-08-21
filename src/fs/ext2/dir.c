@@ -209,6 +209,7 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     if (ret)
         goto cleanup_newdir;
 
+    /* FIXME: Not checking 'exists' here creates a race condition */
     using_inode_lock_write(dir)
         ret = __ext2_dir_add(dir, name, len, newdir->ino, newdir->mode);
 
@@ -259,8 +260,11 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
         ino->gid = current->creds.gid;
     }
 
-    using_inode_lock_write(dir)
-        ret = __ext2_dir_add(dir, name, len, ino->ino, mode);
+    using_inode_lock_write(dir) {
+        ret = __ext2_dir_entry_exists(dir, name, len);
+        if (!ret)
+            ret = __ext2_dir_add(dir, name, len, ino->ino, mode);
+    }
 
     if (ret) {
         inode_put(ino);
