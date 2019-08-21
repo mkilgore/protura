@@ -175,7 +175,7 @@ off_t fs_file_generic_lseek(struct file *filp, off_t off, int whence)
         break;
 
     case SEEK_END:
-        filp->offset = filp->inode->size;
+        filp->offset = filp->inode->size + off;
         break;
 
     case SEEK_CUR:
