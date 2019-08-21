@@ -11,7 +11,7 @@ struct stat {
     __kuint16_t st_uid;
     __kuint16_t st_gid;
     __kuint32_t st_rdev;
-    __kuint32_t st_size;
+    __koff_t st_size;
 
     __ktime_t st_atime;
     __ktime_t st_mtime;
