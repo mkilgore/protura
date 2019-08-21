@@ -61,7 +61,6 @@ __align(0x1000) struct page_directory kernel_dir = {
 
 static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
 {
-    static int page_fault_loop = 0;
     //term_setcurcolor(term_make_color(T_BLACK, T_RED));
     kp(KP_ERROR, "PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%08x\n", (void *)frame->eip, (void *)p, frame->err);
 
@@ -85,14 +84,6 @@ static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
         frame->edi,
         frame->esp,
         frame->ebp);
-
-    if (page_fault_loop) {
-        kp(KP_ERROR, "Detected page fault loop, backtrace skipped\n");
-        while (1)
-            hlt();
-    }
-
-    page_fault_loop = 1;
 
     //term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
     kp(KP_ERROR, "Stack backtrace:\n");
@@ -119,12 +110,12 @@ static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
         }
     }
     kp(KP_ERROR, "End of backtrace\n");
-    kp(KP_ERROR, "Kernel halting\n");
 }
 
 static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
 {
     paging_dump_stack(frame, p);
+    kp(KP_ERROR, "Kernel halting\n");
 
     while (1)
         hlt();
