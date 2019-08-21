@@ -41,7 +41,9 @@ static int check_credentials(struct inode *inode, struct task *current)
         if (inode->mode & S_IXUSR && inode->uid == current->creds.euid)
             return 0;
 
-        return -EACCES;
+        /* FIXME: We can't do this because we don't offer a chmod to set the X bit */
+        // return -EACCES;
+        return 0;
     }
 }
 
