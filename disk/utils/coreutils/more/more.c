@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 #include <poll.h>
 #include <termios.h>
+#include <signal.h>
 
 #include "arg_parser.h"
 #include "file.h"
@@ -47,6 +48,13 @@ static FILE *file_list[MAX_FILES] = { 0 };
 static int tty_fd;
 static int screen_rows = 25;
 
+static sig_atomic_t volatile int_sig = 0;
+
+static void handle_sig_int(int sig)
+{
+    int_sig = 1;
+}
+
 int page_file(FILE *file)
 {
     int row = 0;
@@ -55,7 +63,7 @@ int page_file(FILE *file)
     size_t buf_len = 0;
     size_t len;
 
-    while (!hit_eof) {
+    while (!hit_eof && !int_sig) {
 
         for (row = 0; row < screen_rows - 1&& !hit_eof; row++) {
             len = getline(&line, &buf_len, file);
@@ -75,13 +83,16 @@ int page_file(FILE *file)
             pollfd.fd = tty_fd;
             pollfd.events = POLLIN;
             do {
+                /* FIXME: This should use ppoll with signal masking, but we don't support that */
                 pollfd.revents = 0;
                 poll(&pollfd, 1, -1);
-            } while (!(pollfd.revents & POLLIN));
+            } while (!(pollfd.revents & POLLIN) && !int_sig);
 
-            /* Clear out the newline character */
-            char c;
-            read(tty_fd, &c, 1);
+            if (pollfd.revents & POLLIN) {
+                /* Clear out the newline character */
+                char c;
+                read(tty_fd, &c, 1);
+            }
 
             printf("\r          \r");
             fflush(stdout);
@@ -99,6 +110,7 @@ int main(int argc, char **argv)
     enum arg_index ret;
     struct termios old_term, term;
     struct winsize wsize;
+    struct sigaction action;
     int i;
 
     while ((ret = arg_parser(argc, argv, args)) != ARG_DONE) {
@@ -150,6 +162,12 @@ int main(int argc, char **argv)
     term.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL);
 
     tcsetattr(tty_fd, TCSANOW, &term);
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = handle_sig_int;
+    sigemptyset(&action.sa_mask);
+
+    sigaction(SIGINT, &action, NULL);
 
     for (i = 0; i < file_count; i++) {
         page_file(file_list[i]);
