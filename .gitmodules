@@ -13,3 +13,18 @@
 	path = disk/extras/ed
 	url = https://github.com/mkilgore/protura-ed
 	branch = master
+[submodule "disk/extras/mpc"]
+	path = disk/extras/mpc
+	url = https://github.com/mkilgore/protura-mpc
+[submodule "disk/extras/mpfr"]
+	path = disk/extras/mpfr
+	url = https://github.com/mkilgore/protura-mpfr
+[submodule "disk/extras/gmp"]
+	path = disk/extras/gmp
+	url = https://github.com/mkilgore/protura-gmp
+[submodule "disk/extras/gcc"]
+	path = disk/extras/gcc
+	url = https://github.com/mkilgore/protura-gcc
+[submodule "disk/extras/binutils"]
+	path = disk/extras/binutils
+	url = https://github.com/mkilgore/protura-binutils
