@@ -90,6 +90,8 @@ void task_init(struct task *task)
 
     credentials_init(&task->creds);
 
+    arch_task_init(task);
+
     kp(KP_TRACE, "Created task %d\n", task->pid);
 }
 

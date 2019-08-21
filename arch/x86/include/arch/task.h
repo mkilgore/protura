@@ -22,6 +22,40 @@ struct task;
 struct address_space;
 struct vm_map;
 
+struct i387_fxsave {
+	uint16_t cwd;
+	uint16_t swd;
+	uint16_t twd;
+	uint16_t fop;
+	uint64_t rip;
+	uint64_t rdp;
+	uint32_t mxcsr;
+	uint32_t mxcsr_mask;
+	uint32_t st_space[32];
+	uint32_t xmm_space[64];
+	uint32_t padding[24];
+} __align(16);
+
+static inline void i387_fxsave(struct i387_fxsave *fxsave)
+{
+    asm volatile("fxsave (%0)":: "r" (fxsave));
+}
+
+static inline void i387_fxrstor(struct i387_fxsave *fxsave)
+{
+    asm volatile("fxrstor (%0)":: "r" (fxsave));
+}
+
+struct arch_task_info {
+    struct i387_fxsave fxsave;
+};
+
+#define INIT_ARCH_TASK_INFO() \
+    { \
+        .fxsave.cwd = 0x37F, \
+        .fxsave.mxcsr = 0x1F80, \
+    }
+
 /* Note, you should probably be calling the functions in vm.h unless you know
  * what you're doing. */
 
@@ -34,6 +68,8 @@ void arch_task_setup_stack_kernel(struct task *t, int (*kernel_task) (void *), v
 void arch_task_setup_stack_kernel_interruptable(struct task *t, int (*kernel_task) (void *), void *ptr);
 
 void arch_task_switch(context_t *old, struct task *new);
+
+void arch_task_init(struct task *t);
 
 extern uintptr_t arch_task_user_entry_addr;
 

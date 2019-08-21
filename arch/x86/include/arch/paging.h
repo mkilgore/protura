@@ -8,24 +8,11 @@
 #ifndef INCLUDE_ARCH_PAGING_H
 #define INCLUDE_ARCH_PAGING_H
 
+#include <arch/cpuid.h>
+
 #define PG_SHIFT (12)
 
 #define PG_SIZE (1 << PG_SHIFT)
-
-#define CR0_PE 0x00000001
-#define CR0_MP 0x00000002
-#define CR0_EM 0x00000004
-#define CR0_TS 0x00000008
-#define CR0_ET 0x00000010
-#define CR0_NE 0x00000020
-#define CR0_WP 0x00010000
-#define CR0_AM 0x00040080
-#define CR0_NW 0x20000000
-#define CR0_CD 0x40000000
-#define CR0_PG 0x80000000
-
-#define CR4_PSE 0x00000010
-#define CR4_GLOBAL 0x00000080
 
 #define PDE_PRESENT        0x001
 #define PDE_WRITABLE       0x002

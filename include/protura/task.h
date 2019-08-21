@@ -99,6 +99,8 @@ struct task {
 
     struct credentials creds;
 
+    struct arch_task_info arch_info;
+
     char name[128];
 };
 

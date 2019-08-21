@@ -19,6 +19,7 @@
 #include <arch/asm.h>
 #include <arch/syscall.h>
 #include <arch/drivers/pic8259.h>
+#include <arch/cpuid.h>
 #include <arch/gdt.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
@@ -233,6 +234,9 @@ void irq_global_handler(struct irq_frame *iframe)
         t->context.frame = iframe;
     }
 
+    if (cpuid_has_sse())
+        i387_fxsave(&t->arch_info.fxsave);
+
     /* This is more complex then is normally done. This is because we check the
      * ISR registers of both PIC's to avoid sending EOI's for Spurious
      * Interrupts */
@@ -295,5 +299,8 @@ void irq_global_handler(struct irq_frame *iframe)
     /* Is he dead yet? */
     if (flag_test(&t->flags, TASK_FLAG_KILLED))
         sys_exit(0);
+
+    if (cpuid_has_sse())
+        i387_fxrstor(&t->arch_info.fxsave);
 }
 

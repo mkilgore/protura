@@ -11,6 +11,7 @@
 #include <protura/stddef.h>
 #include <protura/string.h>
 #include <arch/paging.h>
+#include <arch/task.h>
 
 #include <protura/init/init_task.h>
 
@@ -30,6 +31,7 @@ struct task init_task = {
     .kstack_bot = NULL,
     .kstack_top = NULL,
 
+    .arch_info = INIT_ARCH_TASK_INFO(),
     .name = "INIT",
 };
 

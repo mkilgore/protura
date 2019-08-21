@@ -93,7 +93,49 @@ extern char cpuid_id[10];
 
 #define cpuid_has_pse() ((cpuid_edx) & CPUID_FEAT_EDX_PSE)
 #define cpuid_has_pge() ((cpuid_edx) & CPUID_FEAT_EDX_PGE)
+#define cpuid_has_sse() (((cpuid_edx) & CPUID_FEAT_EDX_SSE) && ((cpuid_edx) & CPUID_FEAT_EDX_FXSR))
 
 void cpuid_init(void);
+
+static inline uint32_t cpu_get_cr0(void)
+{
+    uintptr_t cr0;
+    asm volatile("movl %%cr0, %0": "=r" (cr0));
+    return cr0;
+}
+
+static inline uint32_t cpu_get_cr4(void)
+{
+    uint32_t cr4;
+    asm volatile("movl %%cr4, %0": "=r" (cr4));
+    return cr4;
+}
+
+static inline void cpu_set_cr0(uint32_t cr0)
+{
+    asm volatile("movl %0, %%cr0":: "r" (cr0): "memory");
+}
+
+static inline void cpu_set_cr4(uint32_t cr4)
+{
+    asm volatile("movl %0, %%cr4":: "r" (cr4): "memory");
+}
+
+#define CR0_PE 0x00000001
+#define CR0_MP 0x00000002
+#define CR0_EM 0x00000004
+#define CR0_TS 0x00000008
+#define CR0_ET 0x00000010
+#define CR0_NE 0x00000020
+#define CR0_WP 0x00010000
+#define CR0_AM 0x00040080
+#define CR0_NW 0x20000000
+#define CR0_CD 0x40000000
+#define CR0_PG 0x80000000
+
+#define CR4_PSE 0x00000010
+#define CR4_GLOBAL 0x00000080
+#define CR4_OSFXSR (1 << 9)
+#define CR4_OSXMMEXCPT (1 << 10)
 
 #endif

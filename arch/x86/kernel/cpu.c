@@ -17,9 +17,25 @@
 #include <arch/memlayout.h>
 #include <arch/asm.h>
 #include <arch/gdt.h>
+#include <arch/cpuid.h>
 #include <arch/cpu.h>
 
 static struct cpu_info cpu;
+
+void cpu_setup_fpu(struct cpu_info *c)
+{
+    if (cpuid_has_sse()) {
+        /* Turn SSE on */
+        uint32_t cr0 = cpu_get_cr0();
+        cr0 &= ~CR0_EM;
+        cr0 |= CR0_MP;
+        cpu_set_cr0(cr0);
+
+        uint32_t cr4 = cpu_get_cr4();
+        cr4 |= CR4_OSFXSR | CR4_OSXMMEXCPT;
+        cpu_set_cr4(cr4);
+    }
+}
 
 static void cpu_gdt(struct cpu_info *c)
 {
@@ -106,6 +122,7 @@ void cpu_info_init(void)
 {
     cpu_gdt(&cpu);
     cpu_tss(&cpu);
+    cpu_setup_fpu(&cpu);
     cpu.cpu = &cpu;
     cpu.cpu_id = 0;
     cpu.intr_count = 1;

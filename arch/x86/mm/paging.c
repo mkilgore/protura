@@ -226,11 +226,9 @@ void paging_setup_kernelspace(void **kbrk)
     pge = (cpuid_has_pge())? CR4_GLOBAL: 0;
 
     if (pse || pge) {
-        uint32_t cr4;
-
-        asm volatile("movl %%cr4, %0": "=r" (cr4));
+        uint32_t cr4= cpu_get_cr4();
         cr4 |= pse | pge;
-        asm volatile("movl %0,%%cr4": : "r" (cr4));
+        cpu_set_cr4(cr4);
     }
 
     kp(KP_NORMAL, "Setting-up initial kernel page-directory\n");

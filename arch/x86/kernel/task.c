@@ -150,3 +150,9 @@ void arch_task_change_address_space(struct address_space *addrspc)
     kfree(old);
 }
 
+void arch_task_init(struct task *t)
+{
+    memset(&t->arch_info, 0, sizeof(t->arch_info));
+    t->arch_info.fxsave.cwd = 0x37F;
+    t->arch_info.fxsave.mxcsr = 0x1F80;
+}
