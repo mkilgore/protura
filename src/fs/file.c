@@ -94,11 +94,12 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
     return ret;
 }
 
-int fs_file_generic_write(struct file *filp, const void *vbuf, size_t len)
+int fs_file_generic_write(struct file *filp, const void *vbuf, size_t sizet_len)
 {
     int ret = 0;
+    off_t len;
     const char *buf = vbuf;
-    size_t have_written = 0;
+    off_t have_written = 0;
     dev_t dev = filp->inode->sb_dev;
 
     if (!file_is_writable(filp))
@@ -109,22 +110,22 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t len)
         ret = vfs_lseek(filp, 0, SEEK_END);
         if (ret < 0)
             return ret;
-
-#if 0
-        kp(KP_TRACE, "write append: truncate(%d)\n", filp->offset + len);
-        ret = vfs_truncate(filp->inode, filp->offset + len);
-        if (ret)
-            return ret;
-#endif
     }
 
+    /* We have to reconcile the difference between the unsigned size_t and signed off_t */
+    if ((off_t)sizet_len > __OFF_MAX && (off_t)sizet_len > 0)
+        return -EINVAL;
+
+    len = (off_t)sizet_len;
+
+    kp(KP_TRACE, "Write: %ld\n", len);
     if (filp->inode->size - filp->offset < len) {
         ret = vfs_truncate(filp->inode, filp->offset + len);
         if (ret)
             return ret;
     }
 
-    size_t block_size = filp->inode->sb->bdev->block_size;
+    off_t block_size = filp->inode->sb->bdev->block_size;
     sector_t sec = filp->offset / block_size;
     off_t sec_off = filp->offset - sec * block_size;
 
@@ -144,7 +145,7 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t len)
 
 
             using_block(dev, on_dev, b) {
-                kp(KP_TRACE, "Write: %d: sec_off=%ld, have_written=%d, b->data=%p\n", dev, sec_off, have_written, b->data);
+                kp(KP_TRACE, "Write: %d: sec_off=%ld, have_written=%ld, b->data=%p\n", dev, sec_off, have_written, b->data);
                 memcpy(b->data + sec_off, buf + have_written, left);
                 block_mark_dirty(b);
             }
