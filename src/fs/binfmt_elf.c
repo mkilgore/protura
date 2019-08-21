@@ -214,7 +214,10 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
     new_addrspc->stack = stack;
 
-    kp_elf(params, "New code segment: %p-%p\n", new_addrspc->code->addr.start, new_addrspc->code->addr.end);
+    if (new_addrspc->code)
+        kp_elf(params, "New code segment: %p-%p\n", new_addrspc->code->addr.start, new_addrspc->code->addr.end);
+    else
+        kp_elf(params, "No code segment!\n");
 
     if (new_addrspc->data)
         kp_elf(params, "New data segment: %p-%p\n", new_addrspc->data->addr.start, new_addrspc->data->addr.end);
