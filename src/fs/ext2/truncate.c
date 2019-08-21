@@ -183,6 +183,8 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
 
   set_size_and_ret:
     /* 'blocks' is always a count of 512-byte blocks */
+    /* FIXME: This is wrong, the blocks count should just be incremented on allocations
+     * This also doesn't account for the indirect blocks, which do count towards the total size */
     inode->i.blocks = starting_block * (block_size / 512);
     inode->i.size = size;
     inode->i.ctime = inode->i.mtime = protura_current_time_get();

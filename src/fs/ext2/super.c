@@ -198,6 +198,7 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
     kp_ext2(sb, "Inode group block: %d, inode group block offset: %d\n", inode->inode_group_blk_nr, inode->inode_group_blk_offset);
     kp_ext2(sb, "Inode links: %d\n", atomic32_get(&i->ref));
     kp_ext2(sb, "Inode nlinks: %d\n", atomic32_get(&i->nlinks));
+    kp_ext2(sb, "Inode size: %ld\n", inode->i.size);
 
     using_block(super->dev, inode->inode_group_blk_nr, b) {
         struct ext2_disk_inode *dinode = (struct ext2_disk_inode *)b->data + inode->inode_group_blk_offset;
