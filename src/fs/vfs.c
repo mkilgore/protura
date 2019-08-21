@@ -27,11 +27,18 @@
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
 
+#ifdef CONFIG_KERNEL_LOG_VFS
+# define kp_vfs(str, ...) kp(KP_DEBUG, "vfs: " str, params, ## __VA_ARGS__)
+#else
+# define kp_vfs(str, ...) do { ; } while (0)
+#endif
+
+
 int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *filp)
 {
     int ret = 0;
 
-    kp(KP_TRACE, "Allocated filp: %p\n", filp);
+    kp_vfs("Allocated filp: %p\n", filp);
 
     filp->mode = inode->mode;
     filp->inode = inode_dup(inode);
@@ -60,7 +67,7 @@ int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_re
     int ret = 0;
     struct file *filp;
 
-    kp(KP_TRACE, "Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
+    kp_vfs("Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
 
     *filp_ret = NULL;
 
@@ -80,19 +87,19 @@ int vfs_close(struct file *filp)
 {
     int ret = 0;
 
-    kp(KP_TRACE, "closing file, inode:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
+    kp_vfs("closing file, inode:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
 
     if (!atomic_dec_and_test(&filp->ref))
         return 0;
 
-    kp(KP_TRACE, "Releasing file with inode:"PRinode"!\n", Pinode(filp->inode));
+    kp_vfs("Releasing file with inode:"PRinode"!\n", Pinode(filp->inode));
 
     if (file_has_release(filp))
         ret = filp->ops->release(filp);
 
     inode_put(filp->inode);
 
-    kp(KP_TRACE, "Freeing file %p\n", filp);
+    kp_vfs("Freeing file %p\n", filp);
     kfree(filp);
 
     return ret;
@@ -230,7 +237,7 @@ int vfs_chdir(const char *path)
     struct nameidata name;
     int ret;
 
-    kp(KP_TRACE, "chdir: %s\n", path);
+    kp_vfs("chdir: %s\n", path);
 
     memset(&name, 0, sizeof(name));
 
