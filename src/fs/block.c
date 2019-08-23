@@ -72,7 +72,11 @@ static void __block_uncache(struct block *b)
 
 static void block_delete(struct block *b)
 {
-    kfree(b->data);
+    if (b->block_size == PG_SIZE)
+        pfree_va(b->data, 0);
+    else
+        kfree(b->data);
+
     kfree(b);
 }
 
@@ -150,7 +154,12 @@ static struct block *__bread(dev_t device, struct block_device *bdev, size_t blo
 
     b = block_new();
     b->block_size = block_size;
-    b->data = kzalloc(block_size, PAL_KERNEL);
+
+    if (block_size != PG_SIZE)
+        b->data = kzalloc(block_size, PAL_KERNEL);
+    else
+        b->data = palloc_va(0, PAL_KERNEL);
+
     b->sector = sector;
     b->dev = device;
     b->bdev = bdev;

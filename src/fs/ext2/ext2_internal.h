@@ -14,7 +14,7 @@
 #include <protura/fs/ext2.h>
 
 #ifdef CONFIG_KERNEL_LOG_EXT2
-# define kp_ext2(sb, str, ...) kp(KP_DEBUG, "EXT2 (%p): " str, sb, ## __VA_ARGS__)
+# define kp_ext2(sb, str, ...) kp(KP_NORMAL, "EXT2 (%p): " str, sb, ## __VA_ARGS__)
 #else
 # define kp_ext2(sb, str, ...) do { (void)(sb); } while (0)
 #endif

@@ -339,6 +339,7 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
         }
     }
 
+    i->i.blocks += (sb->sb.bdev->block_size / 512);
     inode_set_dirty(inode);
 
     return ret;
