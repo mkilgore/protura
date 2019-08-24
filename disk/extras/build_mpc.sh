@@ -26,6 +26,7 @@ export LDFLAGS="-static"
 
 ../mpc/configure \
     --host=$PROTURA_TARGET \
+    --disable-maintainer-mode \
     --prefix="/usr" \
     --enable-static \
     --disable-shared \

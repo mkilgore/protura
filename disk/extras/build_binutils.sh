@@ -28,6 +28,7 @@ export LDFLAGS="-static"
     --host=$PROTURA_TARGET \
     --prefix="$PROTURA_ROOT" \
     --with-sysroot="/" \
+    --disable-maintainer-mode \
     --with-build-sysroot="$PROTURA_ROOT" \
     --with-newlib \
     --disable-werror \

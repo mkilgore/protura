@@ -26,6 +26,7 @@ export LDFLAGS="-static"
 
 ../mpfr/configure \
     --host=$PROTURA_TARGET \
+    --disable-maintainer-mode \
     --prefix="/usr" \
     --with-sysroot="/" \
     --with-build-sysroot="$PROTURA_ROOT" \

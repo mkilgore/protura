@@ -24,6 +24,7 @@ export LDFLAGS="-static"
 cd vim
 
 ./configure \
+    --disable-maintainer-mode \
     --with-features=normal \
     --with-compiledby='Matt Kilgore <mattkilgore12@gmail.com>' \
     --with-x=no \

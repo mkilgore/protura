@@ -26,6 +26,7 @@ cd ./gcc-build
     --target=$PROTURA_TARGET \
     --host=$PROTURA_TARGET \
     --prefix="$PROTURA_ROOT" \
+    --disable-maintainer-mode \
     --with-sysroot="/" \
     --with-build-sysroot="$PROTURA_ROOT" \
     --enable-static \

@@ -8,6 +8,7 @@ disk/extras/ncurses.built:
 	@echo " BUILD   ncurses"
 	$(Q)cd disk/extras/ncurses; ./configure \
 			--host=$(TARGET) \
+			--disable-maintainer-mode \
 			--without-tests \
 			--with-normal \
 			--disable-db-install \
