@@ -8,8 +8,6 @@
 #ifndef INCLUDE_ARCH_PAGING_H
 #define INCLUDE_ARCH_PAGING_H
 
-#include <arch/cpuid.h>
-
 #define PG_SHIFT (12)
 
 #define PG_SIZE (1 << PG_SHIFT)
@@ -62,6 +60,7 @@
 
 #include <protura/types.h>
 #include <protura/multiboot.h>
+#include <arch/cpuid.h>
 
 #include <protura/stddef.h>
 
