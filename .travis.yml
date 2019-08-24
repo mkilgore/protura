@@ -9,6 +9,10 @@ language: minimal
 git:
   submodules: false
 
+cache:
+  directories:
+    - toolchain
+
 # texinfo is necessary for some of the extra things we build
 # mpc/gmp/mpfr are necessary for compiling the cross-compiler
 # ncurses is necessary for cross-compiling ncurses (It provides the `tic` utility)
