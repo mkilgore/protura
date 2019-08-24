@@ -12,7 +12,7 @@ cp -R ./disk/root/* ./disk_ext2/
 mkdir ./disk_ext2/mnt
 mkdir ./disk_ext2/mnt/slave
 
-cp -R ./disk/home/* ./disk_ext2/home/
+cp -R ./disk/home ./disk_ext2/home
 
 mkdir ./disk_ext2/root
 
