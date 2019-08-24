@@ -1,7 +1,7 @@
 # Program wide settings
 EXE       := protura
 VERSION   := 0
-SUBLEVEL  := 1
+SUBLEVEL  := 2
 PATCH     := 0
 VERSION_N := $(VERSION).$(SUBLEVEL).$(PATCH)
 
