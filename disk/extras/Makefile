@@ -21,8 +21,8 @@ disk/extras/ncurses.built:
 
 .PHONY: extra-vim
 DISK_CLEAN_EXTRA += ./disk/extras/vim.built
-extra-vim: extra-ncurses disk/extras/vim.built
-disk/extras/vim.built:
+extra-vim: disk/extras/vim.built
+disk/extras/vim.built: extra-ncurses
 	@echo " BUILD   vim"
 	$(Q)cd disk/extras/; ./build_vim.sh $(TARGET) "$(DISK_ROOT)" "/usr"
 	@echo " TOUCH   $@"
@@ -61,8 +61,8 @@ disk/extras/mpfr.built:
 
 .PHONY: extra-mpc
 DISK_CLEAN_EXTRA += ./disk/extras/mpc.built
-extra-mpc: extra-gmp extra-mpfr disk/extras/mpc.built
-disk/extras/mpc.built:
+extra-mpc: disk/extras/mpc.built
+disk/extras/mpc.built: extra-gmp extra-mpfr
 	@echo " BUILD   mpc"
 	$(Q)cd disk/extras/; ./build_mpc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
@@ -79,8 +79,8 @@ disk/extras/binutils.built:
 
 .PHONY: extra-gcc
 DISK_CLEAN_EXTRA += ./disk/extras/gcc.built
-extra-gcc: extra-gmp extra-mpc extra-mpfr disk/extras/gcc.built
-disk/extras/gcc.built:
+extra-gcc: disk/extras/gcc.built
+disk/extras/gcc.built: extra-gmp extra-mpc extra-mpfr
 	@echo " BUILD   gcc"
 	$(Q)cd disk/extras/; ./build_gcc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
