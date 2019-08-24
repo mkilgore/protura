@@ -10,6 +10,7 @@ disk/extras/ncurses.built:
 			--host=$(TARGET) \
 			--without-tests \
 			--with-normal \
+			--disable-db-install \
 			--with-install-prefix=$(DISK_ROOT) \
 			--prefix=/usr;
 	$(Q)cd disk/extras/ncurses; $(MAKE)
