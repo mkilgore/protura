@@ -29,8 +29,6 @@ export LDFLAGS="-static"
     --disable-maintainer-mode \
     --prefix="/usr" \
     --with-sysroot="/" \
-    --with-build-sysroot="$PROTURA_ROOT" \
-    --with-gmp="$PROTURA_ROOT/usr" \
     --enable-static \
     --disable-shared \
     --verbose \
