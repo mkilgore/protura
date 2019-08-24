@@ -38,6 +38,7 @@ script:
 deploy:
   provider: releases
   skip_cleanup: true
+  draft: true
   api_key:
     secure: PbKdt9T+Aq8vMbFGZqyGDN/m0p4y37TMUkGEj7Pc3MhB7yA2oK9CYbjAHriN5ui5Rd8j2o67YO3kexbNaH7JupHcDt0NFiCApDsJl/Dx45rEP3CaaGiILCHv3ma8jkPbAoQGyeuK2eV7+2GR6AdrLKwmo0hqJVvGrBMj3j0xKJE=
   file:
