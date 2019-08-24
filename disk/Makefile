@@ -43,6 +43,7 @@ clean-toolchain:
 
 PHONY += rebuild-newlib
 rebuild-newlib:
+	$(Q)git submodule update --init --depth 1 --recursive
 	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
 
 .SECONDARY: $(DISK_UTIL_OBJS)
