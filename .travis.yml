@@ -1,0 +1,43 @@
+dist: bionic
+
+# We don't pick C since we have to build the cross-compiler and stuff, and the
+# default environment variables mess that up
+language: minimal
+
+# We handle the submodule updates ourselves, which allows us to do a --depth 1
+# which is much faster
+git:
+  submodules: false
+
+# texinfo is necessary for some of the extra things we build
+# mpc/gmp/mpfr are necessary for compiling the cross-compiler
+# ncurses is necessary for cross-compiling ncurses (It provides the `tic` utility)
+install:
+  - sudo apt-get install build-essential
+  - sudo apt-get install texinfo
+  - sudo apt-get install libmpc-dev libgmp-dev libmpfr-dev
+  - sudo apt-get install libncurses5
+  - sudo apt-get install autotools-dev
+  - sudo apt-get install automake
+
+# The scripts are for running GCC, so we can reduce the log output.
+script:
+  - make configure
+  - make install-kernel-headers
+  - export PATH="$PATH:`pwd`/toolchain/bin"
+  - ./scripts/travis_gcc.sh
+  - make kernel -j3
+  - make extra-ed -j3
+  - make extra-vim -j3
+  - make disk
+
+deploy:
+  provider: releases
+  skip_cleanup: true
+  api_key:
+    secure: PbKdt9T+Aq8vMbFGZqyGDN/m0p4y37TMUkGEj7Pc3MhB7yA2oK9CYbjAHriN5ui5Rd8j2o67YO3kexbNaH7JupHcDt0NFiCApDsJl/Dx45rEP3CaaGiILCHv3ma8jkPbAoQGyeuK2eV7+2GR6AdrLKwmo0hqJVvGrBMj3j0xKJE=
+  file:
+    - "./imgs/protura_x86_multiboot"
+    - "./disk.img"
+  on:
+    tags: true
