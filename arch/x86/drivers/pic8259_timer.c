@@ -41,6 +41,11 @@ uint32_t timer_get_ticks(void)
     return atomic32_get(&ticks);
 }
 
+uint32_t timer_get_ms(void)
+{
+    return timer_get_ticks() / (TIMER_TICKS_PER_SEC / 1000);
+}
+
 uint32_t sys_clock(void)
 {
     return timer_get_ticks();

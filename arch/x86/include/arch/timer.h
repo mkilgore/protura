@@ -10,6 +10,7 @@
 
 #include <protura/types.h>
 
+uint32_t timer_get_ms(void);
 uint32_t timer_get_ticks(void);
 uint32_t sys_clock(void);
 

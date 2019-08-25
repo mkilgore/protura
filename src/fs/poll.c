@@ -41,7 +41,7 @@
  *
  * The biggest issues are due to the fact that the normal wait_queue
  * notifications are not sufficent for our needs here. The task state can
- * change in undesirable situations, and the wake-up's relaly can't be
+ * change in undesirable situations, and the wake-up's really can't be
  * accurately detected.
  *
  * The fix is to not sleep while calling the various poll() callbacks, and

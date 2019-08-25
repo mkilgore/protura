@@ -177,29 +177,28 @@ void tty_process_input(struct tty *tty)
     const struct tty_driver *driver = tty->driver;
     char buf[32];
     size_t buf_len;
+    size_t i;
     struct termios termios;
 
     using_mutex(&tty->lock)
         termios = tty->termios;
 
-    while ((buf_len = (driver->ops->read) (tty, buf, sizeof(buf))) != 0) {
-        size_t i;
+    buf_len = (driver->ops->read) (tty, buf, sizeof(buf));
 
-        for (i = 0; i < buf_len; i++) {
-            if (input_preprocess(tty, &termios, buf + i))
-                continue;
+    for (i = 0; i < buf_len; i++) {
+        if (input_preprocess(tty, &termios, buf + i))
+            continue;
 
-            if (TERMIOS_ISIG(&termios) && isig_handle(tty, &termios, buf[i]))
-                continue;
+        if (TERMIOS_ISIG(&termios) && isig_handle(tty, &termios, buf[i]))
+            continue;
 
-            if (TERMIOS_ECHO(&termios))
-                echo_char(tty, &termios, buf[i]);
+        if (TERMIOS_ECHO(&termios))
+            echo_char(tty, &termios, buf[i]);
 
-            if (TERMIOS_ICANON(&termios))
-                icanon_char(tty, &termios, buf[i]);
-            else
-                __send_input_char(tty, buf[i]);
-        }
+        if (TERMIOS_ICANON(&termios))
+            icanon_char(tty, &termios, buf[i]);
+        else
+            __send_input_char(tty, buf[i]);
     }
 }
 
@@ -209,7 +208,6 @@ void tty_process_output(struct tty *tty)
     size_t buf_len;
     struct termios termios;
 
-    /* For now, the process output is written directly to the hardware driver */
     using_mutex(&tty->lock) {
         termios = tty->termios;
         buf_len = char_buf_read(&tty->input_buf, buf, sizeof(buf));

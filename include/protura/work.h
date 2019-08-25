@@ -16,17 +16,59 @@
 
 struct task;
 
+#define WORKQUEUE_MAX_THREADS 5
+
+/*
+ * Holds one or more threads that `struct work` entries will be scheduled on.
+ */
 struct workqueue {
     list_head_t work_list;
+    list_head_t work_running_list;
     spinlock_t lock;
-    struct task *work_thread;
+    struct task *work_threads[WORKQUEUE_MAX_THREADS];
+    int thread_count;
+    int wake_next_thread;
 };
+
+/*
+ * `struct work` is the kernel primitive for triggering some type of "work" to be
+ * done due to some event. The person registering the "work" is the one who
+ * sets up what happens on the event, meaning anything that uses a `struct
+ * work` can trigger a variety of events, which are needed by various parts of
+ * the kernel, making it very flexable.
+ *
+ * Current types of work:
+ *
+ *     WORK_TASK: Wake up the task specified by the `task` field.
+ *
+ *     WORK_CALLBACK: Call the callback specified by the `callback` field.
+ *                    The `struct work` instance is passed to this callback,
+ *                    with the assumption being it is embeeded in some larger
+ *                    structure that will be accessed via `container_of`.
+ *
+ *     WORK_KWORK: Schedules this work to run on the `kwork` workqueue.
+ *
+ *     WORK_WORKQUEUE: Schedules this work to run on the workqueue from the
+ *                     `queue` field.
+ *
+ *     WORK_NONE: Do nothing
+ *
+ *
+ * Each of those types have their own `_INIT` macros and `_init` functions for
+ * filling them in. After a `struct work` is initialized, it can be scheduled
+ * by passing it to `work_schedule`.
+ */
 
 enum work_type {
     WORK_NONE,
     WORK_TASK,
     WORK_CALLBACK,
     WORK_KWORK,
+    WORK_WORKQUEUE,
+};
+
+enum work_flags {
+    WORK_SCHEDULED,
 };
 
 struct work {
@@ -36,10 +78,13 @@ struct work {
     /* Entry in a wakeup queue */
     list_node_t wakeup_entry;
 
+    flags_t flags;
+
     enum work_type type;
 
     void (*callback) (struct work *);
     struct task *task;
+    struct workqueue *queue;
 };
 
 struct delay_work {
@@ -50,6 +95,7 @@ struct delay_work {
 #define WORKQUEUE_INIT(queue) \
     { \
         .work_list = LIST_HEAD_INIT((queue).work_list), \
+        .work_running_list = LIST_HEAD_INIT((queue).work_running_list), \
         .lock = SPINLOCK_INIT("workqueue-lock"), \
     }
 
@@ -84,6 +130,15 @@ struct delay_work {
         .task = t, \
     }
 
+#define WORK_INIT_WORKQUEUE(work, func, q) \
+    { \
+        .work_entry = LIST_NODE_INIT((work).work_entry), \
+        .wakeup_entry = LIST_NODE_INIT((work).wakeup_entry), \
+        .type = WORK_WORKQUEUE, \
+        .callback = func, \
+        .queue = (q), \
+    }
+
 #define DELAY_WORK_INIT_KWORK(w, func) \
     { \
         .work = WORK_INIT_KWORK((w).work, func), \
@@ -115,12 +170,18 @@ static inline void work_init_task(struct work *work, struct task *task)
     *work = (struct work)WORK_INIT_TASK(*work, task);
 }
 
+static inline void work_init_workqueue(struct work *work, void (*callback) (struct work *), struct workqueue *queue)
+{
+    *work = (struct work)WORK_INIT_WORKQUEUE(*work, callback, queue);
+}
+
 static inline void delay_work_init_kwork(struct delay_work *work, void (*callback) (struct work *))
 {
     *work = (struct delay_work)DELAY_WORK_INIT_KWORK(*work, callback);
 }
 
 void workqueue_start(struct workqueue *, const char *thread_name);
+void workqueue_start_multiple(struct workqueue *, const char *thread_name, int thread_count);
 void workqueue_stop(struct workqueue *);
 
 void workqueue_add_work(struct workqueue *, struct work *);

@@ -80,10 +80,23 @@ void tty_pump(struct work *work)
     struct tty *tty = container_of(work, struct tty, work);
     const struct tty_driver *driver = tty->driver;
 
+    uint32_t start_ticks = timer_get_ms();
+
+    kp(KP_NORMAL, "TTY pump start\n");
+
     while (driver->ops->has_chars(tty) || char_buf_has_data(&tty->input_buf)) {
         tty_process_input(tty);
         tty_process_output(tty);
+
+        /* If we've been pumping for 2MS, then we reschedule ourselves and exit, so we don't hold-up the `kwork` queue. */
+        if (timer_get_ms() >= start_ticks + 2) {
+            kp(KP_NORMAL, "TTY pump timer trigger\n");
+            work_schedule(work);
+            break;
+        }
     }
+
+    kp(KP_NORMAL, "TTY pump end\n");
 }
 
 static void tty_create(struct tty_driver *driver, dev_t devno)

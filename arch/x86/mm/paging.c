@@ -137,10 +137,10 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
     if (!ret)
         return;
 
-    paging_dump_stack(frame, p);
-
     if (pg_err_was_kernel(frame->err))
         halt_and_dump_stack(frame, p);
+
+    paging_dump_stack(frame, p);
 
     /* Program seg-faulted and we couldn't handle it - Attempt to display
      * message and exit. */
