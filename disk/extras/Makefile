@@ -6,16 +6,7 @@ DISK_CLEAN_EXTRA += ./disk/extras/ncurses.built
 extra-ncurses: disk/extras/ncurses.built
 disk/extras/ncurses.built:
 	@echo " BUILD   ncurses"
-	$(Q)cd disk/extras/ncurses; ./configure \
-			--host=$(TARGET) \
-			--disable-maintainer-mode \
-			--without-tests \
-			--with-normal \
-			--disable-db-install \
-			--with-install-prefix=$(DISK_ROOT) \
-			--prefix=/usr;
-	$(Q)cd disk/extras/ncurses; $(MAKE)
-	$(Q)cd disk/extras/ncurses; $(MAKE) install
+	$(Q)cd disk/extras/; ./build_ncurses.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
 	$(Q)touch ./disk/extras/ncurses.built
 

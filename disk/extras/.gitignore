@@ -1,2 +1,3 @@
 *.built
 *-build/
+host-tools/
