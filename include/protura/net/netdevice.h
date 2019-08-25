@@ -35,10 +35,9 @@ struct net_interface {
     int hwtype;
     uint8_t mac[6];
 
-    int (*address_resolve) (struct packet *);
     int (*linklayer_tx) (struct packet *);
+    int (*hard_tx) (struct net_interface *, struct packet *);
 
-    int (*packet_send) (struct net_interface *, struct packet *);
 };
 
 #define NET_INTERFACE_INIT(iface) \

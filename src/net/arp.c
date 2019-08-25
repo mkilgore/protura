@@ -174,7 +174,7 @@ static void arp_process_packet_list(list_head_t *packet_list)
     struct packet *packet;
 
     list_foreach_take_entry(packet_list, packet, packet_entry)
-        (packet->iface_tx->linklayer_tx) (packet);
+        packet_linklayer_tx(packet);
 }
 
 static void arp_handle_packet(struct address_family *af, struct packet *packet)
@@ -291,7 +291,7 @@ int arp_tx(struct packet *packet)
     return 0;
 
   pass_on_packet:
-    return (packet->iface_tx->linklayer_tx) (packet);
+    return packet_linklayer_tx(packet);
 }
 
 static void arp_setup_af(struct address_family *af)

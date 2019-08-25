@@ -88,7 +88,7 @@ int packet_linklayer_tx(struct packet *packet)
             packet->iface_tx->metrics.tx_bytes += packet_len(packet);
         }
 
-        (packet->iface_tx->packet_send) (packet->iface_tx, packet);
+        (packet->iface_tx->hard_tx) (packet->iface_tx, packet);
     } else {
         packet_free(packet);
     }

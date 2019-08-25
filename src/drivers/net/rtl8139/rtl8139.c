@@ -168,9 +168,8 @@ void rtl_device_init(struct pci_dev *dev)
 
     spinlock_init(&rtl->tx_lock, "rtl8139-lock");
     list_head_init(&rtl->tx_packet_queue);
-    rtl->net.packet_send = rtl_packet_send;
-    rtl->net.linklayer_tx = packet_linklayer_tx;
-    rtl->net.address_resolve = arp_tx;
+    rtl->net.hard_tx = rtl_packet_send;
+    rtl->net.linklayer_tx = arp_tx;
 
     kp(KP_NORMAL, "Found RealTek RTL8139 Fast Ethernet: "PRpci_dev"\n", Ppci_dev(dev));
 

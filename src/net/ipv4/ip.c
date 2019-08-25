@@ -170,7 +170,7 @@ int ip_tx(struct address_family *afamily, struct packet *packet)
 
     kp(KP_NORMAL, "Ip route: "PRin_addr", len: %d, csum: 0x%04x\n", Pin_addr(packet->route_addr), data_len, header->csum);
 
-    return (packet->iface_tx->address_resolve) (packet);
+    return (packet->iface_tx->linklayer_tx) (packet);
 }
 
 static int ip_process_sockaddr(struct address_family *afamily, struct packet *packet, const struct sockaddr *addr, socklen_t len)
@@ -187,6 +187,7 @@ static int ip_process_sockaddr(struct address_family *afamily, struct packet *pa
     } else if (flag_test(&packet->sock->flags, SOCKET_IS_BOUND)) {
         sockaddr_in_assign_addr(&packet->dest_addr, packet->sock->af_private.ipv4.bind_addr);
     } else {
+        kp(KP_NORMAL, "IP: Invalid sockaddr\n");
         return -EDESTADDRREQ;
     }
 
