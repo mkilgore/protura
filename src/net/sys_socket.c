@@ -66,7 +66,7 @@ int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags,
     packet_append_data(packet, buf, len);
 
     if (socket->proto) {
-        kp(KP_NORMAL, "Socket: %p\n", socket);
+        kp(KP_NORMAL, "Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
         kp(KP_NORMAL, "proto: %p\n", socket->proto);
         kp(KP_NORMAL, "ops: %p\n", socket->proto->ops);
         kp(KP_NORMAL, "sendto: %p\n", socket->proto->ops->sendto);
@@ -76,7 +76,7 @@ int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags,
             return ret;
         }
     } else {
-        kp(KP_NORMAL, "NO PROTO Socket: %p\n", socket);
+        kp(KP_NORMAL, "NO PROTO Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
         kp(KP_NORMAL, "af: %p\n", socket->af);
         kp(KP_NORMAL, "ops: %p\n", socket->af->ops);
         kp(KP_NORMAL, "sendto: %p\n", socket->af->ops->sendto);

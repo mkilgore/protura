@@ -21,6 +21,7 @@
 #include <protura/fs/procfs.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
+#include <protura/net/arp.h>
 #include <protura/net.h>
 #include <protura/drivers/e1000.h>
 #include "e1000_internal.h"
@@ -121,7 +122,8 @@ void e1000_device_init(struct pci_dev *dev)
     kp(KP_NORMAL, "Found Intel E1000 NIC: "PRpci_dev"\n", Ppci_dev(dev));
 
     e1000->net.name = "eth";
-    e1000->net.packet_send = e1000_packet_send;
+    e1000->net.hard_tx = e1000_packet_send;
+    e1000->net.linklayer_tx = arp_tx;
 
     e1000->dev = *dev;
 

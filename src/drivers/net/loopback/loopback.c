@@ -14,6 +14,7 @@
 
 #include <protura/fs/procfs.h>
 #include <protura/net/arphrd.h>
+#include <protura/net/arp.h>
 #include <protura/net.h>
 #include <protura/drivers/lo.h>
 
@@ -28,8 +29,10 @@ static int loopback_packet_send(struct net_interface *iface, struct packet *pack
 
 void net_loopback_init(void)
 {
-    loopback_iface.packet_send = loopback_packet_send;
+    loopback_iface.hard_tx = loopback_packet_send;
+    loopback_iface.linklayer_tx = arp_tx;
     loopback_iface.hwtype = ARPHRD_LOOPBACK;
+
     loopback_iface.name = "lo";
     strcpy(loopback_iface.netdev_name, "lo");
     flag_set(&loopback_iface.flags, NET_IFACE_LOOPBACK);

@@ -184,7 +184,7 @@ int sys_sendto(int sockfd, const void *buf, size_t len, int flags, const struct 
     struct file *filp;
     int ret;
 
-    kp(KP_NORMAL, "dest: %p\n", dest);
+    kp(KP_NORMAL, "dest: %p, len: %d\n", dest, addrlen);
 
     ret = user_check_region(buf, len, F(VM_MAP_READ) | F(VM_MAP_WRITE));
     if (ret)
