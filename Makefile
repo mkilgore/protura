@@ -2,7 +2,7 @@
 EXE       := protura
 VERSION   := 0
 SUBLEVEL  := 2
-PATCH     := 0
+PATCH     := 1
 VERSION_N := $(VERSION).$(SUBLEVEL).$(PATCH)
 
 ARCH   := x86
