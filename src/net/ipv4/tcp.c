@@ -18,18 +18,26 @@
 #include <protura/net/socket.h>
 #include <protura/net/ipv4/tcp.h>
 #include <protura/net/ipv4/ipv4.h>
+#include <protura/net/socket.h>
 #include <protura/net.h>
 #include "ipv4.h"
 
-#define TCP_HASH_SIZE 128
-
 #define TCP_LOWEST_AUTOBIND_PORT 50000
+
+/* These are expected to be *host byte order* */
+struct tcp_lookup {
+    in_addr_t src_addr;
+    in_port_t src_port;
+
+    in_addr_t dest_addr;
+    in_port_t dest_port;
+};
 
 struct tcp_protocol {
     struct protocol proto;
 
     mutex_t lock;
-    hlist_head_t listening_ports[TCP_HASH_SIZE];
+    list_head_t sockets;
     uint16_t next_port;
 };
 
@@ -38,12 +46,76 @@ static struct protocol_ops tcp_protocol_ops;
 static struct tcp_protocol tcp_protocol = {
     .proto = PROTOCOL_INIT(tcp_protocol.proto, PROTOCOL_TCP, &tcp_protocol_ops),
     .lock = MUTEX_INIT(tcp_protocol.lock, "tcp-protocol-lock"),
+    .sockets = LIST_HEAD_INIT(tcp_protocol.sockets),
     .next_port = TCP_LOWEST_AUTOBIND_PORT,
 };
 
-static int tcp_hash_port(n16 port)
+static void __tcp_protocol_add_socket(struct tcp_protocol *proto, struct socket *sock)
 {
-    return port % TCP_HASH_SIZE;
+    list_add_tail(&proto->sockets, &sock->socket_entry);
+}
+
+static void __tcp_protocol_remove_socket(struct tcp_protocol *proto, struct socket *sock)
+{
+    list_del(&sock->socket_entry);
+}
+
+static struct socket *__tcp_protocol_find_socket(struct tcp_protocol *proto, struct tcp_lookup *addr)
+{
+    struct socket *sock;
+    struct socket *ret = NULL;
+    int maxscore = 0;
+
+    /* This looks complicated, but is actually pretty simple
+     * When a packet comes in, we have to amtch it to a coresponding socket,
+     * which is marked with a source/dest port and source/dest IP addr.
+     *
+     * In the case of a listening socket, those source/dest values may be 0,
+     * representing a bind to *any* value, so we skip checking those.
+     * Otherwise, the values have to matche exactly what we were passed.
+     *
+     * Beyond that, if we have, say, a socket listening for INADDR_ANY (zero)
+     * on port X, and a socket with a direct connection to some specific IP on
+     * port X, we want to send the packet to the direct connection and not to
+     * the listening socket. To acheive that, we keep a "score" of how many
+     * details of the conneciton matched, and then select the socket with the
+     * highest score at the end (3 is the highest score possible, so we return
+     * right away if we hit that).
+     */
+    list_foreach_entry(&proto->sockets, sock, socket_entry) {
+        int score = 0;
+        if (sock->proto_private.tcp.src_port != addr->src_port)
+            continue;
+
+        if (sock->af_private.ipv4.bind_addr) {
+            if (sock->af_private.ipv4.bind_addr != addr->src_addr)
+                continue;
+            score++;
+        }
+
+        if (sock->proto_private.tcp.dest_port) {
+            if (sock->proto_private.tcp.dest_port != addr->dest_port)
+                continue;
+            score++;
+        }
+
+        if (sock->af_private.ipv4.dest_addr) {
+            if (sock->af_private.ipv4.dest_addr != addr->dest_addr)
+                continue;
+            score++;
+        }
+
+        if (score == 3)
+            return sock;
+
+        if (maxscore >= score)
+            continue;
+
+        maxscore = score;
+        ret = sock;
+    }
+
+    return ret;
 }
 
 struct pseudo_header {
@@ -84,7 +156,7 @@ static n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t l
 
 static int tcp_tx(struct protocol *proto, struct packet *packet)
 {
-
+    return 0;
 }
 
 static void tcp_transmit(struct work *work)
@@ -114,8 +186,27 @@ static void tcp_rx(struct protocol *proto, struct packet *packet)
 
     n16 checksum = tcp_checksum(&pseudo_header, packet->head, packet_len(packet));
 
-    kp(KP_NORMAL, "TCP packet: %d -> %d, %d bytes\n", ntohs(tcp_head->source), ntohs(tcp_head->dest), packet_len(packet));
-    kp(KP_NORMAL, "  CHKSUM: %s\n", (checksum == 0xFFFF)? "Correct": "Incorrect");
+    kp_tcp("packet: %d -> %d, %d bytes\n", ntohs(tcp_head->source), ntohs(tcp_head->dest), packet_len(packet));
+    kp_tcp("CHKSUM: %s\n", (checksum == 0xFFFF)? "Correct": "Incorrect");
+
+    /*
+     * We're receving a packet, so the destination is us, and the source is the
+     * other side, so we swap them when doing the socket lookup here.
+     */
+    struct tcp_lookup sock_lookup = {
+        .src_port = ntohs(tcp_head->dest),
+        .dest_port = ntohs(tcp_head->source),
+        .src_addr = ntohl(ip_head->dest_ip),
+        .dest_addr = ntohl(ip_head->source_ip),
+    };
+
+    using_mutex(&tcp->lock) {
+        struct socket *sock = __tcp_protocol_find_socket(tcp, &sock_lookup);
+        if (sock)
+            kp_tcp("found socket: %p\n", sock);
+        else
+            kp_tcp("No socket for packet\n");
+    }
 
     n16 tmp = tcp_head->dest;
     tcp_head->dest = tcp_head->source;

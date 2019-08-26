@@ -21,6 +21,7 @@
 #include <protura/net/arp.h>
 #include <protura/net/ipv4/ipv4.h>
 #include <protura/net/ipv4/ip_route.h>
+#include "ipv4.h"
 
 struct ip_forward_route {
     list_node_t route_entry;
@@ -91,7 +92,7 @@ void ip_route_add(n32 dest_ip, n32 gateway_ip, n32 netmask, struct net_interface
     route->iface = netdev_dup(iface);
     route->flags = flags;
 
-    kp(KP_NORMAL, "Adding route for netmask: "PRin_addr"\n", Pin_addr(netmask));
+    kp_ip("Adding route for netmask: "PRin_addr"\n", Pin_addr(netmask));
 
     using_mutex(&forward_table_lock)
         list_add_tail(&forward_table.zones[count].route_list, &route->route_entry);
@@ -104,14 +105,14 @@ int ip_route_del(n32 dest_ip, n32 netmask)
 
     using_mutex(&forward_table_lock) {
         struct ip_forward_route *entry;
-        kp(KP_NORMAL, "Netmask count: %d\n", count);
+        kp_ip("Netmask count: %d\n", count);
 
         list_foreach_entry(&forward_table.zones[count].route_list, entry, route_entry) {
-            kp(KP_NORMAL, "Entry entry & netmask: "PRin_addr", dest & netmask: "PRin_addr"\n",
+            kp_ip("Entry entry & netmask: "PRin_addr", dest & netmask: "PRin_addr"\n",
                     Pin_addr(entry->dest_ip & netmask), Pin_addr(dest_ip & netmask));
 
             if ((entry->dest_ip & netmask) == (dest_ip & netmask)) {
-                kp(KP_NORMAL, "Found route\n");
+                kp_ip("Found route\n");
                 route = entry;
                 list_del(&route->route_entry);
                 break;

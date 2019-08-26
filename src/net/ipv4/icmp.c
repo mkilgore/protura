@@ -18,6 +18,7 @@
 #include <protura/net/socket.h>
 #include <protura/net/ipv4/icmp.h>
 #include <protura/net.h>
+#include "ipv4.h"
 
 #define ICMP_TYPE_ECHO_REPLY 0
 #define ICMP_TYPE_ECHO_REQUEST 8
@@ -33,17 +34,12 @@ struct icmp_protocol {
     struct protocol proto;
 
     struct socket *icmp_socket;
-
-    spinlock_t icmp_packet_queue_lock;
-    list_head_t icmp_packet_queue;
 };
 
 static struct protocol_ops icmp_protocol_ops;
 
 static struct icmp_protocol icmp_protocol = {
     .proto = PROTOCOL_INIT(icmp_protocol.proto, PROTOCOL_ICMP, &icmp_protocol_ops),
-    .icmp_packet_queue_lock = SPINLOCK_INIT("icmp-packet-queue-lock"),
-    .icmp_packet_queue = LIST_HEAD_INIT(icmp_protocol.icmp_packet_queue),
 };
 
 /*
@@ -59,13 +55,20 @@ static void icmp_packet_work(struct work *work)
     struct sockaddr_in *src_in;
     int ret;
 
+    struct ip_header *ip_head = packet->af_head;
+    size_t icmp_len = ntohs(ip_head->total_length) - ip_head->ihl * 4;
+
     switch (header->type) {
     case ICMP_TYPE_ECHO_REQUEST:
         src_in = (struct sockaddr_in *)&packet->src_addr;
         header->type = ICMP_TYPE_ECHO_REPLY;
+        header->chksum = 0;
+        header->chksum = ip_chksum((uint16_t *)header, icmp_len);
+
+        kp_icmp("Checksum: 0x%04X, Len: %d\n", header->chksum, icmp_len);
 
         ret = socket_sendto(icmp_protocol.icmp_socket, packet->head, packet_len(packet), 0, &packet->src_addr, packet->src_len, 0);
-        kp(KP_NORMAL, "ICMP Reply to "PRin_addr": %d\n", Pin_addr(src_in->sin_addr.s_addr), ret);
+        kp_icmp("Reply to "PRin_addr": %d\n", Pin_addr(src_in->sin_addr.s_addr), ret);
         break;
 
     default:

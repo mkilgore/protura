@@ -24,11 +24,7 @@
 #include <protura/net/socket.h>
 #include <protura/net/sys.h>
 #include <protura/net.h>
-
-struct inode_socket {
-    struct inode i;
-    struct socket *socket;
-};
+#include "sys_common.h"
 
 static int socket_poll(struct file *filp, struct poll_table *table, int events)
 {

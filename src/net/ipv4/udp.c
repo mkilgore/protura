@@ -17,6 +17,7 @@
 
 #include <protura/net/socket.h>
 #include <protura/net.h>
+#include "ipv4.h"
 
 struct udp_header {
     uint16_t source_port;
@@ -79,7 +80,7 @@ static n16 udp_find_port(struct udp_protocol *proto)
         } while (!found);
     }
 
-    kp(KP_NORMAL, "Autobind port: %d\n", ntohs(port));
+    kp_udp("Autobind port: %d\n", ntohs(port));
     return port;
 }
 
@@ -134,7 +135,7 @@ void udp_rx(struct protocol *proto, struct packet *packet)
     in = (struct sockaddr_in *)&packet->src_addr;
     in->sin_port = header->source_port;
 
-    kp(KP_NORMAL, "UDP: %d -> %d, %d bytes\n", ntohs(header->source_port), ntohs(header->dest_port), ntohs(header->length));
+    kp_udp(" %d -> %d, %d bytes\n", ntohs(header->source_port), ntohs(header->dest_port), ntohs(header->length));
 
     /* Manually set the length according to the UDP length field */
     packet->tail = packet->head + ntohs(header->length);
@@ -153,7 +154,7 @@ void udp_rx(struct protocol *proto, struct packet *packet)
     }
 
     if (found) {
-        kp(KP_NORMAL, "UDP: Found bound socket\n");
+        kp_udp("Found bound socket\n");
         using_mutex(&sock->recv_lock) {
             list_add_tail(&sock->recv_queue, &packet->packet_entry);
             wait_queue_wake(&sock->recv_wait_queue);

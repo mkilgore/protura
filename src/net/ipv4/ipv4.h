@@ -46,4 +46,30 @@ struct tcp_header {
     n16 urg_ptr;
 } __packed;
 
+uint16_t ip_chksum(uint16_t *data, size_t byte_count);
+
+#ifdef CONFIG_KERNEL_LOG_IP
+# define kp_ip(str, ...) kp(KP_NORMAL, "IP: " str, ## __VA_ARGS__)
+#else
+# define kp_ip(str, ...) do { ; } while (0)
+#endif
+
+#ifdef CONFIG_KERNEL_LOG_ICMP
+# define kp_icmp(str, ...) kp(KP_NORMAL, "ICMP: " str, ## __VA_ARGS__)
+#else
+# define kp_icmp(str, ...) do { ; } while (0)
+#endif
+
+#ifdef CONFIG_KERNEL_LOG_UDP
+# define kp_udp(str, ...) kp(KP_NORMAL, "UDP: " str, ## __VA_ARGS__)
+#else
+# define kp_udp(str, ...) do { ; } while (0)
+#endif
+
+#ifdef CONFIG_KERNEL_LOG_TCP
+# define kp_tcp(str, ...) kp(KP_NORMAL, "TCP: " str, ## __VA_ARGS__)
+#else
+# define kp_tcp(str, ...) do { ; } while (0)
+#endif
+
 #endif

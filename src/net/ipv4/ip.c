@@ -65,15 +65,16 @@ in_addr_t inet_addr(const char *ip)
     return (vals[3] << 24) + (vals[2] << 16) + (vals[1] << 8) + vals[0];
 }
 
-static uint16_t ip_chksum(struct ip_header *header)
+uint16_t ip_chksum(uint16_t *head, size_t byte_count)
 {
-    uint16_t *head = (uint16_t *)header;
-    int len = header->ihl * 4;
-    int i;
+    size_t i;
     uint32_t sum = 0;
 
-    for (i = 0; i < len / 2; i++)
+    for (i = 0; i < byte_count / 2; i++)
         sum += head[i];
+
+    if (byte_count % 2)
+        sum += head[byte_count];
 
     while (sum & 0xFFFF0000)
         sum = (sum & 0xFFFF) + ((sum & 0xFFFF0000) >> 16);
@@ -95,12 +96,12 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
     packet->head += header->ihl * 4;
     packet->tail = packet->head + ntohs(header->total_length) - header->ihl * 4;
 
-    kp(KP_NORMAL, "IP packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(header->source_ip), Pin_addr(header->dest_ip));
-    kp(KP_NORMAL, "  Version: %d, HL: %d, %d bytes\n", header->version, header->ihl, header->ihl * 4);
-    kp(KP_NORMAL, "  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", header->protocol, ntohs(header->id), ntohs(header->total_length) - header->ihl * 4);
-    kp(KP_NORMAL, "  Checksum:   0x%04x\n", header->csum);
+    kp_ip("  Packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(header->source_ip), Pin_addr(header->dest_ip));
+    kp_ip("  Version: %d, HL: %d, %d bytes\n", header->version, header->ihl, header->ihl * 4);
+    kp_ip("  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", header->protocol, ntohs(header->id), ntohs(header->total_length) - header->ihl * 4);
+    kp_ip("  Checksum:   0x%04x\n", header->csum);
     header->csum = 0;
-    kp(KP_NORMAL, "  Calculated: 0x%04x\n", ip_chksum(header));
+    kp_ip("  Calculated: 0x%04x\n", ip_chksum((uint16_t *)header, header->ihl * 4));
 
     in = (struct sockaddr_in *)&packet->src_addr;
 
@@ -110,7 +111,7 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
 
     using_mutex(&af->lock) {
         list_foreach_entry(&af->raw_sockets[header->protocol], socket, socket_entry) {
-            kp(KP_NORMAL, "Sending copy to RAW Socket\n");
+            kp_ip("Sending copy to RAW Socket\n");
             struct packet *dup_packet = packet_copy(packet);
 
             using_mutex(&socket->recv_lock) {
@@ -166,9 +167,9 @@ int ip_tx(struct address_family *afamily, struct packet *packet)
 
     header->dest_ip = in->sin_addr.s_addr;
     header->csum = 0;
-    header->csum = ip_chksum(header);
+    header->csum = ip_chksum((uint16_t *)header, header->ihl * 4);
 
-    kp(KP_NORMAL, "Ip route: "PRin_addr", len: %d, csum: 0x%04x, DestIP: "PRin_addr"\n", Pin_addr(packet->route_addr), data_len, header->csum, Pin_addr(header->dest_ip));
+    kp_ip("Ip route: "PRin_addr", len: %d, csum: 0x%04x, DestIP: "PRin_addr"\n", Pin_addr(packet->route_addr), data_len, header->csum, Pin_addr(header->dest_ip));
 
     return (packet->iface_tx->linklayer_tx) (packet);
 }
@@ -197,7 +198,7 @@ static int ip_sendto(struct address_family *af, struct socket *sock, struct pack
 {
     const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
 
-    kp(KP_NORMAL, "IP_Sendto: Sock: %p, Packet: %p, Dest: "PRin_addr"\n", sock, packet, Pin_addr(in->sin_addr.s_addr));
+    kp_ip("IP_Sendto: Sock: %p, Packet: %p, Dest: "PRin_addr"\n", sock, packet, Pin_addr(in->sin_addr.s_addr));
 
     ip_process_sockaddr(af, packet, addr, len);
 
@@ -210,7 +211,7 @@ static int ip_create(struct address_family *family, struct socket *socket)
 
     if (socket->sock_type == SOCK_DGRAM
         && (socket->protocol == 0 || socket->protocol == IPPROTO_UDP)) {
-        kp(KP_NORMAL, "Looking up UDP protocol\n");
+        kp_ip("Looking up UDP protocol\n");
         socket->proto = protocol_lookup(PROTOCOL_UDP);
     } else if (socket->sock_type == SOCK_RAW) {
         if (socket->protocol > 255 || socket->protocol < 0)
@@ -311,4 +312,3 @@ void ip_init(void)
 
     procfs_register_entry_ops(ipv4_dir_procfs, "route", &ipv4_route_ops);
 }
-
