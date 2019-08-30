@@ -386,7 +386,14 @@ static struct super_block *ext2_sb_read(dev_t dev)
     if (sb->disksb.read_only_features & EXT2_RO_FEATURE_64BIT_LEN)
         kp(KP_WARNING, "EXT2: Ignoring unsupported 64bit length!\n");
 
+    kp_ext2(sb, "blocks_per_block_group: %d\n", sb->disksb.blocks_per_block_group);
+
     sb->block_group_count = sb->disksb.block_total / sb->disksb.blocks_per_block_group;
+
+    /* If the total blocks doesn't divide evenly into the
+     * blocks_per_block_group, we need to round up by adding an extra */
+    if (sb->disksb.block_total % sb->disksb.blocks_per_block_group)
+        sb->block_group_count++;
 
     kp_ext2(sb, "block_group_count=%d\n", sb->block_group_count);
 
