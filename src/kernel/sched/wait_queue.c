@@ -69,19 +69,29 @@ void wait_queue_register(struct wait_queue *queue, struct wait_queue_node *node)
 
 void wait_queue_unregister(struct wait_queue_node *node)
 {
+    /* We clear node->queue on unregister or wake. To prevent a race here, we
+     * have to ensure node->queue is only read one time. Or it's possible it
+     * will be NULL on the second read after we check it the first time. */
+    struct wait_queue *queue = node->queue;
+
+    barrier(); /* FIXME: For SMP kernels, this needs to be a memory barrier */
+
     /* Check if t is currently registered for a queue before attempting to
      * remove it */
-    if (!node->queue)
+    if (!queue)
         return ;
 
     /* We get the spinlock *before* checking if we're actually in the list,
      * because it's entire possible that we'll be removed from the list while
      * we're doing the check. */
-    using_spinlock(&node->queue->lock) {
-        if (list_node_is_in_list(&node->node))
+    using_spinlock(&queue->lock) {
+        if (list_node_is_in_list(&node->node)) {
             list_del(&node->node);
-        else
-            kp(KP_TRACE, "Node %p: Queue is set but not is not in list\n", node);
+            node->queue = NULL;
+        } else if (node->queue) {
+            /* This can be NULL if it was cleared after the above !queue check */
+            panic("Node %p: Queue is set but node is not in list\n", node);
+        }
     }
 }
 
@@ -92,6 +102,7 @@ int wait_queue_wake(struct wait_queue *queue)
 
     using_spinlock(&queue->lock) {
         list_foreach_take_entry(&queue->queue, node, node) {
+            node->queue = NULL;
             wait_queue_wake_node(node);
             waken++;
         }
