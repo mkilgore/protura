@@ -21,7 +21,7 @@
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
 #include <protura/drivers/ide.h>
-#include <protura/drivers/ide_dma.h>
+#include "ide.h"
 
 #define KP_IDE_DMA 99
 

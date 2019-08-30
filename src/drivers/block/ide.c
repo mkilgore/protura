@@ -21,7 +21,7 @@
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
 #include <protura/drivers/ide.h>
-#include <protura/drivers/ide_dma.h>
+#include "ide.h"
 
 #define KP_IDE 99
 
@@ -73,10 +73,6 @@ enum ide_command_format {
     IDE_COMMAND_DMA_LBA28_WRITE = 0xCA,
 
     IDE_COMMAND_CACHE_FLUSH = 0xE7,
-};
-
-enum {
-    IDE_SECTOR_SIZE = 512,
 };
 
 struct ide_state {
@@ -166,7 +162,7 @@ static void __ide_start_queue(void)
 
     __ide_wait_ready();
 
-    //kp(KP_TRACE, "B sector: %d, IDE: sector=%d, master/slave: %d\n", b->sector, disk_sector, ide_state.next_is_slave);
+    kp(KP_IDE, "B sector: %d, IDE: sector=%d, master/slave: %d\n", b->sector, disk_sector, ide_state.next_is_slave);
 
     outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET
                                 | IDE_DH_LBA
