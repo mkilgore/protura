@@ -80,7 +80,7 @@ pid_t sys_wait(int *ret);
 
 #define __wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2) \
     ({ \
-        int ret = 0; \
+        int ____ret = 0; \
         while (1) { \
             int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
             \
@@ -94,7 +94,7 @@ pid_t sys_wait(int *ret);
                 break; \
             \
             if (sig_is_pending) { \
-                ret = -ERESTARTSYS; \
+                ____ret = -ERESTARTSYS; \
                 break; \
             } \
             \
@@ -106,7 +106,7 @@ pid_t sys_wait(int *ret);
         } \
         wait_queue_unregister(&cpu_get_local()->current->wait); \
         scheduler_set_running(); \
-        ret; \
+        ____ret; \
     })
 
 #define wait_queue_event_generic(queue, condition, is_intr, cmd1, cmd2) \
