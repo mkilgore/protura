@@ -24,6 +24,7 @@ install:
   - sudo apt-get install autotools-dev
   - sudo apt-get install automake
   - sudo apt-get install virtualbox
+  - sudo apt-get install grub-pc
 
 # The scripts are for running GCC, so we can reduce the log output.
 script:
