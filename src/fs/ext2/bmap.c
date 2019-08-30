@@ -109,7 +109,7 @@ static sector_t ext2_alloc_block_zero(struct ext2_super_block *sb)
 
 static void ext2_map_indirect(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t inode_sector, sector_t alloc_sector)
 {
-    const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+    const int ptrs_per_blk = sb->block_size / sizeof(uint32_t);
     int single_blk = inode_sector / ptrs_per_blk;
     int direct_blk = inode_sector % ptrs_per_blk;
     struct block *b;
@@ -128,7 +128,7 @@ static void ext2_map_indirect(struct ext2_super_block *sb, struct ext2_inode *in
 
 static void ext2_map_dindirect(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t inode_sector, sector_t alloc_sector)
 {
-    const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+    const int ptrs_per_blk = sb->block_size / sizeof(uint32_t);
     int double_blk = inode_sector / ptrs_per_blk / ptrs_per_blk;
     int single_blk = (inode_sector / ptrs_per_blk) % ptrs_per_blk;
     int direct_blk = inode_sector % ptrs_per_blk;
@@ -162,7 +162,7 @@ static void ext2_map_dindirect(struct ext2_super_block *sb, struct ext2_inode *i
 
 static void ext2_map_tindirect(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t inode_sector, sector_t alloc_sector)
 {
-    const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+    const int ptrs_per_blk = sb->block_size / sizeof(uint32_t);
     int triple_blk = inode_sector / ptrs_per_blk / ptrs_per_blk / ptrs_per_blk;
     int double_blk = (inode_sector / ptrs_per_blk / ptrs_per_blk) % ptrs_per_blk;
     int single_blk = (inode_sector / ptrs_per_blk) % ptrs_per_blk;;
@@ -205,9 +205,10 @@ static void ext2_map_tindirect(struct ext2_super_block *sb, struct ext2_inode *i
 
 sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
 {
-    const int ptrs_per_blk = i->sb->bdev->block_size / sizeof(uint32_t);
+    struct ext2_super_block *sb = container_of(i->sb, struct ext2_super_block, sb);
+    const int ptrs_per_blk = sb->block_size / sizeof(uint32_t);
     struct ext2_inode *inode = container_of(i, struct ext2_inode, i);
-    struct super_block *sb = i->sb;
+    dev_t dev = sb->sb.dev;
     sector_t ret = SECTOR_INVALID;
 
     if (inode_sector < ARRAY_SIZE(inode->blk_ptrs_direct)) {
@@ -215,7 +216,7 @@ sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
         goto return_sector;
     }
 
-    if (inode_sector > i->size / sb->bdev->block_size)
+    if (inode_sector > i->size / sb->block_size)
         return SECTOR_INVALID;
 
     inode_sector -= ARRAY_SIZE(inode->blk_ptrs_direct);
@@ -228,7 +229,7 @@ sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
         if (!inode->blk_ptrs_single[single_blk])
             goto return_sector;
 
-        using_block(sb->dev, inode->blk_ptrs_single[single_blk], b)
+        using_block(dev, inode->blk_ptrs_single[single_blk], b)
             ret = ((uint32_t *)b->data)[direct_blk];
 
         goto return_sector;
@@ -245,13 +246,13 @@ sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
         if (!inode->blk_ptrs_double[double_blk])
             goto return_sector;
 
-        using_block(sb->dev, inode->blk_ptrs_double[double_blk], b)
+        using_block(dev, inode->blk_ptrs_double[double_blk], b)
             ret = ((uint32_t *)b->data)[single_blk];
 
         if (!ret)
             goto return_sector;
 
-        using_block(sb->dev, ret, b)
+        using_block(dev, ret, b)
             ret = ((uint32_t *)b->data)[direct_blk];
 
         goto return_sector;
@@ -269,19 +270,19 @@ sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
         if (!inode->blk_ptrs_triple[triple_blk])
             goto return_sector;
 
-        using_block(sb->dev, inode->blk_ptrs_triple[triple_blk], b)
+        using_block(dev, inode->blk_ptrs_triple[triple_blk], b)
             ret = ((uint32_t *)b->data)[double_blk];
 
         if (!ret)
             goto return_sector;
 
-        using_block(sb->dev, ret, b)
+        using_block(dev, ret, b)
             ret = ((uint32_t *)b->data)[single_blk];
 
         if (!ret)
             goto return_sector;
 
-        using_block(sb->dev, ret, b)
+        using_block(dev, ret, b)
             ret = ((uint32_t *)b->data)[direct_blk];
 
         goto return_sector;
@@ -313,7 +314,7 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
         kp(KP_TRACE, "Mapping allocated block to direct ptrs\n");
         i->blk_ptrs_direct[inode_sector] = ret;
     } else {
-        const int ptrs_per_blk = sb->sb.bdev->block_size / sizeof(uint32_t);
+        const int ptrs_per_blk = sb->block_size / sizeof(uint32_t);
 
         inode_sector -= ARRAY_SIZE(i->blk_ptrs_direct);
 
@@ -339,7 +340,7 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
         }
     }
 
-    i->i.blocks += (sb->sb.bdev->block_size / 512);
+    i->i.blocks += (sb->block_size / 512);
     inode_set_dirty(inode);
 
     return ret;

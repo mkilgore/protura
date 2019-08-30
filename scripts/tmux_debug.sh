@@ -28,7 +28,6 @@ qemu_line="qemu-system-i386 \
     -net nic,model=rtl8139 \
     -net nic,model=e1000 \
     -net tap,ifname=tap0,script=no,downscript=no \
-    -kernel ./imgs/protura_x86_multiboot \
     $kernel_cmdline"
 
 GDB_CMD="gdb"

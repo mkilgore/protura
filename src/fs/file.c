@@ -48,7 +48,7 @@ int fs_file_generic_pread(struct file *filp, void *vbuf, size_t sizet_len, off_t
         len = filp->inode->size - off;
 
     /* Access the block device for this file, and get it's block size */
-    off_t block_size = filp->inode->sb->bdev->block_size;
+    off_t block_size = block_dev_get_block_size(dev);
     sector_t sec = off / block_size;
     off_t sec_off = off - sec * block_size;
 
@@ -125,7 +125,7 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t sizet_len)
             return ret;
     }
 
-    off_t block_size = filp->inode->sb->bdev->block_size;
+    off_t block_size = block_dev_get_block_size(dev);
     sector_t sec = filp->offset / block_size;
     off_t sec_off = filp->offset - sec * block_size;
 

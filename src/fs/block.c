@@ -182,7 +182,7 @@ struct block *bread(dev_t device, sector_t sector)
         return NULL;
 
     using_spinlock(&block_cache.lock) {
-        b = __bread(device, dev, dev->block_size, sector);
+        b = __bread(device, dev, block_dev_get_block_size(device), sector);
 
         if (list_node_is_in_list(&b->block_lru_node))
             list_del(&b->block_lru_node);

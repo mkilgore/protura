@@ -85,20 +85,40 @@ void brelease(struct block *);
 
 void block_cache_init(void);
 
-struct block_device;
 struct file_ops;
+
+struct partition {
+    list_node_t part_entry;
+    sector_t start;
+    size_t block_size;
+    size_t device_size;
+};
+
+static inline void partition_init(struct partition *part)
+{
+    *part = (struct partition){ .part_entry = LIST_NODE_INIT((*part).part_entry) };
+}
 
 struct block_device_ops {
     void (*sync_block) (struct block_device *, struct block *b);
 };
 
+enum block_device_flags{
+    BLOCK_DEV_EXISTS,
+};
+
 struct block_device {
     const char *name;
     int major;
+    flags_t flags;
 
     list_head_t blocks;
 
     size_t block_size;
+    size_t device_size;
+
+    struct partition *partitions;
+    int partition_count;
 
     struct block_device_ops *ops;
     struct file_ops *fops;
@@ -120,7 +140,11 @@ enum {
 void block_dev_init(void);
 
 struct block_device *block_dev_get(dev_t device);
+
 int block_dev_set_block_size(dev_t device, size_t size);
+size_t block_dev_get_block_size(dev_t device);
+size_t block_dev_get_device_size(dev_t device);
+
 void block_dev_clear(dev_t dev);
 
 #define BLOCK_CRC_POLY CRC_ANSI_POLY

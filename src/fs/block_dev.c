@@ -22,7 +22,6 @@ int block_dev_pread_generic(struct file *filp, void *vbuf, size_t len, off_t off
 {
     char *buf = vbuf;
     size_t have_read = 0;
-    struct block_device *bdev = filp->inode->bdev;
     dev_t dev = filp->inode->dev_no;
 
     if (!file_is_readable(filp))
@@ -30,18 +29,14 @@ int block_dev_pread_generic(struct file *filp, void *vbuf, size_t len, off_t off
 
     /* Guard against reading past the end of the file */
     kp(KP_TRACE, "Block-dev inode size: %ld\n", filp->inode->size);
-    /*
-     * Don't check if `len` is correct, because filp->inode->size will
-     * currently always be zero.
 
-    if (off + len > filp->inode->size)
-        len = filp->inode->size - off;
-
-     */
+    size_t total_len = block_dev_get_device_size(dev);
+    if (off + len > total_len);
+        len = total_len - off;
 
     kp(KP_TRACE, "len: %d\n", len);
     /* Access the block device for this file, and get it's block size */
-    size_t block_size = bdev->block_size;
+    size_t block_size = block_dev_get_block_size(dev);
     sector_t sec = off / block_size;
     off_t sec_off = off - sec * block_size;
 
@@ -115,7 +110,8 @@ static struct block_device devices[] = {
     [BLOCK_DEV_NONE] = {
         .name = "",
         .major = BLOCK_DEV_NONE,
-        .block_size = 0,
+        .partitions = NULL,
+        .partition_count = 0,
         .ops = NULL,
         .fops = NULL,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_NONE].blocks),
@@ -124,7 +120,8 @@ static struct block_device devices[] = {
     [BLOCK_DEV_IDE_MASTER] = {
         .name = "ide-master",
         .major = BLOCK_DEV_IDE_MASTER,
-        .block_size = 0,
+        .partitions = NULL,
+        .partition_count = 0,
         .ops = &ide_master_block_device_ops,
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_MASTER].blocks),
@@ -132,7 +129,8 @@ static struct block_device devices[] = {
     [BLOCK_DEV_IDE_SLAVE] = {
         .name = "ide-slave",
         .major = BLOCK_DEV_IDE_SLAVE,
-        .block_size = 0,
+        .partitions = NULL,
+        .partition_count = 0,
         .ops = &ide_slave_block_device_ops,
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_SLAVE].blocks),
@@ -141,7 +139,8 @@ static struct block_device devices[] = {
     [BLOCK_DEV_ANON] = {
         .name = "anon",
         .major = BLOCK_DEV_ANON,
-        .block_size = 0,
+        .partitions = NULL,
+        .partition_count = 0,
         .ops = NULL,
         .fops = NULL,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_ANON].blocks),
@@ -171,10 +170,60 @@ int block_dev_set_block_size(dev_t device, size_t size)
     if (!bdev)
         return -ENODEV;
 
-    block_dev_clear(device);
+    int minor = DEV_MINOR(device);
 
-    bdev->block_size = size;
+    if (minor == 0) {
+        block_dev_clear(device);
+        kp(KP_NORMAL, "Block Device %d:%d, block size: %d\n", DEV_MAJOR(device), minor, size);
+        bdev->block_size = size;
+        return 0;
+    }
+
+    if (minor > bdev->partition_count)
+        return -ENODEV;
+
+    int partition_no = minor - 1;
+
+    block_dev_clear(device);
+    kp(KP_NORMAL, "Block Device %d:%d, partition %d, block size: %d\n", DEV_MAJOR(device), minor, partition_no, size);
+
+    bdev->partitions[partition_no].block_size = size;
 
     return 0;
 }
 
+size_t block_dev_get_block_size(dev_t device)
+{
+    struct block_device *bdev = block_dev_get(device);
+
+    if (!bdev)
+        return 0;
+
+    int minor = DEV_MINOR(device);
+
+    if (minor == 0)
+        return bdev->block_size;
+
+    if (minor > bdev->partition_count)
+        return 0;
+
+    return bdev->partitions[minor - 1].block_size;
+}
+
+size_t block_dev_get_device_size(dev_t device)
+{
+    struct block_device *bdev = block_dev_get(device);
+
+    if (!bdev)
+        return 0;
+
+    int minor = DEV_MINOR(device);
+
+    if (minor == 0)
+        return bdev->device_size;
+
+    if (minor > bdev->partition_count)
+        return 0;
+
+    return bdev->partitions[minor - 1].device_size;
+}

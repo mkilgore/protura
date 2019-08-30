@@ -11,6 +11,8 @@
 #include <protura/dump_mem.h>
 #include <protura/string.h>
 #include <protura/scheduler.h>
+#include <protura/mm/kmalloc.h>
+#include <protura/mm/palloc.h>
 #include <protura/wait.h>
 
 #include <arch/spinlock.h>
@@ -20,10 +22,11 @@
 #include <protura/fs/block.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
+#include <protura/fs/mbr_part.h>
 #include <protura/drivers/ide.h>
 #include "ide.h"
 
-#define KP_IDE 99
+#define KP_IDE KP_TRACE
 
 enum {
     IDE_IRQ = 14,
@@ -73,6 +76,7 @@ enum ide_command_format {
     IDE_COMMAND_DMA_LBA28_WRITE = 0xCA,
 
     IDE_COMMAND_CACHE_FLUSH = 0xE7,
+    IDE_COMMAND_IDENTIFY = 0xEC,
 };
 
 struct ide_state {
@@ -121,6 +125,31 @@ static int __ide_wait_ready(void)
     return ret;
 }
 
+static int __ide_wait_ready_ms(uint32_t ms)
+{
+    int ret;
+    uint32_t start = timer_get_ms();
+
+    do {
+        if (timer_get_ms() - start > ms)
+            return IDE_STATUS_DRIVE_FAULT;
+
+        ret = __ide_read_status();
+    } while ((ret & (IDE_STATUS_BUSY | IDE_STATUS_READY)) != IDE_STATUS_READY);
+
+    return ret;
+}
+
+static void __ide_do_pio_read(char *buf)
+{
+    insl(IDE_PORT_DATA, buf, IDE_SECTOR_SIZE / sizeof(uint32_t));
+}
+
+static void __ide_do_pio_write(char *buf)
+{
+    outsl(IDE_PORT_DATA, buf, IDE_SECTOR_SIZE / sizeof(uint32_t));
+}
+
 static void __ide_start_queue(void)
 {
     struct block *b;
@@ -148,6 +177,15 @@ static void __ide_start_queue(void)
 
     sector_count = b->block_size / IDE_SECTOR_SIZE;
     disk_sector = b->sector * sector_count;
+
+    if (DEV_MINOR(b->dev)) {
+        int minor = DEV_MINOR(b->dev);
+        int part_no = minor - 1;
+
+        if (part_no < b->bdev->partition_count)
+            disk_sector += b->bdev->partitions[part_no].start;
+    }
+
     /* Start the IDE data transfer */
 
     /* We select the drive before issuing the __ide_wait_ready()
@@ -188,9 +226,9 @@ static void __ide_start_queue(void)
         int i;
 
         if (use_dma) {
-            outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_WRITE);
-
             ide_dma_start(&ide_state.dma);
+
+            outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_WRITE);
         } else {
             /* Revert to PIO if DMA can't work */
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_PIO_LBA28_WRITE);
@@ -200,7 +238,7 @@ static void __ide_start_queue(void)
                 if ((__ide_wait_ready() & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) != 0)
                     break;
 
-                outsl(IDE_PORT_DATA, b->data + i * IDE_SECTOR_SIZE, IDE_SECTOR_SIZE / sizeof(uint32_t));
+                __ide_do_pio_write(b->data + i * IDE_SECTOR_SIZE);
             }
 
             /* After writing, we have to flush the write cache */
@@ -208,9 +246,9 @@ static void __ide_start_queue(void)
         }
     } else {
         if (use_dma) {
-            outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_READ);
-
             ide_dma_start(&ide_state.dma);
+
+            outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_READ);
         } else {
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_PIO_LBA28_READ);
         }
@@ -264,7 +302,7 @@ static void __ide_handle_intr(struct irq_frame *frame)
                 if ((__ide_wait_ready() & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) != 0)
                     break;
 
-                insl(IDE_PORT_DATA, b->data + i * IDE_SECTOR_SIZE, IDE_SECTOR_SIZE / sizeof(uint32_t));
+                __ide_do_pio_read(b->data + i * IDE_SECTOR_SIZE);
             }
         }
     }
@@ -288,16 +326,97 @@ static void ide_handle_intr(struct irq_frame *frame, void *param)
         __ide_handle_intr(frame);
 }
 
+static void ide_fix_string(uint8_t *s, size_t len)
+{
+    if (len % 2)
+        panic("Non mod 2 length passed to ide_fix_string()!\n");
+
+    uint16_t *t = (uint16_t *)s;
+
+    size_t i;
+    for (i = 0; i < len / 2; i++)
+        t[i] = (t[i] << 8) | (t[i] >> 8);
+
+    size_t end = 0;
+    for (i = 0; i < len; i++)
+        if (s[i] && s[i] != ' ')
+            end = i;
+
+    for (i = end + 1; i < len; i++)
+        s[i] = '\0';
+}
+
+static void ide_identify(struct block_device *device)
+{
+    struct page *page = palloc(0, PAL_KERNEL);
+    outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_IDENTIFY);
+
+    int ret = __ide_wait_ready_ms(40);
+    if (ret & IDE_STATUS_DRIVE_FAULT)
+        goto cleanup;
+
+    __ide_do_pio_read(page->virt);
+
+    struct ide_identify_format *id = page->virt;
+    ide_fix_string(id->model, sizeof(id->model));
+
+    kp(KP_NORMAL, "IDENTIFY Model: %s, capacity: %dMB\n", id->model, id->lba_capacity);
+
+    flag_set(&device->flags, BLOCK_DEV_EXISTS);
+    device->device_size = id->lba_capacity;
+
+  cleanup:
+    pfree(page, 0);
+}
+
+static void ide_identify_master(struct block_device *device)
+{
+    outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET | IDE_DH_LBA);
+    ide_identify(device);
+}
+
+static void ide_identify_slave(struct block_device *device)
+{
+    outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET | IDE_DH_LBA | IDE_DH_SLAVE);
+    ide_identify(device);
+}
+
 void ide_init(void)
 {
+    int i;
+    struct block_device *master, *slave;
+
     pic8259_enable_irq(IDE_IRQ);
     irq_register_callback(PIC8259_IRQ0 + IDE_IRQ, ide_handle_intr, "IDE", IRQ_INTERRUPT, NULL);
 
     outb(IDE_PORT_PRIMARY_CTL, 0);
     outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET | IDE_DH_LBA);
 
-    block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0), IDE_SECTOR_SIZE);
-    block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_SLAVE, 0), IDE_SECTOR_SIZE);
+    master = block_dev_get(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0));
+    slave = block_dev_get(DEV_MAKE(BLOCK_DEV_IDE_SLAVE, 0));
+
+    ide_identify_master(master);
+    ide_identify_slave(slave);
+
+    if (flag_test(&master->flags, BLOCK_DEV_EXISTS)) {
+        block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0), IDE_SECTOR_SIZE);
+        int master_partition_count = mbr_add_partitions(master);
+
+        kp(KP_NORMAL, "Master partition count: %d\n", master_partition_count);
+
+        for (i = 0; i < master_partition_count; i++)
+            master->partitions[i].block_size = IDE_SECTOR_SIZE;
+    }
+
+    if (flag_test(&slave->flags, BLOCK_DEV_EXISTS)) {
+        block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_SLAVE, 0), IDE_SECTOR_SIZE);
+        int slave_partition_count = mbr_add_partitions(slave);
+
+        kp(KP_NORMAL, "Slave partition count: %d\n", slave_partition_count);
+
+        for (i = 0; i < slave_partition_count; i++)
+            slave->partitions[i].block_size = IDE_SECTOR_SIZE;
+    }
 }
 
 static void ide_sync_block(struct block *b, int master_or_slave)
@@ -321,6 +440,7 @@ static void ide_sync_block(struct block *b, int master_or_slave)
 
     kp(KP_IDE, "Waiting on block queue: %p\n", &b->queue);
     wait_queue_event(&b->queue, flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY));
+    kp(KP_IDE, "Block queue done! %p\n", &b->queue);
 }
 
 void ide_sync_block_master(struct block_device *__unused dev, struct block *b)

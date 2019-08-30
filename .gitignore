@@ -6,3 +6,5 @@ debug_start.sh
 cscope*
 disk.img
 
+disk_mount/
+

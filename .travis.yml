@@ -23,6 +23,7 @@ install:
   - sudo apt-get install libncurses5
   - sudo apt-get install autotools-dev
   - sudo apt-get install automake
+  - sudo apt-get install virtualbox
 
 # The scripts are for running GCC, so we can reduce the log output.
 script:
@@ -34,6 +35,7 @@ script:
   - make extra-ed -j3
   - make extra-vim -j3
   - make disk
+  - make vbox
 
 deploy:
   provider: releases
@@ -44,5 +46,6 @@ deploy:
   file:
     - "./imgs/protura_x86_multiboot"
     - "./disk.img"
+    - "./vbox.vdi"
   on:
     tags: true

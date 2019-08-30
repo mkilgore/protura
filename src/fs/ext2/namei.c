@@ -69,14 +69,17 @@ static uint8_t ext2_dir_type(mode_t mode)
  * *result. Note that this function may/will return NULL when a lookup fails */
 __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result)
 {
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
     struct block *b;
-    int block_size = dir->sb->bdev->block_size;
+    int block_size = sb->block_size;
     off_t cur_off;
 
     for (cur_off = 0; cur_off < dir->size; cur_off += block_size) {
         int offset = 0;
         struct ext2_disk_directory_entry *entry;
         sector_t sec = vfs_bmap(dir, cur_off / block_size);
+
+        kp_ext2(dir->sb, "Lookup block size: %d, cur_off: %ld, Sec: %d\n", block_size, cur_off, sec);
 
         if (sec == SECTOR_INVALID)
             break;
@@ -102,7 +105,8 @@ __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *na
 __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result, int *err)
 {
     struct block *b;
-    int block_size = dir->sb->bdev->block_size;
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
+    int block_size = sb->block_size;
     off_t cur_off;
     size_t minimum_rec_len = ext2_disk_dir_entry_rec_len(len);
     sector_t sec;
@@ -188,6 +192,8 @@ int __ext2_dir_lookup_ino(struct inode *dir, const char *name, size_t len, ino_t
 
     *ino = entry->ino;
 
+    kp_ext2(dir->sb, "DIR Ent, ino: %d, name: %s\n", entry->ino, entry->name);
+
     brelease(b);
 
     return 0;
@@ -195,13 +201,14 @@ int __ext2_dir_lookup_ino(struct inode *dir, const char *name, size_t len, ino_t
 
 int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result)
 {
-    ino_t entry;
+    ino_t entry = 0;
     int ret;
 
     ret = __ext2_dir_lookup_ino(dir, name, len, &entry);
     if (ret)
         return ret;
 
+    kp_ext2(dir->sb, "Lookup inode: %d\n", entry);
     *result = inode_get(dir->sb, entry);
 
     if (!*result)
@@ -250,7 +257,8 @@ int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, m
 int __ext2_dir_remove_entry(struct inode *dir, struct block *b, struct ext2_disk_directory_entry *entry)
 {
     struct ext2_disk_directory_entry *prev;
-    int block_size = dir->sb->bdev->block_size;
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
+    int block_size = sb->block_size;
     int offset;
 
     for (offset = 0, prev = NULL; offset < block_size; offset += prev->rec_len) {
@@ -283,8 +291,9 @@ int __ext2_dir_remove_entry(struct inode *dir, struct block *b, struct ext2_disk
  */
 int __ext2_dir_empty(struct inode *dir)
 {
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
     int ret = 0;
-    int block_size = dir->sb->bdev->block_size;
+    int block_size = sb->block_size;
     int blocks;
     int cur_block;
 
@@ -384,7 +393,8 @@ int __ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler)
 {
     struct block *b;
     struct inode *dir = filp->inode;
-    int block_size = dir->sb->bdev->block_size;
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
+    int block_size = sb->block_size;
     int ret = 0;
     int offset = 0;
 
@@ -413,7 +423,8 @@ int __ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t size)
 {
     struct block *b;
     struct inode *dir = filp->inode;
-    int block_size = dir->sb->bdev->block_size;
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
+    int block_size = sb->block_size;
     int ret = 0;
 
     kp_ext2(dir->sb, "Dir size: %ld\n", dir->size);

@@ -30,6 +30,8 @@ static int ext2_dir_lookup(struct inode *dir, const char *name, size_t len, stru
 {
     int ret = 0;
 
+    kp_ext2(dir->sb, "Lookup: "PRinode" name: %s, len: %d\n", Pinode(dir), name, len);
+
     using_inode_lock_read(dir)
         ret = __ext2_dir_lookup(dir, name, len, result);
 

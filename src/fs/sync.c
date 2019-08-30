@@ -168,6 +168,7 @@ int mount_root(dev_t device, const char *fsystem)
     if (!sb)
         return -EINVAL;
 
+    kp(KP_NORMAL, "Mounting root...\n");
     ino_root = inode_dup(sb->root);
 
     mount_list_add(device, NULL, "/", fsystem);

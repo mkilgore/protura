@@ -79,6 +79,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
 
         inode_offset = inode_entry % (sb->block_size / sizeof(struct ext2_disk_inode));
 
+        kp_ext2(sb, "Inode group: %d\n", inode_group);
         kp_ext2(sb, "Inode group block: %d\n", sb->groups[inode_group].block_nr_inode_table);
         kp_ext2(sb, "Inode group block number: %d\n", inode_group_blk_nr);
         kp_ext2(sb, "Inode group block offset: %d\n", inode_offset);
@@ -421,10 +422,10 @@ static struct super_block *ext2_sb_read(dev_t dev)
     }
 
     for (i = 0; i < sb->block_group_count; i++) {
-        kp_ext2(sb, "Block group %d: blocks=%d, inodes=%d, inode_table=%d\n", \
-                i, \
-                sb->groups[i].block_nr_block_bitmap, \
-                sb->groups[i].block_nr_inode_bitmap, \
+        kp_ext2(sb, "Block group %d: blocks=%d, inodes=%d, inode_table=%d\n",
+                i,
+                sb->groups[i].block_nr_block_bitmap,
+                sb->groups[i].block_nr_inode_bitmap,
                 sb->groups[i].block_nr_inode_table);
     }
 

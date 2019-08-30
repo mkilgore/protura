@@ -8,6 +8,7 @@
 /dev/ttyS1 c 5 3
 
 /dev/hda b 1 0
+/dev/hda1 b 1 1
 /dev/hdb b 2 0
 
 /dev/com1 c 3 0

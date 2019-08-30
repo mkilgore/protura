@@ -28,7 +28,7 @@
 #include <protura/fs/vfs.h>
 
 #ifdef CONFIG_KERNEL_LOG_VFS
-# define kp_vfs(str, ...) kp(KP_DEBUG, "vfs: " str, params, ## __VA_ARGS__)
+# define kp_vfs(str, ...) kp(KP_DEBUG, "vfs: " str, ## __VA_ARGS__)
 #else
 # define kp_vfs(str, ...) do { ; } while (0)
 #endif

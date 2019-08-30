@@ -54,11 +54,18 @@ DISK_EXTRA_FILES := $(wildcard ./disk/etc/*) $(wildcard ./disk/home/*)
 
 disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gendisk.sh $(DISK_EXTRA_FILES) $(wildcard ./disk/extras/*.built)
 	@echo " GENDISK $@"
-	$(Q)sudo ./scripts/gendisk.sh
+	$(Q)sudo ./scripts/gen_partdisk.sh $@
 
 disk2.img: ./scripts/gendisk2.sh
 	@echo " GENDISK $@"
 	$(Q)sudo ./scripts/gendisk2.sh
+
+vbox.vdi: disk.img
+	@echo " VBOXIMG $@"
+	$(Q)VBoxManage convertfromraw $< $@ --format VDI
+
+PHONY += vbox
+vbox: vbox.vdi
 
 gendisk: disk.img
 gendisk2: disk2.img

@@ -48,8 +48,10 @@ int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct
     struct block *b;
     dev_t dev = dir->sb_dev;
     int sectors, i, ents;
-    size_t sector_size = dir->sb->bdev->block_size;
+    size_t sector_size = block_dev_get_block_size(dev);
     int dents_in_block = sector_size / sizeof(struct dirent);
+
+    kp(KP_NORMAL, "inode lookup: Dev: %d:%d, block_size: %d\n", DEV_MAJOR(dev), DEV_MINOR(dev), sector_size);
 
     int found_entry = 0;
     struct dirent found;
