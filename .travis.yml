@@ -32,9 +32,14 @@ script:
   - make install-kernel-headers
   - export PATH="$PATH:`pwd`/toolchain/bin"
   - ./scripts/travis_gcc.sh
-  - make kernel -j3
-  - make extra-ed -j3
-  - make extra-vim -j3
+  - make kernel -j5
+  - make extra-ed -j5
+  - make extra-vim -j5
+  - make extra-binutils -j5
+  - make extra-gmp -j5
+  - make extra-mpfr -j5
+  - make extra-mpc -j5
+  - ./scripts/travis_extra_gcc.sh
   - make disk
   - make vbox
 

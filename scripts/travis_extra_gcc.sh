@@ -1,6 +1,6 @@
 #!/bin/bash
 
-make extra-gcc -j3 >./extra-gcc.log 2>&1 &
+make extra-gcc -j5 >./extra-gcc.log 2>&1 &
 PID=$!
 
 while [ -d /proc/$PID ]
