@@ -46,7 +46,6 @@ char kernel_cmdline[2048];
 struct sys_init arch_init_systems[] = {
     { "vm_area", vm_area_allocator_init },
     { "kwork", kwork_init },
-    { "pic8259_timer", pic8259_timer_init },
     { "syscall", syscall_init },
 #ifdef CONFIG_PCI_SUPPORT
     { "pci", pci_init },
@@ -144,6 +143,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
      * interrupts on the CPU */
     kp(KP_NORMAL, "Initalizing the 8259 PIC\n");
     pic8259_init();
+    pic8259_timer_init();
 
     kp(KP_NORMAL, "Reading RTC time\n");
     rtc_update_time();

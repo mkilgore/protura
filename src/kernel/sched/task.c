@@ -117,7 +117,7 @@ struct task *task_new(void)
     return task;
 }
 
-static struct task *task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable)
+void task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable)
 {
     flag_set(&t->flags, TASK_FLAG_KERNEL);
 
@@ -130,8 +130,6 @@ static struct task *task_kernel_generic(struct task *t, const char *name, int (*
         arch_task_setup_stack_kernel_interruptable(t, kernel_task, ptr);
     else
         arch_task_setup_stack_kernel(t, kernel_task, ptr);
-
-    return t;
 }
 
 /* The main difference here is that the interruptable kernel task entry
@@ -144,7 +142,8 @@ struct task *task_kernel_new_interruptable(const char *name, int (*kernel_task)(
     if (!t)
         return NULL;
 
-    return task_kernel_generic(t, name, kernel_task, ptr, 1);
+    task_kernel_generic(t, name, kernel_task, ptr, 1);
+    return t;
 }
 
 struct task *task_kernel_new(const char *name, int (*kernel_task)(void *), void *ptr)
@@ -154,7 +153,8 @@ struct task *task_kernel_new(const char *name, int (*kernel_task)(void *), void 
     if (!t)
         return NULL;
 
-    return task_kernel_generic(t, name, kernel_task, ptr, 0);
+    task_kernel_generic(t, name, kernel_task, ptr, 0);
+    return t;
 }
 
 struct task *task_user_new_exec(const char *exe)

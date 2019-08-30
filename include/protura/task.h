@@ -137,6 +137,7 @@ int sys_getpgrp(pid_t *pgrp);
 void task_free(struct task *);
 
 /* Interruptable tasks run with interrupts enabled */
+void task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable);
 struct task *__must_check task_kernel_new(const char *name, int (*kernel_task) (void *), void *);
 struct task *__must_check task_kernel_new_interruptable(const char *name, int (*kernel_task) (void *), void *);
 
