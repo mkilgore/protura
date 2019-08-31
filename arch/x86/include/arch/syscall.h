@@ -109,6 +109,7 @@
 
 #define SYSCALL_SETGROUPS 0x6B
 #define SYSCALL_GETGROUPS 0x69
+#define SYSCALL_UNAME 0x6A
 
 #ifdef __KERNEL__
 #ifndef ASM

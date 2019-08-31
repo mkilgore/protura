@@ -3,7 +3,6 @@ EXE       := protura
 VERSION   := 0
 SUBLEVEL  := 3
 PATCH     := 0
-VERSION_N := $(VERSION).$(SUBLEVEL).$(PATCH)
 
 ARCH   := x86
 BITS   := 32
@@ -23,10 +22,19 @@ PERL    := perl -w -Mdiagnostics
 MKDIR   := mkdir
 OBJCOPY := $(TARGET)-objcopy
 
+EXTRA := $(shell ./scripts/version_tag.sh)
+
+VERSION_FULL := $(VERSION).$(SUBLEVEL).$(PATCH)$(EXTRA)
+
+$(info Building: $(EXE))
+$(info Arch:     $(ARCH))
+$(info Version:  $(VERSION_FULL))
+
 CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
             -DPROTURA_SUBLEVEL=$(SUBLEVEL)            \
             -DPROTURA_PATCH=$(PATCH)                  \
-            -DPROTURA_VERSION_N="$(VERSION_N)"        \
+            -DPROTURA_EXTRA="$(EXTRA)"                \
+            -DPROTURA_VERSION_FULL="$(VERSION_FULL)"  \
             -DPROTURA_ARCH="$(ARCH)"                  \
             -DPROTURA_BITS=$(BITS)                    \
 			-D__KERNEL__                              \

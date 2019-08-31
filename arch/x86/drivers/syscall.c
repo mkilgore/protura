@@ -22,6 +22,7 @@
 #include <protura/net/sys.h>
 #include <protura/signal.h>
 #include <protura/users.h>
+#include <protura/utsname.h>
 
 /* 
  * These simple functions serve as the glue between the underlying
@@ -438,6 +439,11 @@ static void sys_handler_getgroups(struct irq_frame *frame)
     frame->eax = sys_setgroups((size_t)frame->ebx, (gid_t *)frame->ecx);
 }
 
+static void sys_handler_uname(struct irq_frame *frame)
+{
+    frame->eax = sys_uname((struct utsname *)frame->ebx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -527,6 +533,7 @@ static struct syscall_handler {
     SYSCALL(GETEGID, sys_handler_getegid),
     SYSCALL(SETGROUPS, sys_handler_setgroups),
     SYSCALL(GETGROUPS, sys_handler_getgroups),
+    SYSCALL(UNAME, sys_handler_uname),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

@@ -6,6 +6,7 @@ objs-y += crc.o
 objs-y += time.o
 objs-y += ktimer.o
 objs-y += sys_user.o
+objs-y += uname.o
 
 subdir-y += str
 subdir-y += sched

@@ -19,6 +19,7 @@
 #include <protura/net/netdevice.h>
 #include <protura/net/socket.h>
 #include <protura/net.h>
+#include <protura/utsname.h>
 
 #include <arch/spinlock.h>
 #include <protura/fs/block.h>
@@ -139,6 +140,7 @@ void procfs_init(void)
     procfs_register_entry_ops(&procfs_root, "uptime", &uptime_ops);
     procfs_register_entry_ops(&procfs_root, "boottime", &boot_time_ops);
     procfs_register_entry_ops(&procfs_root, "currenttime", &current_time_ops);
+    procfs_register_entry_ops(&procfs_root, "version", &proc_version_ops);
 
     procfs_register_entry_ops(&procfs_root, "task_api", &task_api_ops);
 }
