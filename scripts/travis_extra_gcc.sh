@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -z "$TRAVIS_TAG" ]; then
+    echo "Not a tagged build, skipping building extra GCC"
+    exit 0
+fi
+
 make extra-gcc -j5 >./extra-gcc.log 2>&1 &
 PID=$!
 
