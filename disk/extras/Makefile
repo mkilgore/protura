@@ -53,7 +53,7 @@ disk/extras/mpfr.built:
 .PHONY: extra-mpc
 DISK_CLEAN_EXTRA += ./disk/extras/mpc.built
 extra-mpc: disk/extras/mpc.built
-disk/extras/mpc.built: disk/extra/gmp.built disk/extra/mpfr.built
+disk/extras/mpc.built: disk/extras/gmp.built disk/extras/mpfr.built
 	@echo " BUILD   mpc"
 	$(Q)cd disk/extras/; ./build_mpc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
@@ -71,7 +71,7 @@ disk/extras/binutils.built:
 .PHONY: extra-gcc
 DISK_CLEAN_EXTRA += ./disk/extras/gcc.built
 extra-gcc: disk/extras/gcc.built
-disk/extras/gcc.built: disk/extra/gmp.built disk/extra/mpfr.built disk/extra/mpc.built
+disk/extras/gcc.built: disk/extras/gmp.built disk/extras/mpfr.built disk/extras/mpc.built
 	@echo " BUILD   gcc"
 	$(Q)cd disk/extras/; ./build_gcc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
