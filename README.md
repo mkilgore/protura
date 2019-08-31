@@ -27,6 +27,7 @@ Current existing components/subsystems:
   - Currently, IDE is the only block device
   - A block cache sits inbetween the file systems and block devices
     - A witethrough approach is used for simplicity
+  - Supports MBR partition table
   - No I/O Scheduler, so each I/O block request is submitted one at a time.
     - Currently this is a significant performance cost, though once things are loaded into the block-cache
       things get a lot snappier.
@@ -69,7 +70,7 @@ External OS components:
   - Does not support `/etc/fstab` (Or rather, `mount` does not support `/etc/fstab`).
     - Automatically mounts `proc` at `/proc`.
   - Sets up a few environment variables like the `PATH`.
-- Core utils
+- Coreutils
   - See `disk/utils/coreutils` folder.
 
 Extra ported utilities:
@@ -138,6 +139,10 @@ Build the disk.img Protura disk image
 
     make disk
 
+Generate a VirtualBox VDI image from the disk image
+
+    make vbox
+
 Note that the build is setup to be very convient for those with nothing already
 setup, however for development it may be nicer to install the i686-protura
 system-wide, and add it to your default PATH, so it is always usable for
@@ -171,12 +176,14 @@ newlib.
 Testing
 =======
 
-The easiest way to test is via the simulator qemu. tmux_debug.sh in the scripts
+The easiest way to test is via the simulator QEMU. tmux_debug.sh in the scripts
 directory includes a 'default' usage, which will write out to various logs,
-connecting up COM and IDE devices using the default disk.img, and run the
-kernel image. The qemu invocation can be customized to your needs.
+connecting up COM and IDE devices using the default disk.img. It also
+conviently sets up TMUX with all the various commands already running. The QEMU
+invocation in the script can be customized to your needs.
 
-Noting that, besides qemu Protura could be run on real hardware, via booting
-with GRUB. Note that since the IDE driver currently does not read/understand
-the partition table, the disk itself have to be formatted as a single
-file-system, significantly reducing usability on actual hardware.
+In addition to QEMU, there is also a VirtualBox VDI image which can be used to
+run Protura in VirtualBox. To achieve this, wire the VDI image up as an IDE
+drive in VirtualBox and choose a "Linux 2.4/2.6/3.0" machine upon creation
+(Though the choice here isn't that important). You can then wire up extra
+devices like COM ports or a second IDE drive as wanted.
