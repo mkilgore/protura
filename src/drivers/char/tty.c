@@ -193,13 +193,9 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
             }
 
             /* Nice little dance to wait for data or a signal */
-            kp(KP_NORMAL, "tty_read: tty->output_buf wait\n");
             ret = wait_queue_event_intr_mutex(&tty->in_wait_queue, char_buf_has_data(&tty->output_buf) || tty->ret0, &tty->lock);
-            kp(KP_NORMAL, "tty_read: tty->output_buf end wait: %d\n", ret);
-            if (ret) {
-                kp(KP_NORMAL, "Exiting...\n");
+            if (ret)
                 return ret;
-            }
         }
     }
 
