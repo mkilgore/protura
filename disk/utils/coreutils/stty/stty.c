@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <termios.h>
+#include <sys/ioctl.h>
 
 #include "tables.h"
 #include "display.h"
