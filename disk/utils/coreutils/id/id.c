@@ -57,8 +57,8 @@ static enum print_option option;
 static int print_names = 0;
 static int print_real_ids = 0;
 
-static uid_t uid;
-static gid_t gid;
+static uid_t user_uid;
+static gid_t user_gid;
 static int sub_gids_count;
 static gid_t *sub_gids = NULL;
 
@@ -95,9 +95,9 @@ static void display_uid(uid_t uid)
 static void print_all_ids(void)
 {
     printf("uid=");
-    display_uid(uid);
+    display_uid(user_uid);
     printf(" gid=");
-    display_gid(gid);
+    display_gid(user_gid);
     printf(" groups=");
 
     int i;
@@ -112,21 +112,8 @@ static void print_all_ids(void)
 
 static void print_gid(void)
 {
-    gid_t gid;
-    struct group *ent = NULL;
-
-    if (print_real_ids)
-        gid = getgid();
-    else
-        gid = getegid();
-
-    if (print_names)
-        ent = group_db_get_gid(&group_db, gid);
-
-    if (ent)
-        printf("%d(%s)\n", gid, ent->group_name);
-    else
-        printf("%d\n", gid);
+    display_gid(user_gid);
+    putchar('\n');
 }
 
 static void print_groups(void)
@@ -137,25 +124,13 @@ static void print_groups(void)
             putchar(' ');
         display_gid(sub_gids[i]);
     }
+    putchar('\n');
 }
 
 static void print_user(void)
 {
-    uid_t uid;
-    struct passwd_entry *ent = NULL;
-
-    if (print_real_ids)
-        uid = getuid();
-    else
-        uid = geteuid();
-
-    if (print_names)
-        ent = passwd_db_get_uid(&db, uid);
-
-    if (ent)
-        printf("%d(%s)\n", uid, ent->username);
-    else
-        printf("%d\n", uid);
+    display_uid(user_uid);
+    putchar('\n');
 }
 
 static void (*display_funcs[]) (void) = {
@@ -169,11 +144,9 @@ static void load_uid(const char *username)
 {
     if (!username) {
         if (print_real_ids)
-            uid = getuid();
+            user_uid = getuid();
         else
-            uid = geteuid();
-
-        return;
+            user_uid = geteuid();
     }
 }
 
@@ -181,11 +154,9 @@ static void load_gid(const char *username)
 {
     if (!username) {
         if (print_real_ids)
-            gid = getgid();
+            user_gid = getgid();
         else
-            gid = getegid();
-
-        return;
+            user_gid = getegid();
     }
 }
 
@@ -195,8 +166,9 @@ static void load_sub_gids(const char *username)
         sub_gids_count = getgroups(0, NULL);
         sub_gids = malloc(sub_gids_count * sizeof(*sub_gids));
 
-        setgroups(sub_gids_count, sub_gids);
-        return;
+        int ret = getgroups(sub_gids_count, sub_gids);
+        if (ret == -1)
+            perror("getgroups");
     }
 }
 
