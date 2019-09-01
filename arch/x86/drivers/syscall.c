@@ -436,7 +436,7 @@ static void sys_handler_setgroups(struct irq_frame *frame)
 
 static void sys_handler_getgroups(struct irq_frame *frame)
 {
-    frame->eax = sys_setgroups((size_t)frame->ebx, (gid_t *)frame->ecx);
+    frame->eax = sys_getgroups((size_t)frame->ebx, (gid_t *)frame->ecx);
 }
 
 static void sys_handler_uname(struct irq_frame *frame)
