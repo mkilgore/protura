@@ -57,7 +57,7 @@ static void set_credentials(struct inode *inode, struct task *current)
         new_egid = current->creds.egid;
 
         if (inode->mode & S_ISUID)
-            new_egid = inode->uid;
+            new_euid = inode->uid;
 
         if (inode->mode & S_ISGID)
             new_egid = inode->gid;
