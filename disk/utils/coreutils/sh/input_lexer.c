@@ -17,14 +17,18 @@
 
 #include "input_lexer.h"
 
-char *lexer_input_replace_env(char *line)
+char *lexer_input_replace_env(const char *line)
 {
     char *new_line = NULL;
 
-    char *c;
-    char *start = line;
+    if (!strchr(line, '$'))
+        return NULL;
 
-    while ((c = strchr(line, '$')) != NULL) {
+    char *c;
+    char *dupline = strdup(line);
+    char *start = dupline;
+
+    while ((c = strchr(dupline, '$')) != NULL) {
         *c = '\0';
         c++;
 
@@ -63,6 +67,7 @@ char *lexer_input_replace_env(char *line)
         if (*start)
             a_sprintf_append(&new_line, "%s", start);
 
+    free(dupline);
     return new_line;
 }
 
