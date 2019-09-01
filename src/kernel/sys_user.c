@@ -135,7 +135,7 @@ int sys_setgid(gid_t gid)
     struct credentials *creds = &cpu_get_local()->current->creds;
 
     using_creds(creds) {
-        if (creds->egid == 0)
+        if (creds->euid == 0)
             creds->gid = creds->egid = creds->sgid = gid;
         else if (creds->gid == gid || creds->sgid == gid)
             creds->egid = gid;
