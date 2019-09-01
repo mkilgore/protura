@@ -265,7 +265,7 @@ int sys_getgroups(size_t size, gid_t *__user list)
     struct credentials *creds = &cpu_get_local()->current->creds;
 
     if (size) {
-        int ret = user_check_region(list, size * sizeof(*list), VM_MAP_READ);
+        int ret = user_check_region(list, size * sizeof(*list), VM_MAP_WRITE);
         if (ret)
             return ret;
     }
