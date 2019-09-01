@@ -188,7 +188,7 @@ static void render_group(struct util_line *line, gid_t gid)
     struct group *ent = NULL;
 
     if (show_usernames)
-        ent = group_db_get_gid(&pwdb, gid);
+        ent = group_db_get_gid(&groupdb, gid);
 
     if (ent)
         util_line_printf(line, "%s", ent->group_name);
