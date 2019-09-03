@@ -67,7 +67,7 @@ static int ip_raw_bind(struct protocol *proto, struct socket *sock, const struct
 
 static int ip_raw_autobind(struct protocol *proto, struct socket *sock)
 {
-    sock->af_private.ipv4.src_addr = 0;
+    sock->af_private.ipv4.src_addr = htonl(0);
     return 0;
 }
 

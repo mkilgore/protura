@@ -2,6 +2,7 @@
 #define INCLUDE_PROTURA_NET_SOCKADDR_H
 
 #include <protura/types.h>
+#include <protura/net/types.h>
 
 struct sockaddr {
     unsigned short    sa_family;    // address family, AF_xxx
@@ -9,7 +10,7 @@ struct sockaddr {
 };
 
 typedef __ksize_t socklen_t;
-typedef __kn16    sa_family_t;
+typedef uint16_t  sa_family_t;
 
 #define AF_INET 2
 #define AF_MAX 3

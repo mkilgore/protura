@@ -20,10 +20,10 @@
 #include "ipv4.h"
 
 struct udp_header {
-    uint16_t source_port;
-    uint16_t dest_port;
-    uint16_t length;
-    uint16_t checksum;
+    n16 source_port;
+    n16 dest_port;
+    n16 length;
+    n16 checksum;
 } __packed;
 
 #define UDP_HASH_SIZE 128
@@ -86,7 +86,7 @@ static int udp_register_sock(struct udp_protocol *proto, struct socket *sock)
             break;
         }
 
-        kp_udp("Adding socket, src_port: %d, src_addr: "PRin_addr", dest_port: %d, dest_addr: "PRin_addr"\n", test_lookup.src_port, Pin_addr(test_lookup.src_addr), test_lookup.dest_port, Pin_addr(test_lookup.dest_addr));
+        kp_udp("Adding socket, src_port: %d, src_addr: "PRin_addr", dest_port: %d, dest_addr: "PRin_addr"\n", ntohs(test_lookup.src_port), Pin_addr(test_lookup.src_addr), ntohs(test_lookup.dest_port), Pin_addr(test_lookup.dest_addr));
 
         __ipaf_add_socket(af, sock);
     }
@@ -133,7 +133,7 @@ int udp_tx(struct packet *packet)
     header->dest_port = in->sin_port;
 
     header->length = htons(plen);
-    header->checksum = 0;
+    header->checksum = htons(0);
 
     packet->protocol_type = IPPROTO_UDP;
 
@@ -150,7 +150,7 @@ static int udp_sendto(struct protocol *protocol, struct socket *sock, struct pac
     in = (const struct sockaddr_in *)addr;
 
     sockaddr_in_assign(&packet->dest_addr, in->sin_addr.s_addr, in->sin_port);
-    sockaddr_in_assign(&packet->src_addr, 0, htons(sock->af_private.ipv4.src_port));
+    sockaddr_in_assign(&packet->src_addr, INADDR_ANY, sock->af_private.ipv4.src_port);
 
     packet->sock = socket_dup(sock);
 
@@ -167,11 +167,11 @@ static int udp_bind(struct protocol *protocol, struct socket *sock, const struct
     if (len < sizeof(*in))
         return -EFAULT;
 
-    sock->af_private.ipv4.src_port = ntohs(in->sin_port);
+    sock->af_private.ipv4.src_port = in->sin_port;
 
     ret = udp_register_sock(udp, sock);
     if (ret) {
-        sock->af_private.ipv4.src_port = 0;
+        sock->af_private.ipv4.src_port = htons(0);
         return ret;
     }
 
@@ -187,7 +187,7 @@ static int udp_autobind(struct protocol *protocol, struct socket *sock)
 
     ret = udp_register_sock(udp, sock);
     if (ret) {
-        sock->af_private.ipv4.src_port = 0;
+        sock->af_private.ipv4.src_port = htons(0);
         return ret;
     }
 
@@ -203,7 +203,7 @@ static int udp_delete(struct protocol *protocol, struct socket *sock)
 {
     struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
 
-    if (sock->af_private.ipv4.src_port) {
+    if (n32_nonzero(sock->af_private.ipv4.src_port)) {
         using_mutex(&af->lock)
             __ipaf_remove_socket(af, sock);
     }
@@ -218,7 +218,7 @@ static int udp_getsockname(struct protocol *protocol, struct socket *sock, struc
     if (*len < sizeof(*in))
         return -EFAULT;
 
-    in->sin_port = htons(sock->af_private.ipv4.src_port);
+    in->sin_port = sock->af_private.ipv4.src_port;
     *len = sizeof(*in);
 
     return 0;
@@ -228,8 +228,8 @@ void udp_lookup_fill(struct ip_lookup *lookup, struct packet *packet)
 {
     struct udp_header *header = packet->head;
 
-    lookup->src_port = ntohs(header->dest_port);
-    lookup->dest_port = ntohs(header->source_port);
+    lookup->src_port = header->dest_port;
+    lookup->dest_port = header->source_port;
 }
 
 static struct protocol_ops udp_protocol_ops = {

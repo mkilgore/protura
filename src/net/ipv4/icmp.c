@@ -53,10 +53,10 @@ static void icmp_handle_packet(struct packet *packet)
     case ICMP_TYPE_ECHO_REQUEST:
         src_in = (struct sockaddr_in *)&packet->src_addr;
         header->type = ICMP_TYPE_ECHO_REPLY;
-        header->chksum = 0;
+        header->chksum = htons(0);
         header->chksum = ip_chksum((uint16_t *)header, icmp_len);
 
-        kp_icmp("Checksum: 0x%04X, Len: %d\n", header->chksum, icmp_len);
+        kp_icmp("Checksum: 0x%04X, Len: %d\n", ntohs(header->chksum), icmp_len);
 
         ret = socket_sendto(packet->sock, packet->head, packet_len(packet), 0, &packet->src_addr, packet->src_len, 0);
         kp_icmp("Reply to "PRin_addr": %d\n", Pin_addr(src_in->sin_addr.s_addr), ret);

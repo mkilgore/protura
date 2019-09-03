@@ -50,10 +50,10 @@ in_addr_t inet_addr(const char *ip)
         ip++;
     }
 
-    return (vals[3] << 24) + (vals[2] << 16) + (vals[1] << 8) + vals[0];
+    return n32_make((vals[3] << 24) + (vals[2] << 16) + (vals[1] << 8) + vals[0]);
 }
 
-uint16_t ip_chksum(uint16_t *head, size_t byte_count)
+n16 ip_chksum(uint16_t *head, size_t byte_count)
 {
     size_t i;
     uint32_t sum = 0;
@@ -67,7 +67,7 @@ uint16_t ip_chksum(uint16_t *head, size_t byte_count)
     while (sum & 0xFFFF0000)
         sum = (sum & 0xFFFF) + ((sum & 0xFFFF0000) >> 16);
 
-    return ~sum;
+    return n16_make(~sum);
 }
 
 static uint16_t next_ip_id = 0;
@@ -87,9 +87,9 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
     kp_ip("  af_head: %p, start: %p, offset: %ld\n", packet->af_head, packet->start, packet->af_head - packet->start);
     kp_ip("  Version: %d, HL: %d, %d bytes\n", header->version, header->ihl, header->ihl * 4);
     kp_ip("  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", header->protocol, ntohs(header->id), ntohs(header->total_length) - header->ihl * 4);
-    kp_ip("  Checksum:   0x%04x\n", header->csum);
-    header->csum = 0;
-    kp_ip("  Calculated: 0x%04x\n", ip_chksum((uint16_t *)header, header->ihl * 4));
+    kp_ip("  Checksum:   0x%04x\n", ntohs(header->csum));
+    header->csum = htons(0);
+    kp_ip("  Calculated: 0x%04x\n", ntohs(ip_chksum((uint16_t *)header, header->ihl * 4)));
 
     in = (struct sockaddr_in *)&packet->src_addr;
 
@@ -114,8 +114,8 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
     struct socket *sock = NULL;
     struct ip_lookup lookup = {
         .proto = header->protocol,
-        .src_addr = ntohs(header->dest_ip),
-        .dest_addr = ntohs(header->source_ip),
+        .src_addr = header->dest_ip,
+        .dest_addr = header->source_ip,
     };
 
     int maxscore = 2;
@@ -131,8 +131,6 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
         maxscore = 4;
         break;
     }
-
-    kp_ip("ip_lookup: proto: %d, src_port: %d, dest_port: %d, src_ip: "PRin_addr", dest_ip: "PRin_addr"\n", header->protocol, lookup.src_port, lookup.dest_port, Pin_addr(lookup.src_addr), Pin_addr(lookup.dest_addr));
 
     using_mutex(&af->lock) {
         sock = __ipaf_find_socket(af, &lookup, maxscore);
@@ -166,7 +164,7 @@ int ip_tx(struct packet *packet)
     header->ihl = 5;
     header->tos = 0;
     header->id = htons(next_ip_id++);
-    header->frag_off = 0;
+    header->frag_off = htons(0);
     header->ttl = 30;
     header->protocol = packet->protocol_type;
     header->total_length = htons(data_len + sizeof(*header));
@@ -184,10 +182,10 @@ int ip_tx(struct packet *packet)
     packet->route_addr = ip_route_get_ip(&route);
 
     header->dest_ip = in->sin_addr.s_addr;
-    header->csum = 0;
+    header->csum = htons(0);
     header->csum = ip_chksum((uint16_t *)header, header->ihl * 4);
 
-    kp_ip("Ip route: "PRin_addr", len: %d, csum: 0x%04x, DestIP: "PRin_addr"\n", Pin_addr(packet->route_addr), data_len, header->csum, Pin_addr(header->dest_ip));
+    kp_ip("Ip route: "PRin_addr", len: %d, csum: 0x%04x, DestIP: "PRin_addr"\n", Pin_addr(packet->route_addr), data_len, ntohs(header->csum), Pin_addr(header->dest_ip));
 
     return (packet->iface_tx->linklayer_tx) (packet);
 }

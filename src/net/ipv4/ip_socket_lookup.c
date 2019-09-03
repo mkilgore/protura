@@ -68,26 +68,26 @@ struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup
         if (sockroute->proto != addr->proto)
             continue;
 
-        if (sockroute->src_port) {
-            if (sockroute->src_port != addr->src_port)
+        if (n16_nonzero(sockroute->src_port)) {
+            if (n16_equal(sockroute->src_port, addr->src_port))
                 continue;
             score++;
         }
 
-        if (sockroute->src_addr) {
-            if (sockroute->src_addr != addr->src_addr)
+        if (n32_nonzero(sockroute->src_addr)) {
+            if (n32_equal(sockroute->src_addr, addr->src_addr))
                 continue;
             score++;
         }
 
-        if (sockroute->dest_port) {
-            if (sockroute->dest_port != addr->dest_port)
+        if (n16_nonzero(sockroute->dest_port)) {
+            if (n16_equal(sockroute->dest_port, addr->dest_port))
                 continue;
             score++;
         }
 
-        if (sockroute->dest_addr) {
-            if (sockroute->dest_addr != addr->dest_addr)
+        if (n32_nonzero(sockroute->dest_addr)) {
+            if (n32_equal(sockroute->dest_addr, addr->dest_addr))
                 continue;
             score++;
         }

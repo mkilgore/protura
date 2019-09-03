@@ -23,11 +23,11 @@
 #define ARP_MAX_RESPONSE_TIME 500
 
 struct arp_header {
-    uint16_t hrd_type;
-    uint16_t protocol_type;
+    n16 hrd_type;
+    n16 protocol;
     uint8_t hrd_addr_len;
     uint8_t protocol_addr_len;
-    uint16_t opcode;
+    n16 opcode;
 
     uint8_t send_hrd_addr[6];
     in_addr_t send_inet_addr;
@@ -92,7 +92,7 @@ static void arp_send_response(in_addr_t dest, uint8_t *dest_mac, struct net_inte
 
     memset(&header, 0, sizeof(header));
     header.hrd_type = htons(ARPHRD_ETHER);
-    header.protocol_type = htons(ETH_P_IP);
+    header.protocol = htons(ETH_P_IP);
     header.opcode = htons(ARPOP_REPLY);
 
     header.hrd_addr_len = 6;
@@ -124,7 +124,7 @@ static void arp_send_request(in_addr_t inet_addr, struct net_interface *iface)
 
     memset(&header, 0, sizeof(header));
     header.hrd_type = htons(ARPHRD_ETHER);
-    header.protocol_type = htons(ETH_P_IP);
+    header.protocol = htons(ETH_P_IP);
     header.opcode = htons(ARPOP_REQUEST);
 
     header.hrd_addr_len = 6;
@@ -185,7 +185,7 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
 
     arp_head = packet->head;
 
-    if (!(arp_head->hrd_type == htons(ARPHRD_ETHER)) || !(arp_head->protocol_type == htons(ETH_P_IP)))
+    if (!n16_equal(arp_head->hrd_type, htons(ARPHRD_ETHER)) || !n16_equal(arp_head->protocol, htons(ETH_P_IP)))
         return ;
 
     switch (ntohs(arp_head->opcode)) {
@@ -197,7 +197,7 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
             struct arp_entry *entry;
             list_foreach_entry(&arp_cache, entry, cache_entry) {
                 using_spinlock(&entry->lock) {
-                    if (entry->addr == arp_head->send_inet_addr) {
+                    if (n32_equal(entry->addr, arp_head->send_inet_addr)) {
                         timer_del(&entry->timeout_timer);
 
                         memcpy(entry->mac, arp_head->send_hrd_addr, 6);
@@ -239,7 +239,7 @@ int arp_tx(struct packet *packet)
 
     using_mutex(&arp_cache_lock) {
         list_foreach_entry(&arp_cache, entry, cache_entry) {
-            if (entry->addr == addr) {
+            if (n32_equal(entry->addr, addr)) {
                 kp(KP_NORMAL, "Found ARP entry.\n");
                 found = 1;
                 break;

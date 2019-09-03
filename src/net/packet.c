@@ -27,10 +27,10 @@ static void packet_clear(struct packet *packet)
     packet->head = packet->start + PACKET_RESERVE_HEADER_SPACE;
     packet->tail = packet->head;
 
-    packet->ll_type = 0;
+    packet->ll_type = htons(0);
     memset(&packet->dest_mac, 0, sizeof(packet->dest_mac));
 
-    packet->route_addr = 0;
+    packet->route_addr = htonl(0);
     packet->protocol_type = 0;
 
     memset(&packet->dest_addr, 0, sizeof(packet->dest_addr));

@@ -24,7 +24,7 @@ struct ether_header {
     char mac_dest[6];
     char mac_src[6];
 
-    uint16_t ether_type;
+    n16 ether_type;
 } __packed;
 
 struct ether {
@@ -59,7 +59,7 @@ void packet_linklayer_rx(struct packet *packet)
         break;
 
     default:
-        kp(KP_NORMAL, "Unknown ether packet type: 0x%04x\n", ehead->ether_type);
+        kp(KP_NORMAL, "Unknown ether packet type: 0x%04x\n", ntohs(ehead->ether_type));
         packet_free(packet);
         break;
     }
@@ -75,7 +75,7 @@ int packet_linklayer_tx(struct packet *packet)
     memcpy(ehead.mac_src, packet->iface_tx->mac, sizeof(ehead.mac_src));
     ehead.ether_type = packet->ll_type;
 
-    kp(KP_NORMAL, "Ether type: 0x%04x\n", ehead.ether_type);
+    kp(KP_NORMAL, "Ether type: 0x%04x\n", ntohs(ehead.ether_type));
 
     if (packet_len(packet) + 14 < 60)
         packet_pad_zero(packet, 60 - (packet_len(packet) + 14));

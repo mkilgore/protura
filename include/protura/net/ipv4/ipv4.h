@@ -24,8 +24,8 @@ struct sockaddr_in {
 #define IPOROTO_RAW  255
 #define IPOROTO_MAX  256
 
-#define INADDR_ANY       ((in_addr_t) 0x00000000)
-#define INADDR_BROADCAST ((in_addr_t) 0xFFFFFFFF)
+#define INADDR_ANY       ((in_addr_t) __kn32_make(0x00000000))
+#define INADDR_BROADCAST ((in_addr_t) __kn32_make(0xFFFFFFFF))
 
 #ifdef __KERNEL__
 
@@ -33,7 +33,10 @@ struct packet;
 struct address_family;
 
 # define PRin_addr "%d.%d.%d.%d"
-# define Pin_addr(addr) ((addr) & 0xFF), (((addr) >> 8) & 0xFF), (((addr) >> 16) & 0xFF), (((addr) >> 24) & 0xFF)
+# define Pin_addr_inner(addr) ((addr) & 0xFF), (((addr) >> 8) & 0xFF), (((addr) >> 16) & 0xFF), (((addr) >> 24) & 0xFF)
+# define Pin_addr(addr) Pin_addr_inner((n32_to_uint32(addr)))
+
+#define in_addr_mask(addr, mask) n32_make(n32_to_uint32(addr) & n32_to_uint32(mask))
 
 void ip_init(void);
 

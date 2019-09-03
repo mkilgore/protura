@@ -17,16 +17,16 @@ struct ip_header {
 
     uint8_t tos;
 
-    uint16_t total_length;
+    n16 total_length;
 
-    uint16_t id;
+    n16 id;
 
-    uint16_t frag_off;
+    n16 frag_off;
     uint8_t ttl;
     uint8_t protocol;
-    uint16_t csum;
-    uint32_t source_ip;
-    uint32_t dest_ip;
+    n16 csum;
+    n32 source_ip;
+    n32 dest_ip;
 } __packed;
 
 struct tcp_header {
@@ -35,15 +35,15 @@ struct tcp_header {
     n32 seq;
     n32 ack_seq;
 
-    n16 res1 :4;
-    n16 hl   :4;
-    n16 fin  :1;
-    n16 syn  :1;
-    n16 rst  :1;
-    n16 psh  :1;
-    n16 ack  :1;
-    n16 urg  :1;
-    n16 res2 :2;
+    uint16_t res1 :4;
+    uint16_t hl   :4;
+    uint16_t fin  :1;
+    uint16_t syn  :1;
+    uint16_t rst  :1;
+    uint16_t psh  :1;
+    uint16_t ack  :1;
+    uint16_t urg  :1;
+    uint16_t res2 :2;
     n16 window;
     n16 check;
     n16 urg_ptr;
@@ -75,7 +75,7 @@ void __ipaf_remove_socket(struct address_family_ip *af, struct socket *sock);
 
 __must_check struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup *addr, int total_max_score);
 
-uint16_t ip_chksum(uint16_t *data, size_t byte_count);
+n16 ip_chksum(uint16_t *head, size_t byte_count);
 int ip_process_sockaddr(struct packet *packet, const struct sockaddr *addr, socklen_t len);
 int ip_tx(struct packet *packet);
 

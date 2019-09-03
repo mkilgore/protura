@@ -54,19 +54,19 @@ static struct ip_forward_table forward_table;
  */
 static int netmask_count(n32 mask)
 {
-    if (!mask)
+    if (!n32_to_uint32(mask))
         return 0;
 
-    mask = ntohl(mask);
-    return 32 - bit32_find_first_set(mask);
+    uint32_t umask = ntohl(mask);
+    return 32 - bit32_find_first_set(umask);
 }
 
 static n32 netmask_create(int count)
 {
-    n32 mask;
+    uint32_t mask;
 
     if (count == 0)
-        return 0;
+        return htonl(0);
 
     mask = ~((1 << (32 - count)) - 1);
     return htonl(mask);
@@ -109,9 +109,9 @@ int ip_route_del(n32 dest_ip, n32 netmask)
 
         list_foreach_entry(&forward_table.zones[count].route_list, entry, route_entry) {
             kp_ip("Entry entry & netmask: "PRin_addr", dest & netmask: "PRin_addr"\n",
-                    Pin_addr(entry->dest_ip & netmask), Pin_addr(dest_ip & netmask));
+                    Pin_addr(in_addr_mask(entry->dest_ip, netmask)), Pin_addr(in_addr_mask(dest_ip, netmask)));
 
-            if ((entry->dest_ip & netmask) == (dest_ip & netmask)) {
+            if (n32_equal(in_addr_mask(entry->dest_ip, netmask), in_addr_mask(dest_ip, netmask))) {
                 kp_ip("Found route\n");
                 route = entry;
                 list_del(&route->route_entry);
@@ -141,7 +141,7 @@ int ip_route_get(n32 dest_ip, struct ip_route_entry *ret)
                 if (!flag_test(&route->iface->flags, NET_IFACE_UP))
                     continue;
 
-                if ((route->dest_ip & mask) == (dest_ip & mask)) {
+                if (n32_equal(in_addr_mask(route->dest_ip, mask), in_addr_mask(dest_ip, mask))) {
                     found = route;
                     break;
                 }
@@ -184,18 +184,18 @@ static int ip_route_readpage(void *page, size_t page_size, size_t *len)
             list_foreach_entry(&forward_table.zones[i].route_list, route, route_entry) {
                 memset(&new_ent, 0, sizeof(new_ent));
 
-                sockaddr_in_assign(&new_ent.dest, route->dest_ip, 0);
+                sockaddr_in_assign(&new_ent.dest, route->dest_ip, htons(0));
 
                 if (flag_test(&route->flags, IP_ROUTE_GATEWAY)) {
                     new_ent.flags |= RT_ENT_GATEWAY;
 
-                    sockaddr_in_assign(&new_ent.gateway, route->gateway_ip, 0);
+                    sockaddr_in_assign(&new_ent.gateway, route->gateway_ip, htons(0));
                 }
 
                 if (flag_test(&route->iface->flags, NET_IFACE_UP))
                     new_ent.flags |= RT_ENT_UP;
 
-                sockaddr_in_assign(&new_ent.netmask, mask, 0);
+                sockaddr_in_assign(&new_ent.netmask, mask, htons(0));
 
                 using_netdev_read(route->iface)
                     memcpy(&new_ent.netdev, route->iface->netdev_name, sizeof(new_ent.netdev));

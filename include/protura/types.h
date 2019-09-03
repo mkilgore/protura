@@ -45,29 +45,6 @@ typedef __kint32_t __kgid_t;
 typedef char * __kcaddr_t;
 typedef __kuintptr_t __kdaddr_t;
 
-/*
- * Types used to denoate 'network-order' 16 and 32-bit integers.
- */
-typedef __kuint32_t __kn32;
-typedef __kuint16_t __kn16;
-
-static inline __kn32 __khtonl(__kuint32_t hostl)
-{
-    return ((hostl & 0xFF000000) >> 24)
-         | ((hostl & 0x00FF0000) >> 8)
-         | ((hostl & 0x0000FF00) << 8)
-         | ((hostl & 0x000000FF) << 24);
-}
-
-static inline __kn16 __khtons(__kuint16_t hosts)
-{
-    return ((hosts & 0xFF00) >> 8)
-         | ((hosts & 0x00FF) << 8);
-}
-
-#define __kntohl(netl) __khtonl(netl)
-#define __kntohs(nets) __khtons(nets)
-
 #ifdef __KERNEL__
 
 #include <protura/compiler.h>
@@ -86,16 +63,10 @@ typedef __kumode_t umode_t;
 typedef __ktime_t time_t;
 typedef __kuseconds_t useconds_t;
 typedef __ksuseconds_t suseconds_t;
-typedef __kn16 n16;
-typedef __kn32 n32;
+// typedef __kn16 n16;
+// typedef __kn32 n32;
 typedef __kuid_t uid_t;
 typedef __kgid_t gid_t;
-
-#define htonl(host) __khtonl(host)
-#define htons(host) __khtons(host)
-
-#define ntohl(net) __kntohl(net)
-#define ntohs(net) __kntohs(net)
 
 #define tolower(c) \
     ({ \

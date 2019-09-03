@@ -1,6 +1,8 @@
 #ifndef INCLUDE_PROTURA_NET_H
 #define INCLUDE_PROTURA_NET_H
 
+#include <protura/types.h>
+#include <protura/net/types.h>
 #include <protura/net/sockaddr.h>
 #include <protura/net/socket.h>
 #include <protura/net/if.h>

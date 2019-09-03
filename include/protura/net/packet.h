@@ -33,7 +33,7 @@ struct packet {
 
     /* Address-family layer */
     in_addr_t route_addr;
-    n16 protocol_type;
+    uint8_t protocol_type;
 
     /* Protocol layer */
     struct sockaddr src_addr;

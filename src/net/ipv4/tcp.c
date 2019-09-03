@@ -80,7 +80,7 @@ static n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t l
     while ((sum >> 16) != 0)
         sum = (sum & 0xFFFF) + (sum >> 16);
 
-    return sum;
+    return htons(sum);
 }
 
 static int tcp_tx(struct protocol *proto, struct packet *packet)
@@ -92,8 +92,8 @@ void tcp_lookup_fill(struct ip_lookup *lookup, struct packet *packet)
 {
     struct tcp_header *tcp_head = packet->head;
 
-    lookup->src_port = ntohs(tcp_head->dest);
-    lookup->dest_port = ntohs(tcp_head->source);
+    lookup->src_port = tcp_head->dest;
+    lookup->dest_port = tcp_head->source;
 }
 
 static void tcp_transmit(struct work *work)
@@ -122,7 +122,7 @@ static void tcp_rx(struct protocol *proto, struct packet *packet)
     n16 checksum = tcp_checksum(&pseudo_header, packet->head, packet_len(packet));
 
     kp_tcp("packet: %d -> %d, %d bytes\n", ntohs(tcp_head->source), ntohs(tcp_head->dest), packet_len(packet));
-    kp_tcp("CHKSUM: %s\n", (checksum == 0xFFFF)? "Correct": "Incorrect");
+    kp_tcp("CHKSUM: %s\n", (ntohs(checksum) == 0xFFFF)? "Correct": "Incorrect");
 
     n16 tmp = tcp_head->dest;
     tcp_head->dest = tcp_head->source;
@@ -137,7 +137,7 @@ static void tcp_rx(struct protocol *proto, struct packet *packet)
     packet->tail -= (tcp_head->hl - 5) * 4;
 
     tcp_head->hl = 5;
-    tcp_head->check = 0;
+    tcp_head->check = htons(0);
 
     tcp_head->check = tcp_checksum(&pseudo_header, packet->head, packet_len(packet));
 

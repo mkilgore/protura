@@ -287,7 +287,7 @@ struct net_interface *netdev_get_inet(in_addr_t inet_addr)
     struct net_interface *iface = NULL;
     using_mutex(&net_interface_list_lock) {
         list_foreach_entry(&net_interface_list, net, iface_entry) {
-            if (inet_addr == net->in_addr) {
+            if (n32_equal(inet_addr, net->in_addr)) {
                 iface = netdev_dup(net);
                 break;
             }
@@ -303,7 +303,7 @@ struct net_interface *netdev_get_network(in_addr_t inet_addr)
     struct net_interface *iface = NULL;
     using_mutex(&net_interface_list_lock) {
         list_foreach_entry(&net_interface_list, net, iface_entry) {
-            if ((inet_addr & net->in_netmask) == (net->in_addr & net->in_netmask)) {
+            if (n32_equal(in_addr_mask(inet_addr, net->in_netmask), in_addr_mask(net->in_addr, net->in_netmask))) {
                 iface = netdev_dup(net);
                 break;
             }
