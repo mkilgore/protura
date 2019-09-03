@@ -9,7 +9,6 @@ struct socket;
 
 enum protocol_type {
     PROTOCOL_RAW,
-    PROTOCOL_ICMP,
     PROTOCOL_UDP,
     PROTOCOL_TCP,
 };

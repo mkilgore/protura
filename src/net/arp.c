@@ -85,7 +85,7 @@ static void arp_send_response(in_addr_t dest, uint8_t *dest_mac, struct net_inte
     struct arp_header header;
 
     /* Create a new broadcast packet */
-    arp_packet = packet_new();
+    arp_packet = packet_new(PAL_KERNEL);
     arp_packet->iface_tx = netdev_dup(iface);
     arp_packet->ll_type = htons(ETH_P_ARP);
     memcpy(arp_packet->dest_mac, dest_mac, 6);
@@ -117,7 +117,7 @@ static void arp_send_request(in_addr_t inet_addr, struct net_interface *iface)
     struct arp_header header;
 
     /* Create a new broadcast packet */
-    arp_packet = packet_new();
+    arp_packet = packet_new(PAL_KERNEL);
     arp_packet->iface_tx = netdev_dup(iface);
     arp_packet->ll_type = htons(ETH_P_ARP);
     memset(arp_packet->dest_mac, 0xFF, sizeof(arp_packet->dest_mac));

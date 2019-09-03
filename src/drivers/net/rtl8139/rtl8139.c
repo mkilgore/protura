@@ -45,7 +45,7 @@ static void rtl_handle_rx(struct net_interface_rtl *rtl)
         rx_buf = rtl->rx_buffer->virt + rtl->rx_cur_offset;
 
         if (rx_buf->len > 0) {
-            packet = packet_new();
+            packet = packet_new(PAL_KERNEL | PAL_ATOMIC);
 
             memcpy(packet->start, rx_buf->packet, rx_buf->len);
             packet->head = packet->start;

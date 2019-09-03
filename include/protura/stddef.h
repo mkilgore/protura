@@ -113,10 +113,11 @@
                     goto TP(__using_body, __LINE__); \
                 } else \
                     while (1) \
-                        if (1) { \
-                            goto TP(__using_finished, __LINE__); \
-                        } else \
-                            TP(__using_body, __LINE__):
+                        while (1) \
+                            if (1) { \
+                                goto TP(__using_finished, __LINE__); \
+                            } else \
+                                TP(__using_body, __LINE__):
 
 /* The 'nocheck' version doesn't take a condition, just two commands to run.
  *

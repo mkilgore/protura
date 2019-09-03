@@ -3,6 +3,9 @@
 
 #include <protura/compiler.h>
 #include <protura/fs/procfs.h>
+#include <protura/net/packet.h>
+#include <protura/net/sockaddr.h>
+#include <protura/net/af.h>
 
 extern struct procfs_entry_ops ipv4_route_ops;
 
@@ -46,7 +49,40 @@ struct tcp_header {
     n16 urg_ptr;
 } __packed;
 
+struct ip_lookup {
+    int proto;
+
+    in_addr_t src_addr;
+    in_port_t src_port;
+
+    in_addr_t dest_addr;
+    in_port_t dest_port;
+};
+
+struct address_family_ip {
+    struct address_family af;
+
+    /* FIXME: Replace this with a hash-table of the proto at least */
+    mutex_t lock;
+    list_head_t raw_sockets;
+    list_head_t sockets;
+};
+
+extern struct address_family_ip ip_address_family;
+
+void __ipaf_add_socket(struct address_family_ip *af, struct socket *sock);
+void __ipaf_remove_socket(struct address_family_ip *af, struct socket *sock);
+
+__must_check struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup *addr, int total_max_score);
+
 uint16_t ip_chksum(uint16_t *data, size_t byte_count);
+int ip_process_sockaddr(struct packet *packet, const struct sockaddr *addr, socklen_t len);
+int ip_tx(struct packet *packet);
+
+void tcp_lookup_fill(struct ip_lookup *, struct packet *);
+void udp_lookup_fill(struct ip_lookup *, struct packet *);
+
+void ip_raw_init(void);
 
 #ifdef CONFIG_KERNEL_LOG_IP
 # define kp_ip(str, ...) kp(KP_NORMAL, "IP: " str, ## __VA_ARGS__)

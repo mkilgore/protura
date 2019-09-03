@@ -32,22 +32,24 @@ int socket_open(int domain, int type, int protocol, struct socket **sock_ret)
 
     socket = socket_alloc();
 
+    kp(KP_NORMAL, "Socket alloc: %p, domain: %d, type: %d, proto: %d\n", socket, domain, type, protocol);
     socket->address_family = domain;
     socket->sock_type = type;
     socket->protocol = protocol;
-
     socket->af = address_family_lookup(domain);
+    kp(KP_NORMAL, "Socket AF: %p\n", socket->af);
 
     ret = (socket->af->ops->create) (socket->af, socket);
-    if (ret)
+    if (ret || !socket->proto)
         goto release_socket;
 
-    if (socket->proto) {
+    if (socket->proto->ops->create) {
         ret = (socket->proto->ops->create) (socket->proto, socket);
         if (ret)
             goto release_socket;
     }
 
+    kp(KP_NORMAL, "Socket ret: %p\n", socket);
     *sock_ret = socket;
     return ret;
 
@@ -61,32 +63,18 @@ int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags,
     int ret;
     struct packet *packet;
 
-    packet = packet_new();
+    packet = packet_new(PAL_KERNEL);
 
     packet_append_data(packet, buf, len);
 
-    if (socket->proto) {
-        kp(KP_NORMAL, "Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
-        kp(KP_NORMAL, "proto: %p\n", socket->proto);
-        kp(KP_NORMAL, "ops: %p\n", socket->proto->ops);
-        kp(KP_NORMAL, "sendto: %p\n", socket->proto->ops->sendto);
-        ret = socket->proto->ops->sendto(socket->proto, socket, packet, dest, addrlen);
-        if (ret) {
-            packet_free(packet);
-            return ret;
-        }
-    } else {
-        kp(KP_NORMAL, "NO PROTO Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
-        kp(KP_NORMAL, "af: %p\n", socket->af);
-        kp(KP_NORMAL, "ops: %p\n", socket->af->ops);
-        kp(KP_NORMAL, "sendto: %p\n", socket->af->ops->sendto);
-        packet->protocol_type = socket->protocol;
-
-        ret = socket->af->ops->sendto(socket->af, socket, packet, dest, addrlen);
-        if (ret) {
-            packet_free(packet);
-            return ret;
-        }
+    kp(KP_NORMAL, "Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
+    kp(KP_NORMAL, "proto: %p\n", socket->proto);
+    kp(KP_NORMAL, "ops: %p\n", socket->proto->ops);
+    kp(KP_NORMAL, "sendto: %p\n", socket->proto->ops->sendto);
+    ret = socket->proto->ops->sendto(socket->proto, socket, packet, dest, addrlen);
+    if (ret) {
+        packet_free(packet);
+        return ret;
     }
 
     return 0;
@@ -156,15 +144,9 @@ int socket_bind(struct socket *socket, const struct sockaddr *addr, socklen_t ad
     if (flag_test(&socket->flags, SOCKET_IS_BOUND))
         return -EINVAL;
 
-    ret = socket->af->ops->bind(socket->af, socket, addr, addrlen);
+    ret = socket->proto->ops->bind(socket->proto, socket, addr, addrlen);
     if (ret)
         return ret;
-
-    if (socket->proto) {
-        ret = socket->proto->ops->bind(socket->proto, socket, addr, addrlen);
-        if (ret)
-            return ret;
-    }
 
     flag_set(&socket->flags, SOCKET_IS_BOUND);
 
@@ -178,15 +160,9 @@ int socket_getsockname(struct socket *socket, struct sockaddr *addr, socklen_t *
     if (!flag_test(&socket->flags, SOCKET_IS_BOUND))
         return -EINVAL;
 
-    ret = socket->af->ops->getsockname(socket->af, socket, addr, addrlen);
+    ret = socket->proto->ops->getsockname(socket->proto, socket, addr, addrlen);
     if (ret)
         return ret;
-
-    if (socket->proto) {
-        ret = socket->proto->ops->getsockname(socket->proto, socket, addr, addrlen);
-        if (ret)
-            return ret;
-    }
 
     return 0;
 }
@@ -222,7 +198,7 @@ int socket_shutdown(struct socket *socket, int how)
         return 0;
 
     (socket->af->ops->delete) (socket->af, socket);
-    if (socket->proto)
+    if (socket->proto->ops->delete)
         (socket->proto->ops->delete) (socket->proto, socket);
 
     flag_set(&socket->flags, SOCKET_IS_CLOSED);

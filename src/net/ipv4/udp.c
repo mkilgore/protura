@@ -34,7 +34,6 @@ struct udp_protocol {
     struct protocol proto;
 
     mutex_t lock;
-    hlist_head_t listening_ports[UDP_HASH_SIZE];
     uint16_t next_port;
 };
 
@@ -46,12 +45,6 @@ static struct udp_protocol udp_protocol = {
     .next_port = UDP_LOWEST_AUTOBIND_PORT,
 };
 
-
-static int udp_hash_port(n16 port)
-{
-    return port % UDP_HASH_SIZE;
-}
-
 static n16 udp_find_port(struct udp_protocol *proto)
 {
     n16 port;
@@ -59,24 +52,13 @@ static n16 udp_find_port(struct udp_protocol *proto)
 
     using_mutex(&proto->lock) {
         do {
-            struct socket *sock;
-            int hash;
-
             port = htons(proto->next_port++);
 
             if (proto->next_port == 65536)
                 proto->next_port = UDP_LOWEST_AUTOBIND_PORT;
 
-            hash = udp_hash_port(port);
-
+            /* FIXME: check this against the address_family_ip socket table */
             found = 1;
-            hlist_foreach_entry(&proto->listening_ports[hash], sock, socket_hash_entry) {
-                struct udp_socket_private *priv = &sock->proto_private.udp;
-                if (priv->src_port == port) {
-                    found = 0;
-                    break;
-                }
-            }
         } while (!found);
     }
 
@@ -86,51 +68,37 @@ static n16 udp_find_port(struct udp_protocol *proto)
 
 static int udp_register_sock(struct udp_protocol *proto, struct socket *sock)
 {
-    n16 port = sock->proto_private.udp.src_port;
-    int hash = udp_hash_port(port);
-    struct socket *s;
     int ret = 0;
+    struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
 
-    using_mutex(&proto->lock) {
-        hlist_foreach_entry(&proto->listening_ports[hash], s, socket_hash_entry) {
-            if (s->proto_private.udp.src_port == port) {
-                ret = -EADDRINUSE;
-                break;
-            }
+    struct ip_lookup test_lookup = {
+        .proto = IPPROTO_UDP,
+        .src_port = sock->af_private.ipv4.src_port,
+        .src_addr = sock->af_private.ipv4.src_addr,
+        .dest_port = sock->af_private.ipv4.dest_port,
+        .dest_addr = sock->af_private.ipv4.dest_addr,
+    };
+
+    using_mutex(&af->lock) {
+        struct socket *s = __ipaf_find_socket(af, &test_lookup, 4);
+        if (s) {
+            ret = -EADDRINUSE;
+            break;
         }
 
-        if (!ret)
-            hlist_add(&proto->listening_ports[hash], &socket_dup(sock)->socket_hash_entry);
+        kp_udp("Adding socket, src_port: %d, src_addr: "PRin_addr", dest_port: %d, dest_addr: "PRin_addr"\n", test_lookup.src_port, Pin_addr(test_lookup.src_addr), test_lookup.dest_port, Pin_addr(test_lookup.dest_addr));
+
+        __ipaf_add_socket(af, sock);
     }
 
     return ret;
 }
 
-static void udp_unregister_port(struct udp_protocol *proto, n16 port)
-{
-    int hash = udp_hash_port(port);
-    struct socket *s;
-
-    using_mutex(&proto->lock) {
-        hlist_foreach_entry(&proto->listening_ports[hash], s, socket_hash_entry) {
-            if (s->proto_private.udp.src_port == port) {
-                hlist_del(&s->socket_hash_entry);
-                break;
-            }
-        }
-    }
-
-    if (s)
-        socket_put(s);
-}
-
 void udp_rx(struct protocol *proto, struct packet *packet)
 {
-    struct udp_protocol *udp = container_of(proto, struct udp_protocol, proto);
     struct udp_header *header = packet->head;
     struct sockaddr_in *in;
-    struct socket *sock, *found = NULL;
-    int hash;
+    struct socket *sock = packet->sock;
 
     in = (struct sockaddr_in *)&packet->src_addr;
     in->sin_port = header->source_port;
@@ -141,28 +109,9 @@ void udp_rx(struct protocol *proto, struct packet *packet)
     packet->tail = packet->head + ntohs(header->length);
     packet->head += sizeof(*header);
 
-    hash = udp_hash_port(header->dest_port);
-
-    using_mutex(&udp->lock) {
-        hlist_foreach_entry(&udp->listening_ports[hash], sock, socket_hash_entry) {
-            struct udp_socket_private *priv = &sock->proto_private.udp;
-            if (priv->src_port == header->dest_port) {
-                found = socket_dup(sock);
-                break;
-            }
-        }
-    }
-
-    if (found) {
-        kp_udp("Found bound socket\n");
-        using_mutex(&sock->recv_lock) {
-            list_add_tail(&sock->recv_queue, &packet->packet_entry);
-            wait_queue_wake(&sock->recv_wait_queue);
-        }
-
-        socket_put(found);
-    } else {
-        packet_free(packet);
+    using_mutex(&sock->recv_lock) {
+        list_add_tail(&sock->recv_queue, &packet->packet_entry);
+        wait_queue_wake(&sock->recv_wait_queue);
     }
 }
 
@@ -171,8 +120,6 @@ int udp_tx(struct packet *packet)
     const struct sockaddr_in *in;
     size_t plen;
     struct udp_header *header;
-    struct socket *sock = packet->sock;
-    struct address_family *af = sock->af;
 
     packet->head -= sizeof(*header);
     header = packet->head;
@@ -190,7 +137,7 @@ int udp_tx(struct packet *packet)
 
     packet->protocol_type = IPPROTO_UDP;
 
-    return af->ops->packet_tx(af, packet);
+    return ip_tx(packet);
 }
 
 static int udp_sendto(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
@@ -203,11 +150,11 @@ static int udp_sendto(struct protocol *protocol, struct socket *sock, struct pac
     in = (const struct sockaddr_in *)addr;
 
     sockaddr_in_assign(&packet->dest_addr, in->sin_addr.s_addr, in->sin_port);
-    sockaddr_in_assign(&packet->src_addr, 0, sock->proto_private.udp.src_port);
+    sockaddr_in_assign(&packet->src_addr, 0, htons(sock->af_private.ipv4.src_port));
 
     packet->sock = socket_dup(sock);
 
-    sock->af->ops->process_sockaddr(sock->af, packet, addr, len);
+    ip_process_sockaddr(packet, addr, len);
     return udp_tx(packet);
 }
 
@@ -220,11 +167,11 @@ static int udp_bind(struct protocol *protocol, struct socket *sock, const struct
     if (len < sizeof(*in))
         return -EFAULT;
 
-    sock->proto_private.udp.src_port = in->sin_port;
+    sock->af_private.ipv4.src_port = ntohs(in->sin_port);
 
     ret = udp_register_sock(udp, sock);
     if (ret) {
-        sock->proto_private.udp.src_port = 0;
+        sock->af_private.ipv4.src_port = 0;
         return ret;
     }
 
@@ -236,11 +183,11 @@ static int udp_autobind(struct protocol *protocol, struct socket *sock)
     int ret;
     struct udp_protocol *udp = container_of(protocol, struct udp_protocol, proto);
 
-    sock->proto_private.udp.src_port = udp_find_port(udp);
+    sock->af_private.ipv4.src_port = udp_find_port(udp);
 
     ret = udp_register_sock(udp, sock);
     if (ret) {
-        sock->proto_private.udp.src_port = 0;
+        sock->af_private.ipv4.src_port = 0;
         return ret;
     }
 
@@ -254,10 +201,12 @@ static int udp_create(struct protocol *protocol, struct socket *sock)
 
 static int udp_delete(struct protocol *protocol, struct socket *sock)
 {
-    struct udp_protocol *udp = container_of(protocol, struct udp_protocol, proto);
+    struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
 
-    if (sock->proto_private.udp.src_port)
-        udp_unregister_port(udp, sock->proto_private.udp.src_port);
+    if (sock->af_private.ipv4.src_port) {
+        using_mutex(&af->lock)
+            __ipaf_remove_socket(af, sock);
+    }
 
     return 0;
 }
@@ -269,10 +218,18 @@ static int udp_getsockname(struct protocol *protocol, struct socket *sock, struc
     if (*len < sizeof(*in))
         return -EFAULT;
 
-    in->sin_port = sock->proto_private.udp.src_port;
+    in->sin_port = htons(sock->af_private.ipv4.src_port);
     *len = sizeof(*in);
 
     return 0;
+}
+
+void udp_lookup_fill(struct ip_lookup *lookup, struct packet *packet)
+{
+    struct udp_header *header = packet->head;
+
+    lookup->src_port = ntohs(header->dest_port);
+    lookup->dest_port = ntohs(header->source_port);
 }
 
 static struct protocol_ops udp_protocol_ops = {

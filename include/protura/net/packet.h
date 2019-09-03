@@ -65,9 +65,9 @@ static inline void packet_init(struct packet *packet)
 void net_packet_receive(struct packet *);
 void net_packet_transmit(struct packet *);
 
-struct packet *packet_new(void);
+struct packet *packet_new(int pal_flags);
 void packet_free(struct packet *);
-struct packet *packet_copy(struct packet *);
+struct packet *packet_copy(struct packet *packet, int pal_flags);
 
 void packet_add_header(struct packet *, const void *header, size_t header_len);
 void packet_append_data(struct packet *, const void *data, size_t data_len);

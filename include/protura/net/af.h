@@ -28,25 +28,12 @@ static inline void address_family_init(struct address_family *af, int af_type, s
 }
 
 struct address_family_ops {
-    void (*packet_rx) (struct address_family *, struct packet *);
-    int (*packet_tx) (struct address_family *, struct packet *);
-
     void (*setup_af) (struct address_family *);
-
-    /* Parses the sockaddr (can be NULL) or uses other information to add routing informatiog to the packet */
-    int (*process_sockaddr) (struct address_family *, struct packet *, const struct sockaddr *, socklen_t len);
 
     int (*create) (struct address_family *, struct socket *);
     int (*delete) (struct address_family *, struct socket *);
 
-    int (*sendto) (struct address_family *, struct socket *, struct packet *, const struct sockaddr *, socklen_t);
-
-    int (*bind) (struct address_family *, struct socket *, const struct sockaddr *, socklen_t);
-    int (*autobind) (struct address_family *, struct socket *);
-    int (*getsockname) (struct address_family *, struct socket *, struct sockaddr *, socklen_t *);
-
-    int (*connect) (struct address_family *, struct socket *, const struct sockaddr *, socklen_t);
-    int (*accept) (struct address_family *, struct socket *, struct socket **, struct sockaddr *, socklen_t *);
+    void (*packet_rx) (struct address_family *, struct packet *);
 };
 
 void address_family_register(struct address_family *);

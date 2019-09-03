@@ -30,33 +30,24 @@ struct icmp_header {
     n32 rest;
 } __packed;
 
-struct icmp_protocol {
-    struct protocol proto;
+static struct task *icmp_sock_thread;
+static struct socket *icmp_socket;
 
-    struct socket *icmp_socket;
-};
-
-static struct protocol_ops icmp_protocol_ops;
-
-static struct icmp_protocol icmp_protocol = {
-    .proto = PROTOCOL_INIT(icmp_protocol.proto, PROTOCOL_ICMP, &icmp_protocol_ops),
-};
-
-/*
- * This is spawn in a worker thread becaues we can't hang-up the
- * packet-processing thread while using the icmp socket, since the socket may
- * trigger other packets to need to be handled (For example, ARP packets).
- */
-
-static void icmp_packet_work(struct work *work)
+static void icmp_handle_packet(struct packet *packet)
 {
-    struct packet *packet = container_of(work, struct packet, dwork.work);
     struct icmp_header *header = packet->head;
     struct sockaddr_in *src_in;
     int ret;
 
     struct ip_header *ip_head = packet->af_head;
     size_t icmp_len = ntohs(ip_head->total_length) - ip_head->ihl * 4;
+
+    kp_icmp("af_head: %p, start: %p\n", packet->af_head, packet->start);
+    kp_icmp("ip total length: %d, HL: %d\n", ntohs(ip_head->total_length), ip_head->ihl);
+    kp_icmp("tail length: %ld\n", packet->tail - packet->head);
+    kp_icmp("  Packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(ip_head->source_ip), Pin_addr(ip_head->dest_ip));
+    kp_icmp("  Version: %d, HL: %d, %d bytes\n", ip_head->version, ip_head->ihl, ip_head->ihl * 4);
+    kp_icmp("  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", ip_head->protocol, ntohs(ip_head->id), ntohs(ip_head->total_length) - ip_head->ihl * 4);
 
     switch (header->type) {
     case ICMP_TYPE_ECHO_REQUEST:
@@ -67,7 +58,7 @@ static void icmp_packet_work(struct work *work)
 
         kp_icmp("Checksum: 0x%04X, Len: %d\n", header->chksum, icmp_len);
 
-        ret = socket_sendto(icmp_protocol.icmp_socket, packet->head, packet_len(packet), 0, &packet->src_addr, packet->src_len, 0);
+        ret = socket_sendto(packet->sock, packet->head, packet_len(packet), 0, &packet->src_addr, packet->src_len, 0);
         kp_icmp("Reply to "PRin_addr": %d\n", Pin_addr(src_in->sin_addr.s_addr), ret);
         break;
 
@@ -78,25 +69,35 @@ static void icmp_packet_work(struct work *work)
     packet_free(packet);
 }
 
-static void icmp_rx(struct protocol *proto, struct packet *packet)
+static int icmp_handler(void *ptr)
 {
-    kwork_schedule_callback(&packet->dwork.work, icmp_packet_work);
-}
+    struct socket *sock = ptr;
+    while (1) {
+        struct packet *packet;
 
-static struct protocol_ops icmp_protocol_ops = {
-    .packet_rx = icmp_rx,
-};
+        using_mutex(&sock->recv_lock) {
+            wait_queue_event_mutex(&sock->recv_wait_queue, !list_empty(&sock->recv_queue), &sock->recv_lock);
+            packet = list_take_first(&sock->recv_queue, struct packet, packet_entry);
+        }
+
+        icmp_handle_packet(packet);
+    }
+
+    return 0;
+}
 
 void icmp_init(void)
 {
-    protocol_register(&icmp_protocol.proto);
+
 }
 
 void icmp_init_delay(void)
 {
     int ret;
-    ret = socket_open(AF_INET, SOCK_RAW, IPPROTO_ICMP, &icmp_protocol.icmp_socket);
+    ret = socket_open(AF_INET, SOCK_RAW, IPPROTO_ICMP, &icmp_socket);
     if (ret)
         panic("Error opening ICMP Socket!\n");
-}
 
+    icmp_sock_thread = task_kernel_new_interruptable("icmp-thread", icmp_handler, icmp_socket);
+    scheduler_task_add(icmp_sock_thread);
+}

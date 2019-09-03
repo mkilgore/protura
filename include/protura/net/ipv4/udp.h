@@ -12,8 +12,6 @@ int udp_tx(struct packet *packet);
 void udp_init(void);
 
 struct udp_socket_private {
-    n16 src_port;
-    n16 dest_port;
 };
 
 #endif

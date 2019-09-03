@@ -42,8 +42,13 @@ void ip_rx(struct address_family *afamily, struct packet *packet);
 in_addr_t inet_addr(const char *ip);
 
 struct ipv4_socket_private {
-    in_addr_t bind_addr;
+    int proto;
+
+    in_addr_t src_addr; // bind_addr
     in_addr_t dest_addr;
+
+    in_port_t src_port;
+    in_port_t dest_port;
 };
 
 static inline void sockaddr_in_assign(struct sockaddr *sock, in_addr_t addr, in_port_t port)

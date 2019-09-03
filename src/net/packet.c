@@ -59,7 +59,7 @@ static void packet_clear(struct packet *packet)
     packet->proto_head = NULL;
 }
 
-struct packet *packet_new(void)
+struct packet *packet_new(int pal_flags)
 {
     struct packet *packet = NULL;
 
@@ -68,12 +68,12 @@ struct packet *packet_new(void)
             packet = list_take_first(&packet_free_list, struct packet, packet_entry);
 
     if (!packet) {
-        packet = kmalloc(sizeof(*packet), PAL_KERNEL);
+        packet = kmalloc(sizeof(*packet), pal_flags);
         packet_init(packet);
-        packet->start = palloc_va(0, PAL_KERNEL);
+        packet->start = palloc_va(0, pal_flags);
         packet->head = packet->start + PACKET_RESERVE_HEADER_SPACE;
         packet->tail = packet->head;
-        packet->end = packet->head + PG_SIZE;
+        packet->end = packet->start + PG_SIZE;
     }
 
     return packet;
@@ -87,13 +87,22 @@ void packet_free(struct packet *packet)
         list_add_tail(&packet_free_list, &packet->packet_entry);
 }
 
-struct packet *packet_copy(struct packet *packet)
+struct packet *packet_copy(struct packet *packet, int pal_flags)
 {
-    struct packet *dup_packet = packet_new();
+    struct packet *dup_packet = packet_new(pal_flags);
 
     dup_packet->head = dup_packet->start + (packet->head - packet->start);
     dup_packet->tail = dup_packet->start + (packet->tail - packet->start);
-    memcpy(dup_packet->head, packet->head, packet_len(packet));
+    memcpy(dup_packet->start, packet->start, packet->end - packet->start);
+
+    if (packet->ll_head)
+        dup_packet->ll_head = dup_packet->start + (packet->ll_head - packet->start);
+
+    if (packet->af_head)
+        dup_packet->af_head = dup_packet->start + (packet->af_head - packet->start);
+
+    if (packet->proto_head)
+        dup_packet->proto_head = dup_packet->start + (packet->proto_head - packet->start);
 
     dup_packet->flags = packet->flags;
 

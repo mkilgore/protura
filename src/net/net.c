@@ -42,6 +42,7 @@ void net_init(void)
 
     ip_init();
 
+    ip_raw_init();
     udp_init();
     tcp_init();
     icmp_init();

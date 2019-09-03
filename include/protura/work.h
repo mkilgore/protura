@@ -69,6 +69,7 @@ enum work_type {
 
 enum work_flags {
     WORK_SCHEDULED,
+    WORK_ONESHOT,
 };
 
 struct work {

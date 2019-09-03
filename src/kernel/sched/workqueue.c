@@ -19,7 +19,6 @@
 
 static struct workqueue kwork = WORKQUEUE_INIT(kwork);
 
-
 /*
  * `struct work` is designed such that a paticular instance of `struct work`
  * will only ever be run on one workqueue thread at a time (If running on a
@@ -36,6 +35,7 @@ static int workqueue_thread(void *q)
 {
     struct workqueue *queue = q;
     struct work *work = NULL;
+    int clear_work = 0;
 
     while (1) {
         using_spinlock(&queue->lock) {
@@ -49,13 +49,19 @@ static int workqueue_thread(void *q)
             sleep_event_spinlock(!list_empty(&queue->work_list), &queue->lock);
 
             work = list_take_first(&queue->work_list, struct work, work_entry);
-            list_add_tail(&queue->work_running_list, &work->work_entry);
+
+            clear_work = flag_test(&work->flags, WORK_ONESHOT);
+            if (!clear_work)
+                list_add_tail(&queue->work_running_list, &work->work_entry);
 
             /* This is fine, since we're about to run it anyway */
             flag_clear(&work->flags, WORK_SCHEDULED);
         }
 
         (work->callback) (work);
+
+        if (clear_work)
+            work = NULL;
     }
 
     return 0;

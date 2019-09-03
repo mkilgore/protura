@@ -29,9 +29,6 @@ void tcp_init(void);
 struct tcp_socket_private {
     int tcp_state;
 
-    n16 src_port;
-    n16 dest_port;
-
     n32 rcv_next;
     n32 rcv_up;
     n32 rcv_window;
