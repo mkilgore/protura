@@ -19,6 +19,12 @@
 #include <arch/paging.h>
 #include <protura/mm/slab.h>
 
+#ifdef CONFIG_KERNEL_LOG_SLAB
+# define kp_slab(str, ...) kp(KP_NORMAL, "SLAB: " str, ## __VA_ARGS__)
+#else
+# define kp_slab(str, ...) do { ; } while (0)
+#endif
+
 struct page_frame_obj_empty {
     struct page_frame_obj_empty *next;
 };
@@ -53,9 +59,9 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
     int i, page_index = 5;
 
 
-    kp(KP_TRACE, "Calling palloc with %d, %d\n", flags, page_index);
+    kp_slab("Calling palloc with %d, %d\n", flags, page_index);
     newframe = palloc_va(page_index, flags);
-    kp(KP_TRACE, "New frame for slab: %p, name: %s\n", newframe, slab->slab_name);
+    kp_slab("New frame for slab: %p, name: %s\n", newframe, slab->slab_name);
 
     if (!newframe)
         return NULL;
