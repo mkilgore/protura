@@ -50,7 +50,7 @@ struct tcp_header {
 } __packed;
 
 struct ip_lookup {
-    int proto;
+    uint8_t proto;
 
     in_addr_t src_addr;
     in_port_t src_port;
