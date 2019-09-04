@@ -88,11 +88,6 @@ static int icmp_handler(void *ptr)
 
 void icmp_init(void)
 {
-
-}
-
-void icmp_init_delay(void)
-{
     int ret;
     ret = socket_open(AF_INET, SOCK_RAW, IPPROTO_ICMP, &icmp_socket);
     if (ret)

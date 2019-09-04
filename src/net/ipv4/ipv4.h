@@ -5,6 +5,7 @@
 #include <protura/fs/procfs.h>
 #include <protura/net/packet.h>
 #include <protura/net/sockaddr.h>
+#include <protura/net/proto.h>
 #include <protura/net/af.h>
 
 extern struct procfs_entry_ops ipv4_route_ops;
@@ -82,7 +83,9 @@ int ip_tx(struct packet *packet);
 void tcp_lookup_fill(struct ip_lookup *, struct packet *);
 void udp_lookup_fill(struct ip_lookup *, struct packet *);
 
-void ip_raw_init(void);
+struct protocol *udp_get_proto(void);
+struct protocol *tcp_get_proto(void);
+struct protocol *ip_raw_get_proto(void);
 
 #ifdef CONFIG_KERNEL_LOG_IP
 # define kp_ip(str, ...) kp(KP_NORMAL, "IP: " str, ## __VA_ARGS__)

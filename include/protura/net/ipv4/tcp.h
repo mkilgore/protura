@@ -2,6 +2,7 @@
 #define INCLUDE_PROTURA_NET_PROTO_TCP_H
 
 #include <protura/types.h>
+#include <protura/net/types.h>
 
 enum {
     TCP_ESTABLISHED = 1,
@@ -20,11 +21,6 @@ enum {
 #ifdef __KERNEL__
 
 #include <protura/list.h>
-
-struct protocol;
-struct packet;
-
-void tcp_init(void);
 
 struct tcp_socket_private {
     int tcp_state;

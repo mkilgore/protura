@@ -27,7 +27,7 @@
 
 static struct protocol_ops ip_raw_protocol_ops;
 
-static struct protocol ip_raw_proto = PROTOCOL_INIT(ip_raw_proto, PROTOCOL_RAW, &ip_raw_protocol_ops);
+static struct protocol ip_raw_proto = PROTOCOL_INIT(&ip_raw_protocol_ops);
 
 static void ip_raw_rx(struct protocol *proto, struct packet *packet)
 {
@@ -117,7 +117,7 @@ static struct protocol_ops ip_raw_protocol_ops  = {
     .getsockname = ip_raw_getsockname,
 };
 
-void ip_raw_init(void)
+struct protocol *ip_raw_get_proto(void)
 {
-    protocol_register(&ip_raw_proto);
+    return &ip_raw_proto;
 }

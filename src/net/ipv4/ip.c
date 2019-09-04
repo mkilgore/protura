@@ -217,13 +217,13 @@ static int ip_create(struct address_family *family, struct socket *socket)
         && (socket->protocol == 0 || socket->protocol == IPPROTO_UDP)) {
         kp_ip("Looking up UDP protocol\n");
 
-        socket->proto = protocol_lookup(PROTOCOL_UDP);
+        socket->proto = udp_get_proto();
         socket->af_private.ipv4.proto = IPPROTO_UDP;
     } else if (socket->sock_type == SOCK_RAW) {
         if (socket->protocol > 255 || socket->protocol < 0)
             return -EINVAL;
 
-        socket->proto = protocol_lookup(PROTOCOL_RAW);
+        socket->proto = ip_raw_get_proto();
         socket->af_private.ipv4.proto = socket->protocol;
         kp(KP_NORMAL, "Proto: %p\n", socket->proto);
     } else {

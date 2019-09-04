@@ -25,25 +25,3 @@
 static mutex_t proto_list_lock = MUTEX_INIT(proto_list_lock, "proto-list-lock");
 static list_head_t proto_list = LIST_HEAD_INIT(proto_list);
 
-void protocol_register(struct protocol *proto)
-{
-    using_mutex(&proto_list_lock) {
-        list_add(&proto_list, &proto->proto_entry);
-    }
-}
-
-struct protocol *protocol_lookup(enum protocol_type p)
-{
-    struct protocol *proto, *ret = NULL;
-    using_mutex(&proto_list_lock) {
-        list_foreach_entry(&proto_list, proto, proto_entry) {
-            if (proto->protocol_id == p) {
-                ret = proto;
-                break;
-            }
-        }
-    }
-
-    return ret;
-}
-

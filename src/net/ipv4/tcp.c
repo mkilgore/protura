@@ -42,7 +42,7 @@ struct tcp_protocol {
 static struct protocol_ops tcp_protocol_ops;
 
 static struct tcp_protocol tcp_protocol = {
-    .proto = PROTOCOL_INIT(tcp_protocol.proto, PROTOCOL_TCP, &tcp_protocol_ops),
+    .proto = PROTOCOL_INIT(&tcp_protocol_ops),
     .lock = MUTEX_INIT(tcp_protocol.lock, "tcp-protocol-lock"),
     .next_port = TCP_LOWEST_AUTOBIND_PORT,
 };
@@ -152,8 +152,7 @@ static struct protocol_ops tcp_protocol_ops = {
     .packet_rx = tcp_rx,
 };
 
-void tcp_init(void)
+struct protocol *tcp_get_proto(void)
 {
-    protocol_register(&tcp_protocol.proto);
+    return &tcp_protocol.proto;
 }
-

@@ -40,7 +40,7 @@ struct udp_protocol {
 static struct protocol_ops udp_protocol_ops;
 
 static struct udp_protocol udp_protocol = {
-    .proto = PROTOCOL_INIT(udp_protocol.proto, PROTOCOL_UDP, &udp_protocol_ops),
+    .proto = PROTOCOL_INIT(&udp_protocol_ops),
     .lock = MUTEX_INIT(udp_protocol.lock, "udp-protocol-lock"),
     .next_port = UDP_LOWEST_AUTOBIND_PORT,
 };
@@ -243,8 +243,7 @@ static struct protocol_ops udp_protocol_ops = {
     .delete = udp_delete,
 };
 
-void udp_init(void)
+struct protocol *udp_get_proto(void)
 {
-    protocol_register(&udp_protocol.proto);
+    return &udp_protocol.proto;
 }
-

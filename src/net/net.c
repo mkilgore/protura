@@ -42,15 +42,10 @@ void net_init(void)
 
     ip_init();
 
-    ip_raw_init();
-    udp_init();
-    tcp_init();
-    icmp_init();
-
     address_family_setup();
     linklayer_setup();
 
-    icmp_init_delay();
+    icmp_init();
 
     procfs_register_entry_ops(net_dir_procfs, "netdev", &netdevice_procfs);
     procfs_register_entry_ops(net_dir_procfs, "sockets", &socket_procfs);

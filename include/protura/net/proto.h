@@ -7,28 +7,18 @@
 struct packet;
 struct socket;
 
-enum protocol_type {
-    PROTOCOL_RAW,
-    PROTOCOL_UDP,
-    PROTOCOL_TCP,
-};
-
 struct protocol {
-    list_node_t proto_entry;
-    enum protocol_type protocol_id;
     struct protocol_ops *ops;
 };
 
-#define PROTOCOL_INIT(proto, type, op) \
+#define PROTOCOL_INIT(op) \
     { \
-        .proto_entry = LIST_NODE_INIT((proto).proto_entry), \
-        .protocol_id = type, \
         .ops = op, \
     }
 
-static inline void protocol_init(struct protocol *proto, enum protocol_type id, struct protocol_ops *ops)
+static inline void protocol_init(struct protocol *proto, struct protocol_ops *ops)
 {
-    *proto = (struct protocol)PROTOCOL_INIT(*proto, id, ops);
+    *proto = (struct protocol)PROTOCOL_INIT(ops);
 }
 
 struct protocol_ops {
@@ -47,8 +37,5 @@ struct protocol_ops {
     int (*connect) (struct protocol *, struct socket *, const struct sockaddr *, socklen_t);
     int (*accept) (struct protocol *, struct socket *, struct socket **, struct sockaddr *, socklen_t *);
 };
-
-void protocol_register(struct protocol *);
-struct protocol *protocol_lookup(enum protocol_type);
 
 #endif
