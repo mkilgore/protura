@@ -17,7 +17,6 @@
 #include <protura/fs/procfs.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
-#include <protura/net/ipv4/ip_route.h>
 #include <protura/net/socket.h>
 #include <protura/net.h>
 
