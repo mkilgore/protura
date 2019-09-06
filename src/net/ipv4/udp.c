@@ -140,21 +140,45 @@ int udp_tx(struct packet *packet)
     return ip_tx(packet);
 }
 
+static int udp_process_sockaddr(struct packet *packet, const struct sockaddr *addr, socklen_t len)
+{
+    if (addr) {
+        const struct sockaddr_in *in;
+
+        if (sizeof(*in) > len)
+            return -EFAULT;
+
+        if (addr->sa_family != AF_INET)
+            return -EINVAL;
+
+        in = (const struct sockaddr_in *)addr;
+
+        sockaddr_in_assign_port(&packet->dest_addr, in->sin_port);
+    } else if (flag_test(&packet->sock->flags, SOCKET_IS_CONNECTED)) {
+        sockaddr_in_assign_port(&packet->dest_addr, packet->sock->af_private.ipv4.dest_port);
+    } else {
+        return -EDESTADDRREQ;
+    }
+
+    return 0;
+}
+
 static int udp_sendto(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
-    const struct sockaddr_in *in;
+    kp_udp("Processing sockaddr: %p\n", addr);
+    int ret = udp_process_sockaddr(packet, addr, len);
+    if (ret)
+        return ret;
 
-    if (sizeof(*in) > len)
-        return -EFAULT;
-
-    in = (const struct sockaddr_in *)addr;
-
-    sockaddr_in_assign(&packet->dest_addr, in->sin_addr.s_addr, in->sin_port);
+    kp_udp("Assigning packet src_port\n");
     sockaddr_in_assign(&packet->src_addr, INADDR_ANY, sock->af_private.ipv4.src_port);
 
-    packet->sock = socket_dup(sock);
+    kp_udp("Processing packet IP sockaddr: %p\n", addr);
+    ret = ip_process_sockaddr(packet, addr, len);
+    if (ret)
+        return ret;
 
-    ip_process_sockaddr(packet, addr, len);
+    kp_udp("Packet Tx\n");
     return udp_tx(packet);
 }
 
@@ -167,6 +191,10 @@ static int udp_bind(struct protocol *protocol, struct socket *sock, const struct
     if (len < sizeof(*in))
         return -EFAULT;
 
+    if (addr->sa_family != AF_INET)
+        return -EINVAL;
+
+    sock->af_private.ipv4.src_addr = in->sin_addr.s_addr;
     sock->af_private.ipv4.src_port = in->sin_port;
 
     ret = udp_register_sock(udp, sock);
@@ -183,6 +211,7 @@ static int udp_autobind(struct protocol *protocol, struct socket *sock)
     int ret;
     struct udp_protocol *udp = container_of(protocol, struct udp_protocol, proto);
 
+    sock->af_private.ipv4.src_addr = INADDR_ANY;
     sock->af_private.ipv4.src_port = udp_find_port(udp);
 
     ret = udp_register_sock(udp, sock);
@@ -190,6 +219,24 @@ static int udp_autobind(struct protocol *protocol, struct socket *sock)
         sock->af_private.ipv4.src_port = htons(0);
         return ret;
     }
+
+    return 0;
+}
+
+static int udp_connect(struct protocol *protocol, struct socket *socket, const struct sockaddr *addr, socklen_t len)
+{
+    const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
+
+    if (len < sizeof(*in))
+        return -EFAULT;
+
+    if (addr->sa_family != AF_INET)
+        return -EINVAL;
+
+    socket->af_private.ipv4.dest_addr = in->sin_addr.s_addr;
+    socket->af_private.ipv4.dest_port = in->sin_port;
+
+    flag_set(&socket->flags, SOCKET_IS_CONNECTED);
 
     return 0;
 }
@@ -235,6 +282,7 @@ void udp_lookup_fill(struct ip_lookup *lookup, struct packet *packet)
 static struct protocol_ops udp_protocol_ops = {
     .packet_rx = udp_rx,
     .sendto = udp_sendto,
+    .connect = udp_connect,
     .bind = udp_bind,
     .autobind = udp_autobind,
     .getsockname = udp_getsockname,

@@ -93,6 +93,9 @@
 #define SYSCALL_SETGROUPS    0x51
 #define SYSCALL_GETGROUPS    0x52
 #define SYSCALL_UNAME        0x53
+#define SYSCALL_ACCEPT       0x54
+#define SYSCALL_CONNECT      0x55
+#define SYSCALL_LISTEN       0x56
 
 #ifdef __KERNEL__
 #ifndef ASM

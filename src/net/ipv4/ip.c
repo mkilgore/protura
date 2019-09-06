@@ -199,11 +199,14 @@ int ip_process_sockaddr(struct packet *packet, const struct sockaddr *addr, sock
         if (sizeof(*in) > len)
             return -EFAULT;
 
+        if (addr->sa_family != AF_INET)
+            return -EINVAL;
+
         in = (const struct sockaddr_in *)addr;
 
         sockaddr_in_assign_addr(&packet->dest_addr, in->sin_addr.s_addr);
-    } else if (flag_test(&packet->sock->flags, SOCKET_IS_BOUND)) {
-        sockaddr_in_assign_addr(&packet->dest_addr, packet->sock->af_private.ipv4.src_addr);
+    } else if (flag_test(&packet->sock->flags, SOCKET_IS_CONNECTED)) {
+        sockaddr_in_assign_addr(&packet->dest_addr, packet->sock->af_private.ipv4.dest_addr);
     } else {
         return -EDESTADDRREQ;
     }

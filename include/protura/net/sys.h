@@ -20,6 +20,9 @@ int sys_getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *
 
 int sys_shutdown(int sockfd, int how);
 
+int sys_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+int sys_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+int sys_listen(int sockfd, int backlog);
 
 int __sys_sendto(struct file *, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen);
 int __sys_recvfrom(struct file *, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);

@@ -444,6 +444,21 @@ static void sys_handler_uname(struct irq_frame *frame)
     frame->eax = sys_uname((struct utsname *)frame->ebx);
 }
 
+static void sys_handler_accept(struct irq_frame *frame)
+{
+    frame->eax = sys_accept(frame->ebx, (struct sockaddr *)frame->ecx, (socklen_t *)frame->edx);
+}
+
+static void sys_handler_connect(struct irq_frame *frame)
+{
+    frame->eax = sys_connect(frame->ebx, (const struct sockaddr *)frame->ecx, (socklen_t)frame->edx);
+}
+
+static void sys_handler_listen(struct irq_frame *frame)
+{
+    frame->eax = sys_listen(frame->ebx, frame->ecx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -534,6 +549,9 @@ static struct syscall_handler {
     SYSCALL(SETGROUPS, sys_handler_setgroups),
     SYSCALL(GETGROUPS, sys_handler_getgroups),
     SYSCALL(UNAME, sys_handler_uname),
+    SYSCALL(ACCEPT, sys_handler_accept),
+    SYSCALL(CONNECT, sys_handler_connect),
+    SYSCALL(LISTEN, sys_handler_listen),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

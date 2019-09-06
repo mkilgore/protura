@@ -15,6 +15,7 @@ struct protocol;
 enum socket_flags {
     SOCKET_IS_BOUND,
     SOCKET_IS_CLOSED,
+    SOCKET_IS_CONNECTED,
 };
 
 struct socket {
@@ -94,6 +95,11 @@ int socket_getsockname(struct socket *, struct sockaddr *addr, socklen_t *addrle
 
 int socket_setsockopt(struct socket *, int level, int optname, const void *optval, socklen_t optlen);
 int socket_getsockopt(struct socket *, int level, int optname, void *optval, socklen_t *optlen);
+
+/* FIXME: These should take a 'non-blocking' flag */
+int socket_accept(struct socket *socket, struct sockaddr *addr, socklen_t *addrlen, struct socket **new_socket);
+int socket_connect(struct socket *, const struct sockaddr *addr, socklen_t addrlen);
+int socket_listen(struct socket *, int backlog);
 
 int socket_shutdown(struct socket *, int how);
 

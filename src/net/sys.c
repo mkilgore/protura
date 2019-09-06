@@ -230,11 +230,13 @@ int sys_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *
     struct file *filp;
     int ret;
 
+    kp(KP_NORMAL, "sys_recvfrom: addrlen: %p, *addrlen: %d\n", addrlen, addrlen? *addrlen: 100);
+
     ret = user_check_region(buf, len, F(VM_MAP_READ) | F(VM_MAP_WRITE));
     if (ret)
         return ret;
 
-    if (addr) {
+    if (addr && addrlen) {
         ret = user_check_region(addrlen, sizeof(*addrlen), F(VM_MAP_READ));
         if (ret)
             return ret;
@@ -242,6 +244,9 @@ int sys_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *
         ret = user_check_region(addr, *addrlen, F(VM_MAP_READ));
         if (ret)
             return ret;
+    } else {
+        addr = NULL;
+        addrlen = NULL;
     }
 
     ret = fd_get_checked(sockfd, &filp);
@@ -266,6 +271,69 @@ int sys_shutdown(int sockfd, int how)
         return ret;
 
     return socket_shutdown(socket, how);
+}
+
+int sys_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+{
+    struct socket *socket, *new_socket = NULL;
+    int ret;
+
+    if (addr && addrlen) {
+        ret = user_check_region(addrlen, sizeof(*addrlen), F(VM_MAP_READ));
+        if (ret)
+            return ret;
+
+        ret = user_check_region(addr, *addrlen, F(VM_MAP_READ));
+        if (ret)
+            return ret;
+    } else {
+        addr = NULL;
+        addrlen = NULL;
+    }
+
+    ret = fd_get_socket(sockfd, &socket);
+    if (ret)
+        return ret;
+
+    ret = socket_accept(socket, addr, addrlen, &new_socket);
+    if (ret)
+        return ret;
+
+    /* FIXME: Create a new struct file and fill it in with the created socket */
+    return 0;
+}
+
+int sys_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+{
+    struct socket *socket;
+    int ret;
+
+    if (addr && addrlen) {
+        ret = user_check_region(addr, addrlen, F(VM_MAP_READ));
+        if (ret)
+            return ret;
+    } else {
+        addr = NULL;
+        addrlen = 0;
+    }
+
+    ret = fd_get_socket(sockfd, &socket);
+    if (ret)
+        return ret;
+
+    return socket_connect(socket, addr, addrlen);
+}
+
+int sys_listen(int sockfd, int backlog)
+{
+    struct socket *socket;
+    int ret;
+
+    ret = fd_get_socket(sockfd, &socket);
+    if (ret)
+        return ret;
+
+    return socket_listen(socket, backlog);
 }
 
 int sys_socket(int afamily, int type, int protocol)

@@ -218,6 +218,9 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
     case ARPOP_REQUEST:
         iface = netdev_get_inet(arp_head->recv_inet_addr);
 
+        kp(KP_NORMAL, "ARP "PRmac" and "PRin_addr" to "PRmac" and "PRin_addr"\n",
+                      Pmac(arp_head->send_hrd_addr), Pin_addr(arp_head->send_inet_addr),
+                      Pmac(arp_head->recv_hrd_addr), Pin_addr(arp_head->recv_inet_addr));
         if (iface) {
             arp_send_response(arp_head->send_inet_addr, arp_head->send_hrd_addr, iface);
             netdev_put(iface);

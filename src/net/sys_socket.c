@@ -66,6 +66,7 @@ int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags,
     packet = packet_new(PAL_KERNEL);
 
     packet_append_data(packet, buf, len);
+    packet->sock = socket_dup(socket);
 
     kp(KP_NORMAL, "Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
     kp(KP_NORMAL, "proto: %p\n", socket->proto);
@@ -119,7 +120,8 @@ int socket_recvfrom(struct socket *socket, void *buf, size_t len, int flags, str
         ret = len;
     }
 
-    if (addr && *addrlen > packet->src_len) {
+    kp(KP_NORMAL, "Addr: %p, addrlen: %p, *addrlen: %d, src_len: %d\n", addr, addrlen, addrlen? *addrlen: 100, packet->src_len);
+    if (addr && *addrlen >= packet->src_len) {
         memcpy(addr, &packet->src_addr, packet->src_len);
         *addrlen = packet->src_len;
     } else if (addr) {
@@ -177,14 +179,23 @@ int socket_getsockopt(struct socket *socket, int level, int optname, void *optva
     return -ENOTSUP;
 }
 
-int socket_accept(struct socket *socket, struct sockaddr *addr, socklen_t *addrlen)
+int socket_accept(struct socket *socket, struct sockaddr *addr, socklen_t *addrlen, struct socket **new_socket)
 {
     return -ENOTSUP;
 }
 
 int socket_connect(struct socket *socket, const struct sockaddr *addr, socklen_t addrlen)
 {
-    return -ENOTSUP;
+    int ret;
+
+    if (!socket->proto->ops->connect)
+        return -ENOTSUP;
+
+    ret = socket->proto->ops->connect(socket->proto, socket, addr, addrlen);
+    if (ret)
+        return ret;
+
+    return 0;
 }
 
 int socket_listen(struct socket *socket, int backlog)
