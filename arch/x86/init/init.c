@@ -22,6 +22,7 @@
 #include <protura/drivers/pci.h>
 #include <protura/net.h>
 #include <protura/work.h>
+#include <protura/cmdline.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/term.h>
@@ -96,6 +97,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
         info->cmdline[sizeof(kernel_cmdline) - 1] = '\0';
         strcpy(kernel_cmdline, info->cmdline);
         kp(KP_NORMAL, "Cmdline: %s\n", kernel_cmdline);
+        kernel_cmdline_init();
     }
 
     kp(KP_NORMAL, "mmap: %p\n", mmap);

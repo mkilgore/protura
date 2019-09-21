@@ -7,6 +7,7 @@ objs-y += time.o
 objs-y += ktimer.o
 objs-y += sys_user.o
 objs-y += uname.o
+objs-y += cmdline.o
 
 subdir-y += str
 subdir-y += sched
