@@ -33,6 +33,9 @@ char  *strcat(char *restrict, const char *restrict);
 #ifndef _STRING_ARCH_STRCMP
 int    strcmp(const char *, const char *);
 #endif
+#ifndef _STRING_ARCH_STRCASECMP
+int    strcasecmp(const char *s1, const char *s2);
+#endif
 #ifndef _STRING_ARCH_STRLEN
 size_t strlen(const char *);
 #endif
@@ -52,4 +55,3 @@ int    strncmp(const char *, const char *, size_t len);
 #endif
 
 #endif
-
