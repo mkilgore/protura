@@ -68,6 +68,8 @@ void kp_output_unregister(void (*print) (const char *fmt, va_list lst));
 
 #define panic(str, ...) __panic("[%05ld][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
 
+extern int reboot_on_panic;
+
 void __panic(const char *s, ...) __printf(1, 2) __noreturn;
 void __panicv(const char *s, va_list) __noreturn;
 

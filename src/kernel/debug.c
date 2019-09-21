@@ -12,6 +12,7 @@
 #include <protura/spinlock.h>
 
 #include <arch/backtrace.h>
+#include <arch/reset.h>
 #include <arch/asm.h>
 
 struct kp_output {
@@ -69,11 +70,17 @@ void kprintf_internal(const char *fmt, ...)
     va_end(lst);
 }
 
+int reboot_on_panic = 0;
+
 void __panicv(const char *s, va_list lst)
 {
     cli();
     kprintfv_internal(s, lst);
     dump_stack();
+
+    if (reboot_on_panic)
+        system_reboot();
+
     while (1)
         hlt();
 }

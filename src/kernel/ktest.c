@@ -152,6 +152,18 @@ int ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *ex
 
 void ktest_init(void)
 {
+    int run_tests = kernel_cmdline_get_bool("ktest.run", 0);
+
+    if (!run_tests)
+        return;
+
+    int reboot_after_tests = kernel_cmdline_get_bool("ktests.reboot_after_run", 0);
+    if (reboot_after_tests)
+        reboot_on_panic = 1;
+
     run_ktest_modules();
+
+    if (reboot_after_tests)
+        system_reboot();
 }
 

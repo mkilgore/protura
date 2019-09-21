@@ -115,10 +115,7 @@ static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
 static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
 {
     paging_dump_stack(frame, p);
-    kp(KP_ERROR, "Kernel halting\n");
-
-    while (1)
-        hlt();
+    panic("KERNEL PAGE FAULT!\n");
 }
 
 #define SEG_FAULT_MSG "Seg-fault - Program terminated\n"
