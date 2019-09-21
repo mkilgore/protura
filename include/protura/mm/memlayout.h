@@ -10,4 +10,9 @@
 
 #include <arch/memlayout.h>
 
+#define KTEST_SECTION \
+    __ktest_start = .; \
+    KEEP(*(.ktest)); \
+    __ktest_end = .;
+
 #endif

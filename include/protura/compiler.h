@@ -27,6 +27,9 @@
 #define __align(size) __attribute__((__aligned__(size)))
 
 #define __unused __attribute__((unused))
+#define __used __attribute__((used))
+
+#define __section(s) __attribute__((section(s)))
 
 #define unlikely(cond) (__builtin_expect(!!(cond), 0))
 #define likely(cond) (__builtin_expect(!!(cond), 1))

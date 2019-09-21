@@ -20,6 +20,7 @@
 #include <protura/fs/vfs.h>
 #include <protura/fs/sync.h>
 #include <protura/drivers/term.h>
+#include <protura/ktest.h>
 
 #include <protura/init/init_basic.h>
 
@@ -37,6 +38,10 @@ static int start_user_init(void *unused)
         kp(KP_NORMAL, "Starting: %s\n", sys->name);
         (sys->init) ();
     }
+
+#ifdef CONFIG_KERNEL_TESTS
+    ktest_init();
+#endif
 
     kp(KP_NORMAL, "Kernel is done booting!\n");
 

@@ -14,6 +14,7 @@ SECTIONS
         *(.text)
         *(.rodata)
         *(.rodata.*)
+        KTEST_SECTION
     }
 
     /* Read-write data (initialized) */

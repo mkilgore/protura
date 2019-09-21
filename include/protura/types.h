@@ -45,6 +45,8 @@ typedef __kint32_t __kgid_t;
 typedef char * __kcaddr_t;
 typedef __kuintptr_t __kdaddr_t;
 
+typedef long __kptrdiff_t;
+
 #ifdef __KERNEL__
 
 #include <protura/compiler.h>
@@ -63,26 +65,27 @@ typedef __kumode_t umode_t;
 typedef __ktime_t time_t;
 typedef __kuseconds_t useconds_t;
 typedef __ksuseconds_t suseconds_t;
-// typedef __kn16 n16;
-// typedef __kn32 n32;
 typedef __kuid_t uid_t;
 typedef __kgid_t gid_t;
 
-#define tolower(c) \
-    ({ \
-        typeof(c) ____ctmp = (c); \
-        if (____ctmp >= 'A' && ____ctmp <= 'Z') \
-            ____ctmp |= 0x20; \
-        ____ctmp; \
-    })
+typedef __kptrdiff_t ptrdiff_t;
 
-#define toupper(c) \
-    ({ \
-        typeof(c) ____ctmp = (c); \
-        if (____ctmp >= 'a' && ____ctmp <= 'z') \
-            ____ctmp &= ~0x20; \
-        ____ctmp; \
-    })
+static inline char __tolower(char c)
+{
+    if (c >= 'A' && c <= 'Z')
+        c |= 0x20;
+    return c;
+}
+
+static inline char __toupper(char c)
+{
+    if (c >= 'a' && c <= 'z')
+        c &= ~0x20;
+    return c;
+}
+
+#define tolower(c) __tolower((c))
+#define toupper(c) __toupper((c))
 
 #endif
 
