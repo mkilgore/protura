@@ -67,8 +67,13 @@ vbox.vdi: disk.img
 PHONY += vbox
 vbox: vbox.vdi
 
+PHONY += gendisk gendisk2
 gendisk: disk.img
 gendisk2: disk2.img
+
+PHONY += check
+check: disk.img
+	$(Q)./scripts/ci/run_tests.sh
 
 ifeq ($(MAKECMDGOALS),disk)
 -include $(DISK_DEP)

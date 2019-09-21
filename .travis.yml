@@ -42,6 +42,7 @@ script:
   - ./scripts/ci/travis_extra_gcc.sh
   - make disk
   - make vbox
+  - make check
 
 deploy:
   provider: releases
