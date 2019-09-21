@@ -25,6 +25,7 @@ install:
   - sudo apt-get install automake
   - sudo apt-get install virtualbox
   - sudo apt-get install grub-pc
+  - sudo apt-get install qemu-system-i386
 
 # The scripts are for running GCC, so we can reduce the log output.
 script:
