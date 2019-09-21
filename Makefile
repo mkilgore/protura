@@ -15,7 +15,7 @@ TOOLCHAIN_DIR := $(PROTURA_DIR)/toolchain
 
 # Compiler settings
 CC      := $(TARGET)-gcc
-CPP     := $(TARGET)-gcc -E
+CPP     := $(TARGET)-cpp
 LD      := $(TARGET)-ld
 AS      := $(TARGET)-gas
 PERL    := perl -w -Mdiagnostics
@@ -201,19 +201,8 @@ endif
 
 endef
 
-$(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
-
-DEP_LIST := $(foreach file,$(REAL_OBJS_y),$(dir $(file)).$(notdir $(file)))
-DEP_LIST := $(DEP_LIST:.o=.d)
-
-ifneq (,$(filter $(MAKECMDGOALS),kernel disk))
--include $(DEP_LIST)
-endif
-
-CLEAN_LIST += $(DEP_LIST)
-
-
 REAL_BOOT_TARGETS :=
+DEP_LIST :=
 
 define create_boot_target
 
@@ -221,8 +210,9 @@ _expand := $$(objtree)/imgs/$$(EXE)_$$(ARCH)_$(1)
 REAL_BOOT_TARGETS += $$(_expand)
 
 CLEAN_LIST += $$(OBJS_$(1))
+DEP_LIST += $$(EXTRAS_$(1))
 
-$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(OBJS_EXTRA_$(1))
+$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(EXTRAS_$(1))
 	@echo " CCLD    $$@"
 	$$(Q)$$(CC) $$(CPPFLAGS) -o $$@ $$(OBJS_$(1)) $$(EXE_OBJ) $$(LDFLAGS) $$(LDFLAGS_$(1)) 
 	@echo " COPY    $$@.full"
@@ -233,6 +223,19 @@ $$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(OBJS_EXTRA_$(1))
 	$$(Q)$$(OBJCOPY) --strip-unneeded $$@
 
 endef
+
+$(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
+
+DEP_LIST += $(REAL_OBJS_y)
+DEP_LIST := $(foreach file,$(DEP_LIST),$(dir $(file)).$(notdir $(file)))
+DEP_LIST := $(DEP_LIST:.o=.d)
+DEP_LIST := $(DEP_LIST:.ld=.d)
+
+ifneq (,$(filter $(MAKECMDGOALS),kernel disk check))
+-include $(DEP_LIST)
+endif
+
+CLEAN_LIST += $(DEP_LIST)
 
 $(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
 
@@ -305,8 +308,8 @@ $(objtree)/%.ld: $(srctree)/%.ldS
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
 $(objtree)/.%.d: $(srctree)/%.ldS
-	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
+	@echo " CPPDEP   $@"
+	$(Q)$(CPP) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.ld -MT $@
 
 $(objtree)/.%.d: $(srctree)/%.c
 	@echo " CCDEP   $@"
@@ -331,8 +334,8 @@ $(objtree)/%.ld: $(objtree)/%.ldS
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
 $(objtree)/.%.d: $(objtree)/%.ldS
-	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.o -MT $@
+	@echo " CPPDEP   $@"
+	$(Q)$(CPP) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.ld -MT $@
 
 $(objtree)/.%.d: $(objtree)/%.c
 	@echo " CCDEP   $@"
