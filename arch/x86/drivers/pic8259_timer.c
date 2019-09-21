@@ -30,10 +30,8 @@ static void timer_callback(struct irq_frame *frame, void *param)
     if ((atomic32_get(&ticks) % (TIMER_TICKS_PER_SEC / CONFIG_TASKSWITCH_PER_SEC)) == 0)
         cpu_get_local()->reschedule = 1;
 
-    if ((atomic32_get(&ticks) % TIMER_TICKS_PER_SEC) == 0) {
+    if ((atomic32_get(&ticks) % TIMER_TICKS_PER_SEC) == 0)
         protura_uptime_inc();
-        kp(KP_NORMAL, "palloc: %d free pages\n", palloc_free_page_count());
-    }
 }
 
 uint32_t timer_get_ticks(void)
