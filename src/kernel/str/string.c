@@ -13,7 +13,7 @@
 int memcmp(const void *p1, const void *p2, size_t siz)
 {
     const unsigned char *s1 = p1, *s2 = p2;
-    const unsigned char *end = s1 + siz + 1;
+    const unsigned char *end = s1 + siz;
 
     for (; s1 != end; s1++, s2++) {
         unsigned char c1 = *s1, c2 = *s2;
@@ -39,7 +39,7 @@ void *memmove(void *p1, const void *p2, size_t len)
 {
     unsigned char *s1 = p1;
     const unsigned char *s2 = p2;
-    unsigned char *end = s1 + len + 1;
+    unsigned char *end = s1 + len;
     if (s2 > s1) {
         for (; s1 != end; s1++, s2++)
             *s1 = *s2;
