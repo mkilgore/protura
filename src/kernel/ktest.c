@@ -16,8 +16,8 @@
 #include <arch/reset.h>
 
 struct ktest {
+    int cur_unit_test;
     int cur_test;
-    int total_tests;
 };
 
 extern struct ktest_module __ktest_start;
@@ -36,6 +36,7 @@ static int run_module(struct ktest_module *module)
     int i;
     for (i = 0; i < module->test_count; i++) {
         ktest.cur_test = 0;
+        ktest.cur_unit_test++;
 
         kp(KP_NORMAL, "== #%d: %s ==\n", i, tests[i].name);
 
@@ -117,7 +118,6 @@ static void ktest_value_show(const char *prefix, const char *asdf, struct ktest_
 int ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func)
 {
     char buf[255];
-    ktest->total_tests++;
     ktest->cur_test++;
 
     int result = ktest_value_comp(expected, actual);
@@ -127,7 +127,8 @@ int ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expec
     else
         snprintf(buf, sizeof(buf), "FAIL");
 
-    kp(KP_NORMAL, " [%02d:%03d] %s: %s == %s: %s\n", ktest->total_tests, ktest->cur_test, func, expected->value_string, actual->value_string, buf);
+    if (!result)
+        kp(KP_NORMAL, " [%02d:%03d] %s: %s == %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, expected->value_string, actual->value_string, buf);
 
     return !result;
 }
@@ -135,7 +136,6 @@ int ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expec
 int ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func)
 {
     char buf[255];
-    ktest->total_tests++;
     ktest->cur_test++;
 
     int result = ktest_value_comp(expected, actual) == 0;
@@ -145,7 +145,8 @@ int ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *ex
     else
         snprintf(buf, sizeof(buf), "FAIL");
 
-    kp(KP_NORMAL, " [%02d:%03d] %s: %s != %s: %s\n", ktest->total_tests, ktest->cur_test, func, expected->value_string, actual->value_string, buf);
+    if (!result)
+        kp(KP_NORMAL, " [%02d:%03d] %s: %s != %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, expected->value_string, actual->value_string, buf);
 
     return !result;
 }
