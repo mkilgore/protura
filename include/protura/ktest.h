@@ -86,25 +86,25 @@ static inline struct ktest_value __ktest_make_mem(const char *str, size_t len, c
     ({ \
         struct ktest_value v1 = __ktest_make_value(#expect, expect); \
         struct ktest_value v2 = __ktest_make_value(#act, act); \
-        ktest_assert_equal_value_func((kt), &v1, &v2, __func__); \
+        ktest_assert_equal_value_func((kt), &v1, &v2, __func__, __LINE__); \
     })
 
 #define ktest_assert_notequal(kt, expect, act) \
     ({ \
         struct ktest_value v1 = __ktest_make_value(#expect, expect); \
         struct ktest_value v2 = __ktest_make_value(#act, act); \
-        ktest_assert_notequal_value_func((kt), &v1, &v2, __func__); \
+        ktest_assert_notequal_value_func((kt), &v1, &v2, __func__, __LINE__); \
     })
 
 #define ktest_assert_mem(kt, expect, act, len) \
     ({ \
         struct ktest_value v1 = __ktest_make_mem(#expect, (expect), (len)); \
         struct ktest_value v2 = __ktest_make_mem(#act, (act), (len)); \
-        ktest_assert_notequal_value_func((kt), &v1, &v2, __func__); \
+        ktest_assert_notequal_value_func((kt), &v1, &v2, __func__, __LINE__); \
     })
 
-int ktest_assert_equal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func);
-int ktest_assert_notequal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func);
+int ktest_assert_equal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
+int ktest_assert_notequal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
 
 void ktest_init(void);
 
