@@ -113,7 +113,7 @@ static void __slab_frame_object_free(struct slab_page_frame *frame, void *obj)
 {
     struct page_frame_obj_empty *new = obj, **current;
 
-    for (current = &frame->freelist; *current; current = &(*current)->next) {
+    for (current = &frame->freelist;; current = &(*current)->next) {
         if (obj <= (void *)(*current) || !*current) {
             new->next = *current;
             *current = new;
