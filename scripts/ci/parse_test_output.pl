@@ -4,6 +4,10 @@ use warnings;
 
 foreach my $line (<STDIN>) {
     chomp($line);
+    if ($line =~ /^\s*$/) {
+        next;
+    }
+
     my @str = split(':', $line, 2);
 
     my $timestatus = $str[0];
