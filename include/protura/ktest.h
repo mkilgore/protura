@@ -6,14 +6,22 @@
 struct ktest;
 
 struct ktest_unit {
-    int (*test) (struct ktest *);
+    int (*test) (const struct ktest_unit *unit, struct ktest *);
     const char *name;
+    int arg;
 };
 
 #define KTEST_UNIT_INIT(nm, t) \
     { \
         .test = (t), \
         .name = (nm), \
+    }
+
+#define KTEST_UNIT_INIT_ARG(nm, t, ar) \
+    { \
+        .test = (t), \
+        .name = (nm), \
+        .arg = (ar), \
     }
 
 struct ktest_module {

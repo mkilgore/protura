@@ -35,12 +35,19 @@ static int run_module(struct ktest_module *module)
 
     int i;
     for (i = 0; i < module->test_count; i++) {
+        char arg_str[32];
+
         ktest.cur_test = 0;
         ktest.cur_unit_test++;
 
-        kp(KP_NORMAL, "== #%d: %s ==\n", i, tests[i].name);
+        if (tests[i].arg)
+            snprintf(arg_str, sizeof(arg_str), "(%d)", tests[i].arg);
+        else
+            arg_str[0] = '\0';
 
-        int errs = (tests + i)->test (&ktest);
+        kp(KP_NORMAL, "== #%d: %s%s ==\n", i, tests[i].name, arg_str);
+
+        int errs = (tests + i)->test (tests + i, &ktest);
 
         if (errs != 0)
             snprintf(buf, sizeof(buf), "FAIL -> %d", errs);
