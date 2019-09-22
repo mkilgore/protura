@@ -108,16 +108,38 @@ static int ktest_value_comp(struct ktest_value *v1, struct ktest_value *v2)
     return 1;
 }
 
-#if 0
-static void ktest_value_show(const char *prefix, const char *asdf, struct ktest_value *v)
+static void ktest_value_show(const char *prefix, const char *name, struct ktest_value *v)
 {
+    char value_buf[128];
 
+    switch (v->type) {
+    case KTEST_VALUE_INT64:
+        snprintf(value_buf, sizeof(value_buf), "%lld", v->int64);
+        break;
+
+    case KTEST_VALUE_UINT64:
+        snprintf(value_buf, sizeof(value_buf), "%llu", v->int64);
+        break;
+
+    case KTEST_VALUE_PTR:
+        snprintf(value_buf, sizeof(value_buf), "%p", v->ptr);
+        break;
+
+    case KTEST_VALUE_STR:
+        snprintf(value_buf, sizeof(value_buf), "\"%s\"", v->ptr);
+        break;
+
+    case KTEST_VALUE_MEM:
+        value_buf[0] = '\0';
+        break;
+    }
+
+    kp(KP_NORMAL, "  %s %s: %s\n", name, prefix, value_buf);
 }
-#endif
 
 int ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno)
 {
-    char buf[255];
+    char buf[64];
     ktest->cur_test++;
 
     int result = ktest_value_comp(expected, actual);
@@ -127,15 +149,18 @@ int ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expec
     else
         snprintf(buf, sizeof(buf), "FAIL");
 
-    if (!result)
+    if (!result) {
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s == %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
+        ktest_value_show("Expected", actual->value_string, expected);
+        ktest_value_show("Actual  ", actual->value_string, actual);
+    }
 
     return !result;
 }
 
 int ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno)
 {
-    char buf[255];
+    char buf[64];
     ktest->cur_test++;
 
     int result = ktest_value_comp(expected, actual) == 0;
@@ -145,8 +170,10 @@ int ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *ex
     else
         snprintf(buf, sizeof(buf), "FAIL");
 
-    if (!result)
+    if (!result) {
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s != %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
+        ktest_value_show("Actual  ", actual->value_string, actual);
+    }
 
     return !result;
 }
