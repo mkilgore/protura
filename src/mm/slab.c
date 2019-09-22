@@ -54,10 +54,7 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
     struct page_frame_obj_empty **current;
     struct slab_page_frame *newframe;
 
-    /* 5 is just a random size - Since it's an index, that means we grab 32
-     * pages at a time for each frame. */
-    int i, page_index = 5;
-
+    int i, page_index = CONFIG_KERNEL_SLAB_ORDER;
 
     kp_slab("Calling palloc with %d, %d\n", flags, page_index);
     newframe = palloc_va(page_index, flags);
@@ -155,12 +152,9 @@ int __slab_has_addr(struct slab_alloc *slab, void *addr)
 void __slab_free(struct slab_alloc *slab, void *obj)
 {
     struct slab_page_frame *frame;
-    for (frame = slab->first_frame; frame; frame = frame->next) {
-        if (obj >= frame->first_addr && obj < frame->last_addr) {
-            __slab_frame_object_free(frame, obj);
-            return ;
-        }
-    }
+    for (frame = slab->first_frame; frame; frame = frame->next)
+        if (obj >= frame->first_addr && obj < frame->last_addr)
+            return __slab_frame_object_free(frame, obj);
 
     panic("slab: Error! Attempted to free address %p, not in slab %s\n", obj, slab->slab_name);
 }

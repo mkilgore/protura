@@ -26,9 +26,10 @@ static int slab_frame_alloc_count(struct slab_page_frame *frame)
 static int slab_test_frame_new(const struct ktest_unit *unit, struct ktest *kt)
 {
     int ret = 0;
-    struct slab_alloc test_slab = SLAB_ALLOC_INIT("test-slab", 1024);
+    int obj_size = 1024;
+    struct slab_alloc test_slab = SLAB_ALLOC_INIT("test-slab", obj_size);
     struct slab_page_frame *new_frame;
-    int obj_count = (1 << SLAB_PAGE_ORDER) * PG_SIZE / 1024 - 1;
+    int obj_count = (1 << CONFIG_KERNEL_SLAB_ORDER) * PG_SIZE / obj_size - 1;
 
     new_frame = __slab_frame_new(&test_slab, PAL_KERNEL);
 
@@ -60,10 +61,11 @@ static int slab_test_frame_new(const struct ktest_unit *unit, struct ktest *kt)
 static int slab_test_two_frames(const struct ktest_unit *unit, struct ktest *kt)
 {
     int ret = 0;
-    struct slab_alloc test_slab = SLAB_ALLOC_INIT("test-slab", 1024);
+    int obj_size = 1024;
+    struct slab_alloc test_slab = SLAB_ALLOC_INIT("test-slab", obj_size);
     struct page *pages = palloc(0, PAL_KERNEL);
     void **ptrs = pages->virt;
-    int obj_count = (1 << SLAB_PAGE_ORDER) * PG_SIZE / 1024 - 1;
+    int obj_count = (1 << CONFIG_KERNEL_SLAB_ORDER) * PG_SIZE / obj_size - 1;
 
     /* Allocate two frames worth of objects, verify the frames, and then free them */
     ret += ktest_assert_equal(kt, NULL, test_slab.first_frame);
