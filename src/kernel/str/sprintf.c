@@ -75,3 +75,6 @@ int snprintf(char *buf, size_t len, const char *fmt, ...)
     return ret;
 }
 
+#ifdef CONFIG_KERNEL_TESTS
+# include "sprintf_test.c"
+#endif
