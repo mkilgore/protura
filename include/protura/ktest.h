@@ -6,7 +6,7 @@
 struct ktest;
 
 struct ktest_unit {
-    int (*test) (const struct ktest_unit *unit, struct ktest *);
+    void (*test) (const struct ktest_unit *unit, struct ktest *);
     const char *name;
     int arg;
 };
@@ -73,7 +73,7 @@ static inline struct ktest_value __ktest_make_str(const char *str, const void *p
     return (struct ktest_value) { .type = KTEST_VALUE_STR, .value_string = str, .ptr = ptr };
 }
 
-static inline struct ktest_value __ktest_make_mem(const char *str, size_t len, const void *ptr)
+static inline struct ktest_value __ktest_make_mem(const char *str, const void *ptr, size_t len)
 {
     return (struct ktest_value) { .type = KTEST_VALUE_MEM, .value_string = str, .len = len, .ptr = ptr };
 }
@@ -82,8 +82,6 @@ static inline struct ktest_value __ktest_make_mem(const char *str, size_t len, c
     _Generic((v), \
         int64_t: __ktest_make_int64, \
         uint64_t: __ktest_make_uint64, \
-        char *: __ktest_make_str, \
-        const char *: __ktest_make_str, \
         default: _Generic((v - v), \
             ptrdiff_t: __ktest_make_ptr, \
             default: __ktest_make_int64 \
@@ -91,28 +89,36 @@ static inline struct ktest_value __ktest_make_mem(const char *str, size_t len, c
     ) (vs, v)
 
 #define ktest_assert_equal(kt, expect, act) \
-    ({ \
+    do { \
         struct ktest_value v1 = __ktest_make_value(#expect, expect); \
         struct ktest_value v2 = __ktest_make_value(#act, act); \
         ktest_assert_equal_value_func((kt), &v1, &v2, __func__, __LINE__); \
-    })
+    } while (0)
+
+#define ktest_assert_equal_str(kt, expect, act) \
+    do { \
+        struct ktest_value v1 = __ktest_make_str(#expect, expect); \
+        struct ktest_value v2 = __ktest_make_str(#act, act); \
+        ktest_assert_equal_value_func((kt), &v1, &v2, __func__, __LINE__); \
+    } while (0)
 
 #define ktest_assert_notequal(kt, expect, act) \
-    ({ \
+    do { \
         struct ktest_value v1 = __ktest_make_value(#expect, expect); \
         struct ktest_value v2 = __ktest_make_value(#act, act); \
         ktest_assert_notequal_value_func((kt), &v1, &v2, __func__, __LINE__); \
-    })
+    } while (0)
 
-#define ktest_assert_mem(kt, expect, act, len) \
-    ({ \
+#define ktest_assert_equal_mem(kt, expect, act, len) \
+    do { \
         struct ktest_value v1 = __ktest_make_mem(#expect, (expect), (len)); \
         struct ktest_value v2 = __ktest_make_mem(#act, (act), (len)); \
-        ktest_assert_notequal_value_func((kt), &v1, &v2, __func__, __LINE__); \
-    })
+        ktest_assert_equal_value_func((kt), &v1, &v2, __func__, __LINE__); \
+    } while (0)
 
-int ktest_assert_equal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
-int ktest_assert_notequal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
+
+void ktest_assert_equal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
+void ktest_assert_notequal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
 
 void ktest_init(void);
 

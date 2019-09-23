@@ -11,6 +11,7 @@
 #include <protura/snprintf.h>
 #include <protura/string.h>
 #include <protura/cmdline.h>
+#include <protura/ksetjmp.h>
 #include <protura/ktest.h>
 
 #include <arch/reset.h>
@@ -18,10 +19,35 @@
 struct ktest {
     int cur_unit_test;
     int cur_test;
+
+    int failed_tests;
+
+    /* 
+     * We use ksetjmp and klongjmp to exit a test when an assertion fails
+     *
+     * The logic is that if an assertion fails subsequent code may crash the
+     * kernel, such as if it attempts to deref a pointer it just asserted was
+     * not NULL. Because of this, we will longjmp out of the test on an
+     * assertion failure, so we can keep running tests.
+     *
+     * Note: This does mean test resources may not be cleaned up, such as
+     * memory not freed and such. This is a known but accepted problem, since
+     * it's only a problem for test code.
+     */
+    kjmpbuf_t ktest_assert_fail;
 };
 
 extern struct ktest_module __ktest_start;
 extern struct ktest_module __ktest_end;
+
+/*
+ * noinline is necessary to ensure the code calling ksetjmp isn't inlined incorrectly
+ */
+static noinline void run_test(const struct ktest_unit *unit, struct ktest *ktest)
+{
+    if (ksetjmp(&ktest->ktest_assert_fail) == 0)
+        unit->test(unit, ktest);
+}
 
 static int run_module(struct ktest_module *module)
 {
@@ -39,6 +65,7 @@ static int run_module(struct ktest_module *module)
 
         ktest.cur_test = 0;
         ktest.cur_unit_test++;
+        ktest.failed_tests = 0;
 
         if (tests[i].arg)
             snprintf(arg_str, sizeof(arg_str), "(%d)", tests[i].arg);
@@ -47,16 +74,16 @@ static int run_module(struct ktest_module *module)
 
         kp(KP_NORMAL, "== #%d: %s%s ==\n", i, tests[i].name, arg_str);
 
-        int errs = (tests + i)->test (tests + i, &ktest);
+        run_test(tests + i, &ktest);
 
-        if (errs != 0)
-            snprintf(buf, sizeof(buf), "FAIL -> %d", errs);
+        if (ktest.failed_tests != 0)
+            snprintf(buf, sizeof(buf), "FAIL -> %d", ktest.failed_tests);
         else
             snprintf(buf, sizeof(buf), "PASS");
 
         kp(KP_NORMAL, "== Result: %s ==\n", buf);
 
-        error_count += errs;
+        error_count += ktest.failed_tests;
     }
 
     kp(KP_NORMAL, "==== Finished tests for %s ====\n", module->name);
@@ -144,7 +171,7 @@ static void ktest_value_show(const char *prefix, const char *name, struct ktest_
     kp(KP_NORMAL, "  %s %s: %s\n", name, prefix, value_buf);
 }
 
-int ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno)
+void ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno)
 {
     char buf[64];
     ktest->cur_test++;
@@ -160,12 +187,14 @@ int ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expec
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s == %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
         ktest_value_show("Expected", actual->value_string, expected);
         ktest_value_show("Actual  ", actual->value_string, actual);
+
+        klongjmp(&ktest->ktest_assert_fail, 1);
     }
 
-    return !result;
+    ktest->failed_tests += !result;
 }
 
-int ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno)
+void ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno)
 {
     char buf[64];
     ktest->cur_test++;
@@ -179,10 +208,12 @@ int ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *ex
 
     if (!result) {
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s != %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
-        ktest_value_show("Actual  ", actual->value_string, actual);
+        ktest_value_show("Actual", actual->value_string, actual);
+
+        klongjmp(&ktest->ktest_assert_fail, 1);
     }
 
-    return !result;
+    ktest->failed_tests += !result;
 }
 
 void ktest_init(void)
