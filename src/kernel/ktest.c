@@ -100,11 +100,16 @@ static int run_module(struct ktest_module *module)
 static void run_ktest_modules(void)
 {
     int errs = 0;
+    int total_tests = 0;
     struct ktest_module *start = &__ktest_start;
     struct ktest_module *end = &__ktest_end;
 
-    for (; start < end; start++)
+    for (; start < end; start++) {
         errs += run_module(start);
+        total_tests += start->test_count;
+    }
+
+    kp(KP_NORMAL, "==== Total test count: %d ====\n", total_tests);
 
     char buf[255];
 
