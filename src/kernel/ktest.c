@@ -191,8 +191,8 @@ void ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expe
 
     if (!result) {
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s == %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
-        ktest_value_show("Expected", actual->value_string, expected);
-        ktest_value_show("Actual  ", actual->value_string, actual);
+        ktest_value_show("expected", actual->value_string, expected);
+        ktest_value_show("actual  ", actual->value_string, actual);
 
         klongjmp(&ktest->ktest_assert_fail, 1);
     }
@@ -214,7 +214,7 @@ void ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *e
 
     if (!result) {
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s != %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
-        ktest_value_show("Actual", actual->value_string, actual);
+        ktest_value_show("actual", actual->value_string, actual);
 
         klongjmp(&ktest->ktest_assert_fail, 1);
     }
