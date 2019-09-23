@@ -224,4 +224,3 @@ void slab_oom(struct slab_alloc *slab)
 #ifdef CONFIG_KERNEL_TESTS
 # include "slab_test.c"
 #endif
-
