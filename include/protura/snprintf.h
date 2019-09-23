@@ -11,10 +11,7 @@
 #include <protura/types.h>
 #include <protura/stdarg.h>
 
-size_t snprintf(char *buf, size_t len, const char *fmt, ...) __printf(3, 4);
-size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst);
-
-size_t sprintfv(char *buf, const char *fmt, va_list lst);
-size_t sprintf(char *buf, const char *fmt, ...) __printf(2, 3);
+int snprintf(char *buf, size_t len, const char *fmt, ...) __printf(3, 4);
+int snprintfv(char *buf, size_t len, const char *fmt, va_list lst);
 
 #endif

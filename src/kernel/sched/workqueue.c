@@ -76,7 +76,7 @@ void workqueue_start_multiple(struct workqueue *queue, const char *thread_name, 
         queue->thread_count = thread_count;
 
         for (i = 0; i < thread_count; i++) {
-            sprintf(tmp_page->virt, "%s/%d", thread_name, i + 1);
+            snprintf(tmp_page->virt, PG_SIZE, "%s/%d", thread_name, i + 1);
             queue->work_threads[i] = task_kernel_new_interruptable(tmp_page->virt, workqueue_thread, queue);
             scheduler_task_add(queue->work_threads[i]);
         }

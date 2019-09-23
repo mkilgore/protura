@@ -15,7 +15,7 @@ void dump_mem(char *output, size_t outlen,
 {
     int output_offset = 0;
     char strbuf[200], strbuf2[200] = { 0 };
-    char *cur_b, *start, *to_print;
+    char *cur_b, *start, *bufend, *to_print;
     const unsigned char *b = buf;
     int i = 0, j, skipping = 0;
 
@@ -23,27 +23,28 @@ void dump_mem(char *output, size_t outlen,
     start = strbuf;
 
     for (; i < len; i += 16) {
-        cur_b += sprintf(cur_b, "%08x  ", (i) + base_addr);
+        bufend = cur_b + sizeof(strbuf);
+        cur_b += snprintf(cur_b, bufend - cur_b,  "%08x  ", (i) + base_addr);
 
         for (j = i; j < i + 16; j++) {
             if (j < len)
-                cur_b += sprintf(cur_b, "%02x ", (const unsigned int)b[j]);
+                cur_b += snprintf(cur_b, bufend - cur_b, "%02x ", (const unsigned int)b[j]);
             else
-                cur_b += sprintf(cur_b, "   ");
+                cur_b += snprintf(cur_b, bufend - cur_b, "   ");
 
             if (j - i == 7)
                 *(cur_b++) = ' ';
         }
 
-        cur_b += sprintf(cur_b, " |");
+        cur_b += snprintf(cur_b, bufend - cur_b, " |");
 
         for (j = i; j < i + 16 && j < len; j++)
             if (b[j] > 31 && b[j] <= 127)
-                cur_b += sprintf(cur_b, "%c", b[j]);
+                cur_b += snprintf(cur_b, bufend - cur_b, "%c", b[j]);
             else
                 *(cur_b++) = '.';
 
-        sprintf(cur_b, "|\n");
+        snprintf(cur_b, bufend - cur_b, "|\n");
 
         to_print = start;
 

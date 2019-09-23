@@ -6,8 +6,8 @@
  * Free Software Foundation.
  */
 
-#include <protura/stdarg.h>
 #include <protura/types.h>
+#include <protura/stdarg.h>
 #include <protura/limits.h>
 #include <protura/basic_printf.h>
 
@@ -46,7 +46,7 @@ static void str_putnstr(struct printf_backbone *b, const char *s, size_t len)
     }
 }
 
-size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
+int snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
 {
     struct printf_backbone_str str = {
         .backbone = {
@@ -65,27 +65,12 @@ size_t snprintfv(char *buf, size_t len, const char *fmt, va_list lst)
 }
 
 
-size_t snprintf(char *buf, size_t len, const char *fmt, ...)
+int snprintf(char *buf, size_t len, const char *fmt, ...)
 {
-    size_t ret;
+    int ret;
     va_list lst;
     va_start(lst, fmt);
     ret = snprintfv(buf, len, fmt, lst);
-    va_end(lst);
-    return ret;
-}
-
-size_t sprintfv(char *buf, const char *fmt, va_list lst)
-{
-    return snprintfv(buf, SIZE_MAX, fmt, lst);
-}
-
-size_t sprintf(char *buf, const char *fmt, ...)
-{
-    size_t ret;
-    va_list lst;
-    va_start(lst, fmt);
-    ret = snprintfv(buf, SIZE_MAX, fmt, lst);
     va_end(lst);
     return ret;
 }
