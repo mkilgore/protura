@@ -29,7 +29,12 @@ foreach my $line (<STDIN>) {
         print "Total test errors: $test_count\n";
         exit 1;
     }
+
+    if ("$text" =~ /==== Full test run: PASS ====/) {
+        print "All tests passed!\n";
+        exit 0;
+    }
 }
 
-print "All tests passed!\n";
-exit 0;
+print "No \"Full test run\" line - assuming failure.\n";
+exit 1;
