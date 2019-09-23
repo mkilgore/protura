@@ -8,6 +8,7 @@
 #ifndef INCLUDE_PROTURA_TYPES_H
 #define INCLUDE_PROTURA_TYPES_H
 
+#include <protura/config/autoconf.h>
 #include <arch/types.h>
 #include <protura/stddef.h>
 
