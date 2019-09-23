@@ -341,7 +341,7 @@ void basic_printf(struct printf_backbone *backbone, const char *s, ...)
 {
     va_list lst;
     va_start(lst, s);
-    basic_printf(backbone, s, lst);
+    basic_printfv(backbone, s, lst);
     va_end(lst);
 }
 
