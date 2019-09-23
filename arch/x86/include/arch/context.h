@@ -10,7 +10,7 @@
 /* Note: Dont' change this unless you update context.S as well */
 struct x86_regs {
     uint32_t edi, esi, ebx, ebp, eip;
-};
+} __packed;
 
 /* Note: 'arch_context_switch' assembly depends on 'x86_regs' being the first
  * entry, and 'eflags' being the second entry.
