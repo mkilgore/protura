@@ -9,6 +9,7 @@ objs-y += sys_user.o
 objs-y += uname.o
 objs-$(CONFIG_KERNEL_TESTS) += ktest.o
 objs-y += cmdline.o
+objs-y += kbuf.o
 
 subdir-y += str
 subdir-y += sched
