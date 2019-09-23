@@ -2,12 +2,18 @@
 #define INCLUDE_PROTURA_KTEST_H
 
 #include <protura/types.h>
+#include <protura/bits.h>
 
 struct ktest;
+
+enum ktest_unit_flags {
+    KTEST_UNIT_FLAG_HAS_ARG,
+};
 
 struct ktest_unit {
     void (*test) (const struct ktest_unit *unit, struct ktest *);
     const char *name;
+    flags_t flags;
     int arg;
 };
 
@@ -22,6 +28,7 @@ struct ktest_unit {
         .test = (t), \
         .name = (nm), \
         .arg = (ar), \
+        .flags = F(KTEST_UNIT_FLAG_HAS_ARG), \
     }
 
 struct ktest_module {

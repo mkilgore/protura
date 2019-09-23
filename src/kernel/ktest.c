@@ -8,6 +8,7 @@
 
 #include <protura/types.h>
 #include <protura/debug.h>
+#include <protura/bits.h>
 #include <protura/snprintf.h>
 #include <protura/string.h>
 #include <protura/cmdline.h>
@@ -67,7 +68,7 @@ static int run_module(struct ktest_module *module)
         ktest.cur_unit_test++;
         ktest.failed_tests = 0;
 
-        if (tests[i].arg)
+        if (flag_test(&tests[i].flags, KTEST_UNIT_FLAG_HAS_ARG))
             snprintf(arg_str, sizeof(arg_str), "(%d)", tests[i].arg);
         else
             arg_str[0] = '\0';
