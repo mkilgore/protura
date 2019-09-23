@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/bits.h>
+#include <protura/dump_mem.h>
 #include <protura/snprintf.h>
 #include <protura/string.h>
 #include <protura/cmdline.h>
@@ -170,8 +171,9 @@ static void ktest_value_show(const char *prefix, const char *name, struct ktest_
         break;
 
     case KTEST_VALUE_MEM:
-        value_buf[0] = '\0';
-        break;
+        kp(KP_NORMAL, "  %s %s:\n", name, prefix);
+        dump_mem(v->ptr, v->len, (uint32_t)v->ptr);
+        return;
     }
 
     kp(KP_NORMAL, "  %s %s: %s\n", name, prefix, value_buf);
