@@ -11,6 +11,7 @@
 #include <arch/memlayout.h>
 
 #define KTEST_SECTION \
+    . = ALIGN(8); \
     __ktest_start = .; \
     KEEP(*(.ktest)); \
     __ktest_end = .;
