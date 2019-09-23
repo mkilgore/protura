@@ -17,6 +17,12 @@ struct printf_backbone {
     void (*putnstr) (struct printf_backbone *, const char *str, size_t len);
 };
 
+#define PRINTF_BACKBONE(putc, puts) \
+    { \
+        .putchar = (putc), \
+        .putnstr = (puts), \
+    }
+
 void basic_printf(struct printf_backbone *backbone, const char *s, ...) __printf(2, 3);
 void basic_printfv(struct printf_backbone *backbone, const char *s, va_list args);
 
