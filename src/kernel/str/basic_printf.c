@@ -345,4 +345,6 @@ void basic_printf(struct printf_backbone *backbone, const char *s, ...)
     va_end(lst);
 }
 
-
+#ifdef CONFIG_KERNEL_TESTS
+# include "basic_printf_test.c"
+#endif
