@@ -6,8 +6,12 @@ language: minimal
 
 # We handle the submodule updates ourselves, which allows us to do a --depth 1
 # which is much faster
+#
+# We also request the full repo (Which overall isn't that large) so that the
+# version tag calculation works
 git:
   submodules: false
+  depth: false
 
 cache:
   directories:
