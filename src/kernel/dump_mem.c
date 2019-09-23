@@ -10,10 +10,8 @@
 #include <protura/debug.h>
 #include <protura/snprintf.h>
 
-void dump_mem(char *output, size_t outlen,
-              const void *buf, size_t len, uint32_t base_addr)
+void dump_mem(const void *buf, size_t len, uint32_t base_addr)
 {
-    int output_offset = 0;
     char strbuf[200], strbuf2[200] = { 0 };
     char *cur_b, *start, *bufend, *to_print;
     const unsigned char *b = buf;
@@ -44,7 +42,7 @@ void dump_mem(char *output, size_t outlen,
             else
                 *(cur_b++) = '.';
 
-        snprintf(cur_b, bufend - cur_b, "|\n");
+        snprintf(cur_b, bufend - cur_b, "|");
 
         to_print = start;
 
@@ -59,11 +57,11 @@ void dump_mem(char *output, size_t outlen,
          * which is in '0x00000000' format at the beginning of the string */
         if (strcmp(strbuf + 12, strbuf2 + 12) != 0) {
             if (skipping == 1)
-                output_offset += snprintf(output + output_offset, outlen - output_offset, "%s", start);
+                kp(KP_NORMAL, "%s", start);
             else if (skipping == 2)
-                output_offset += snprintf(output + output_offset, outlen - output_offset, "...\n");
+                kp(KP_NORMAL, "...\n");
             skipping = 0;
-            output_offset += snprintf(output + output_offset, outlen - output_offset, "%s", to_print);
+            kp(KP_NORMAL, "%s\n", to_print);
         } else if (skipping >= 1) {
             skipping = 2;
         } else {
@@ -71,7 +69,9 @@ void dump_mem(char *output, size_t outlen,
         }
     }
 
-    if (skipping)
-        output_offset += snprintf(output + output_offset, outlen - output_offset, "...\n%s", to_print);
+    if (skipping) {
+        kp(KP_NORMAL, "...\n");
+        kp(KP_NORMAL, "%s\n", to_print);
+    }
 }
 
