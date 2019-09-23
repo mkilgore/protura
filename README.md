@@ -176,9 +176,16 @@ newlib.
 Testing
 =======
 
-The easiest way to test is via the simulator QEMU. tmux_debug.sh in the scripts
-directory includes a 'default' usage, which will write out to various logs,
-connecting up COM and IDE devices using the default disk.img. It also
+Most of the kernel is tested manually, however there is now a kernel testing
+framework, `ktest`. It is fairly straight forward, the tests can be run via
+`make chcek`, and are run via `qemu`.
+
+Running the OS
+==============
+
+The easiest way to run the OS is via the simulator QEMU. tmux_debug.sh in the
+scripts directory includes a 'default' usage, which will write out to various
+logs, connecting up COM and IDE devices using the default disk.img. It also
 conviently sets up TMUX with all the various commands already running. The QEMU
 invocation in the script can be customized to your needs.
 
