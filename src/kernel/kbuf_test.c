@@ -15,7 +15,7 @@
 
 static void kbuf_multiread_test(const struct ktest_unit *unit, struct ktest *kt)
 {
-    int read_size = unit->arg;
+    int read_size = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(2, PAL_KERNEL);
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -85,6 +85,7 @@ static void kbuf_multiread_test(const struct ktest_unit *unit, struct ktest *kt)
 
 static void kbuf_read_from_offset_test(const struct ktest_unit *unit, struct ktest *kt)
 {
+    size_t read_len = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -99,11 +100,11 @@ static void kbuf_read_from_offset_test(const struct ktest_unit *unit, struct kte
 
     kbuf.cur_pos.offset = PG_SIZE;
 
-    for (i = 0; i < PG_SIZE - unit->arg; i++) {
-        int err = kbuf_read(&kbuf, i, tmp_page->virt, unit->arg);
-        ktest_assert_equal(kt, unit->arg, err);
+    for (i = 0; i < PG_SIZE - read_len; i++) {
+        int err = kbuf_read(&kbuf, i, tmp_page->virt, read_len);
+        ktest_assert_equal(kt, read_len, err);
 
-        ktest_assert_equal_mem(kt, cur_page->virt + i, tmp_page->virt, unit->arg);
+        ktest_assert_equal_mem(kt, cur_page->virt + i, tmp_page->virt, read_len);
     }
 
     kbuf_clear(&kbuf);
@@ -112,6 +113,7 @@ static void kbuf_read_from_offset_test(const struct ktest_unit *unit, struct kte
 
 static void kbuf_read_from_start_test(const struct ktest_unit *unit, struct ktest *kt)
 {
+    size_t read_len = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -127,10 +129,10 @@ static void kbuf_read_from_start_test(const struct ktest_unit *unit, struct ktes
     kbuf.cur_pos.offset = PG_SIZE;
 
     memset(tmp_page->virt, 0, PG_SIZE);
-    int err = kbuf_read(&kbuf, 0, tmp_page->virt, unit->arg);
-    ktest_assert_equal(kt, unit->arg, err);
+    int err = kbuf_read(&kbuf, 0, tmp_page->virt, read_len);
+    ktest_assert_equal(kt, read_len, err);
 
-    ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, unit->arg);
+    ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, read_len);
 
     kbuf_clear(&kbuf);
     pfree(tmp_page, 0);
@@ -138,6 +140,7 @@ static void kbuf_read_from_start_test(const struct ktest_unit *unit, struct ktes
 
 static void kbuf_read_past_the_end_test(const struct ktest_unit *unit, struct ktest *kt)
 {
+    size_t length = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -150,13 +153,13 @@ static void kbuf_read_past_the_end_test(const struct ktest_unit *unit, struct kt
     for(i = 0; i < PG_SIZE / 2; i++)
         ((uint16_t *)tmp_page->virt)[i] = (i * 7) & 0xFFFF;
 
-    kbuf.cur_pos.offset = unit->arg;
+    kbuf.cur_pos.offset = length;
 
     memset(tmp_page->virt, 0, PG_SIZE);
     int err = kbuf_read(&kbuf, 0, tmp_page->virt, PG_SIZE);
-    ktest_assert_equal(kt, unit->arg, err);
+    ktest_assert_equal(kt, length, err);
 
-    ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, unit->arg);
+    ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, length);
 
     kbuf_clear(&kbuf);
     pfree(tmp_page, 0);
@@ -165,7 +168,7 @@ static void kbuf_read_past_the_end_test(const struct ktest_unit *unit, struct kt
 static void kbuf_multiwrite_test(const struct ktest_unit *unit, struct ktest *kt)
 {
     int k;
-    int write_size = unit->arg;
+    int write_size = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(2, PAL_KERNEL);
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -230,6 +233,7 @@ static void kbuf_multiwrite_test(const struct ktest_unit *unit, struct ktest *kt
 
 static void kbuf_write_two_page_test(const struct ktest_unit *unit, struct ktest *kt)
 {
+    size_t length = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(1, PAL_KERNEL);
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -240,8 +244,8 @@ static void kbuf_write_two_page_test(const struct ktest_unit *unit, struct ktest
     for(i = 0; i < PG_SIZE * 2; i++)
         ((char *)tmp_page->virt)[i] = i % 256;
 
-    int err = kbuf_write(&kbuf, tmp_page->virt, unit->arg + PG_SIZE);
-    ktest_assert_equal(kt, unit->arg + PG_SIZE, err);
+    int err = kbuf_write(&kbuf, tmp_page->virt, length + PG_SIZE);
+    ktest_assert_equal(kt, length + PG_SIZE, err);
 
     struct page *cur_page = list_first_entry(&kbuf.pages, struct page, page_list_node);
     struct page *next_page = list_next_entry(cur_page, page_list_node);
@@ -250,7 +254,7 @@ static void kbuf_write_two_page_test(const struct ktest_unit *unit, struct ktest
     ktest_assert_equal(kt, 0, list_ptr_is_head(&kbuf.pages, &next_page->page_list_node));
 
     ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, PG_SIZE);
-    ktest_assert_equal_mem(kt, next_page->virt, tmp_page->virt, unit->arg);
+    ktest_assert_equal_mem(kt, next_page->virt, tmp_page->virt, length);
 
     kbuf_clear(&kbuf);
     pfree(tmp_page, 0);
@@ -258,6 +262,7 @@ static void kbuf_write_two_page_test(const struct ktest_unit *unit, struct ktest
 
 static void kbuf_write_one_page_test(const struct ktest_unit *unit, struct ktest *kt)
 {
+    size_t length = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -267,13 +272,13 @@ static void kbuf_write_one_page_test(const struct ktest_unit *unit, struct ktest
     for(i = 0; i < PG_SIZE; i++)
         ((char *)tmp_page->virt)[i] = i % 256;
 
-    int err = kbuf_write(&kbuf, tmp_page->virt, unit->arg);
-    ktest_assert_equal(kt, unit->arg, err);
+    int err = kbuf_write(&kbuf, tmp_page->virt, length);
+    ktest_assert_equal(kt, length, err);
 
     struct page *cur_page = list_first_entry(&kbuf.pages, struct page, page_list_node);
 
     ktest_assert_equal(kt, 0, list_ptr_is_head(&kbuf.pages, &cur_page->page_list_node));
-    ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, unit->arg);
+    ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, length);
 
     kbuf_clear(&kbuf);
     pfree(tmp_page, 0);
@@ -318,54 +323,54 @@ static void kbuf_init_test(const struct ktest_unit *unit, struct ktest *kt)
 static const struct ktest_unit kbuf_test_units[] = {
     KTEST_UNIT_INIT("kbuf-init-test", kbuf_init_test),
     KTEST_UNIT_INIT("kbuf-add-page", kbuf_add_page_test),
-    KTEST_UNIT_INIT_ARG("kbuf-write-one-page-test", kbuf_write_one_page_test, 0),
-    KTEST_UNIT_INIT_ARG("kbuf-write-one-page-test", kbuf_write_one_page_test, 1),
-    KTEST_UNIT_INIT_ARG("kbuf-write-one-page-test", kbuf_write_one_page_test, 256),
-    KTEST_UNIT_INIT_ARG("kbuf-write-one-page-test", kbuf_write_one_page_test, PG_SIZE),
-    KTEST_UNIT_INIT_ARG("kbuf-write-two-page-test", kbuf_write_two_page_test, 0),
-    KTEST_UNIT_INIT_ARG("kbuf-write-two-page-test", kbuf_write_two_page_test, 1),
-    KTEST_UNIT_INIT_ARG("kbuf-write-two-page-test", kbuf_write_two_page_test, 256),
-    KTEST_UNIT_INIT_ARG("kbuf-write-two-page-test", kbuf_write_two_page_test, PG_SIZE),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, 32),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, 64),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, 256),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, PG_SIZE),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, PG_SIZE * 2),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, PG_SIZE * 4),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, 10),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, 100),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, 1000),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-write-test", kbuf_multiwrite_test, 10000),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-start-test", kbuf_read_from_start_test, 0),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-start-test", kbuf_read_from_start_test, 1),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-start-test", kbuf_read_from_start_test, 20),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-start-test", kbuf_read_from_start_test, 256),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-start-test", kbuf_read_from_start_test, 2048),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-start-test", kbuf_read_from_start_test, 3000),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-start-test", kbuf_read_from_start_test, PG_SIZE),
-    KTEST_UNIT_INIT_ARG("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, 0),
-    KTEST_UNIT_INIT_ARG("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, 1),
-    KTEST_UNIT_INIT_ARG("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, 20),
-    KTEST_UNIT_INIT_ARG("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, 256),
-    KTEST_UNIT_INIT_ARG("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, 2048),
-    KTEST_UNIT_INIT_ARG("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, 3000),
-    KTEST_UNIT_INIT_ARG("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, PG_SIZE - 1),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-offset-test", kbuf_read_from_offset_test, 1),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-offset-test", kbuf_read_from_offset_test, 20),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-offset-test", kbuf_read_from_offset_test, 256),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-offset-test", kbuf_read_from_offset_test, 2048),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-offset-test", kbuf_read_from_offset_test, 3000),
-    KTEST_UNIT_INIT_ARG("kbuf-read-from-offset-test", kbuf_read_from_offset_test, PG_SIZE - 1),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, 32),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, 64),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, 256),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, PG_SIZE),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, PG_SIZE * 2),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, PG_SIZE * 4),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, 10),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, 100),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, 1000),
-    KTEST_UNIT_INIT_ARG("kbuf-multi-read-test", kbuf_multiread_test, 10000),
+    KTEST_UNIT_INIT("kbuf-write-one-page-test", kbuf_write_one_page_test, KT_INT(0)),
+    KTEST_UNIT_INIT("kbuf-write-one-page-test", kbuf_write_one_page_test, KT_INT(1)),
+    KTEST_UNIT_INIT("kbuf-write-one-page-test", kbuf_write_one_page_test, KT_INT(256)),
+    KTEST_UNIT_INIT("kbuf-write-one-page-test", kbuf_write_one_page_test, KT_INT(PG_SIZE)),
+    KTEST_UNIT_INIT("kbuf-write-two-page-test", kbuf_write_two_page_test, KT_INT(0)),
+    KTEST_UNIT_INIT("kbuf-write-two-page-test", kbuf_write_two_page_test, KT_INT(1)),
+    KTEST_UNIT_INIT("kbuf-write-two-page-test", kbuf_write_two_page_test, KT_INT(256)),
+    KTEST_UNIT_INIT("kbuf-write-two-page-test", kbuf_write_two_page_test, KT_INT(PG_SIZE)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(32)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(64)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(256)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(PG_SIZE)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(PG_SIZE * 2)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(PG_SIZE * 4)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(10)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(100)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(1000)),
+    KTEST_UNIT_INIT("kbuf-multi-write-test", kbuf_multiwrite_test, KT_INT(10000)),
+    KTEST_UNIT_INIT("kbuf-read-from-start-test", kbuf_read_from_start_test, KT_INT(0)),
+    KTEST_UNIT_INIT("kbuf-read-from-start-test", kbuf_read_from_start_test, KT_INT(1)),
+    KTEST_UNIT_INIT("kbuf-read-from-start-test", kbuf_read_from_start_test, KT_INT(20)),
+    KTEST_UNIT_INIT("kbuf-read-from-start-test", kbuf_read_from_start_test, KT_INT(256)),
+    KTEST_UNIT_INIT("kbuf-read-from-start-test", kbuf_read_from_start_test, KT_INT(2048)),
+    KTEST_UNIT_INIT("kbuf-read-from-start-test", kbuf_read_from_start_test, KT_INT(3000)),
+    KTEST_UNIT_INIT("kbuf-read-from-start-test", kbuf_read_from_start_test, KT_INT(PG_SIZE)),
+    KTEST_UNIT_INIT("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, KT_INT(0)),
+    KTEST_UNIT_INIT("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, KT_INT(1)),
+    KTEST_UNIT_INIT("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, KT_INT(20)),
+    KTEST_UNIT_INIT("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, KT_INT(256)),
+    KTEST_UNIT_INIT("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, KT_INT(2048)),
+    KTEST_UNIT_INIT("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, KT_INT(3000)),
+    KTEST_UNIT_INIT("kbuf-read-past-the-end-test", kbuf_read_past_the_end_test, KT_INT(PG_SIZE - 1)),
+    KTEST_UNIT_INIT("kbuf-read-from-offset-test", kbuf_read_from_offset_test, KT_INT(1)),
+    KTEST_UNIT_INIT("kbuf-read-from-offset-test", kbuf_read_from_offset_test, KT_INT(20)),
+    KTEST_UNIT_INIT("kbuf-read-from-offset-test", kbuf_read_from_offset_test, KT_INT(256)),
+    KTEST_UNIT_INIT("kbuf-read-from-offset-test", kbuf_read_from_offset_test, KT_INT(2048)),
+    KTEST_UNIT_INIT("kbuf-read-from-offset-test", kbuf_read_from_offset_test, KT_INT(3000)),
+    KTEST_UNIT_INIT("kbuf-read-from-offset-test", kbuf_read_from_offset_test, KT_INT(PG_SIZE - 1)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(32)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(64)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(256)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(PG_SIZE)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(PG_SIZE * 2)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(PG_SIZE * 4)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(10)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(100)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(1000)),
+    KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(10000)),
 };
 
 static const struct ktest_module __ktest kbuf_test_module = {

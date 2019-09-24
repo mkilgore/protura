@@ -75,7 +75,7 @@ static void test_int_parse(const struct ktest_unit *unit, struct ktest *kt)
         .backbone = PRINTF_BACKBONE(test_putchar, test_putnstr),
     };
 
-    basic_printf(&backbone.backbone, "%ld", 1, 2, 3);
+    basic_printf(&backbone.backbone, "%d", 1);
 
     ktest_assert_equal(kt, 0, backbone.putchar_was_called);
     ktest_assert_equal(kt, 1, backbone.putnstr_was_called);

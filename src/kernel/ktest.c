@@ -22,6 +22,7 @@ struct ktest {
     int cur_unit_test;
     int cur_test;
 
+    const struct ktest_unit *unit;
     int failed_tests;
 
     /* 
@@ -41,6 +42,14 @@ struct ktest {
 
 extern struct ktest_module __ktest_start;
 extern struct ktest_module __ktest_end;
+
+const struct ktest_arg *ktest_get_arg(struct ktest *kt, int index)
+{
+    if (index >= kt->unit->arg_count)
+        ktest_assert_fail(kt, "Arg index %d does not exist, total args: %d\n", index, kt->unit->arg_count);
+
+    return kt->unit->args + index;
+}
 
 /*
  * noinline is necessary to ensure the code calling ksetjmp isn't inlined incorrectly
@@ -68,11 +77,22 @@ static int run_module(struct ktest_module *module)
         ktest.cur_test = 0;
         ktest.cur_unit_test++;
         ktest.failed_tests = 0;
+        ktest.unit = tests + i;
 
-        if (flag_test(&tests[i].flags, KTEST_UNIT_FLAG_HAS_ARG))
-            snprintf(arg_str, sizeof(arg_str), "(%d)", tests[i].arg);
-        else
-            arg_str[0] = '\0';
+        arg_str[0] = '\0';
+        if (ktest.unit->arg_count) {
+            strcat(arg_str, "(");
+            size_t arg_str_off = 1;
+            int k;
+            for (k = 0; k < ktest.unit->arg_count; k++) {
+                arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, "%s", ktest.unit->args[k].name);
+
+                if (k + 1 != ktest.unit->arg_count)
+                    arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, ",");
+
+            }
+            arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, ")");
+        }
 
         kp(KP_NORMAL, "== #%d: %s%s ==\n", i, tests[i].name, arg_str);
 
@@ -191,6 +211,8 @@ void ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expe
     else
         snprintf(buf, sizeof(buf), "FAIL");
 
+    ktest->failed_tests += !result;
+
     if (!result) {
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s == %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
         ktest_value_show("expected", actual->value_string, expected);
@@ -198,8 +220,6 @@ void ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expe
 
         klongjmp(&ktest->ktest_assert_fail, 1);
     }
-
-    ktest->failed_tests += !result;
 }
 
 void ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno)
@@ -214,14 +234,36 @@ void ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *e
     else
         snprintf(buf, sizeof(buf), "FAIL");
 
+    ktest->failed_tests += !result;
+
     if (!result) {
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s != %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
         ktest_value_show("actual", actual->value_string, actual);
 
         klongjmp(&ktest->ktest_assert_fail, 1);
     }
+}
 
-    ktest->failed_tests += !result;
+void ktest_assert_failv(struct ktest *kt, const char *fmt, va_list lst)
+{
+    char buf[256];
+
+    snprintfv(buf, sizeof(buf), fmt, lst);
+
+    kp(KP_NORMAL, " [%02d:%03d]: FAIL\n", kt->cur_unit_test, kt->cur_test);
+    kp(KP_NORMAL, "  %s", buf);
+
+    kt->failed_tests += 1;
+    klongjmp(&kt->ktest_assert_fail, 1);
+}
+
+void ktest_assert_fail(struct ktest *kt, const char *fmt, ...)
+{
+    va_list lst;
+
+    va_start(lst, fmt);
+    ktest_assert_failv(kt, fmt, lst);
+    va_end(lst);
 }
 
 void ktest_init(void)

@@ -282,43 +282,43 @@ static void slab_test_inorder_free_size(struct ktest *kt, int obj_size)
 
 static void slab_test_inorder_free(const struct ktest_unit *unit, struct ktest *kt)
 {
-    slab_test_inorder_free_size(kt, unit->arg);
+    slab_test_inorder_free_size(kt, KT_ARG(kt, 0, int));
 }
 
 static void slab_test_reverse_free(const struct ktest_unit *unit, struct ktest *kt)
 {
-    slab_test_reverse_free_size(kt, unit->arg);
+    slab_test_reverse_free_size(kt, KT_ARG(kt, 0, int));
 }
 
 static void slab_test_every_third_free(const struct ktest_unit *unit, struct ktest *kt)
 {
-    slab_test_every_third_free_size(kt, unit->arg);
+    slab_test_every_third_free_size(kt, KT_ARG(kt, 0, int));
 }
 
 static void slab_test_every_tenth_free(const struct ktest_unit *unit, struct ktest *kt)
 {
-    slab_test_every_tenth_free_size(kt, unit->arg);
+    slab_test_every_tenth_free_size(kt, KT_ARG(kt, 0, int));
 }
 
 static void slab_test_group_two_free(const struct ktest_unit *unit, struct ktest *kt)
 {
-    slab_test_group_two_free_size(kt, unit->arg);
+    slab_test_group_two_free_size(kt, KT_ARG(kt, 0, int));
 }
 
 static void slab_test_group_four_free(const struct ktest_unit *unit, struct ktest *kt)
 {
-    slab_test_group_four_free_size(kt, unit->arg);
+    slab_test_group_four_free_size(kt, KT_ARG(kt, 0, int));
 }
 
 #define SLAB_TEST_CASES(st, func) \
-    KTEST_UNIT_INIT_ARG(st, func, 32), \
-    KTEST_UNIT_INIT_ARG(st, func, 64), \
-    KTEST_UNIT_INIT_ARG(st, func, 128), \
-    KTEST_UNIT_INIT_ARG(st, func, 256), \
-    KTEST_UNIT_INIT_ARG(st, func, 512), \
-    KTEST_UNIT_INIT_ARG(st, func, 1024), \
-    KTEST_UNIT_INIT_ARG(st, func, 2048), \
-    KTEST_UNIT_INIT_ARG(st, func, 4096)
+    KTEST_UNIT_INIT(st, func, KT_INT(32)), \
+    KTEST_UNIT_INIT(st, func, KT_INT(64)), \
+    KTEST_UNIT_INIT(st, func, KT_INT(128)), \
+    KTEST_UNIT_INIT(st, func, KT_INT(256)), \
+    KTEST_UNIT_INIT(st, func, KT_INT(512)), \
+    KTEST_UNIT_INIT(st, func, KT_INT(1024)), \
+    KTEST_UNIT_INIT(st, func, KT_INT(2048)), \
+    KTEST_UNIT_INIT(st, func, KT_INT(4096))
 
 static const struct ktest_unit slab_test_units[] = {
     SLAB_TEST_CASES("free-inorder",     slab_test_inorder_free),

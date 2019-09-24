@@ -2,33 +2,121 @@
 #define INCLUDE_PROTURA_KTEST_H
 
 #include <protura/types.h>
+#include <protura/stddef.h>
 #include <protura/bits.h>
 
 struct ktest;
 
-enum ktest_unit_flags {
-    KTEST_UNIT_FLAG_HAS_ARG,
+enum ktest_arg_type {
+    KTEST_ARG_INT,
+    KTEST_ARG_UINT,
+    KTEST_ARG_STR,
 };
+
+struct ktest_arg {
+    const char *name;
+    enum ktest_arg_type type;
+    union {
+        int intarg;
+        unsigned int uintarg;
+        const char *strarg;
+    };
+};
+
+/*
+ * This is pretty nasty, but the DEFER()'s are necessary to make `COUNT_ARGS`
+ * work correctly down below.
+ *
+ * If the expansion is not deferred, the expansion happens before `COUNT_ARGS`
+ * is evaluated and the commas that are part of the initializers end-up being
+ * treated as separate arguments to `COUNT_ARGS`. By deferring the expansion,
+ * `COUNT_ARGS` sees the `__KT_INT(#i, i)` which it will correctly count as one
+ * argument.
+ */
+#define KT_INT(i) DEFER(__KT_INT)(#i, (i))
+#define __KT_INT(si, i) \
+    { \
+        .name = (si), \
+        .type = (KTEST_ARG_INT), \
+        .intarg = (i), \
+    }
+
+#define KT_UINT(i) DEFER(__KT_UINT)(#i, (i))
+#define __KT_UINT(si, i) \
+    { \
+        .name = (si), \
+        .type = (KTEST_ARG_UINT), \
+        .uintarg = (i), \
+    }
+
+#define KT_STR(s) DEFER(__KT_STR)(#s, (s))
+#define __KT_STR(ss, s) \
+    { \
+        .name = (ss), \
+        .type = (KTEST_ARG_STR), \
+        .strarg = (s), \
+    }
 
 struct ktest_unit {
     void (*test) (const struct ktest_unit *unit, struct ktest *);
     const char *name;
-    flags_t flags;
-    int arg;
+    struct ktest_arg args[6];
+    int arg_count;
 };
 
-#define KTEST_UNIT_INIT(nm, t) \
-    { \
-        .test = (t), \
-        .name = (nm), \
-    }
+const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
 
-#define KTEST_UNIT_INIT_ARG(nm, t, ar) \
+#define KT_ARG_TYPE(typ) \
+    ({ \
+        typeof(typ) __unused ____tmp_generic; \
+        _Generic(____tmp_generic, \
+            int: KTEST_ARG_INT, \
+            unsigned int: KTEST_ARG_UINT, \
+            const char *: KTEST_ARG_STR); \
+    })
+
+#define KT_ARG_TYPE_STR(typ) \
+    ({ \
+        const char *__ret = ""; \
+        if ((typ) == KTEST_ARG_INT) \
+            __ret = "int"; \
+        else if ((typ) == KTEST_ARG_UINT) \
+            __ret = "unsigned int"; \
+        else if ((typ) == KTEST_ARG_STR) \
+            __ret = "const char *"; \
+        __ret; \
+    })
+
+/*
+ * This takes the `struct ktest_unit`, the argument number, and
+ * type, and resolves the arugment for you.
+ *
+ * We can't directly pass the type name to _Generic() for unknown reasons, so
+ * instead we just declare a temporary with the passed-in type and use that for
+ * _Generic().
+ */
+#define KT_ARG(kt, i, typ) \
+    ({ \
+        typeof(typ) __unused ____tmp_generic; \
+        \
+        const struct ktest_arg *__arg = ktest_get_arg((kt), (i)); \
+        \
+        if (__arg->type != KT_ARG_TYPE(typ)) \
+            ktest_assert_fail((kt), "Argument type check failure, '%s' != '%s'!\n", \
+                    KT_ARG_TYPE_STR(__arg->type),KT_ARG_TYPE_STR(KT_ARG_TYPE(typ))); \
+        \
+        _Generic(____tmp_generic, \
+            int: __arg->intarg, \
+            unsigned int: __arg->uintarg, \
+            const char *: __arg->strarg); \
+    })
+
+#define KTEST_UNIT_INIT(nm, t, ...) \
     { \
         .test = (t), \
         .name = (nm), \
-        .arg = (ar), \
-        .flags = F(KTEST_UNIT_FLAG_HAS_ARG), \
+        .args = { __VA_ARGS__ }, \
+        .arg_count = COUNT_ARGS(__VA_ARGS__), \
     }
 
 struct ktest_module {
@@ -126,6 +214,9 @@ static inline struct ktest_value __ktest_make_mem(const char *str, const void *p
 
 void ktest_assert_equal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
 void ktest_assert_notequal_value_func(struct ktest *, struct ktest_value *expected, struct ktest_value *actual, const char *func, int lineno);
+
+void ktest_assert_failv(struct ktest *, const char *fmt, va_list);
+void ktest_assert_fail(struct ktest *, const char *fmt, ...) __printf(2, 3);
 
 void ktest_init(void);
 
