@@ -58,7 +58,7 @@ struct ktest_arg {
     }
 
 struct ktest_unit {
-    void (*test) (const struct ktest_unit *unit, struct ktest *);
+    void (*test) (struct ktest *);
     const char *name;
     struct ktest_arg args[6];
     int arg_count;

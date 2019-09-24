@@ -54,10 +54,10 @@ const struct ktest_arg *ktest_get_arg(struct ktest *kt, int index)
 /*
  * noinline is necessary to ensure the code calling ksetjmp isn't inlined incorrectly
  */
-static noinline void run_test(const struct ktest_unit *unit, struct ktest *ktest)
+static noinline void run_test(struct ktest *ktest)
 {
     if (ksetjmp(&ktest->ktest_assert_fail) == 0)
-        unit->test(unit, ktest);
+        ktest->unit->test(ktest);
 }
 
 static int run_module(struct ktest_module *module)
@@ -96,7 +96,7 @@ static int run_module(struct ktest_module *module)
 
         kp(KP_NORMAL, "== #%d: %s%s ==\n", i, tests[i].name, arg_str);
 
-        run_test(tests + i, &ktest);
+        run_test(&ktest);
 
         if (ktest.failed_tests != 0)
             snprintf(buf, sizeof(buf), "FAIL -> %d", ktest.failed_tests);

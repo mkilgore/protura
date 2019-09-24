@@ -13,7 +13,7 @@
 #include <protura/kbuf.h>
 #include <protura/ktest.h>
 
-static void kbuf_multiread_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_multiread_test(struct ktest *kt)
 {
     int read_size = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(2, PAL_KERNEL);
@@ -83,7 +83,7 @@ static void kbuf_multiread_test(const struct ktest_unit *unit, struct ktest *kt)
 }
 
 
-static void kbuf_read_from_offset_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_read_from_offset_test(struct ktest *kt)
 {
     size_t read_len = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
@@ -111,7 +111,7 @@ static void kbuf_read_from_offset_test(const struct ktest_unit *unit, struct kte
     pfree(tmp_page, 0);
 }
 
-static void kbuf_read_from_start_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_read_from_start_test(struct ktest *kt)
 {
     size_t read_len = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
@@ -138,7 +138,7 @@ static void kbuf_read_from_start_test(const struct ktest_unit *unit, struct ktes
     pfree(tmp_page, 0);
 }
 
-static void kbuf_read_past_the_end_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_read_past_the_end_test(struct ktest *kt)
 {
     size_t length = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
@@ -165,7 +165,7 @@ static void kbuf_read_past_the_end_test(const struct ktest_unit *unit, struct kt
     pfree(tmp_page, 0);
 }
 
-static void kbuf_multiwrite_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_multiwrite_test(struct ktest *kt)
 {
     int k;
     int write_size = KT_ARG(kt, 0, int);
@@ -231,7 +231,7 @@ static void kbuf_multiwrite_test(const struct ktest_unit *unit, struct ktest *kt
     pfree(tmp_page, 2);
 }
 
-static void kbuf_write_two_page_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_write_two_page_test(struct ktest *kt)
 {
     size_t length = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(1, PAL_KERNEL);
@@ -260,7 +260,7 @@ static void kbuf_write_two_page_test(const struct ktest_unit *unit, struct ktest
     pfree(tmp_page, 0);
 }
 
-static void kbuf_write_one_page_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_write_one_page_test(struct ktest *kt)
 {
     size_t length = KT_ARG(kt, 0, int);
     struct page *tmp_page = palloc(0, PAL_KERNEL);
@@ -284,7 +284,7 @@ static void kbuf_write_one_page_test(const struct ktest_unit *unit, struct ktest
     pfree(tmp_page, 0);
 }
 
-static void kbuf_add_page_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_add_page_test(struct ktest *kt)
 {
     struct kbuf kbuf;
     kbuf_init(&kbuf);
@@ -308,7 +308,7 @@ static void kbuf_add_page_test(const struct ktest_unit *unit, struct ktest *kt)
     ktest_assert_equal(kt, 0, kbuf.cur_pos.offset);
 }
 
-static void kbuf_init_test(const struct ktest_unit *unit, struct ktest *kt)
+static void kbuf_init_test(struct ktest *kt)
 {
     struct kbuf kbuf;
     kbuf_init(&kbuf);

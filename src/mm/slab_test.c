@@ -23,7 +23,7 @@ static int slab_frame_alloc_count(struct slab_page_frame *frame)
     return count;
 }
 
-static void slab_test_frame_new(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_frame_new(struct ktest *kt)
 {
     int obj_size = 1024;
     struct slab_alloc test_slab = SLAB_ALLOC_INIT("test-slab", obj_size);
@@ -56,7 +56,7 @@ static void slab_test_frame_new(const struct ktest_unit *unit, struct ktest *kt)
     slab_clear(&test_slab);
 }
 
-static void slab_test_two_frames(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_two_frames(struct ktest *kt)
 {
     int obj_size = 1024;
     struct slab_alloc test_slab = SLAB_ALLOC_INIT("test-slab", obj_size);
@@ -280,32 +280,32 @@ static void slab_test_inorder_free_size(struct ktest *kt, int obj_size)
     slab_clear(&test_slab);
 }
 
-static void slab_test_inorder_free(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_inorder_free(struct ktest *kt)
 {
     slab_test_inorder_free_size(kt, KT_ARG(kt, 0, int));
 }
 
-static void slab_test_reverse_free(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_reverse_free(struct ktest *kt)
 {
     slab_test_reverse_free_size(kt, KT_ARG(kt, 0, int));
 }
 
-static void slab_test_every_third_free(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_every_third_free(struct ktest *kt)
 {
     slab_test_every_third_free_size(kt, KT_ARG(kt, 0, int));
 }
 
-static void slab_test_every_tenth_free(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_every_tenth_free(struct ktest *kt)
 {
     slab_test_every_tenth_free_size(kt, KT_ARG(kt, 0, int));
 }
 
-static void slab_test_group_two_free(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_group_two_free(struct ktest *kt)
 {
     slab_test_group_two_free_size(kt, KT_ARG(kt, 0, int));
 }
 
-static void slab_test_group_four_free(const struct ktest_unit *unit, struct ktest *kt)
+static void slab_test_group_four_free(struct ktest *kt)
 {
     slab_test_group_four_free_size(kt, KT_ARG(kt, 0, int));
 }

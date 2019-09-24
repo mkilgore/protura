@@ -13,7 +13,7 @@
 #include <protura/snprintf.h>
 #include <protura/ktest.h>
 
-static void snprintf_test_trimming(const struct ktest_unit *unit, struct ktest *kt)
+static void snprintf_test_trimming(struct ktest *kt)
 {
     char buf[100];
 

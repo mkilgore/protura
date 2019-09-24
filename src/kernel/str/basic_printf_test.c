@@ -45,7 +45,7 @@ static void test_add_str_putnstr_case(struct ktest *kt, const char *in, size_t i
     ktest_assert_equal(kt, 1, backbone.putnstr_was_called);
 }
 
-static void test_add_str(const struct ktest_unit *unit, struct ktest *kt)
+static void test_add_str(struct ktest *kt)
 {
     test_add_str_putnstr_case(kt, "test", 4, "test", 4);
     test_add_str_putnstr_case(kt, "test", 2, "te", 2);
@@ -54,7 +54,7 @@ static void test_add_str(const struct ktest_unit *unit, struct ktest *kt)
     test_add_str_putnstr_case(kt, NULL, 2, "(null)", 6);
 }
 
-static void test_int_parse(const struct ktest_unit *unit, struct ktest *kt)
+static void test_int_parse(struct ktest *kt)
 {
     void test_putchar(struct printf_backbone *back, char ch)
     {
