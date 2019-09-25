@@ -27,7 +27,7 @@ install:
   - sudo apt-get install grub-pc
   - sudo apt-get install qemu-system-i386
 
-# The scripts are for running GCC, so we can reduce the log output.
+# The scripts are for building GCC, so we can reduce the log output.
 script:
   - make configure
   - make install-kernel-headers
