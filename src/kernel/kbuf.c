@@ -153,6 +153,60 @@ int kbuf_write(struct kbuf *kbuf, const void *vptr, size_t len)
     return have_written;
 }
 
+struct kbuf_backbone {
+    struct printf_backbone backbone;
+    struct kbuf *kbuf;
+    int written;
+    unsigned int hit_end :1;
+};
+
+static void kbuf_putchar(struct printf_backbone *b, char ch)
+{
+    struct kbuf_backbone *kb = container_of(b, struct kbuf_backbone, backbone);
+    int ret = kbuf_write(kb->kbuf, &ch, 1);
+    kb->written += ret;
+
+    if (!ret)
+        kb->hit_end = 1;
+}
+
+static void kbuf_putnstr(struct printf_backbone *b, const char *str, size_t len)
+{
+    struct kbuf_backbone *kb = container_of(b, struct kbuf_backbone, backbone);
+
+    int ret = kbuf_write(kb->kbuf, str, len);
+    kb->written += ret;
+
+    if (ret < len)
+        kb->hit_end = 1;
+}
+
+int kbuf_printfv(struct kbuf *kbuf, const char *fmt, va_list args)
+{
+    struct kbuf_backbone backbone = {
+        .backbone = PRINTF_BACKBONE(kbuf_putchar, kbuf_putnstr),
+        .kbuf = kbuf,
+    };
+
+    basic_printfv(&backbone.backbone, fmt, args);
+
+    if (backbone.hit_end)
+        return -ENOSPC;
+    else
+        return backbone.written;
+}
+
+int kbuf_printf(struct kbuf *kbuf, const char *fmt, ...)
+{
+    va_list lst;
+    va_start(lst, fmt);
+
+    int ret = kbuf_printfv(kbuf, fmt, lst);
+
+    va_end(lst);
+    return ret;
+}
+
 #ifdef CONFIG_KERNEL_TESTS
 # include "kbuf_test.c"
 #endif

@@ -2,6 +2,7 @@
 #define INCLUDE_PROTURA_KBUF_H
 
 #include <protura/types.h>
+#include <protura/stddef.h>
 #include <protura/list.h>
 
 /*
@@ -43,5 +44,11 @@ void kbuf_reset_pos(struct kbuf *, struct kbuf_pos);
 
 int kbuf_read(struct kbuf *, size_t loc, void *, size_t len);
 int kbuf_write(struct kbuf *, const void *, size_t);
+
+/*
+ * NOTE: On an overflow, these return -ENOSPC
+ */
+int kbuf_printfv(struct kbuf *, const char *, va_list args);
+int kbuf_printf(struct kbuf *, const char *, ...) __printf(2, 3);
 
 #endif

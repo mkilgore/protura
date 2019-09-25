@@ -13,6 +13,58 @@
 #include <protura/kbuf.h>
 #include <protura/ktest.h>
 
+static void kbuf_printf_overflow_test(struct ktest *kt)
+{
+    struct kbuf kbuf;
+    kbuf_init(&kbuf);
+    kbuf_add_page(&kbuf);
+
+    /* Leave only 10 bytes left in the buffer */
+    int i;
+    for (i = 0; i < PG_SIZE - 10; i++)
+        kbuf_write(&kbuf, &i, 1);
+
+    int ret = kbuf_printf(&kbuf, "This is longer than 10 characters!");
+
+    /* Truncation still occurs, so the buffer is completely filled, but we also
+     * get -ENOSPC */
+    ktest_assert_equal(kt, -ENOSPC, ret);
+    ktest_assert_equal(kt, PG_SIZE, kbuf.cur_pos.offset);
+
+    kbuf_clear(&kbuf);
+}
+
+static void kbuf_printf_test(struct ktest *kt)
+{
+    struct kbuf kbuf;
+    kbuf_init(&kbuf);
+    kbuf_add_page(&kbuf);
+
+    struct page *page = list_first_entry(&kbuf.pages, struct page, page_list_node);
+    ktest_assert_equal(kt, 0, list_ptr_is_head(&kbuf.pages, &page->page_list_node));
+
+    int ret = kbuf_printf(&kbuf, "This is a TEST! %d\n", 100);
+
+    ktest_assert_equal(kt, 20, ret);
+    ktest_assert_equal(kt, 20, kbuf.cur_pos.offset);
+    ktest_assert_equal_mem(kt, "This is a TEST! 100\n", page->virt, 20);
+
+    kbuf_clear(&kbuf);
+}
+
+static void kbuf_printf_empty_buf_test(struct ktest *kt)
+{
+    struct kbuf kbuf;
+    kbuf_init(&kbuf);
+
+    int ret = kbuf_printf(&kbuf, "This is a TEST! %d\n", 10);
+
+    ktest_assert_equal(kt, -ENOSPC, ret);
+    ktest_assert_equal(kt, 0, kbuf.cur_pos.offset);
+
+    kbuf_clear(&kbuf);
+}
+
 static void kbuf_multiread_test(struct ktest *kt)
 {
     int read_size = KT_ARG(kt, 0, int);
@@ -371,6 +423,9 @@ static const struct ktest_unit kbuf_test_units[] = {
     KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(100)),
     KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(1000)),
     KTEST_UNIT_INIT("kbuf-multi-read-test", kbuf_multiread_test, KT_INT(10000)),
+    KTEST_UNIT_INIT("kbuf-printf-overflow-test", kbuf_printf_overflow_test),
+    KTEST_UNIT_INIT("kbuf-printf-test", kbuf_printf_test),
+    KTEST_UNIT_INIT("kbuf-printf-empty-buf-test", kbuf_printf_empty_buf_test),
 };
 
 static const struct ktest_module __ktest kbuf_test_module = {
