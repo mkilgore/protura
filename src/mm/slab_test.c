@@ -331,8 +331,4 @@ static const struct ktest_unit slab_test_units[] = {
     KTEST_UNIT_INIT("new-frame",        slab_test_frame_new),
 };
 
-static const struct ktest_module __ktest slab_test_module = {
-    .name = "slab",
-    .tests = slab_test_units,
-    .test_count = ARRAY_SIZE(slab_test_units),
-};
+static const __ktest struct ktest_module slab_test_module = KTEST_MODULE_INIT("slab", slab_test_units);

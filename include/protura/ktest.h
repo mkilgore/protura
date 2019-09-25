@@ -129,6 +129,13 @@ struct ktest_module {
     size_t test_count;
 };
 
+#define KTEST_MODULE_INIT(nam, tsts) \
+    { \
+        .name = (nam), \
+        .tests = (tsts), \
+        .test_count = ARRAY_SIZE((tsts)), \
+    }
+
 #define __ktest __used __section(".ktest")
 
 enum ktest_value_type {

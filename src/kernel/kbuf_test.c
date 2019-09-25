@@ -428,8 +428,4 @@ static const struct ktest_unit kbuf_test_units[] = {
     KTEST_UNIT_INIT("kbuf-printf-empty-buf-test", kbuf_printf_empty_buf_test),
 };
 
-static const struct ktest_module __ktest kbuf_test_module = {
-    .name = "kbuf",
-    .tests = kbuf_test_units,
-    .test_count = ARRAY_SIZE(kbuf_test_units),
-};
+static const __ktest struct ktest_module kbuf_test_module = KTEST_MODULE_INIT("kbuf", kbuf_test_units);
