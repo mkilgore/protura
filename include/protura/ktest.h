@@ -1,6 +1,10 @@
 #ifndef INCLUDE_PROTURA_KTEST_H
 #define INCLUDE_PROTURA_KTEST_H
 
+/*
+ * ktest - a unit testing framework for the kernel. See `docs/ktest.md` for documentation.
+ */
+
 #include <protura/types.h>
 #include <protura/stddef.h>
 #include <protura/bits.h>
