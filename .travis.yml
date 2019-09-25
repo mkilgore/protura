@@ -19,14 +19,10 @@ cache:
 
 # texinfo is necessary for some of the extra things we build
 # mpc/gmp/mpfr are necessary for compiling the cross-compiler
-# ncurses is necessary for cross-compiling ncurses (It provides the `tic` utility)
 install:
   - sudo apt-get install build-essential
   - sudo apt-get install texinfo
   - sudo apt-get install libmpc-dev libgmp-dev libmpfr-dev
-  - sudo apt-get install libncurses5
-  - sudo apt-get install autotools-dev
-  - sudo apt-get install automake
   - sudo apt-get install virtualbox
   - sudo apt-get install grub-pc
   - sudo apt-get install qemu-system-i386
