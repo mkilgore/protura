@@ -91,7 +91,7 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
  * This takes the `struct ktest_unit`, the argument number, and
  * type, and resolves the arugment for you.
  *
- * We can't directly pass the type name to _Generic() for unknown reasons, so
+ * We can't directly pass the type name to _Generic() because it's stupid, so
  * instead we just declare a temporary with the passed-in type and use that for
  * _Generic().
  */
