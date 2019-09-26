@@ -100,53 +100,59 @@
  * with or without a block, and it doesn't require any 'using_end' macro after
  * its usage.
  */
-# define using_cond(cond, cmd1, cmd2)                               \
+# define using_cond_ctr(cond, cmd1, cmd2, ctr)                     \
     while (1)                                                      \
     if (0)                                                         \
-        TP(__using_finished, __LINE__):                            \
+        TP(__using_finished, ctr):                                 \
         break;                                                     \
     else                                                           \
         for (int __using_cond = 0;;)                               \
             if (1)                                                 \
-                goto TP(__using_body_init, __LINE__);              \
+                goto TP(__using_body_init, ctr);                   \
             else                                                   \
                 while (1)                                          \
                     while (1)                                      \
                         if (1) {                                   \
                             if (__using_cond)                      \
                                 cmd2;                              \
-                            goto TP(__using_finished, __LINE__);   \
-                            TP(__using_body_init, __LINE__):       \
+                            goto TP(__using_finished, ctr);        \
+                            TP(__using_body_init, ctr):            \
                             __using_cond = (cond);                 \
                             if (__using_cond)                      \
                                 cmd1;                              \
-                            goto TP(__using_body, __LINE__);       \
+                            goto TP(__using_body, ctr);            \
                         } else                                     \
-                            TP(__using_body, __LINE__):            \
+                            TP(__using_body, ctr):                 \
                             if (__using_cond)
 
-# define scoped_using_cond(cond, cmd1, cmd2, arg) \
+# define using_cond(cond, cmd1, cmd2) \
+    using_cond_ctr(cond, cmd1, cmd2, __COUNTER__)
+
+# define scoped_using_cond_ctr(cond, cmd1, cmd2, arg, ctr) \
     if (0) { \
-        TP(__using_finished, __LINE__):; \
+        TP(__using_finished, ctr):; \
     } else \
         if (1) { \
             const int __using_cond = (cond); \
             if (!__using_cond) \
-                goto TP(__using_finished, __LINE__); \
-            goto TP(__using_temp_declare, __LINE__); \
+                goto TP(__using_finished, ctr); \
+            goto TP(__using_temp_declare, ctr); \
         } else \
-            TP(__using_temp_declare, __LINE__): \
+            TP(__using_temp_declare, ctr): \
             for (typeof(arg) __using_temp __unused __cleanup(cmd2) = arg;;) \
                 if (1) { \
                     cmd1(arg); \
-                    goto TP(__using_body, __LINE__); \
+                    goto TP(__using_body, ctr); \
                 } else \
                     while (1) \
                         while (1) \
                             if (1) { \
-                                goto TP(__using_finished, __LINE__); \
+                                goto TP(__using_finished, ctr); \
                             } else \
-                                TP(__using_body, __LINE__):
+                                TP(__using_body, ctr):
+
+# define scoped_using_cond(cond, cmd1, cmd2, arg) \
+    scoped_using_cond_ctr(cond, cmd1, cmd2, arg, __COUNTER__)
 
 /* The 'nocheck' version doesn't take a condition, just two commands to run.
  *
