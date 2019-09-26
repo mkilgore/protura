@@ -13,6 +13,26 @@
 #include <protura/kbuf.h>
 #include <protura/ktest.h>
 
+static void kbuf_get_free_length_test(struct ktest *kt)
+{
+    struct kbuf kbuf;
+    kbuf_init(&kbuf);
+
+    ktest_assert_equal(kt, 0, kbuf_get_free_length(&kbuf));
+
+    kbuf_add_page(&kbuf);
+    ktest_assert_equal(kt, PG_SIZE, kbuf_get_free_length(&kbuf));
+
+    kbuf_add_page(&kbuf);
+    ktest_assert_equal(kt, PG_SIZE * 2, kbuf_get_free_length(&kbuf));
+
+    char buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+    kbuf_write(&kbuf, buf, 10);
+    ktest_assert_equal(kt, PG_SIZE * 2 - 10, kbuf_get_free_length(&kbuf));
+
+    kbuf_clear(&kbuf);
+}
+
 static void kbuf_printf_overflow_test(struct ktest *kt)
 {
     struct kbuf kbuf;
@@ -426,6 +446,7 @@ static const struct ktest_unit kbuf_test_units[] = {
     KTEST_UNIT_INIT("kbuf-printf-overflow-test", kbuf_printf_overflow_test),
     KTEST_UNIT_INIT("kbuf-printf-test", kbuf_printf_test),
     KTEST_UNIT_INIT("kbuf-printf-empty-buf-test", kbuf_printf_empty_buf_test),
+    KTEST_UNIT_INIT("kbuf-get-free-length-test", kbuf_get_free_length_test),
 };
 
 static const __ktest struct ktest_module kbuf_test_module = KTEST_MODULE_INIT("kbuf", kbuf_test_units);
