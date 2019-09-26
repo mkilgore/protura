@@ -14,6 +14,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/memlayout.h>
 #include <protura/drivers/term.h>
+#include <protura/drivers/tty.h>
 #include <protura/dump_mem.h>
 #include <protura/scheduler.h>
 #include <protura/task.h>
@@ -262,6 +263,18 @@ void task_make_zombie(struct task *t)
     kp(KP_TRACE, "zombie: %d\n", t->pid);
 
     flag_set(&t->flags, TASK_FLAG_KILLED);
+
+    /* If the session leader dies while controlling a tty, then we remove that
+     * tty from every process in this same session. */
+    if (flag_test(&t->flags, TASK_FLAG_SESSION_LEADER) && t->tty) {
+        struct tty *tty = t->tty;
+        scheduler_task_clear_sid_tty(tty, t->session_id);
+
+        using_mutex(&tty->lock) {
+            tty->session_id = 0;
+            tty->fg_pgrp = 0;
+        }
+    }
 
     /* Children of Zombie's are inherited by PID1. */
     using_spinlock(&task_pid1->children_list_lock) {

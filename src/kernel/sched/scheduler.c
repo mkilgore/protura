@@ -304,6 +304,17 @@ int scheduler_task_send_signal(pid_t pid, int signal, int force)
     return ret;
 }
 
+void scheduler_task_clear_sid_tty(struct tty *tty, pid_t sid)
+{
+    struct task *t;
+    using_spinlock(&ktasks.lock) {
+        list_foreach_entry(&ktasks.list, t, task_list_node) {
+            if (t->session_id == sid)
+                atomic_ptr_cmpxchg(&t->tty, tty, NULL);
+        }
+    }
+}
+
 struct task *scheduler_task_get(pid_t pid)
 {
     struct task *t, *found = NULL;

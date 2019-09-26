@@ -12,6 +12,7 @@ struct char_buf {
 };
 
 void char_buf_init(struct char_buf *, void *buffer, size_t buf_size);
+void char_buf_clear(struct char_buf *);
 
 void char_buf_write_char(struct char_buf *buf, char data);
 char char_buf_read_char(struct char_buf *buf);

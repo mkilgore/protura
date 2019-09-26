@@ -154,6 +154,11 @@ static __always_inline void *atomic_ptr_swap(volatile void *addr, void *new)
     return (void *)xchg(addr, (uint32_t)new);
 }
 
+static __always_inline void *atomic_ptr_cmpxchg(volatile void *addr, void *cmp, void *new)
+{
+    return (void *)cmpxchg(addr, (uint32_t)cmp, (uint32_t)new);
+}
+
 static __always_inline uint64_t rdtsc(void)
 {
    uint32_t a, d;

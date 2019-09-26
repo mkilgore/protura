@@ -22,6 +22,12 @@ void char_buf_init(struct char_buf *buf, void *nbuffer, size_t buf_size)
     buf->buf_len = 0;
 }
 
+void char_buf_clear(struct char_buf *buf)
+{
+    buf->start_pos = 0;
+    buf->buf_len = 0;
+}
+
 void char_buf_write_char(struct char_buf *buf, char data)
 {
     int end_pos = (buf->start_pos + buf->buf_len) % buf->len;

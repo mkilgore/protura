@@ -321,6 +321,7 @@ pid_t sys_setsid(void)
 
     flag_set(&current->flags, TASK_FLAG_SESSION_LEADER);
     current->session_id = current->pgid = current->pid;
+    current->tty = NULL;
 
     return current->pid;
 }

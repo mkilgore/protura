@@ -277,8 +277,12 @@ static int tty_open(struct inode *inode, struct file *filp)
 
     if (!noctty && flag_test(&current->flags, TASK_FLAG_SESSION_LEADER) && !current->tty && tty->session_id == 0) {
         current->tty = tty;
-        tty->session_id = current->session_id;
-        tty->fg_pgrp = current->pgid;
+        using_mutex(&tty->lock) {
+            tty->session_id = current->session_id;
+            tty->fg_pgrp = current->pgid;
+            char_buf_clear(&tty->output_buf);
+            char_buf_clear(&tty->input_buf);
+        }
     }
 
     return 0;

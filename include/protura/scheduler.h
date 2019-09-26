@@ -8,6 +8,8 @@
 #include <arch/timer.h>
 #include <arch/cpu.h>
 
+struct tty;
+
 pid_t scheduler_next_pid(void);
 
 void scheduler_task_add(struct task *);
@@ -23,6 +25,7 @@ void scheduler_task_mark_dead(struct task *t);
 
 int scheduler_task_send_signal(pid_t pid, int signal, int force);
 int scheduler_task_exists(pid_t pid);
+void scheduler_task_clear_sid_tty(struct tty *tty, pid_t sid);
 
 extern struct procfs_entry_ops tasks_ops;
 extern struct procfs_entry_ops task_api_ops;
