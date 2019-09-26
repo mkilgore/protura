@@ -27,6 +27,9 @@ int scheduler_task_send_signal(pid_t pid, int signal, int force);
 int scheduler_task_exists(pid_t pid);
 void scheduler_task_clear_sid_tty(struct tty *tty, pid_t sid);
 
+struct file_ops;
+
+extern struct file_ops task_file_ops;
 extern struct procfs_entry_ops tasks_ops;
 extern struct procfs_entry_ops task_api_ops;
 

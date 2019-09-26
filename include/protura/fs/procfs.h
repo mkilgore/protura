@@ -15,6 +15,7 @@
 #include <protura/hlist.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/stat.h>
+#include <protura/fs/file.h>
 
 /* 
  * procfs_dir and procfs_entry locks can be taken at the same time, as long as
@@ -49,6 +50,7 @@ struct procfs_entry_ops {
 struct procfs_entry {
     struct procfs_node node;
     const struct procfs_entry_ops *ops;
+    const struct file_ops *file_ops;
 };
 
 struct procfs_dir {
@@ -91,6 +93,7 @@ struct procfs_inode {
 };
 
 void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, const struct procfs_entry_ops *ops);
+void procfs_register_entry(struct procfs_dir *parent, const char *name, const struct file_ops *ops);
 struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *name);
 
 struct procfs_dir procfs_root;

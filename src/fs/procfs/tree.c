@@ -39,11 +39,9 @@ static void procfs_add_node(struct procfs_dir *parent, struct procfs_node *node)
     }
 }
 
-void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, const struct procfs_entry_ops *ops)
+static struct procfs_entry *procfs_entry_new(struct procfs_dir *parent, const char *name)
 {
-    struct procfs_entry *entry;
-
-    entry = kmalloc(sizeof(*entry), PAL_KERNEL);
+    struct procfs_entry *entry = kmalloc(sizeof(*entry), PAL_KERNEL);
 
     procfs_entry_init(entry);
 
@@ -53,6 +51,21 @@ void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, cons
     entry->node.parent = parent;
     entry->node.ctime = protura_current_time_get();
     entry->node.ino = procfs_next_ino();
+
+    return entry;
+}
+
+void procfs_register_entry(struct procfs_dir *parent, const char *name, const struct file_ops *ops)
+{
+    struct procfs_entry *entry = procfs_entry_new(parent, name);
+    entry->file_ops = ops;
+
+    procfs_add_node(parent, &entry->node);
+}
+
+void procfs_register_entry_ops(struct procfs_dir *parent, const char *name, const struct procfs_entry_ops *ops)
+{
+    struct procfs_entry *entry = procfs_entry_new(parent, name);
     entry->ops = ops;
 
     procfs_add_node(parent, &entry->node);

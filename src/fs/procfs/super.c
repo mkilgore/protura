@@ -77,8 +77,13 @@ static int procfs_inode_read(struct super_block *sb, struct inode *inode)
         pinode->i.ops = &procfs_dir_inode_ops;
         pinode->i.default_fops = &procfs_dir_file_ops;
     } else if (S_ISREG(pinode->i.mode)) {
+        struct procfs_entry *ent = container_of(node, struct procfs_entry, node);
+
         pinode->i.ops = &procfs_file_inode_ops;
-        pinode->i.default_fops = &procfs_file_file_ops;
+        if (ent->file_ops)
+            pinode->i.default_fops = ent->file_ops;
+        else
+            pinode->i.default_fops = &procfs_file_file_ops;
     }
 
     inode_set_valid(&pinode->i);
@@ -133,7 +138,7 @@ void procfs_init(void)
     procfs_hash_add_node(&procfs_root.node);
 
     procfs_register_entry_ops(&procfs_root, "interrupts", &interrupt_ops);
-    procfs_register_entry_ops(&procfs_root, "tasks", &tasks_ops);
+    procfs_register_entry(&procfs_root, "tasks", &task_file_ops);
     procfs_register_entry_ops(&procfs_root, "filesystems", &file_system_ops);
     procfs_register_entry_ops(&procfs_root, "mounts", &mount_ops);
     procfs_register_entry_ops(&procfs_root, "binfmts", &binfmt_ops);
