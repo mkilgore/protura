@@ -69,7 +69,7 @@ struct inode {
 
     struct super_block *sb;
     struct inode_ops *ops;
-    struct file_ops *default_fops;
+    const struct file_ops *default_fops;
 
     struct block_device *bdev;
     struct char_device *cdev;
