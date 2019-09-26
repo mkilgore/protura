@@ -28,7 +28,8 @@ static const char *arg_desc_str  = "";
     X(help, "help", 'h', 0, NULL, "Display help") \
     X(version, "version", 'v', 0, NULL, "Display version information") \
     X(lng, "long", 'l', 0, NULL, "Long format") \
-    X(signals, "signal", 's', 0, NULL, "Display signal informatoin") \
+    X(signals, "signal", 's', 0, NULL, "Display signal information") \
+    X(kernel, "kernel", 'k', 0, NULL, "Display kernel threads") \
     X(last, NULL, '\0', 0, NULL, NULL)
 
 enum arg_index {
@@ -65,6 +66,7 @@ static struct util_display display = UTIL_DISPLAY_INIT(display);
 static struct task_api_info tinfo[TASK_MAX];
 static int task_count;
 static enum ps_display display_choice = PS_NORMAL;
+static int show_kernel_tasks = 0;
 
 static void print_list_format(void)
 {
@@ -82,6 +84,9 @@ static void print_list_format(void)
     util_line_strdup(header, "CMD");
 
     for (t = tinfo; t != end; t++) {
+        if (t->is_kernel && !show_kernel_tasks)
+            continue;
+
         struct util_line *line = util_display_next_line(&display);
 
         util_line_printf_ar(line, "%d", t->pid);
@@ -113,6 +118,9 @@ static void print_signal_format(void)
     util_line_strdup(header, "CMD");
 
     for (t = tinfo; t != end; t++) {
+        if (t->is_kernel && !show_kernel_tasks)
+            continue;
+
         struct util_line *line = util_display_next_line(&display);
 
         util_line_printf_ar(line, "%d", t->pid);
@@ -153,6 +161,10 @@ int main(int argc, char **argv)
 
         case ARG_signals:
             display_choice = PS_SIGNAL;
+            break;
+
+        case ARG_kernel:
+            show_kernel_tasks = 1;
             break;
 
         case ARG_EXTRA:
