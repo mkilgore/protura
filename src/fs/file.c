@@ -38,7 +38,7 @@ int fs_file_generic_pread(struct file *filp, void *vbuf, size_t sizet_len, off_t
         return -EINVAL;
 
     /* We have to reconcile the difference between the unsigned size_t and signed off_t */
-    if ((off_t)sizet_len > __OFF_MAX && (off_t)sizet_len > 0)
+    if (sizet_len > __OFF_MAX || (off_t)sizet_len < 0)
         return -EINVAL;
 
     len = (off_t)sizet_len;
