@@ -65,4 +65,19 @@ int seq_release(struct file *);
 
 int seq_printf(struct seq_file *, const char *, ...);
 
+int seq_list_start(struct seq_file *, list_head_t *);
+int seq_list_start_header(struct seq_file *seq, list_head_t *head);
+
+int seq_list_next(struct seq_file *, list_head_t *);
+
+list_node_t *seq_list_get(struct seq_file *);
+#define seq_list_get_entry(seq, type, member) \
+    ({ \
+        void *__ret = NULL; \
+        list_node_t *__next = seq_list_get((seq)); \
+        if (__next) \
+            __ret = container_of(__next, type, member); \
+        __ret; \
+    })
+
 #endif

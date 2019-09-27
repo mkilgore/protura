@@ -181,6 +181,74 @@ int seq_release(struct file *filp)
     return 0;
 }
 
+static int __seq_list_iter(struct seq_file *seq, list_head_t *head, int start_offset)
+{
+    list_node_t *node;
+
+    if (list_empty(head)) {
+        flag_set(&seq->flags, SEQ_FILE_DONE);
+        return 0;
+    }
+
+    node = __list_first(head);
+
+    int i;
+    for (i = start_offset; i < seq->iter_offset; i++) {
+        if (list_is_last(head, node)) {
+            flag_set(&seq->flags, SEQ_FILE_DONE);
+            return 0;
+        }
+
+        node = node->next;
+    }
+
+    seq->priv = node;
+    return 0;
+}
+
+int seq_list_start(struct seq_file *seq, list_head_t *head)
+{
+    return __seq_list_iter(seq, head, 0);
+}
+
+int seq_list_start_header(struct seq_file *seq, list_head_t *head)
+{
+    if (seq->iter_offset == 0) {
+        seq->priv = NULL;
+        return 0;
+    }
+
+    return __seq_list_iter(seq, head, 1);
+}
+
+int seq_list_next(struct seq_file *seq, list_head_t *head)
+{
+    seq->iter_offset++;
+    list_node_t *node = seq->priv;
+
+    if (!node) {
+        if (list_empty(head)) {
+            flag_set(&seq->flags, SEQ_FILE_DONE);
+            return 0;
+        }
+
+        seq->priv = __list_first(head);
+        return 0;
+    }
+
+    if (list_is_last(head, node))
+        flag_set(&seq->flags, SEQ_FILE_DONE);
+    else
+        seq->priv = node->next;
+
+    return 0;
+}
+
+list_node_t *seq_list_get(struct seq_file *seq)
+{
+    return seq->priv;
+}
+
 #ifdef CONFIG_KERNEL_TESTS
 # include "seq_file_test.c"
 #endif
