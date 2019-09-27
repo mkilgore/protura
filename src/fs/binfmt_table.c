@@ -22,6 +22,7 @@
 #include <protura/fs/file.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/procfs.h>
+#include <protura/fs/seq_file.h>
 #include <protura/fs/binfmt.h>
 
 static struct {
@@ -82,22 +83,43 @@ int binary_load(struct exe_params *params, struct irq_frame *frame)
     return ret;
 }
 
-static int binfmt_readpage(void *page, size_t page_size, size_t *len)
+static int binfmt_seq_start(struct seq_file *seq)
 {
-    struct binfmt *fmt;
-
-    *len = 0;
-
-    using_mutex(&binfmt_table.lock)
-        list_foreach_entry(&binfmt_table.list, fmt, binfmt_list_entry) {
-            *len += snprintf(page + *len, page_size - *len, "%s\n", fmt->name);
-            kp(KP_TRACE, "fmt: %s\n", fmt->name);
-        }
-
-    return 0;
+    mutex_lock(&binfmt_table.lock);
+    return seq_list_start(seq, &binfmt_table.list);
 }
 
-struct procfs_entry_ops binfmt_ops = {
-    .readpage = binfmt_readpage,
+static void binfmt_seq_end(struct seq_file *seq)
+{
+    mutex_unlock(&binfmt_table.lock);
+}
+
+static int binfmt_seq_render(struct seq_file *seq)
+{
+    struct binfmt *binfmt = seq_list_get_entry(seq, struct binfmt, binfmt_list_entry);
+    return seq_printf(seq, "%s\n", binfmt->name);
+}
+
+static int binfmt_seq_next(struct seq_file *seq)
+{
+    return seq_list_next(seq, &binfmt_table.list);
+}
+
+const static struct seq_file_ops binfmt_seq_file_ops = {
+    .start = binfmt_seq_start,
+    .end = binfmt_seq_end,
+    .render = binfmt_seq_render,
+    .next = binfmt_seq_next,
 };
 
+static int binfmt_file_seq_open(struct inode *inode, struct file *filp)
+{
+    return seq_open(filp, &binfmt_seq_file_ops);
+}
+
+const struct file_ops binfmt_file_ops = {
+    .open = binfmt_file_seq_open,
+    .lseek = seq_lseek,
+    .read = seq_read,
+    .release = seq_release,
+};
