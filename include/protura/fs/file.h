@@ -33,7 +33,7 @@ struct file {
 
     off_t offset;
 
-    struct file_ops *ops;
+    const struct file_ops *ops;
 
     void *priv_data;
 };
