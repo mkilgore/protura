@@ -212,7 +212,7 @@ void irq_global_handler(struct irq_frame *iframe)
         t->context.frame = iframe;
     }
 
-    if (cpuid_has_sse())
+    if (cpuid_has_sse() && t)
         i387_fxsave(&t->arch_info.fxsave);
 
     /* This is more complex then is normally done. This is because we check the

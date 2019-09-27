@@ -129,6 +129,9 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
 
     struct task *current = cpu_get_local()->current;
 
+    if (!current)
+        halt_and_dump_stack(frame, p);
+
     /* Check if this page was a fault we can handle */
     int ret = address_space_handle_pagefault(current->addrspc, (va_t)p);
     if (!ret)
