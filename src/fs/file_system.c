@@ -15,6 +15,7 @@
 #include <arch/spinlock.h>
 #include <protura/fs/ext2.h>
 #include <protura/fs/procfs.h>
+#include <protura/fs/seq_file.h>
 #include <protura/fs/elf.h>
 #include <protura/fs/binfmt.h>
 #include <protura/fs/file_system.h>
@@ -66,21 +67,45 @@ struct file_system *file_system_lookup(const char *name)
     return found;
 }
 
-static int file_system_list_read(void *page, size_t page_size, size_t *len)
+static int file_system_seq_start(struct seq_file *seq)
 {
-    struct file_system *system;
-
-    *len = 0;
-
-    using_spinlock(&file_system_list.lock)
-        list_foreach_entry(&file_system_list.list, system, fs_list_entry)
-            *len += snprintf(page + *len, page_size - *len, "%s\n", system->name);
-
-    return 0;
+    spinlock_acquire(&file_system_list.lock);
+    return seq_list_start(seq, &file_system_list.list);
 }
 
-struct procfs_entry_ops file_system_ops = {
-    .readpage = file_system_list_read,
+static void file_system_seq_end(struct seq_file *seq)
+{
+    spinlock_release(&file_system_list.lock);
+}
+
+static int file_system_seq_render(struct seq_file *seq)
+{
+    struct file_system *file_system = seq_list_get_entry(seq, struct file_system, fs_list_entry);
+    return seq_printf(seq, "%s\n", file_system->name);
+}
+
+static int file_system_seq_next(struct seq_file *seq)
+{
+    return seq_list_next(seq, &file_system_list.list);
+}
+
+const static struct seq_file_ops file_system_seq_file_ops = {
+    .start = file_system_seq_start,
+    .end = file_system_seq_end,
+    .render = file_system_seq_render,
+    .next = file_system_seq_next,
+};
+
+static int file_system_file_seq_open(struct inode *inode, struct file *filp)
+{
+    return seq_open(filp, &file_system_seq_file_ops);
+}
+
+const struct file_ops file_system_file_ops = {
+    .open = file_system_file_seq_open,
+    .lseek = seq_lseek,
+    .read = seq_read,
+    .release = seq_release,
 };
 
 void file_systems_init(void)

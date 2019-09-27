@@ -29,7 +29,7 @@ void file_system_unregister(const char *name);
 
 struct file_system *file_system_lookup(const char *name);
 
-extern struct procfs_entry_ops file_system_ops;
+extern const struct file_ops file_system_file_ops;
 
 #endif
 
