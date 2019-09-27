@@ -13,7 +13,7 @@
 #include <protura/mm/memlayout.h>
 #include <protura/drivers/term.h>
 #include <protura/snprintf.h>
-#include <protura/fs/procfs.h>
+#include <protura/fs/seq_file.h>
 
 #include "irq_handler.h"
 #include <arch/asm.h>
@@ -190,28 +190,6 @@ void interrupt_dump_stats(void (*print) (const char *fmt, ...))
     }
 }
 
-static int interrupt_stats_read(void *p, size_t size, size_t *len)
-{
-    int k;
-
-    *len = 0;
-
-    *len = snprintf(p, size, "Interrupt stats:\n");
-
-    for (k = 0; k < 256 && *len < size; k++) {
-        if (!idt_ids[k].handler)
-            continue;
-
-        *len += snprintf(p + *len, size - *len, "0x%02x - %d\n", k, atomic32_get(&idt_ids[k].count));
-    }
-
-    return 0;
-}
-
-struct procfs_entry_ops interrupt_ops = {
-    .readpage = interrupt_stats_read,
-};
-
 void irq_global_handler(struct irq_frame *iframe)
 {
     struct idt_identifier *ident = idt_ids + iframe->intno;
@@ -304,3 +282,65 @@ void irq_global_handler(struct irq_frame *iframe)
         i387_fxrstor(&t->arch_info.fxsave);
 }
 
+static int interrupts_seq_start(struct seq_file *seq)
+{
+    int k;
+
+    /* Only display IRQ's that have a handler */
+    for (k = seq->iter_offset; k < 256; k++)
+        if (idt_ids[k].handler)
+            break;
+
+    seq->iter_offset = k;
+
+    if (k == 256)
+        flag_set(&seq->flags, SEQ_FILE_DONE);
+
+    return 0;
+}
+
+static void interrupts_seq_end(struct seq_file *seq)
+{
+}
+
+static int interrupts_seq_render(struct seq_file *seq)
+{
+    return seq_printf(seq, "%d\t%d\n", seq->iter_offset, atomic32_get(&idt_ids[seq->iter_offset].count));
+}
+
+static int interrupts_seq_next(struct seq_file *seq)
+{
+    int k;
+    seq->iter_offset++;
+
+    /* Only display IRQ's that have a handler */
+    for (k = seq->iter_offset; k < 256; k++)
+        if (idt_ids[k].handler)
+            break;
+
+    seq->iter_offset = k;
+
+    if (k == 256)
+        flag_set(&seq->flags, SEQ_FILE_DONE);
+
+    return 0;
+}
+
+const static struct seq_file_ops interrupts_seq_file_ops = {
+    .start = interrupts_seq_start,
+    .end = interrupts_seq_end,
+    .render = interrupts_seq_render,
+    .next = interrupts_seq_next,
+};
+
+static int interrupts_file_seq_open(struct inode *inode, struct file *filp)
+{
+    return seq_open(filp, &interrupts_seq_file_ops);
+}
+
+const struct file_ops interrupts_file_ops = {
+    .open = interrupts_file_seq_open,
+    .lseek = seq_lseek,
+    .read = seq_read,
+    .release = seq_release,
+};

@@ -137,7 +137,7 @@ void procfs_init(void)
 
     procfs_hash_add_node(&procfs_root.node);
 
-    procfs_register_entry_ops(&procfs_root, "interrupts", &interrupt_ops);
+    procfs_register_entry(&procfs_root, "interrupts", &interrupts_file_ops);
     procfs_register_entry(&procfs_root, "tasks", &task_file_ops);
     procfs_register_entry_ops(&procfs_root, "filesystems", &file_system_ops);
     procfs_register_entry_ops(&procfs_root, "mounts", &mount_ops);

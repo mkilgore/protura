@@ -62,7 +62,7 @@ void irq_register_callback(uint8_t irqno, void (*callback)(struct irq_frame *, v
 
 void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
-extern struct procfs_entry_ops interrupt_ops;
+extern const struct file_ops interrupts_file_ops;
 
 #endif
 
