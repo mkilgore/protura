@@ -120,8 +120,10 @@ void pfree(struct page *p, int order)
 {
     int i;
 
-    if (!p)
+    if (!p) {
         kp(KP_ERROR, "ERROR: pfree: %p\n", p);
+        return;
+    }
 
     if (!atomic_dec_and_test(&p->use_count))
         return;
@@ -269,11 +271,6 @@ void palloc_init(void **kbrk, int pages)
         p->virt = P2V((p->page_number) << PG_SHIFT);
     }
 
-    /* We keep using 'sizeof(*buddy_allocator.maps[0].bitmap)' because we don't
-     * want this code dependant on the number of bytes used for the entries in the map.
-     *
-     * IE. 'bitmap' could be an 'int *', or a 'char *', or a 'uint64_t *'
-     * pointer, and this code works with any of them. */
     for (i = 0; i < PALLOC_MAPS; i++) {
         list_head_init(&buddy_allocator.maps[i].free_pages);
         wait_queue_init(&buddy_allocator.maps[i].wait_for_free);
