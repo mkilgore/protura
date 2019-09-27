@@ -16,6 +16,6 @@ void __super_sync(struct super_block *sb);
 void sys_sync(void);
 int mount_root(dev_t device, const char *fsystem);
 
-extern struct procfs_entry_ops mount_ops;
+extern const struct file_ops mount_file_ops;
 
 #endif

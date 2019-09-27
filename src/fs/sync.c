@@ -21,6 +21,7 @@
 #include <protura/fs/block.h>
 #include <protura/fs/super.h>
 #include <protura/fs/file.h>
+#include <protura/fs/seq_file.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/inode_table.h>
@@ -238,31 +239,52 @@ static int super_umount(struct super_block *super)
     return 0;
 }
 
-static int mount_list_read(void *page, size_t page_size, size_t *len)
+static int mount_seq_start(struct seq_file *seq)
 {
-    struct vfs_mount *mount;
-    *len = 0;
-
-    using_mutex(&mount_list_lock) {
-        list_foreach_entry(&mount_list, mount, mount_point_node) {
-            if (mount->devname)
-                *len += snprintf(page + *len, page_size - *len, "%s", mount->devname);
-            else
-                *len += snprintf(page + *len, page_size - *len, "(%d,%d)", DEV_MAJOR(mount->dev), DEV_MINOR(mount->dev));
-
-            *len += snprintf(page + *len, page_size - *len, " on %s as %s\n", mount->mountname, mount->filesystem);
-        }
-    }
-
-    return 0;
+    mutex_lock(&mount_list_lock);
+    return seq_list_start(seq, &mount_list);
 }
 
-struct procfs_entry_ops mount_ops = {
-    .readpage = mount_list_read,
+static void mount_seq_end(struct seq_file *seq)
+{
+    mutex_unlock(&mount_list_lock);
+}
+
+static int mount_seq_render(struct seq_file *seq)
+{
+    struct vfs_mount *mount = seq_list_get_entry(seq, struct vfs_mount, mount_point_node);
+
+    if (mount->devname)
+        return seq_printf(seq, "%s\t%s\t%s\n", mount->devname, mount->mountname, mount->filesystem);
+    else
+        return seq_printf(seq, "(%d,%d)\t%s\t%s\n", DEV_MAJOR(mount->dev), DEV_MINOR(mount->dev), mount->mountname, mount->filesystem);
+}
+
+static int mount_seq_next(struct seq_file *seq)
+{
+    return seq_list_next(seq, &mount_list);
+}
+
+const static struct seq_file_ops mount_seq_file_ops = {
+    .start = mount_seq_start,
+    .end = mount_seq_end,
+    .render = mount_seq_render,
+    .next = mount_seq_next,
+};
+
+static int mount_file_seq_open(struct inode *inode, struct file *filp)
+{
+    return seq_open(filp, &mount_seq_file_ops);
+}
+
+const struct file_ops mount_file_ops = {
+    .open = mount_file_seq_open,
+    .lseek = seq_lseek,
+    .read = seq_read,
+    .release = seq_release,
 };
 
 int vfs_umount(struct super_block *sb)
 {
     return super_umount(sb);
 }
-

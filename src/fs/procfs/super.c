@@ -139,8 +139,8 @@ void procfs_init(void)
 
     procfs_register_entry(&procfs_root, "interrupts", &interrupts_file_ops);
     procfs_register_entry(&procfs_root, "tasks", &task_file_ops);
-    procfs_register_entry_ops(&procfs_root, "mounts", &mount_ops);
     procfs_register_entry(&procfs_root, "filesystems", &file_system_file_ops);
+    procfs_register_entry(&procfs_root, "mounts", &mount_file_ops);
     procfs_register_entry(&procfs_root, "binfmts", &binfmt_file_ops);
 
     procfs_register_entry_ops(&procfs_root, "uptime", &uptime_ops);
