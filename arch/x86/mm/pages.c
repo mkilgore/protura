@@ -14,13 +14,18 @@
 #include <arch/paging.h>
 #include <arch/pages.h>
 
-void arch_pages_init(pa_t kernel_start, pa_t kernel_end, pa_t last_physical_addr)
+void arch_pages_init(pa_t first_addr, pa_t last_addr)
 {
-    pa_t first_page = PG_ALIGN(kernel_end);
+    pa_t first_page = PG_ALIGN(first_addr);
 
-    for (; first_page < last_physical_addr; first_page += PG_SIZE) {
+    for (; first_page < last_addr; first_page += PG_SIZE) {
         struct page *p = page_from_pa(first_page);
         bit_clear(&p->flags, PG_INVALID);
+
+        if (first_page >= V2P(CONFIG_KERNEL_KMAP_START)) {
+            kp(KP_WARNING, "High memory not supported, memory past %p is not usable\n", (void *)first_page);
+            break;
+        }
 
         __mark_page_free(first_page);
     }

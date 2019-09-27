@@ -11,6 +11,6 @@
 #include <protura/types.h>
 
 /* Initalizes the physical memory manager by telling it which pages can be used */
-void arch_pages_init(pa_t kernel_start, pa_t kernel_end, pa_t last_physical_addr);
+void arch_pages_init(pa_t first_addr, pa_t last_addr);
 
 #endif
