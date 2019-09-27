@@ -1,4 +1,12 @@
 #!/bin/bash
+#
+# Generates and mounts a disk image that is partitioned according to the
+# `./partition_table` file in the same directory as this script. The
+# `./copy_root.sh` script is then used to copy the root filesystem from
+# `./disk` into the first partition of the new disk image.
+# 
+# Argument 1: disk image target name
+#
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 

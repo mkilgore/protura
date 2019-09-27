@@ -1,4 +1,11 @@
 #!/bin/bash
+#
+# Copies the contents of the `./disk/*` folders into a new root system, along
+# with creating extra required folders and such. It also correctly sets up the
+# user ids on the file system.
+#
+# Argument 1: The location to copy root files into
+#
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 

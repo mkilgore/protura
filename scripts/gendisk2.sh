@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Generates and mounts a disk with a raw EXT2 filesystem inside.
+
 rm -f ./disk2.img
 
 mkdir ./disk2_ext2

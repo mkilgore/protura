@@ -1,4 +1,6 @@
 #!/usr/bin/perl -w
+# Reads a protura.conf file and generates files with the configuration
+# information for make and C
 use strict;
 use warnings;
 
