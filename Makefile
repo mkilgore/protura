@@ -1,7 +1,7 @@
 # Program wide settings
 EXE       := protura
 VERSION   := 0
-SUBLEVEL  := 4
+SUBLEVEL  := 5
 PATCH     := 0
 
 ARCH   := x86
