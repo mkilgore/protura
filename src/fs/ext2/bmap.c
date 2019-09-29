@@ -311,7 +311,7 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
 
     /* FIXME: This new block needs to be mapped back into the inode correctly. */
     if (inode_sector < ARRAY_SIZE(i->blk_ptrs_direct)) {
-        kp(KP_TRACE, "Mapping allocated block to direct ptrs\n");
+        kp_ext2(sb, "Mapping allocated block to direct ptrs\n");
         i->blk_ptrs_direct[inode_sector] = ret;
     } else {
         const int ptrs_per_blk = sb->block_size / sizeof(uint32_t);
@@ -332,7 +332,7 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
                     ext2_map_tindirect(sb, i, inode_sector, ret);
                 } else {
                     ext2_block_release(sb, ret);
-                    kp(KP_ERROR, "Error: File too large!\n");
+                    kp(KP_ERROR, "Error: EXT2: File too large!\n");
 
                     return SECTOR_INVALID;
                 }

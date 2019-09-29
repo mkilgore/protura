@@ -106,7 +106,6 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t sizet_len)
         return -EBADF;
 
     if (flag_test(&filp->flags, FILE_APPEND)) {
-        kp(KP_TRACE, "write append: lseek(SEEK_END)\n");
         ret = vfs_lseek(filp, 0, SEEK_END);
         if (ret < 0)
             return ret;
@@ -118,7 +117,6 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t sizet_len)
 
     len = (off_t)sizet_len;
 
-    kp(KP_TRACE, "Write: %ld\n", len);
     if (filp->inode->size - filp->offset < len) {
         ret = vfs_truncate(filp->inode, filp->offset + len);
         if (ret)
@@ -145,7 +143,6 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t sizet_len)
 
 
             using_block(dev, on_dev, b) {
-                kp(KP_TRACE, "Write: %d: sec_off=%ld, have_written=%ld, b->data=%p\n", dev, sec_off, have_written, b->data);
                 memcpy(b->data + sec_off, buf + have_written, left);
                 block_mark_dirty(b);
             }
@@ -196,7 +193,6 @@ off_t fs_file_generic_lseek(struct file *filp, off_t off, int whence)
 struct file *file_dup(struct file *filp)
 {
     atomic_inc(&filp->ref);
-    kp(KP_TRACE, "File dup i:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
     return filp;
 }
 

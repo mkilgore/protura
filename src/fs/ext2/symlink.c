@@ -29,11 +29,12 @@
 static int ext2_follow_link(struct inode *dir, struct inode *symlink, struct inode **result)
 {
     struct ext2_inode *ext2_symlink = container_of(symlink, struct ext2_inode, i);
+    struct ext2_super_block *sb = container_of(symlink->sb, struct ext2_super_block, sb);
     struct block *b = NULL;
     char *link;
     int ret = 0;
 
-    kp(KP_TRACE, "In follow_link\n");
+    kp_ext2(sb, "In follow_link\n");
 
     if (!S_ISLNK(symlink->mode)) {
         *result = inode_dup(symlink);

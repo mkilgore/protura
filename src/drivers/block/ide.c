@@ -26,7 +26,11 @@
 #include <protura/drivers/ide.h>
 #include "ide.h"
 
-#define KP_IDE KP_TRACE
+#ifdef CONFIG_KERNEL_LOG_IDE
+# define kp_ide(str, ...) kp(KP_NORMAL, "IDE: " str, ## __VA_ARGS__)
+#else
+# define kp_ide(str, ...) do { ; } while (0)
+#endif
 
 enum {
     IDE_IRQ = 14,
@@ -200,7 +204,7 @@ static void __ide_start_queue(void)
 
     __ide_wait_ready();
 
-    kp(KP_IDE, "B sector: %d, IDE: sector=%d, master/slave: %d\n", b->sector, disk_sector, ide_state.next_is_slave);
+    kp_ide("B sector: %d, IDE: sector=%d, master/slave: %d\n", b->sector, disk_sector, ide_state.next_is_slave);
 
     outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET
                                 | IDE_DH_LBA
@@ -283,9 +287,9 @@ static void __ide_handle_intr(struct irq_frame *frame)
         st = __ide_read_status();
 
         if ((dma_stat & 7))
-            kp(KP_IDE, "DATA READ ERROR: 0x%02x\n", dma_stat);
+            kp(KP_WARNING, "DATA READ ERROR: 0x%02x\n", dma_stat);
         else if ((st & (IDE_STATUS_BUSY | IDE_STATUS_DATA_READ)) != IDE_STATUS_DATA_READ)
-            kp(KP_IDE, "DATA STATUS ERROR: 0x%02x\n", st);
+            kp(KP_WARNING, "DATA STATUS ERROR: 0x%02x\n", st);
     } else {
         /* If we were doing a read, then read the data now. We have to wait until
          * the drive is in the IDE_STATUS_READY state until we can start the read.
@@ -438,9 +442,9 @@ static void ide_sync_block(struct block *b, int master_or_slave)
             __ide_start_queue();
     }
 
-    kp(KP_IDE, "Waiting on block queue: %p\n", &b->queue);
+    kp_ide("Waiting on block queue: %p\n", &b->queue);
     wait_queue_event(&b->queue, flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY));
-    kp(KP_IDE, "Block queue done! %p\n", &b->queue);
+    kp_ide("Block queue done! %p\n", &b->queue);
 }
 
 void ide_sync_block_master(struct block_device *__unused dev, struct block *b)

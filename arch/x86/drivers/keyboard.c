@@ -142,11 +142,8 @@ static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param
             atomic32_inc(&keyboard.has_keys);
 
             struct work *work;
-            kp(KP_TRACE, "keyboard: loop kwork.\n");
-            list_foreach_entry(&keyboard.work_list, work, wakeup_entry) {
-                kp(KP_TRACE, "keyboard: wakeup.\n");
+            list_foreach_entry(&keyboard.work_list, work, wakeup_entry)
                 work_schedule(work);
-            }
         }
     }
 }

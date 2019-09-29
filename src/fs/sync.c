@@ -112,7 +112,6 @@ void super_sync(struct super_block *sb)
 void sys_sync(void)
 {
     struct super_block *sb;
-    kp(KP_NORMAL, "sync()\n");
 
     using_mutex(&super_lock)
         list_foreach_entry(&super_block_list, sb, list_entry)
