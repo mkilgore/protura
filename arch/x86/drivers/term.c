@@ -32,6 +32,16 @@ struct term_info {
 
 static struct term_info glob_term;
 
+static void enable_cursor(void)
+{
+    /* Enable cursor from scanlines 13 to 15 */
+    outb(0x3D4, 0x2A);
+    outb(0x3D5, 0x0D);
+
+    outb(0x3D4, 0x0B);
+    outb(0x3D5, 0x0F);
+}
+
 static __always_inline void __term_updatecur(void)
 {
     uint16_t curloc = glob_term.cur_r * 80 + glob_term.cur_c;
@@ -68,7 +78,7 @@ void term_clear_color(uint8_t color)
 
 static void __term_clear(void)
 {
-    term_clear_color(glob_term.cur_col);
+    __term_clear_color(glob_term.cur_col);
 }
 
 void term_clear(void)
@@ -85,6 +95,7 @@ void term_init(void)
 
     glob_term.buf = TERM_MEMLOC;
     __term_clear();
+    enable_cursor();
     __term_updatecur();
 }
 
@@ -118,9 +129,14 @@ static void __term_scroll(int lines)
             glob_term.buf[lines],
             TERM_COLS * sizeof(struct term_char) * (TERM_ROWS - lines));
 
-    memset(glob_term.buf + TERM_ROWS - lines,
-            0,
-            TERM_COLS * sizeof(struct term_char) * lines);
+    struct term_char tmp;
+
+    tmp.chr = 0;
+    tmp.color = glob_term.cur_col;
+
+    int c;
+    for (c = 0; c < TERM_COLS; c++)
+        glob_term.buf[TERM_ROWS - 1][c] = tmp;
 }
 
 void term_scroll(int lines)
