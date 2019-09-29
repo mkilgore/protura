@@ -197,8 +197,10 @@ void tty_process_input(struct tty *tty)
 
         if (TERMIOS_ICANON(&termios))
             icanon_char(tty, &termios, buf[i]);
-        else
-            __send_input_char(tty, buf[i]);
+        else {
+            using_mutex(&tty->lock)
+                __send_input_char(tty, buf[i]);
+        }
     }
 }
 
