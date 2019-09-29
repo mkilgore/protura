@@ -28,7 +28,7 @@ static void __send_input_char(struct tty *tty, char c)
     wait_queue_wake(&tty->in_wait_queue);
 }
 
-static void __send_output_char(struct tty *tty, char c)
+static void send_output_char(struct tty *tty, char c)
 {
     const struct tty_driver *driver = tty->driver;
     driver->ops->write(tty, &c, 1);
@@ -37,20 +37,20 @@ static void __send_output_char(struct tty *tty, char c)
 static void output_post_process(struct tty *tty, const struct termios *termios, char c)
 {
     if (c == '\n' && TERMIOS_ONLCR(termios)) {
-        __send_output_char(tty, '\r');
-        return __send_output_char(tty, '\n');
+        send_output_char(tty, '\r');
+        return send_output_char(tty, '\n');
     }
 
     if (c == '\n' && TERMIOS_ONLRET(termios))
-        return __send_output_char(tty, '\r');
+        return send_output_char(tty, '\r');
 
     if (c == '\r' && TERMIOS_OCRNL(termios))
-        return __send_output_char(tty, '\n');
+        return send_output_char(tty, '\n');
 
     if (TERMIOS_OLCUC(termios))
         c = toupper(c);
 
-    __send_output_char(tty, c);
+    send_output_char(tty, c);
 }
 
 static void __tty_line_buf_flush(struct tty *tty, const struct termios *termios)
