@@ -79,11 +79,11 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-#define BUFFER_SZ 1024
+#define BUFFER_SZ (4096 * 4)
 
 void output_file(int in, const char *filename, int out) {
   static char buffer[BUFFER_SZ];
-  size_t sz;
+  ssize_t sz;
 
   do {
       sz = read(in, buffer, sizeof(buffer));
@@ -91,7 +91,6 @@ void output_file(int in, const char *filename, int out) {
           break;
 
       if (sz == -1) {
-          //printf("read error\n");
           perror(filename);
           return ;
       }
