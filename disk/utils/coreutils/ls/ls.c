@@ -196,11 +196,17 @@ static void render_group(struct util_line *line, gid_t gid)
         util_line_printf(line, "%d", (int)gid);
 }
 
-void list_items(DIR *directory)
+void list_items(DIR *directory, const char *base)
 {
     struct dirent *item;
+    int need_slash = 0;
+
+    size_t base_len = strlen(base);
+    if (base_len > 0 && base[base_len - 1] != '/')
+        need_slash = 1;
 
     while ((item = readdir(directory))) {
+        char path[256];
         struct stat st;
         struct util_line *cur_line;
 
@@ -211,10 +217,12 @@ void list_items(DIR *directory)
             && (strcmp(item->d_name, ".") == 0 || strcmp(item->d_name, "..") == 0))
             continue;
 
+        snprintf(path, sizeof(path), "%s%s%s", base, (need_slash)? "/": "",  item->d_name);
+
         if (!dereference_links)
-            lstat(item->d_name, &st);
+            lstat(path, &st);
         else
-            stat(item->d_name, &st);
+            stat(path, &st);
 
         cur_line = util_display_next_line(&display);
 
@@ -340,7 +348,7 @@ int main(int argc, char **argv) {
         if (dirs > 1)
             printf("%s:\n", dirarray[i]);
 
-        list_items(directory);
+        list_items(directory, dirarray[i]);
 
         if (dirs > 1)
             printf("\n");
