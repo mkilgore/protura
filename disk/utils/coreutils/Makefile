@@ -49,6 +49,7 @@ COREUTILS_PROGS = \
 	env \
 	truncate \
 	uname \
+	klogd \
 
 DISK_COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROGS))
 DISK_PROGS += $(DISK_COREUTILS_PROGS)
