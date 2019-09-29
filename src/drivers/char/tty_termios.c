@@ -202,16 +202,12 @@ void tty_process_input(struct tty *tty)
     }
 }
 
-void tty_process_output(struct tty *tty)
+void tty_process_output(struct tty *tty, const char *buf, size_t buf_len)
 {
-    char buf[32];
-    size_t buf_len;
     struct termios termios;
 
-    using_mutex(&tty->lock) {
+    using_mutex(&tty->lock)
         termios = tty->termios;
-        buf_len = char_buf_read(&tty->input_buf, buf, sizeof(buf));
-    }
 
     size_t i;
     for (i = 0; i < buf_len; i++)

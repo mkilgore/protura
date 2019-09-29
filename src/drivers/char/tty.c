@@ -47,18 +47,19 @@ static const struct winsize default_winsize = {
 };
 
 /*
- * Complicated and messy
+ * The TTY system sits in-between the terminal (The combination of the
+ * screen+keyboard), and the processes being run (Ex. Shell). The kernel does
+ * processing on the characters received from the terminal and sends them to the
+ * process, and then also does processing on the characters received from the
+ * process, and eventually sends them to the terminal.
  *
- * Works this way:
- *
- * Each tty has a coresponding kernel-thread which facalitates the transfer of
- * data from a user-space program to the underlying hardware, and performs tty
- * functions as necessary.
+ * The settings for the TTY are controlled via the `termios` structure (Which
+ * userspace can modify), and most of tha handling happens in tty_termios.c
  *
  * When the hardware has data ready, it saves it into an internal buffer
- * (somewhere) and wake's up the coresponding tty's kernel thread. The kernel
- * thread then goes and attemps to read all the data it can until that fails,
- * and then goes back to sleep after processing the data.
+ * (somewhere) and wake's up the tty's work entry. The tty_pump will then be
+ * scheduled onto any existing kwork threads to have the data from the hardware
+ * processed.
  *
  * Processes using the tty call the tty_read function from a `struct file`. The
  * `tty_read` function then attempts to read from the buffer on the tty holding
@@ -66,9 +67,8 @@ static const struct winsize default_winsize = {
  * the `in_wait_queue`. The kernel-thread wakes up the `in_wait_queue` after
  * processing data that results in data ready to be sent to the process.
  *
- * Processes writing to the tty write the data into the tty's buffer and
- * wake-up the kernel-thread. The kernel thread checks if there is any data to
- * be read from the process, and then processes it when so.
+ * For data coming in via processes, they call tty_write, at which point the
+ * data is immediately processed by the kernel as it comes in.
  */
 
 #define MAX_MINOR 32
@@ -82,11 +82,11 @@ void tty_pump(struct work *work)
 
     uint32_t start_ticks = timer_get_ms();
 
-    while (driver->ops->has_chars(tty) || char_buf_has_data(&tty->input_buf)) {
+    while (driver->ops->has_chars(tty)) {
         tty_process_input(tty);
-        tty_process_output(tty);
 
-        /* If we've been pumping for 2MS, then we reschedule ourselves and exit, so we don't hold-up the `kwork` queue. */
+        /* If we've been pumping for 2MS, then we reschedule ourselves and
+         * exit, so we don't hold-up the `kwork` queue. */
         if (timer_get_ms() >= start_ticks + 2) {
             work_schedule(work);
             break;
@@ -118,9 +118,6 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
 
     kp(KP_TRACE, "TTY %s%d name: %s\n", driver->name, ttyno, tty->name);
 
-    tty->input_buf.buffer = palloc_va(0, PAL_KERNEL);
-    tty->input_buf.len = PG_SIZE;
-
     tty->output_buf.buffer = palloc_va(0, PAL_KERNEL);
     tty->output_buf.len = PG_SIZE;
 
@@ -146,8 +143,6 @@ void tty_driver_register(struct tty_driver *driver)
         kp(KP_TRACE, "Creating %s%d\n", driver->name, i);
         tty_create(driver, i);
     }
-
-    return ;
 }
 
 static struct tty *tty_find(dev_t minor)
@@ -211,10 +206,7 @@ int tty_write_buf(struct tty *tty, const char *buf, size_t len)
     if (!tty)
         return -ENOTTY;
 
-    using_mutex(&tty->lock) {
-        char_buf_write(&tty->input_buf, buf, len);
-        work_schedule(&tty->work);
-    }
+    tty_process_output(tty, buf, len);
 
     return 0;
 }
@@ -281,7 +273,6 @@ static int tty_open(struct inode *inode, struct file *filp)
             tty->session_id = current->session_id;
             tty->fg_pgrp = current->pgid;
             char_buf_clear(&tty->output_buf);
-            char_buf_clear(&tty->input_buf);
         }
     }
 

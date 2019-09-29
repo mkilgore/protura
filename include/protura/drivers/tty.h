@@ -202,13 +202,12 @@ struct tty {
     struct tty_driver *driver;
 
     /* 
-     * NOTE: These are labeled from the kernel's point of view.
-     * Processes read from the 'output_buf', and write to the 'input_buf'
+     * NOTE: This is labeled from the kernel's point of view.
+     * Processes read from the 'output_buf'
      */
     struct wait_queue in_wait_queue;
 
     struct char_buf output_buf;
-    struct char_buf input_buf;
     int ret0; /* ^D marker */
 
     char *line_buf;
