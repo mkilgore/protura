@@ -113,3 +113,6 @@ size_t char_buf_read(struct char_buf *buf, void *data, size_t data_len)
     return orig_size;
 }
 
+#ifdef CONFIG_KERNEL_TESTS
+# include "char_buf_test.c"
+#endif
