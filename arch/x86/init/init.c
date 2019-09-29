@@ -23,6 +23,7 @@
 #include <protura/net.h>
 #include <protura/work.h>
 #include <protura/cmdline.h>
+#include <protura/klog.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/term.h>
@@ -72,6 +73,9 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     pa_t high_addr = 0;
 
     cpuid_init();
+
+    /* initialize klog so that it captures all of the early boot logging */
+    klog_init();
 
     /* Initalize output early for debugging */
     term_init();
