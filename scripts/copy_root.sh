@@ -34,6 +34,9 @@ mkdir $NEW_ROOT/proc
 mkdir $NEW_ROOT/tmp
 mkdir $NEW_ROOT/dev
 
+mkdir $NEW_ROOT/var
+mkdir $NEW_ROOT/var/log
+
 mkdir $NEW_ROOT/boot
 mkdir $NEW_ROOT/boot/grub
 
