@@ -20,10 +20,6 @@ struct char_device {
 
 enum {
     CHAR_DEV_NONE = 0,
-    CHAR_DEV_CONSOLE = 1,
-    CHAR_DEV_KEYBOARD = 2,
-    CHAR_DEV_COM = 3,
-    CHAR_DEV_SCREEN = 4,
     CHAR_DEV_TTY = 5,
     CHAR_DEV_MEM = 6,
 };
