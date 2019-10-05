@@ -405,6 +405,25 @@ static void vt_esc_report(struct vt *vt, char cmd)
     }
 }
 
+static void vt_esc_set_mode(struct vt *vt, char cmd)
+{
+    int mode_on = 1;
+    if (cmd == 'l')
+        mode_on = 0;
+
+    if (!vt->dec_private)
+        return;
+
+    switch (vt->esc_params[0]) {
+    case 25:
+        if (mode_on)
+            (vt->screen->cursor_on) ();
+        else
+            (vt->screen->cursor_off) ();
+        break;
+    }
+}
+
 static void (*lbracket_table[256]) (struct vt *, char) = {
     ['m'] = vt_esc_set_attributes,
     ['H'] = vt_esc_cursor_move,
@@ -422,6 +441,8 @@ static void (*lbracket_table[256]) (struct vt *, char) = {
     ['J'] = vt_esc_disp,
     ['n'] = vt_esc_report,
     ['K'] = vt_esc_clear_line,
+    ['l'] = vt_esc_set_mode,
+    ['h'] = vt_esc_set_mode,
 };
 
 static void vt_state_lbracket(struct vt *vt, char ch)
@@ -444,14 +465,14 @@ static void vt_state_lbracket(struct vt *vt, char ch)
 
         if (lbracket_table[(int)ch])
             (lbracket_table[(int)ch]) (vt, ch);
-        else
+        else {
             kp(KP_NORMAL, "Unhandled esc[ '%c', %d\n", ch, ch);
-
-        if (vt->dec_private) {
-            int i;
-            kp(KP_NORMAL, "DEC PRIVATE mode: '%c', %d\n", ch, ch);
-            for (i = 0; i < vt->esc_param_count; i++)
-                kp(KP_NORMAL, "    ARG: %d\n", i);
+            if (vt->dec_private) {
+                int i;
+                kp(KP_NORMAL, "DEC PRIVATE mode: '%c', %d\n", ch, ch);
+                for (i = 0; i < vt->esc_param_count; i++)
+                    kp(KP_NORMAL, "    ARG: %d\n", vt->esc_params[i]);
+            }
         }
 
         vt->state = VT_STATE_BEGIN;

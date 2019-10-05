@@ -31,6 +31,16 @@ static void scr_enable_cursor(void)
     outb(0x3D5, 0x0F);
 }
 
+static void scr_disable_cursor(void)
+{
+    /* Enable cursor from scanlines 13 to 15 */
+    outb(0x3D4, 0x2A);
+    outb(0x3D5, 0x0D | 0x20);
+
+    outb(0x3D4, 0x0B);
+    outb(0x3D5, 0x0F);
+}
+
 static void scr_updatecur(int row, int col)
 {
     uint16_t curloc = row * SCR_COLS + col;
@@ -43,6 +53,8 @@ static void scr_updatecur(int row, int col)
 struct screen arch_screen = {
     .buf = SCR_MEMLOC,
     .move_cursor = scr_updatecur,
+    .cursor_on = scr_enable_cursor,
+    .cursor_off = scr_disable_cursor,
 };
 
 void arch_screen_init(void)
