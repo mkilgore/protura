@@ -19,6 +19,8 @@
 
 #include <protura/mm/palloc.h>
 
+extern char kern_end;
+
 struct page_buddy_map {
     list_head_t free_pages;
     int free_count;
@@ -113,6 +115,9 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pn_t cur_page, int order)
 
 void __mark_page_free(pa_t pa)
 {
+    if (pa < V2P(&kern_end))
+        kp(KP_ERROR, "Marking a page free that's before kern_end!\n");
+
     __pfree_add_pages(&buddy_allocator, __PA_TO_PN(pa), 0);
 }
 
@@ -122,6 +127,12 @@ void pfree(struct page *p, int order)
 
     if (!p) {
         kp(KP_ERROR, "ERROR: pfree: %p\n", p);
+        return;
+    }
+
+    if (page_to_pa(p) < V2P(&kern_end)) {
+        kp(KP_ERROR, "pfree() called on page that's before kern_end! Page was: %p!\n", p->virt);
+        dump_stack();
         return;
     }
 
@@ -214,6 +225,12 @@ struct page *palloc(int order, unsigned int flags)
 
     using_spinlock(&buddy_allocator.lock)
         p = __palloc_phys_multiple(&buddy_allocator, order, flags);
+
+    if (page_to_pa(p) < V2P(&kern_end)) {
+        kp(KP_ERROR, "palloc() is returning a page before kern_end!!!\n");
+        dump_stack();
+    }
+
 
     return p;
 }
