@@ -109,6 +109,7 @@ struct winsize {
 #define ECHOE	0000020   /* Echo erase character as error-correcting backspace.  */
 #define ECHOK	0000040   /* Echo KILL.  */ /* IGNORED */
 #define ECHONL	0000100   /* Echo NL.  */ /* IGNORED */
+#define ECHOCTL 0001000   /* Echo CTL */
 #define NOFLSH	0000200   /* Disable flush after interrupt or quit.  */ /* IGNORED */
 #define TOSTOP	0000400   /* Send SIGTTOU for background output.  */ /* IGNORED */
 #define IEXTEN	0100000   /* Enable implementation-defined input processing.  */ /* IGNORED */
@@ -252,6 +253,7 @@ void tty_add_input(struct tty *, const char *buf, size_t len);
 #define TERMIOS_ICANON(termios) __TERMIOS_FLAG_LFLAG((termios), ICANON)
 #define TERMIOS_ECHO(termios) __TERMIOS_FLAG_LFLAG((termios), ECHO)
 #define TERMIOS_ECHOE(termios) __TERMIOS_FLAG_LFLAG((termios), ECHOE)
+#define TERMIOS_ECHOCTL(termios) __TERMIOS_FLAG_LFLAG((termios), ECHOCTL)
 
 #define TERMIOS_IGNBRK(termios) __TERMIOS_FLAG_IFLAG((termios), IGNBRK)
 #define TERMIOS_ISTRIP(termios) __TERMIOS_FLAG_IFLAG((termios), ISTRIP)

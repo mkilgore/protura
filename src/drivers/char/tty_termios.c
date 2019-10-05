@@ -22,6 +22,17 @@
 #include <protura/drivers/tty.h>
 #include "tty_termios.h"
 
+static int is_control(char ch)
+{
+    switch (ch) {
+    case '\x01' ... '\x1F': case 127:
+        return 1;
+
+    default:
+        return 0;
+    }
+}
+
 static void __send_input_char(struct tty *tty, char c)
 {
     char_buf_write(&tty->output_buf, &c, 1);
@@ -76,37 +87,57 @@ static void __tty_line_buf_append(struct tty *tty, char c)
     }
 }
 
-static int __tty_line_buf_remove(struct tty *tty)
+static int __tty_line_buf_remove(struct tty *tty, char *removed)
 {
     if (tty->line_buf_pos > 0) {
         tty->line_buf_pos--;
+        *removed = tty->line_buf[tty->line_buf_pos];
         return 1;
     }
 
     return 0;
 }
 
+static int get_char_render_length(struct termios *termios, char ch)
+{
+    if (!TERMIOS_ECHO(termios) || !TERMIOS_ECHOCTL(termios))
+        return 1;
+
+    if (is_control(ch))
+        return 2;
+
+    return 1;
+}
+
 static void icanon_char(struct tty *tty, struct termios *termios, char c)
 {
-    if (c == termios->c_cc[VEOF]) {
-        tty->ret0 = 1;
-        wait_queue_wake(&tty->in_wait_queue);
-        return;
-    }
-
-    if (c == termios->c_cc[VERASE]) {
-        if (__tty_line_buf_remove(tty) && TERMIOS_ECHO(termios) && TERMIOS_ECHOE(termios)) {
-            output_post_process(tty, termios, '\b');
-            output_post_process(tty, termios, ' ');
-            output_post_process(tty, termios, '\b');
+    using_mutex(&tty->lock) {
+        if (c == termios->c_cc[VEOF]) {
+            tty->ret0 = 1;
+            wait_queue_wake(&tty->in_wait_queue);
+            return;
         }
-        return;
+
+        if (c == termios->c_cc[VERASE]) {
+            char prev;
+
+            if (__tty_line_buf_remove(tty, &prev) && TERMIOS_ECHO(termios) && TERMIOS_ECHOE(termios)) {
+                int len = get_char_render_length(termios, prev);
+                int i;
+                for (i = 0; i < len; i++) {
+                    output_post_process(tty, termios, '\b');
+                    output_post_process(tty, termios, ' ');
+                    output_post_process(tty, termios, '\b');
+                }
+            }
+            return;
+        }
+
+        __tty_line_buf_append(tty, c);
+
+        if (c == '\n')
+            __tty_line_buf_flush(tty, termios);
     }
-
-    __tty_line_buf_append(tty, c);
-
-    if (c == '\n')
-        __tty_line_buf_flush(tty, termios);
 }
 
 static void echo_char(struct tty *tty, struct termios *termios, char c)
@@ -117,7 +148,12 @@ static void echo_char(struct tty *tty, struct termios *termios, char c)
             && c == termios->c_cc[VERASE])
         return;
 
-    output_post_process(tty, termios, c);
+    if (TERMIOS_ECHOCTL(termios) && is_control(c) && c != '\t' && c != '\n') {
+        output_post_process(tty, termios, '^');
+        output_post_process(tty, termios, c ^ 0x40);
+    } else {
+        output_post_process(tty, termios, c);
+    }
 }
 
 static void tty_pgrp_signal(struct tty *tty, int sig)
@@ -170,26 +206,26 @@ void tty_process_input(struct tty *tty, const char *buf, size_t buf_len)
     size_t i;
     struct termios termios;
 
-    using_mutex(&tty->lock) {
+    using_mutex(&tty->lock)
         termios = tty->termios;
 
-        for (i = 0; i < buf_len; i++) {
-            char ch = buf[i];
+    for (i = 0; i < buf_len; i++) {
+        char ch = buf[i];
 
-            if (input_preprocess(tty, &termios, &ch))
-                continue;
+        if (input_preprocess(tty, &termios, &ch))
+            continue;
 
-            if (TERMIOS_ISIG(&termios) && isig_handle(tty, &termios, ch))
-                continue;
+        if (TERMIOS_ISIG(&termios) && isig_handle(tty, &termios, ch))
+            continue;
 
-            if (TERMIOS_ECHO(&termios))
-                echo_char(tty, &termios, ch);
+        if (TERMIOS_ECHO(&termios))
+            echo_char(tty, &termios, ch);
 
-            if (TERMIOS_ICANON(&termios))
-                icanon_char(tty, &termios, ch);
-            else
+        if (TERMIOS_ICANON(&termios))
+            icanon_char(tty, &termios, ch);
+        else
+            using_mutex(&tty->lock)
                 __send_input_char(tty, ch);
-        }
     }
 }
 
