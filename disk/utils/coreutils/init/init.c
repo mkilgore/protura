@@ -21,7 +21,7 @@
 const char *prog_name;
 
 static FILE *ilog;
-static char *const env_vars[] = { "PATH=/bin:/usr/bin", "TERM=linux", NULL };
+static char *const env_vars[] = { "PATH=/bin:/usr/bin", "TERM=protura", NULL };
 
 enum tab_action {
     TAB_RESPAWN,
