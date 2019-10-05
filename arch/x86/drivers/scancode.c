@@ -12,7 +12,6 @@
 
 #include <arch/asm.h>
 #include <arch/idt.h>
-#include <protura/drivers/term.h>
 #include <arch/drivers/keyboard.h>
 
 uint16_t scancode2_to_ascii[][8] =

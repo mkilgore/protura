@@ -19,7 +19,6 @@
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/sync.h>
-#include <protura/drivers/term.h>
 #include <protura/ktest.h>
 
 #include <protura/init/init_basic.h>
@@ -45,7 +44,6 @@ static int start_user_init(void *unused)
 
     kp(KP_NORMAL, "Kernel is done booting!\n");
 
-    kp_output_unregister(term_printfv);
 
     /* Mount the current IDE drive as an ext2 filesystem */
     int ret = mount_root(DEV_MAKE(CONFIG_ROOT_MAJOR, CONFIG_ROOT_MINOR), CONFIG_ROOT_FSTYPE);

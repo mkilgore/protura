@@ -15,7 +15,6 @@
 #include <protura/scheduler.h>
 
 #include <arch/spinlock.h>
-#include <protura/drivers/term.h>
 #include <arch/drivers/keyboard.h>
 #include <arch/asm.h>
 #include <protura/fs/char.h>

@@ -26,7 +26,6 @@
 #include <protura/klog.h>
 
 #include <arch/asm.h>
-#include <protura/drivers/term.h>
 #include <protura/drivers/ide.h>
 #include <protura/drivers/com.h>
 #include <arch/gdt.h>
@@ -78,8 +77,6 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     klog_init();
 
     /* Initalize output early for debugging */
-    term_init();
-    kp_output_register(term_printfv, "TERM");
 
     if (com_init_early() == 0)
         kp_output_register(com1_printfv, "COM1");

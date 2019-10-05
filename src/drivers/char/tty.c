@@ -16,7 +16,6 @@
 #include <protura/snprintf.h>
 
 #include <arch/spinlock.h>
-#include <protura/drivers/term.h>
 #include <arch/asm.h>
 #include <protura/fs/char.h>
 #include <protura/fs/fcntl.h>

@@ -18,7 +18,6 @@
 #include <protura/work.h>
 
 #include <arch/spinlock.h>
-#include <protura/drivers/term.h>
 #include <arch/drivers/keyboard.h>
 #include <arch/asm.h>
 #include <arch/drivers/pic8259.h>

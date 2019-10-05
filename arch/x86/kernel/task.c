@@ -14,7 +14,6 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/memlayout.h>
 #include <protura/mm/vm.h>
-#include <protura/drivers/term.h>
 #include <protura/dump_mem.h>
 #include <protura/scheduler.h>
 #include <protura/task.h>

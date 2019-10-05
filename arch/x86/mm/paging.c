@@ -12,7 +12,6 @@
 #include <protura/snprintf.h>
 #include <protura/debug.h>
 #include <protura/mm/memlayout.h>
-#include <protura/drivers/term.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/vm.h>
 #include <protura/mm/vm_area.h>

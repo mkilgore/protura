@@ -14,7 +14,6 @@
 
 #include <arch/spinlock.h>
 #include <arch/drivers/keyboard.h>
-#include <protura/drivers/term.h>
 #include <arch/asm.h>
 #include <protura/fs/char.h>
 #include <protura/drivers/screen.h>
