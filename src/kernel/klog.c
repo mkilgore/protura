@@ -49,7 +49,7 @@ static struct printf_backbone klog_backbone = {
     .putnstr = __klog_putnstr,
 };
 
-static void klog_printf(const char *fmt, va_list lst)
+static void klog_printf(struct kp_output *out, const char *fmt, va_list lst)
 {
     scoped_spinlock(&klog.lock) {
         basic_printfv(&klog_backbone, fmt, lst);
@@ -57,9 +57,12 @@ static void klog_printf(const char *fmt, va_list lst)
     }
 }
 
+static struct kp_output klog_kp_output
+    = KP_OUTPUT_INIT(klog_kp_output, klog_printf, "klog");
+
 void klog_init(void)
 {
-    kp_output_register(klog_printf, "klog");
+    kp_output_register(&klog_kp_output);
 }
 
 static int klog_read(struct file *filp, void *p, size_t size)

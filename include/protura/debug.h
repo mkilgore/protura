@@ -12,6 +12,7 @@
 #include <protura/compiler.h>
 #include <protura/stdarg.h>
 #include <protura/time.h>
+#include <protura/list.h>
 #include <arch/backtrace.h>
 
 /* KP_STR99 is a 'catch-all' for debugging outputs which are not going to be
@@ -48,10 +49,24 @@
 # define KP_LOCK_INODE 99
 #endif
 
+struct kp_output {
+    list_node_t node;
+    void (*print) (struct kp_output *, const char *fmt, va_list lst);
+    const char *name;
+};
+
+#define KP_OUTPUT_INIT(k, callback, nam) \
+    { \
+        .node = LIST_NODE_INIT((k).node), \
+        .print = (callback), \
+        .name = (nam), \
+    }
+
 void kprintf_internal(const char *s, ...) __printf(1, 2);
 void kprintfv_internal(const char *s, va_list);
-void kp_output_register(void (*print) (const char *fmt, va_list lst), const char *name);
-void kp_output_unregister(void (*print) (const char *fmt, va_list lst));
+
+void kp_output_register(struct kp_output *);
+void kp_output_unregister(struct kp_output *);
 
 #ifdef CONFIG_KERNEL_LOG_SRC_LINE
 # define KP_CUR_LINE Q(__LINE__) ":" __FILE__ ": "

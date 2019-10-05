@@ -339,7 +339,7 @@ static void com_putnstr(struct printf_backbone *b, const char *s, size_t len)
     }
 }
 
-void com1_printfv(const char *fmt, va_list lst)
+static void com1_printfv(struct kp_output *output, const char *fmt, va_list lst)
 {
     struct printf_backbone_com com = {
         .backbone = {
@@ -352,16 +352,15 @@ void com1_printfv(const char *fmt, va_list lst)
     basic_printfv(&com.backbone, fmt, lst);
 }
 
-void com2_printfv(const char *fmt, va_list lst)
-{
-    struct printf_backbone_com com = {
-        .backbone = {
-            .putchar = com_putchar,
-            .putnstr = com_putnstr,
-        },
-        .com_id = COM2,
-    };
+static struct kp_output com_kp_output =
+    KP_OUTPUT_INIT(com_kp_output, com1_printfv, "com1");
 
-    basic_printfv(&com.backbone, fmt, lst);
+void com_kp_register(void)
+{
+    kp_output_register(&com_kp_output);
 }
 
+void com_kp_unregister(void)
+{
+    kp_output_unregister(&com_kp_output);
+}
