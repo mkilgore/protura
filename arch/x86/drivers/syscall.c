@@ -12,7 +12,6 @@
 #include <protura/mm/palloc.h>
 #include <protura/mm/vm.h>
 #include <arch/idt.h>
-#include <protura/drivers/term.h>
 #include <arch/task.h>
 #include <arch/syscall.h>
 #include <arch/cpu.h>
@@ -29,11 +28,6 @@
  * functionality used for syscalls, and the actual sys_* functions.
  */
 
-static void sys_handler_putchar(struct irq_frame *frame)
-{
-    sys_putchar(frame->ebx);
-}
-
 static void sys_handler_clock(struct irq_frame *frame)
 {
     frame->eax = sys_clock();
@@ -42,16 +36,6 @@ static void sys_handler_clock(struct irq_frame *frame)
 static void sys_handler_getpid(struct irq_frame *frame)
 {
     frame->eax = sys_getpid();
-}
-
-static void sys_handler_putint(struct irq_frame *frame)
-{
-    sys_putint(frame->ebx);
-}
-
-static void sys_handler_putstr(struct irq_frame *frame)
-{
-    sys_putstr((char *)frame->ebx);
 }
 
 static void sys_handler_sleep(struct irq_frame *frame)
@@ -466,11 +450,8 @@ static struct syscall_handler {
     int num;
     void (*handler) (struct irq_frame *);
 } syscall_handlers[] = {
-    SYSCALL(PUTCHAR, sys_handler_putchar),
     SYSCALL(CLOCK, sys_handler_clock),
     SYSCALL(GETPID, sys_handler_getpid),
-    SYSCALL(PUTINT, sys_handler_putint),
-    SYSCALL(PUTSTR, sys_handler_putstr),
     SYSCALL(SLEEP, sys_handler_sleep),
     SYSCALL(FORK, sys_handler_fork),
     SYSCALL(GETPPID, sys_handler_getppid),
@@ -556,7 +537,7 @@ static struct syscall_handler {
 
 static void syscall_handler(struct irq_frame *frame, void *param)
 {
-    if (frame->eax < ARRAY_SIZE(syscall_handlers))
+    if (frame->eax < ARRAY_SIZE(syscall_handlers) && syscall_handlers[frame->eax].handler)
         (syscall_handlers[frame->eax].handler) (frame);
 }
 
