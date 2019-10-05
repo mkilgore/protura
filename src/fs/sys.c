@@ -779,8 +779,6 @@ int sys_fcntl(int fd, int cmd, uintptr_t arg)
     struct file *filp;
     int ret;
 
-    kp(KP_TRACE, "fcntl: %d, %d\n", fd, cmd);
-
     ret = fd_get_checked(fd, &filp);
     if (ret)
         return ret;
