@@ -42,8 +42,7 @@ static sector_t __ext2_mark_block(struct ext2_super_block *sb)
 
             kp_ext2(sb, "First zero: %d\n", location);
 
-            /* location is based from zero, but blocks start at 1 */
-            ret = i * blocks_per_group + location + 1;
+            ret = i * blocks_per_group + location;
             bit_set(b->data, location);
             sb->groups[i].block_unused_total--;
 
