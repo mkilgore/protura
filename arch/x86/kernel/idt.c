@@ -11,6 +11,7 @@
 #include <protura/atomic.h>
 #include <protura/scheduler.h>
 #include <protura/mm/memlayout.h>
+#include <protura/drivers/console.h>
 #include <protura/snprintf.h>
 #include <protura/fs/seq_file.h>
 
@@ -80,6 +81,7 @@ void unhandled_cpu_exception(struct irq_frame *frame, void *param)
 {
     struct task *current = cpu_get_local()->current;
 
+    vt_console_kp_register();
 
     kp(KP_ERROR, "Exception: %s(%d)! AT: %p, ERR: 0x%08x\n", cpu_exception_name[frame->intno], frame->intno, (void *)frame->eip, frame->err);
 

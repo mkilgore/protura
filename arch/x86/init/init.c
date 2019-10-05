@@ -26,6 +26,7 @@
 #include <protura/klog.h>
 
 #include <arch/asm.h>
+#include <protura/drivers/console.h>
 #include <protura/drivers/ide.h>
 #include <protura/drivers/com.h>
 #include <arch/gdt.h>
@@ -77,9 +78,11 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
     klog_init();
 
     /* Initalize output early for debugging */
+    vt_console_early_init();
+    vt_console_kp_register();
 
     if (com_init_early() == 0)
-        kp_output_register(com1_printfv, "COM1");
+        com_kp_register();
 
     kp(KP_NORMAL, "Protura booting...\n");
 

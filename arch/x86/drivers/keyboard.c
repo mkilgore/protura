@@ -14,6 +14,7 @@
 #include <protura/irq.h>
 #include <protura/list.h>
 #include <protura/work.h>
+#include <protura/drivers/tty.h>
 
 #include <arch/spinlock.h>
 #include <arch/asm.h>
@@ -23,25 +24,14 @@
 #include <arch/drivers/scancode.h>
 #include <arch/drivers/keyboard.h>
 
-
 static struct keyboard {
     uint8_t led_status;
     uint8_t control_keys;
 
-    atomic32_t has_keys;
-
-    short buffer[CONFIG_KEYBOARD_BUFSZ];
-
-    struct char_buf buf;
-    spinlock_t buf_lock;
-    list_head_t work_list;
+    struct tty *tty;
 } keyboard = {
     .led_status = 0,
     .control_keys = 0,
-
-    .has_keys = ATOMIC32_INIT(0),
-    .buf_lock = SPINLOCK_INIT("Keyboard"),
-    .work_list = LIST_HEAD_INIT(keyboard.work_list),
 };
 
 #define KEY_READ_BUF_PORT (0x60)
@@ -57,27 +47,6 @@ static void set_leds(void)
     outb(KEY_WRITE_BUF_PORT, keyboard.led_status);
     while (inb(KEY_READ_STATUS_PORT) & 2)
         ;
-}
-
-int arch_keyboard_has_char(void)
-{
-    if (atomic32_get(&keyboard.has_keys))
-        return 1;
-    else
-        return 0;
-}
-
-int arch_keyboard_get_char(void)
-{
-    short ch;
-    if (!atomic32_get(&keyboard.has_keys))
-        return -1;
-
-    using_spinlock(&keyboard.buf_lock)
-        ch = char_buf_read_char(&keyboard.buf);
-
-    atomic32_dec(&keyboard.has_keys);
-    return ch;
 }
 
 static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param)
@@ -137,25 +106,17 @@ static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param
         asc_char = scancode2_to_ascii[scancode][0];
 
     if (asc_char) {
-        using_spinlock(&keyboard.buf_lock) {
-            char_buf_write_char(&keyboard.buf, asc_char);
-            atomic32_inc(&keyboard.has_keys);
+        char c = asc_char;
 
-            struct work *work;
-            list_foreach_entry(&keyboard.work_list, work, wakeup_entry)
-                work_schedule(work);
-        }
+        if (keyboard.tty)
+            tty_add_input(keyboard.tty, &c, 1);
     }
 }
 
 void arch_keyboard_init(void)
 {
-    char_buf_init(&keyboard.buf, keyboard.buffer, sizeof(keyboard.buffer));
-
     irq_register_callback(PIC8259_IRQ0 + 1, arch_keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT, NULL);
     pic8259_enable_irq(1);
-
-    return ;
 }
 
 static void clear_keyboard(void)
@@ -168,16 +129,9 @@ static void clear_keyboard(void)
     } while (test & 0x02);
 }
 
-void arch_keyboard_work_add(struct work *work)
+void arch_keyboard_set_tty(struct tty *tty)
 {
-    using_spinlock(&keyboard.buf_lock)
-        list_add_tail(&keyboard.work_list, &work->wakeup_entry);
-}
-
-void arch_keyboard_work_remove(struct work *work)
-{
-    using_spinlock(&keyboard.buf_lock)
-        list_del(&work->wakeup_entry);
+    keyboard.tty = tty;
 }
 
 /* A fake IDT setup - Issuing an interrupt with this IDT will triple-fault the
@@ -209,4 +163,3 @@ void system_shutdown(void)
     while (1)
         hlt();
 }
-

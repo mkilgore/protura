@@ -77,20 +77,18 @@ static struct tty *tty_array[MAX_MINOR];
 void tty_pump(struct work *work)
 {
     struct tty *tty = container_of(work, struct tty, work);
-    const struct tty_driver *driver = tty->driver;
+    char buf[64];
+    size_t buf_len = 0;
 
-    uint32_t start_ticks = timer_get_ms();
+    using_spinlock(&tty->input_buf_lock)
+        buf_len = char_buf_read(&tty->input_buf, buf, sizeof(buf));
 
-    while (driver->ops->has_chars(tty)) {
-        tty_process_input(tty);
+    /* If it's possible input_buf still has data, then schedule us to run again
+     * to read more */
+    if (buf_len == sizeof(buf))
+        work_schedule(work);
 
-        /* If we've been pumping for 2MS, then we reschedule ourselves and
-         * exit, so we don't hold-up the `kwork` queue. */
-        if (timer_get_ms() >= start_ticks + 2) {
-            work_schedule(work);
-            break;
-        }
-    }
+    tty_process_input(tty, buf, buf_len);
 }
 
 static void tty_create(struct tty_driver *driver, dev_t devno)
@@ -120,6 +118,9 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->output_buf.buffer = palloc_va(0, PAL_KERNEL);
     tty->output_buf.len = PG_SIZE;
 
+    tty->input_buf.buffer = palloc_va(0, PAL_KERNEL);
+    tty->input_buf.len = PG_SIZE;
+
     tty->winsize = default_winsize;
     tty->termios = default_termios;
     kp(KP_TRACE, "Termios setting: %d\n", tty->termios.c_lflag);
@@ -130,7 +131,7 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
 
     tty_array[devno + driver->minor_start] = tty;
 
-    driver->ops->register_for_wakeups(tty);
+    (driver->ops->init) (tty);
 }
 
 void tty_driver_register(struct tty_driver *driver)
@@ -150,6 +151,14 @@ static struct tty *tty_find(dev_t minor)
         return NULL;
 
     return tty_array[minor];
+}
+
+void tty_add_input(struct tty *tty, const char *buf, size_t len)
+{
+    using_spinlock(&tty->input_buf_lock) {
+        char_buf_write(&tty->input_buf, buf, len);
+        work_schedule(&tty->work);
+    }
 }
 
 static int tty_read(struct file *filp, void *vbuf, size_t len)
@@ -388,7 +397,7 @@ struct file_ops tty_file_ops = {
 void tty_subsystem_init(void)
 {
 #ifdef CONFIG_CONSOLE_DRIVER
-    console_init();
+    vt_console_init();
 #endif
     com_tty_init();
 }

@@ -10,7 +10,7 @@
 
 #include <protura/drivers/tty.h>
 
-void tty_process_input(struct tty *tty);
+void tty_process_input(struct tty *tty, const char *buf, size_t buf_len);
 void tty_process_output(struct tty *tty, const char *buf, size_t len);
 void tty_line_buf_flush(struct tty *tty);
 

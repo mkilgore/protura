@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Matt Kilgore
+ * Copyright (C) 2019 Matt Kilgore
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License v2 as published by the
@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
+#include <protura/basic_printf.h>
 #include <protura/scheduler.h>
 #include <protura/wait.h>
 
@@ -16,68 +17,58 @@
 #include <arch/drivers/keyboard.h>
 #include <arch/asm.h>
 #include <protura/fs/char.h>
+#include <protura/drivers/vt.h>
 #include <protura/drivers/screen.h>
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/tty.h>
 
-struct file_ops console_file_ops = {
-    .open = NULL,
-    .release = NULL,
-    .read = keyboard_file_read,
-    .write = screen_file_write,
-    .lseek = NULL,
-    .readdir = NULL,
+#include "vt_internal.h"
+
+static void vt_tty_init(struct tty *tty)
+{
+    struct vt *vt = container_of(tty->driver, struct vt, driver);
+    vt->tty = tty;
+
+    arch_keyboard_set_tty(vt->tty);
+}
+
+static struct tty_ops vt_ops = {
+    .init = vt_tty_init,
+    .write = vt_tty_write,
 };
 
-static int tty_keyboard_read(struct tty *driver, char *buf, size_t len)
-{
-    char c;
-    size_t cur_pos = 0;
-
-    while ((cur_pos != len && (c = arch_keyboard_has_char()))) {
-        buf[cur_pos] = arch_keyboard_get_char();
-        cur_pos++;
-    }
-
-    return cur_pos;
-}
-
-static int tty_keyboard_has_chars(struct tty *driver)
-{
-    return arch_keyboard_has_char();
-}
-
-static int tty_console_write(struct tty *driver, const char *data, size_t size)
-{
-    term_putnstr(data, size);
-
-    return size;
-}
-
-static void tty_console_reigster_for_wakeups(struct tty *tty)
-{
-    arch_keyboard_work_add(&tty->work);
-}
-
-static struct tty_ops ops = {
-    .read = tty_keyboard_read,
-    .has_chars = tty_keyboard_has_chars,
-    .write = tty_console_write,
-    .register_for_wakeups = tty_console_reigster_for_wakeups,
+static struct vt console_vt = {
+    .driver = {
+        .name = "tty",
+        .minor_start = 1,
+        .minor_end = 1,
+        .ops = &vt_ops,
+    },
+    .screen = &arch_screen,
+    .lock = SPINLOCK_INIT("console-vt-lock"),
 };
 
-static struct tty_driver driver = {
-    .name = "tty",
-    .minor_start = 1,
-    .minor_end = 1,
-    .ops = &ops,
+static struct vt_kp_output vt_kp_output = {
+    .output = KP_OUTPUT_INIT((vt_kp_output).output, vt_early_printf, "console-vt"),
+    .vt = &console_vt,
 };
 
-void console_init(void)
+void vt_console_kp_register(void)
 {
-    screen_init();
-    keyboard_init();
-
-    tty_driver_register(&driver);
+    kp_output_register(&vt_kp_output.output);
 }
 
+void vt_console_kp_unregister(void)
+{
+    kp_output_unregister(&vt_kp_output.output);
+}
+
+void vt_console_early_init(void)
+{
+    vt_early_init(&console_vt);
+}
+
+void vt_console_init(void)
+{
+    vt_init(&console_vt);
+}

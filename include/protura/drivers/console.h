@@ -11,8 +11,10 @@
 #include <protura/types.h>
 #include <protura/fs/char.h>
 
-void console_init(void);
+void vt_console_kp_register(void);
+void vt_console_kp_unregister(void);
 
-extern struct file_ops console_file_ops;
+void vt_console_early_init(void);
+void vt_console_init(void);
 
 #endif

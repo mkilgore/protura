@@ -89,31 +89,24 @@ static int __tty_line_buf_remove(struct tty *tty)
 static void icanon_char(struct tty *tty, struct termios *termios, char c)
 {
     if (c == termios->c_cc[VEOF]) {
-        using_mutex(&tty->lock) {
-            tty->ret0 = 1;
-            wait_queue_wake(&tty->in_wait_queue);
-        }
+        tty->ret0 = 1;
+        wait_queue_wake(&tty->in_wait_queue);
         return;
     }
 
     if (c == termios->c_cc[VERASE]) {
-        using_mutex(&tty->lock) {
-            if (__tty_line_buf_remove(tty) && TERMIOS_ECHO(termios) && TERMIOS_ECHOE(termios)) {
-                output_post_process(tty, termios, '\b');
-                output_post_process(tty, termios, ' ');
-                output_post_process(tty, termios, '\b');
-            }
+        if (__tty_line_buf_remove(tty) && TERMIOS_ECHO(termios) && TERMIOS_ECHOE(termios)) {
+            output_post_process(tty, termios, '\b');
+            output_post_process(tty, termios, ' ');
+            output_post_process(tty, termios, '\b');
         }
         return;
     }
 
-    using_mutex(&tty->lock)
-        __tty_line_buf_append(tty, c);
+    __tty_line_buf_append(tty, c);
 
-    if (c == '\n') {
-        using_mutex(&tty->lock)
-            __tty_line_buf_flush(tty, termios);
-    }
+    if (c == '\n')
+        __tty_line_buf_flush(tty, termios);
 }
 
 static void echo_char(struct tty *tty, struct termios *termios, char c)
@@ -172,34 +165,30 @@ static int input_preprocess(struct tty *tty, struct termios *termios, char *c)
     return 0;
 }
 
-void tty_process_input(struct tty *tty)
+void tty_process_input(struct tty *tty, const char *buf, size_t buf_len)
 {
-    const struct tty_driver *driver = tty->driver;
-    char buf[32];
-    size_t buf_len;
     size_t i;
     struct termios termios;
 
-    using_mutex(&tty->lock)
+    using_mutex(&tty->lock) {
         termios = tty->termios;
 
-    buf_len = (driver->ops->read) (tty, buf, sizeof(buf));
+        for (i = 0; i < buf_len; i++) {
+            char ch = buf[i];
 
-    for (i = 0; i < buf_len; i++) {
-        if (input_preprocess(tty, &termios, buf + i))
-            continue;
+            if (input_preprocess(tty, &termios, &ch))
+                continue;
 
-        if (TERMIOS_ISIG(&termios) && isig_handle(tty, &termios, buf[i]))
-            continue;
+            if (TERMIOS_ISIG(&termios) && isig_handle(tty, &termios, ch))
+                continue;
 
-        if (TERMIOS_ECHO(&termios))
-            echo_char(tty, &termios, buf[i]);
+            if (TERMIOS_ECHO(&termios))
+                echo_char(tty, &termios, ch);
 
-        if (TERMIOS_ICANON(&termios))
-            icanon_char(tty, &termios, buf[i]);
-        else {
-            using_mutex(&tty->lock)
-                __send_input_char(tty, buf[i]);
+            if (TERMIOS_ICANON(&termios))
+                icanon_char(tty, &termios, ch);
+            else
+                __send_input_char(tty, ch);
         }
     }
 }

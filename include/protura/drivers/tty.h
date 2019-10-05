@@ -172,9 +172,7 @@ struct tty;
 struct file;
 
 struct tty_ops {
-    void (*register_for_wakeups) (struct tty *);
-    int (*has_chars) (struct tty *);
-    int (*read) (struct tty *, char *, size_t);
+    void (*init) (struct tty *);
     int (*write) (struct tty *, const char *, size_t size);
 };
 
@@ -201,8 +199,13 @@ struct tty {
     struct termios termios;
     struct tty_driver *driver;
 
+    /*
+     * Keyboard input is put into the `input_buf`
+     */
+    spinlock_t input_buf_lock;
+    struct char_buf input_buf;
+
     /* 
-     * NOTE: This is labeled from the kernel's point of view.
      * Processes read from the 'output_buf'
      */
     struct wait_queue in_wait_queue;
@@ -219,6 +222,7 @@ void tty_pump(struct work *);
 
 #define TTY_INIT(tty) \
     { \
+        .input_buf_lock = SPINLOCK_INIT("tty-input-buf-lock"), \
         .lock = MUTEX_INIT((tty).lock, "tty-lock"), \
         .work = WORK_INIT_KWORK((tty).work, tty_pump), \
         .in_wait_queue = WAIT_QUEUE_INIT((tty).in_wait_queue, "tty-in-wait-queue"), \
@@ -231,6 +235,12 @@ static inline void tty_init(struct tty *tty)
 
 void tty_driver_register(struct tty_driver *driver);
 int tty_write_buf(struct tty *tty, const char *buf, size_t len);
+
+/* This allows add data to the *input* side of the tty, as though it was typed
+ * on the keyboard.
+ *
+ * Note: The buffer may be modified */
+void tty_add_input(struct tty *, const char *buf, size_t len);
 
 #define __TERMIOS_FLAG_OFLAG(termios, flag) (((termios)->c_oflag & (flag)) != 0)
 #define __TERMIOS_FLAG_CFLAG(termios, flag) (((termios)->c_cflag & (flag)) != 0)

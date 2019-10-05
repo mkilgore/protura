@@ -31,10 +31,6 @@ enum {
 };
 
 void arch_keyboard_init(void);
-int arch_keyboard_has_char(void);
-int arch_keyboard_get_char(void);
-
-void arch_keyboard_work_add(struct work *);
-void arch_keyboard_work_remove(struct work *);
+void arch_keyboard_set_tty(struct tty *);
 
 #endif

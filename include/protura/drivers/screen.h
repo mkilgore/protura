@@ -9,11 +9,11 @@
 #define INCLUDE_DRIVERS_SCREEN_H
 
 #include <protura/types.h>
-#include <protura/fs/char.h>
+#include <arch/drivers/screen.h>
 
-void screen_init(void);
-int screen_file_write(struct file *filp, const void *buf, size_t len);
-
-extern struct file_ops screen_file_ops;
+struct screen {
+    struct screen_char (*buf)[SCR_COLS];
+    void (*move_cursor) (int row, int col);
+};
 
 #endif
