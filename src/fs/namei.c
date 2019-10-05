@@ -34,8 +34,6 @@ int namei_full(struct nameidata *data, flags_t flags)
     path = data->path;
     cwd = data->cwd;
 
-    kp(KP_TRACE, "data->cwd: %p\n", data->cwd);
-
     if (!path)
         return -EFAULT;
 
@@ -84,16 +82,13 @@ int namei_full(struct nameidata *data, flags_t flags)
       translate_inode:
 
         if (flag_test(&next->flags, INO_MOUNT)) {
-            kp(KP_TRACE, "Translating mount-point\n");
             link = NULL;
 
             using_inode_mount(next) {
-                kp(KP_TRACE, "next->mount: %p\n", next->mount);
                 if (next->mount)
                     link = inode_dup(next->mount);
             }
 
-            kp(KP_TRACE, "Translating mount-point done\n");
             if (link) {
                 inode_put(next);
                 next = link;
