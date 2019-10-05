@@ -184,6 +184,24 @@ static void __vt_scroll_up_from_cursor(struct vt *vt, int lines)
             vt->screen->buf[r][c] = tmp;
 }
 
+static void __vt_shift_left_from_cursor(struct vt *vt, int chars)
+{
+    int start_col = vt->cur_col;
+
+    memmove(vt->screen->buf[vt->cur_row] + start_col,
+            vt->screen->buf[vt->cur_row] + start_col + chars,
+            (SCR_COLS - chars - start_col));
+
+    struct screen_char tmp;
+
+    tmp.chr = 0;
+    tmp.color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
+
+    int c;
+    for (c = SCR_COLS - chars; c < SCR_COLS; c++)
+        vt->screen->buf[vt->cur_row][c] = tmp;
+}
+
 static void __vt_putchar_nocur(struct vt *vt, char ch)
 {
     uint8_t r = vt->cur_row;
@@ -473,6 +491,15 @@ static void vt_esc_delete_line(struct vt *vt, char cmd)
     __vt_scroll_from_cursor(vt, lines);
 }
 
+static void vt_esc_delete_character(struct vt *vt, char cmd)
+{
+    int chars = 1;
+    if (vt->esc_params[0])
+        chars = vt->esc_params[0];
+
+    __vt_shift_left_from_cursor(vt, chars);
+}
+
 static void vt_esc_insert_line(struct vt *vt, char cmd)
 {
     int lines = 1;
@@ -502,6 +529,7 @@ static void (*lbracket_table[256]) (struct vt *, char) = {
     ['l'] = vt_esc_set_mode,
     ['h'] = vt_esc_set_mode,
     ['M'] = vt_esc_delete_line,
+    ['P'] = vt_esc_delete_character,
     ['L'] = vt_esc_insert_line,
 };
 
