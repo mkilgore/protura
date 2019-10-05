@@ -126,12 +126,14 @@ static void login(void)
         if (username && password) {
             struct passwd_entry *ent = passwd_db_get_user(&db, username);
             if (!ent) {
-                printf("Unknown user: %s\n", username);
+                printf("Unknown user: %s\n\n", username);
+                sleep(2);
                 continue;
             }
 
             if (strcmp(ent->password, password) != 0) {
                 printf("Incorrect password\n");
+                sleep(2);
                 continue;
             }
 
