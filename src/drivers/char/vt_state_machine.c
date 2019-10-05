@@ -255,35 +255,6 @@ static void __vt_putchar_nocur(struct vt *vt, char ch)
         vt->screen->buf[r][c].chr = ' ';
         break;
 
-    /* Some special codes like newline, tab, backspace, etc. are
-     * handled above. The rest are printed in ^x format. */
-    case '\x01': /* ^A to ^] */
-    case '\x02':
-    case '\x03':
-    case '\x04':
-    case '\x05':
-    case '\x06':
-    case '\x07':
-    case '\x0B':
-    case '\x0C':
-    case '\x0E':
-    case '\x0F':
-    case '\x10':
-    case '\x11':
-    case '\x12':
-    case '\x13':
-    case '\x14':
-    case '\x15':
-    case '\x16':
-    case '\x17':
-    case '\x18':
-    case '\x19':
-    case '\x1A':
-    case '\x1B':
-        __vt_putchar_nocur(vt, '^');
-        __vt_putchar_nocur(vt, ch + 'A' - 1);
-        return ;
-
     default:
         vt->screen->buf[r][c].color = vt_create_cur_color(vt);
         vt->screen->buf[r][c].chr = ch;
