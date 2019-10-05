@@ -29,7 +29,7 @@
 const struct termios default_termios = {
     .c_iflag = ICRNL,
     .c_oflag = OPOST | ONLCR,
-    .c_lflag = ISIG | ICANON | ECHO | ECHOE,
+    .c_lflag = ISIG | ICANON | ECHO | ECHOE | ECHOCTL,
     .c_cflag = B38400,
     .c_cc = {
         [VINTR] = 0x03,
