@@ -47,6 +47,7 @@ static FILE *file_list[MAX_FILES] = { 0 };
 
 static int tty_fd;
 static int screen_rows = 25;
+static struct winsize wsize;
 
 static sig_atomic_t volatile int_sig = 0;
 
@@ -60,17 +61,41 @@ int page_file(FILE *file)
     int row = 0;
     int hit_eof = 0;
     char *line = NULL;
+    char *next_line = NULL;
     size_t buf_len = 0;
-    size_t len;
+    ssize_t len;
 
     while (!hit_eof && !int_sig) {
+        for (row = 0; row < screen_rows - 1 && !hit_eof; row++) {
+            if (!next_line)
+                len = getline(&line, &buf_len, file);
 
-        for (row = 0; row < screen_rows - 1&& !hit_eof; row++) {
-            len = getline(&line, &buf_len, file);
+            if (line && len > 0) {
+                line[len - 1] = '\0';
+                len--;
+            }
+
             hit_eof = len == -1;
+            if (hit_eof)
+                continue;
 
-            if (line && !hit_eof)
-                printf("%s", line);
+            if (!line)
+                continue;
+
+            char *cur_line = next_line?: line;
+
+            size_t cur_line_len = strlen(cur_line);
+
+            printf("%.*s", wsize.ws_col, cur_line);
+            if (cur_line_len > wsize.ws_col)
+                next_line = cur_line + wsize.ws_col;
+            else
+                next_line = NULL;
+
+            /* If we print a line that's exactly ws_col characters long, we
+             * don't need a newline at the end. */
+            if (cur_line_len < wsize.ws_col)
+                putchar('\n');
         }
 
         if (!hit_eof) {
@@ -109,7 +134,6 @@ int main(int argc, char **argv)
 {
     enum arg_index ret;
     struct termios old_term, term;
-    struct winsize wsize;
     struct sigaction action;
     int i;
 
