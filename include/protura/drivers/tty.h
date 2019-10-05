@@ -65,11 +65,11 @@ struct winsize {
 #define PARMRK	0000010  /* Mark parity and framing errors.  */ /* IGNORED */
 #define INPCK	0000020  /* Enable input parity check.  */ /* IGNORED */
 #define ISTRIP	0000040  /* Strip 8th bit off characters.  */ /* IGNORED */
-#define INLCR	0000100  /* Map NL to CR on input.  */ /* IGNORED */
-#define IGNCR	0000200  /* Ignore CR.  */ /* IGNORED */
-#define ICRNL	0000400  /* Map CR to NL on input.  */ /* IGNORED */
+#define INLCR	0000100  /* Map NL to CR on input.  */
+#define IGNCR	0000200  /* Ignore CR.  */
+#define ICRNL	0000400  /* Map CR to NL on input.  */
 #define IUCLC	0001000  /* Map uppercase characters to lowercase on input
-			    (not in POSIX).  */ /* IGNORED */
+			    (not in POSIX).  */
 #define IXON	0002000  /* Enable start/stop output control.  */ /* IGNORED */
 #define IXANY	0004000  /* Enable any character to restart output.  */ /* IGNORED */
 #define IXOFF	0010000  /* Enable start/stop input control.  */ /* IGNORED */
@@ -78,13 +78,13 @@ struct winsize {
 #define IUTF8	0040000  /* Input is UTF8 (not in POSIX).  */ /* IGNORED */
 
 /* c_oflag bits */
-#define OPOST	0000001  /* Post-process output.  */ /* IGNORED */
+#define OPOST	0000001  /* Post-process output.  */
 #define OLCUC	0000002  /* Map lowercase characters to uppercase on output.
-			    (not in POSIX).  */ /* IGNORED */
-#define ONLCR	0000004  /* Map NL to CR-NL on output.  */ /* IGNORED */
-#define OCRNL	0000010  /* Map CR to NL on output.  */ /* IGNORED */
+			    (not in POSIX).  */
+#define ONLCR	0000004  /* Map NL to CR-NL on output.  */
+#define OCRNL	0000010  /* Map CR to NL on output.  */
 #define ONOCR	0000020  /* No CR output at column 0.  */ /* IGNORED */
-#define ONLRET	0000040  /* NL performs CR function.  */ /* IGNORED */
+#define ONLRET	0000040  /* NL performs CR function.  */
 #define OFILL	0000100  /* Use fill characters for delay.  */ /* IGNORED */
 #define OFDEL	0000200  /* Fill is DEL.  */ /* IGNORED */
 
@@ -103,10 +103,10 @@ struct winsize {
 #define CLOCAL	0004000 /* IGNORED */
 
 /* c_lflag bits */
-#define ISIG	0000001   /* Enable signals.  */ /* IGNORED */
-#define ICANON	0000002   /* Canonical input (erase and kill processing).  */ /* IGNORED */
-#define ECHO	0000010   /* Enable echo.  */ /* IGNORED */
-#define ECHOE	0000020   /* Echo erase character as error-correcting backspace.  */ /* IGNORED */
+#define ISIG	0000001   /* Enable signals.  */
+#define ICANON	0000002   /* Canonical input (erase and kill processing).  */
+#define ECHO	0000010   /* Enable echo.  */
+#define ECHOE	0000020   /* Echo erase character as error-correcting backspace.  */
 #define ECHOK	0000040   /* Echo KILL.  */ /* IGNORED */
 #define ECHONL	0000100   /* Echo NL.  */ /* IGNORED */
 #define NOFLSH	0000200   /* Disable flush after interrupt or quit.  */ /* IGNORED */
