@@ -26,6 +26,12 @@
 #include <protura/fs/inode_table.h>
 #include <protura/fs/vfs.h>
 
+#ifdef CONFIG_KERNEL_LOG_INODE
+# define kp_inode(str, ...) kp(KP_NORMAL, "Inode: " str, ## __VA_ARGS__)
+#else
+# define kp_inode(str, ...) do { } while (0)
+#endif
+
 #define INODE_HASH_SIZE 128
 
 static struct {
@@ -97,22 +103,22 @@ void inode_put(struct inode *inode)
     }
 
     if (release) {
-        kp(KP_TRACE, "Releasing inode "PRinode", nlinks: %d\n", Pinode(inode), atomic32_get(&inode->nlinks));
+        kp_inode("Releasing inode "PRinode", nlinks: %d\n", Pinode(inode), atomic32_get(&inode->nlinks));
         /* If this inode has no hard-links to it, then we can just discard it. */
         if (atomic32_get(&inode->nlinks) == 0) {
-            kp(KP_TRACE, "inode "PRinode" has no hark links, deleting...\n", Pinode(inode));
+            kp_inode("inode "PRinode" has no hark links, deleting...\n", Pinode(inode));
             if (sb->ops->inode_delete)
                 sb->ops->inode_delete(sb, inode);
 
-            kp(KP_TRACE, "Flushing inode...\n");
+            kp_inode("Flushing inode...\n");
             __inode_flush(inode);
             return ;
         }
 
         using_super_block(inode->sb) {
-            kp(KP_TRACE, "inode "PRinode" dirty flag: %d \n", Pinode(inode), flag_test(&inode->flags, INO_DIRTY));
+            kp_inode("inode "PRinode" dirty flag: %d \n", Pinode(inode), flag_test(&inode->flags, INO_DIRTY));
             if (flag_test(&inode->flags, INO_DIRTY)) {
-                kp(KP_TRACE, "inode "PRinode" being written...\n", Pinode(inode));
+                kp_inode("inode "PRinode" being written...\n", Pinode(inode));
                 sb->ops->inode_write(sb, inode);
                 list_del(&inode->sb_dirty_entry);
             }
@@ -168,7 +174,7 @@ struct inode *inode_get(struct super_block *sb, ino_t ino)
             inode->ino = ino;
 
             ret = sb->ops->inode_read(sb, inode);
-            kp(KP_TRACE, "Read inode: %p - "PRinode" ret: %d\n", inode, Pinode(inode), ret);
+            kp_inode("Read inode: %p - "PRinode" ret: %d\n", inode, Pinode(inode), ret);
 
             if (ret) {
                 sb->ops->inode_dealloc(sb, inode);
