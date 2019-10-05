@@ -115,22 +115,17 @@ int sys_open(const char *__user path, int flags, mode_t mode)
 
         kp(KP_TRACE, "Did not find %s, creating %s\n", path, name.name_start);
         ret = vfs_create(name.parent, name.name_start, name.name_len, mode, &name.found);
-        kp(KP_TRACE, "Result: %d, name.found: %p\n", ret, name.found);
         if (ret)
             goto cleanup_namei;
     }
-
-    kp(KP_TRACE, "Result: %d, name.found: %p, name.parent: %p\n", ret, name.found, name.parent);
 
     ret = __sys_open(name.found, file_flags, &filp);
 
     if (ret < 0)
         goto cleanup_namei;
 
-    if (flags & O_CLOEXEC) {
+    if (flags & O_CLOEXEC)
         FD_SET(ret, &current->close_on_exec);
-        kp(KP_TRACE, "Setting Close-on-exec for %d\n", ret);
-    }
 
     if (flags & O_TRUNC)
         vfs_truncate(filp->inode, 0);
