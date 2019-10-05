@@ -156,8 +156,8 @@ static int __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2
     trunc_state.block_size = block_size;
 
     trunc_state.tmp_indirect.ptrs = palloc_va(0, PAL_KERNEL);
-    trunc_state.tmp_indirect.ptrs = palloc_va(0, PAL_KERNEL);
-    trunc_state.tmp_indirect.ptrs = palloc_va(0, PAL_KERNEL);
+    trunc_state.tmp_dindirect.ptrs = palloc_va(0, PAL_KERNEL);
+    trunc_state.tmp_tindirect.ptrs = palloc_va(0, PAL_KERNEL);
 
     if (starting_block < ARRAY_SIZE(inode->blk_ptrs_direct)) {
         sector_t i;
