@@ -42,6 +42,14 @@ char *lexer_input_replace_env(const char *line)
                || *end == '_'))
             end++;
 
+        /* If there's no environment variable name after the $, then we leave
+         * the dollar sign alone. */
+        if (end == c) {
+            a_sprintf_append(&new_line, "$");
+            start = c;
+            continue;
+        }
+
         /* Record the character after the end of the environment variable
          * and then mark it with `'\0' so we can pass it to getenv */
         char saved = *end;
@@ -155,6 +163,7 @@ enum input_token lexer_next_token(struct input_lexer *lex)
                || tok == '/'
                || tok == '-'
                || tok == ':'
+               || tok == '$'
                || tok == '=') {
             lex->len++;
             lex->location++;
