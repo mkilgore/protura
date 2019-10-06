@@ -119,19 +119,15 @@ static int pipe_release(struct file *filp, int reader, int writer)
     struct inode *inode = filp->inode;
     struct pipe_info *pinfo = &inode->pipe_info;
 
-    kp(KP_NORMAL, "Pipe release!\n");
-
     using_mutex(&pinfo->pipe_buf_lock) {
         if (reader) {
             pinfo->readers--;
-            kp(KP_NORMAL, "Pipe release readers: %d!\n", pinfo->readers);
             if (pinfo->readers == 0)
                 wait_queue_wake(&pinfo->write_queue);
         }
 
         if (writer) {
             pinfo->writers--;
-            kp(KP_NORMAL, "Pipe release writers: %d!\n", pinfo->writers);
             if (pinfo->writers == 0)
                 wait_queue_wake(&pinfo->read_queue);
         }
@@ -251,10 +247,7 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
     if (!size)
         return 0;
 
-    kp(KP_NORMAL, "PIPE: "PRinode" write: %d\n", Pinode(filp->inode), size);
-
     using_mutex(&pinfo->pipe_buf_lock) {
-        kp(KP_NORMAL, "PIPE write: got Mutex!\n");
         while (size) {
             if (!pinfo->readers) {
                 SIGSET_SET(&current->sig_pending, SIGPIPE);
@@ -263,7 +256,6 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
             }
 
             list_foreach_take_entry(&pinfo->free_pages, p, page_list_node) {
-                kp(KP_NORMAL, "PIPE: write free_pages\n");
                 size_t cpysize = (PG_SIZE > size)? size: PG_SIZE;
 
                 memcpy(p->virt, data, cpysize);
@@ -278,8 +270,6 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
 
                 wake_readers = 1;
 
-                kp(KP_NORMAL, "PIPE: write done free_pages\n");
-
                 if (size == 0)
                     break;
             }
@@ -292,15 +282,10 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
                                    ? CONFIG_PIPE_MAX_PAGES - pinfo->total_pages
                                    : size / PG_SIZE + 1;
 
-                kp(KP_NORMAL, "PIPE: allocing %d pages\n", max_pages);
-
                 pinfo->total_pages += max_pages;
 
                 for (; max_pages; max_pages--)
                     list_add(&pinfo->free_pages, &palloc(0, PAL_KERNEL)->page_list_node);
-
-
-                kp(KP_NORMAL, "PIPE write: %d total pages\n", pinfo->total_pages);
 
                 continue;
             }
