@@ -83,9 +83,9 @@ static n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t l
     return htons(sum);
 }
 
-static int tcp_tx(struct protocol *proto, struct packet *packet)
+static void tcp_tx(struct protocol *proto, struct socket *sock, struct packet *packet)
 {
-    return 0;
+
 }
 
 void tcp_lookup_fill(struct ip_lookup *lookup, struct packet *packet)

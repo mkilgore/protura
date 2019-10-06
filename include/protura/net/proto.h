@@ -22,7 +22,7 @@ static inline void protocol_init(struct protocol *proto, struct protocol_ops *op
 }
 
 struct protocol_ops {
-    void (*packet_rx) (struct protocol *, struct packet *);
+    void (*packet_rx) (struct protocol *, struct socket *, struct packet *);
     int (*packet_tx) (struct protocol *, struct packet *);
 
     int (*create) (struct protocol *, struct socket *);

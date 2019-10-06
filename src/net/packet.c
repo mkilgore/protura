@@ -49,10 +49,10 @@ static void packet_clear(struct packet *packet)
         packet->iface_rx = NULL;
     }
 
-    if (packet->sock) {
-        socket_put(packet->sock);
-        packet->sock = NULL;
-    }
+    // if (packet->sock) {
+    //     socket_put(packet->sock);
+    //     packet->sock = NULL;
+    // }
 
     packet->ll_head = NULL;
     packet->af_head = NULL;
@@ -124,8 +124,8 @@ struct packet *packet_copy(struct packet *packet, int pal_flags)
     if (packet->iface_rx)
         dup_packet->iface_rx = netdev_dup(packet->iface_rx);
 
-    if (packet->sock)
-        dup_packet->sock = socket_dup(packet->sock);
+    // if (packet->sock)
+    //     dup_packet->sock = socket_dup(packet->sock);
 
     return dup_packet;
 }

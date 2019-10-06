@@ -66,7 +66,7 @@ int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags,
     packet = packet_new(PAL_KERNEL);
 
     packet_append_data(packet, buf, len);
-    packet->sock = socket_dup(socket);
+    // packet->sock = socket_dup(socket);
 
     kp(KP_NORMAL, "Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
     kp(KP_NORMAL, "proto: %p\n", socket->proto);

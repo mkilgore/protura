@@ -103,9 +103,8 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
         list_foreach_entry(&af->raw_sockets, raw, socket_entry) {
             if (raw->protocol == header->protocol) {
                 struct packet *copy = packet_copy(packet, PAL_KERNEL);
-                copy->sock = socket_dup(raw);
 
-                (raw->proto->ops->packet_rx) (raw->proto, copy);
+                (raw->proto->ops->packet_rx) (raw->proto, raw, copy);
                 packet_handled = 1;
             }
         }
@@ -132,14 +131,11 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
         break;
     }
 
-    using_mutex(&af->lock) {
+    using_mutex(&af->lock)
         sock = __ipaf_find_socket(af, &lookup, maxscore);
-        if (sock)
-            packet->sock = socket_dup(sock);
-    }
 
     if (sock)
-        (sock->proto->ops->packet_rx) (sock->proto, packet);
+        (sock->proto->ops->packet_rx) (sock->proto, sock, packet);
     else {
         if (!packet_handled)
             kp_ip("  Packet Dropped! %p\n", packet);
@@ -191,7 +187,7 @@ int ip_tx(struct packet *packet)
     return (packet->iface_tx->linklayer_tx) (packet);
 }
 
-int ip_process_sockaddr(struct packet *packet, const struct sockaddr *addr, socklen_t len)
+int ip_process_sockaddr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
     if (addr) {
         const struct sockaddr_in *in;
@@ -205,8 +201,8 @@ int ip_process_sockaddr(struct packet *packet, const struct sockaddr *addr, sock
         in = (const struct sockaddr_in *)addr;
 
         sockaddr_in_assign_addr(&packet->dest_addr, in->sin_addr.s_addr);
-    } else if (flag_test(&packet->sock->flags, SOCKET_IS_CONNECTED)) {
-        sockaddr_in_assign_addr(&packet->dest_addr, packet->sock->af_private.ipv4.dest_addr);
+    } else if (flag_test(&sock->flags, SOCKET_IS_CONNECTED)) {
+        sockaddr_in_assign_addr(&packet->dest_addr, sock->af_private.ipv4.dest_addr);
     } else {
         return -EDESTADDRREQ;
     }

@@ -29,10 +29,8 @@ static struct protocol_ops ip_raw_protocol_ops;
 
 static struct protocol ip_raw_proto = PROTOCOL_INIT(&ip_raw_protocol_ops);
 
-static void ip_raw_rx(struct protocol *proto, struct packet *packet)
+static void ip_raw_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 {
-    struct socket *sock = packet->sock;
-
     using_mutex(&sock->recv_lock) {
         list_add_tail(&sock->recv_queue, &packet->packet_entry);
         wait_queue_wake(&sock->recv_wait_queue);
@@ -49,7 +47,7 @@ static int ip_raw_sendto(struct protocol *proto, struct socket *sock, struct pac
     const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
     kp_ip("ip_raw_sendto: Sock: %p, Packet: %p, Dest: "PRin_addr"\n", sock, packet, Pin_addr(in->sin_addr.s_addr));
 
-    ip_process_sockaddr(packet, addr, len);
+    ip_process_sockaddr(sock, packet, addr, len);
     packet->protocol_type = sock->protocol;
     return ip_tx(packet);
 }

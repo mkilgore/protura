@@ -94,11 +94,10 @@ static int udp_register_sock(struct udp_protocol *proto, struct socket *sock)
     return ret;
 }
 
-void udp_rx(struct protocol *proto, struct packet *packet)
+void udp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 {
     struct udp_header *header = packet->head;
     struct sockaddr_in *in;
-    struct socket *sock = packet->sock;
 
     in = (struct sockaddr_in *)&packet->src_addr;
     in->sin_port = header->source_port;
@@ -140,7 +139,7 @@ int udp_tx(struct packet *packet)
     return ip_tx(packet);
 }
 
-static int udp_process_sockaddr(struct packet *packet, const struct sockaddr *addr, socklen_t len)
+static int udp_process_sockaddr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
     if (addr) {
         const struct sockaddr_in *in;
@@ -154,8 +153,8 @@ static int udp_process_sockaddr(struct packet *packet, const struct sockaddr *ad
         in = (const struct sockaddr_in *)addr;
 
         sockaddr_in_assign_port(&packet->dest_addr, in->sin_port);
-    } else if (flag_test(&packet->sock->flags, SOCKET_IS_CONNECTED)) {
-        sockaddr_in_assign_port(&packet->dest_addr, packet->sock->af_private.ipv4.dest_port);
+    } else if (flag_test(&sock->flags, SOCKET_IS_CONNECTED)) {
+        sockaddr_in_assign_port(&packet->dest_addr, sock->af_private.ipv4.dest_port);
     } else {
         return -EDESTADDRREQ;
     }
@@ -166,7 +165,7 @@ static int udp_process_sockaddr(struct packet *packet, const struct sockaddr *ad
 static int udp_sendto(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
     kp_udp("Processing sockaddr: %p\n", addr);
-    int ret = udp_process_sockaddr(packet, addr, len);
+    int ret = udp_process_sockaddr(sock, packet, addr, len);
     if (ret)
         return ret;
 
@@ -174,7 +173,7 @@ static int udp_sendto(struct protocol *protocol, struct socket *sock, struct pac
     sockaddr_in_assign(&packet->src_addr, INADDR_ANY, sock->af_private.ipv4.src_port);
 
     kp_udp("Processing packet IP sockaddr: %p\n", addr);
-    ret = ip_process_sockaddr(packet, addr, len);
+    ret = ip_process_sockaddr(sock, packet, addr, len);
     if (ret)
         return ret;
 

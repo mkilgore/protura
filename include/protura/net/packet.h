@@ -46,8 +46,6 @@ struct packet {
     void *start, *head, *tail, *end;
 
     void *ll_head, *af_head, *proto_head;
-
-    struct socket *sock;
 };
 
 #define PACKET_RESERVE_HEADER_SPACE 1024

@@ -77,7 +77,7 @@ void __ipaf_remove_socket(struct address_family_ip *af, struct socket *sock);
 __must_check struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup *addr, int total_max_score);
 
 n16 ip_chksum(uint16_t *head, size_t byte_count);
-int ip_process_sockaddr(struct packet *packet, const struct sockaddr *addr, socklen_t len);
+int ip_process_sockaddr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len);
 int ip_tx(struct packet *packet);
 
 void tcp_lookup_fill(struct ip_lookup *, struct packet *);
