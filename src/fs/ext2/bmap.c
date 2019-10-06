@@ -299,8 +299,6 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
     struct ext2_inode *i = container_of(inode, struct ext2_inode, i);
     sector_t ret = ext2_bmap(inode, inode_sector);
 
-    kp_ext2(sb, "bmap ret: %d\n", ret);
-
     if (ret != SECTOR_INVALID)
         return ret;
 

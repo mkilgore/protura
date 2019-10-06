@@ -244,8 +244,6 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     starting_block = ALIGN_2(size, block_size) / block_size;
     ending_block = ALIGN_2_DOWN(inode->i.size, block_size) / block_size;
 
-    kp_ext2(sb, "Inode "PRinode": Truncating %d-%d...\n", Pinode(&inode->i), starting_block, ending_block);
-
     if (starting_block > ending_block)
         goto set_size_and_ret;
 
