@@ -1,15 +1,15 @@
 
 # This target is for creating a multiboot compliant kernel
 BOOT_TARGETS += multiboot
-LDFLAGS_multiboot := -T $(objtree)/link_multiboot.ld -Wl,--build-id=none
-OBJS_multiboot := $(objtree)/boot_multiboot.o $(objtree)/boot_multiboot_pagedir.o
-EXTRAS_multiboot := $(objtree)/link_multiboot.ld
+LDFLAGS_multiboot := -T $(tree)/link_multiboot.ld -Wl,--build-id=none
+OBJS_multiboot := $(tree)/boot_multiboot.o $(tree)/boot_multiboot_pagedir.o
+EXTRAS_multiboot := $(tree)/link_multiboot.ld
 
-$(objtree)/boot_multiboot_pagedir.S: $(srctree)/gen_initial_pagedir.pl
+$(tree)/boot_multiboot_pagedir.S: $(tree)/gen_initial_pagedir.pl
 	@echo " PERL    $@"
 	$(Q)$(PERL) $< > $@
 
-CLEAN_LIST += $(objtree)/boot_multiboot_pagedir.S
+CLEAN_LIST += $(tree)/boot_multiboot_pagedir.S
 
 build-iso: $(imgs_pfix)multiboot
 	mkdir -p ./imgs/isodir

@@ -55,28 +55,20 @@ PROTURA_DEBUG := y
 # Show all commands executed by the Makefile
 # V := y
 
-# Location of source. Currently, the current directory is the only option
-srctree := .
-
-# Define 'output_dir' if you want everything to be built in an outside
-# directory
-ifdef output_dir
-	objtree := $(output_dir)
-else
-	output_dir := .
-	objtree := .
-endif
+# Tree is the directory currently being processed
+# This changes when decending into directories
+tree := .
 
 # Define 'conf' if you want to use a conf file other then
-# $(objtree)/protura.conf
+# $(tree)/protura.conf
 ifdef conf
 	CONFIG_FILE := $(conf)
 else
-	CONFIG_FILE := $(objtree)/protura.conf
+	CONFIG_FILE := $(tree)/protura.conf
 	conf := $(CONFIG_FILE)
 endif
 
-EXE_OBJ := $(objtree)/$(EXE).o
+EXE_OBJ := $(tree)/$(EXE).o
 
 # This is our default target - The default is the first target in the file so
 # we need to define this fairly high-up.
@@ -110,7 +102,7 @@ endif
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),clean-configure)
 ifneq ($(wildcard $(CONFIG_FILE)),$(CONFIG_FILE))
-$(error Configuration file $(objtree)/protura.conf does not exist. Please create this file before running make or specify different config file via conf variable on commandline)
+$(error Configuration file $(tree)/protura.conf does not exist. Please create this file before running make or specify different config file via conf variable on commandline)
 endif
 endif
 endif
@@ -118,11 +110,11 @@ endif
 # We don't include config.mk if we're just going to delete it anyway
 ifneq ($(MAKECMDGOALS),clean-configure)
 ifneq ($(MAKECMDGOALS),clean-full)
-_tmp := $(shell mkdir -p $(objtree)/include/protura/config)
+_tmp := $(shell mkdir -p $(tree)/include/protura/config)
 # Note - Including a file that doesn't exist provokes make to check for a rule
-# This line actually runs the $(objtree)/config.mk rule and generates config.mk
+# This line actually runs the $(tree)/config.mk rule and generates config.mk
 # before including it and continuing.
--include $(objtree)/config.mk
+-include $(tree)/config.mk
 endif
 endif
 
@@ -130,11 +122,11 @@ ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS += -fno-omit-frame-pointer
 endif
 
-# This includes everything in the 'include' folder of the $(objtree)
+# This includes everything in the 'include' folder of the $(tree)
 # This is so that the code can reference generated include files
-CPPFLAGS += -I'$(objtree)/include/'
+CPPFLAGS += -I'$(tree)/include/'
 
-make_name = $(subst /,_,$(basename $(objtree)/$1))
+make_name = $(subst /,_,$(basename $(tree)/$1))
 
 define add_dep
 $(1): $(2)
@@ -148,25 +140,23 @@ endef
 
 # Traverse into tree
 define subdir_inc
-objtree := $$(objtree)/$(1)
-srctree := $$(srctree)/$(1)
+tree := $$(tree)/$(1)
 
-pfix := $$(subst /,_,$$(objtree))_
+pfix := $$(subst /,_,$$(tree))_
 subdir-y :=
 objs-y :=
 clean-list-y :=
 
-_tmp := $$(shell mkdir -p $$(objtree))
-include $$(srctree)/Makefile
+_tmp := $$(shell mkdir -p $$(tree))
+include $$(tree)/Makefile
 
-REAL_OBJS_y += $$(patsubst %,$$(objtree)/%,$$(objs-y))
-CLEAN_LIST += $$(patsubst %,$$(objtree)/%,$$(clean-list-y))
+REAL_OBJS_y += $$(patsubst %,$$(tree)/%,$$(objs-y))
+CLEAN_LIST += $$(patsubst %,$$(tree)/%,$$(clean-list-y))
 
 $$(foreach subdir,$$(subdir-y),$$(eval $$(call subdir_inc,$$(subdir))))
 
-srctree := $$(patsubst %/$(1),%,$$(srctree))
-objtree := $$(patsubst %/$(1),%,$$(objtree))
-pfix := $$(subst /,_,$$(objtree))_
+tree := $$(patsubst %/$(1),%,$$(tree))
+pfix := $$(subst /,_,$$(tree))_
 endef
 
 
@@ -180,11 +170,11 @@ $(eval $(call subdir_inc,arch/$(ARCH)))
 # that can boot from a floppy.
 BOOT_TARGETS :=
 
-imgs_pfix := $(objtree)/imgs/$(EXE)_$(ARCH)_
+imgs_pfix := $(tree)/imgs/$(EXE)_$(ARCH)_
 
 $(eval $(call subdir_inc,arch/$(ARCH)/boot))
 
-_tmp := $(shell mkdir -p $(objtree)/imgs)
+_tmp := $(shell mkdir -p $(tree)/imgs)
 
 define compile_file
 
@@ -206,7 +196,7 @@ DEP_LIST :=
 
 define create_boot_target
 
-_expand := $$(objtree)/imgs/$$(EXE)_$$(ARCH)_$(1)
+_expand := $$(tree)/imgs/$$(EXE)_$$(ARCH)_$(1)
 REAL_BOOT_TARGETS += $$(_expand)
 
 CLEAN_LIST += $$(OBJS_$(1))
@@ -248,22 +238,22 @@ PHONY += kernel
 kernel: configure $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
 
 PHONY += configure
-configure: $(objtree)/config.mk $(objtree)/include/protura/config/autoconf.h
+configure: $(tree)/config.mk $(tree)/include/protura/config/autoconf.h
 
 PHONY += clean-configure
 clean-configure:
-	@echo " RM      $(objtree)/config.mk"
-	$(Q)$(RM) -fr $(objtree)/config.mk
-	@echo " RM      $(objtree)/include/protura/config/autoconf.h"
-	$(Q)$(RM) -fr $(objtree)/include/protura/config/autoconf.h
+	@echo " RM      $(tree)/config.mk"
+	$(Q)$(RM) -fr $(tree)/config.mk
+	@echo " RM      $(tree)/include/protura/config/autoconf.h"
+	$(Q)$(RM) -fr $(tree)/include/protura/config/autoconf.h
 
-$(objtree)/config.mk: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
+$(tree)/config.mk: $(CONFIG_FILE) $(tree)/scripts/genconfig.pl
 	@echo " PERL    $@"
-	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl make < $< > $@
+	$(Q)$(PERL) $(tree)/scripts/genconfig.pl make < $< > $@
 
-$(objtree)/include/protura/config/autoconf.h: $(CONFIG_FILE) $(srctree)/scripts/genconfig.pl
+$(tree)/include/protura/config/autoconf.h: $(CONFIG_FILE) $(tree)/scripts/genconfig.pl
 	@echo " PERL    $@"
-	$(Q)$(PERL) $(srctree)/scripts/genconfig.pl cpp < $< > $@
+	$(Q)$(PERL) $(tree)/scripts/genconfig.pl cpp < $< > $@
 
 dist: clean-kernel clean-toolchain clean-configure clean-disk
 	$(Q)mkdir -p $(EXE)-$(VERSION_N)
@@ -275,7 +265,7 @@ dist: clean-kernel clean-toolchain clean-configure clean-disk
 
 PHONY += clean-kernel
 clean-kernel:
-	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ) $(objtree)/imgs; do \
+	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ) $(tree)/imgs; do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
@@ -295,55 +285,29 @@ $(EXE_OBJ): $(REAL_OBJS_y)
 	@echo " LD      $@"
 	$(Q)$(LD) -r $(REAL_OBJS_y) -o $@
 
-$(objtree)/%.o: $(srctree)/%.c
+$(tree)/%.o: $(tree)/%.c
 	@echo " CC      $@"
 	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$(make_name $@)) -c $< -o $@
 
-$(objtree)/%.o: $(srctree)/%.S
+$(tree)/%.o: $(tree)/%.S
 	@echo " CCAS    $@"
 	$(Q)$(CC) $(CPPFLAGS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
 
-$(objtree)/%.ld: $(srctree)/%.ldS
+$(tree)/%.ld: $(tree)/%.ldS
 	@echo " CPP     $@"
 	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
 
-$(objtree)/.%.d: $(srctree)/%.ldS
+$(tree)/.%.d: $(tree)/%.ldS
 	@echo " CPPDEP   $@"
-	$(Q)$(CPP) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.ld -MT $@
+	$(Q)$(CPP) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(tree)/%.ld -MT $@
 
-$(objtree)/.%.d: $(srctree)/%.c
+$(tree)/.%.d: $(tree)/%.c
 	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(tree)/$*.o -MT $@
 
-$(objtree)/.%.d: $(srctree)/%.S
+$(tree)/.%.d: $(tree)/%.S
 	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
-
-
-
-$(objtree)/%.o: $(objtree)/%.c
-	@echo " CC      $@"
-	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) $(CFLAGS_$(make_name $@)) -c $< -o $@
-
-$(objtree)/%.o: $(objtree)/%.S
-	@echo " CCAS    $@"
-	$(Q)$(CC) $(CPPFLAGS) $(ASFLAGS) $(ASFLAGS_$(make_name $@)) -o $@ -c $<
-
-$(objtree)/%.ld: $(objtree)/%.ldS
-	@echo " CPP     $@"
-	$(Q)$(CPP) -P $(CPPFLAGS) $(ASFLAGS) -o $@ -x c $<
-
-$(objtree)/.%.d: $(objtree)/%.ldS
-	@echo " CPPDEP   $@"
-	$(Q)$(CPP) -MM -MP -MF $@ $(CPPFLAGS) $(ASFLAGS) $< -MT $(objtree)/%.ld -MT $@
-
-$(objtree)/.%.d: $(objtree)/%.c
-	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
-
-$(objtree)/.%.d: $(objtree)/%.S
-	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(objtree)/$*.o -MT $@
+	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(tree)/$*.o -MT $@
 
 install-kernel-headers: | ./disk/root/usr/$(TARGET)/include
 	@echo " CP      include"

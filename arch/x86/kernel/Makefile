@@ -14,7 +14,7 @@ objs-y += signal.o
 objs-y += signal_trampoline.o
 objs-y += ksetjmp.o
 
-$(objtree)/irq_array.S: $(srctree)/irq_array_gen.pl
+$(tree)/irq_array.S: $(tree)/irq_array_gen.pl
 	@echo " PERL    $@"
 	$(Q)$(PERL) $< > $@
 
