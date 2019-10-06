@@ -43,8 +43,8 @@ Current existing components/subsystems:
   - Supports executing ELF and #! programs.
 - TTY Layer
   - A TTY layer exists, with support for the most common `termios` settings
+  - The console understands most of the basic VT100 escape sequences, and ncurses includes a termiofo entry for Protura
   - Currently no PTY support, the only supported TTYs are serial and keyboard/console
-    - The keyboard/console TTY does not currently understand VT102 escape codes
 - PCI
   - Currently supports a small set of PCI devices, though the basic framework is there to support more
   - Current supported devices:
@@ -76,7 +76,7 @@ External OS components:
 Extra ported utilities:
 
 - ncurses
-  -  Effectively unchanged
+  - Includes a terminfo entry for Protura
 - vim
   - Compiles the 'normal' feature set, which supports a fair amount of stuff.
     - Can also be compiled as `tiny`. This reduces load time, which is fairly slow.
