@@ -24,11 +24,7 @@ DISK_CLEAN_EXTRA += ./disk/extras/ed.built
 extra-ed: disk/extras/ed.built
 disk/extras/ed.built:
 	@echo " BUILD   ed"
-	$(Q)cd ./disk/extras/ed; ./configure \
-		"CC-$(CC)" \
-		--prefix=$(EXTRAS_PREFIX)
-	$(Q)cd ./disk/extras/ed; make
-	$(Q)cd ./disk/extras/ed; make install "DESTDIR=$(DISK_ROOT)"
+	$(Q)cd disk/extras/; ./build_ed.sh $(TARGET) "$(DISK_ROOT)" "/usr"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
