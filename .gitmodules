@@ -9,6 +9,7 @@
 	path = disk/extras/ncurses
 	url = https://github.com/mkilgore/protura-ncurses
 	branch = protura
+	ignore = dirty
 [submodule "disk/extras/ed"]
 	path = disk/extras/ed
 	url = https://github.com/mkilgore/protura-ed
