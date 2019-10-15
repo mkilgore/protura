@@ -80,4 +80,11 @@ list_node_t *seq_list_get(struct seq_file *);
         __ret; \
     })
 
+
+/* Same as the seq_list_* functions above, but return the current list_node_t
+ * instead of storing it in seq->priv. */
+list_node_t *seq_list_start_node(struct seq_file *seq, list_head_t *head);
+list_node_t *seq_list_start_header_node(struct seq_file *seq, list_head_t *head);
+list_node_t *seq_list_next_node(struct seq_file *seq, list_node_t *node, list_head_t *head);
+
 #endif

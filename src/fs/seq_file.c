@@ -181,13 +181,13 @@ int seq_release(struct file *filp)
     return 0;
 }
 
-static int __seq_list_iter(struct seq_file *seq, list_head_t *head, int start_offset)
+static list_node_t *__seq_list_iter(struct seq_file *seq, list_head_t *head, int start_offset)
 {
     list_node_t *node;
 
     if (list_empty(head)) {
         flag_set(&seq->flags, SEQ_FILE_DONE);
-        return 0;
+        return NULL;
     }
 
     node = __list_first(head);
@@ -196,51 +196,64 @@ static int __seq_list_iter(struct seq_file *seq, list_head_t *head, int start_of
     for (i = start_offset; i < seq->iter_offset; i++) {
         if (list_is_last(head, node)) {
             flag_set(&seq->flags, SEQ_FILE_DONE);
-            return 0;
+            return NULL;
         }
 
         node = node->next;
     }
 
-    seq->priv = node;
-    return 0;
+    return node;
 }
 
-int seq_list_start(struct seq_file *seq, list_head_t *head)
+list_node_t *seq_list_start_node(struct seq_file *seq, list_head_t *head)
 {
     return __seq_list_iter(seq, head, 0);
 }
 
-int seq_list_start_header(struct seq_file *seq, list_head_t *head)
+list_node_t *seq_list_start_header_node(struct seq_file *seq, list_head_t *head)
 {
-    if (seq->iter_offset == 0) {
-        seq->priv = NULL;
-        return 0;
-    }
+    if (seq->iter_offset == 0)
+        return NULL;
 
     return __seq_list_iter(seq, head, 1);
 }
 
-int seq_list_next(struct seq_file *seq, list_head_t *head)
+list_node_t *seq_list_next_node(struct seq_file *seq, list_node_t *node, list_head_t *head)
 {
     seq->iter_offset++;
-    list_node_t *node = seq->priv;
 
     if (!node) {
         if (list_empty(head)) {
             flag_set(&seq->flags, SEQ_FILE_DONE);
-            return 0;
+            return NULL;
         }
 
-        seq->priv = __list_first(head);
-        return 0;
+        return __list_first(head);
     }
 
-    if (list_is_last(head, node))
+    if (list_is_last(head, node)) {
         flag_set(&seq->flags, SEQ_FILE_DONE);
-    else
-        seq->priv = node->next;
+        return NULL;
+    }
 
+    return node->next;
+}
+
+int seq_list_start(struct seq_file *seq, list_head_t *head)
+{
+    seq->priv = seq_list_start_node(seq, head);
+    return 0;
+}
+
+int seq_list_start_header(struct seq_file *seq, list_head_t *head)
+{
+    seq->priv = seq_list_start_header_node(seq, head);
+    return 0;
+}
+
+int seq_list_next(struct seq_file *seq, list_head_t *head)
+{
+    seq->priv = seq_list_next_node(seq, seq->priv, head);
     return 0;
 }
 
