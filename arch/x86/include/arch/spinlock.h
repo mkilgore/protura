@@ -34,16 +34,22 @@ static inline void spinlock_init(spinlock_t *lock, const char *name)
  * output consistency. */
 static inline void spinlock_acquire_nolog(spinlock_t *lock)
 {
-    lock->eflags = eflags_read();
+    uint32_t tmp_flags = eflags_read();
+
     cli();
     while (xchg(&lock->locked, 1) != 0)
         ;
+
+    lock->eflags = tmp_flags;
 }
 
 static inline void spinlock_release_nolog(spinlock_t *lock)
 {
+    uint32_t tmp_flags = lock->eflags;
+
     xchg(&lock->locked, 0);
-    eflags_write(lock->eflags);
+
+    eflags_write(tmp_flags);
 }
 
 static inline void spinlock_acquire(spinlock_t *lock)
