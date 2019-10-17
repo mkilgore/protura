@@ -6,6 +6,9 @@
 
 mv ./qemu.log ./qemu.log.bak
 
+# Select a random port from 40000 to 50000 to listen on
+RND_PORT=$(( ($RANDOM % 10000) + 40000))
+
 if [ -z "${@:0}" ]; then
     kernel_cmdline=
 else
@@ -14,7 +17,6 @@ fi
 
 qemu_line="qemu-system-i386 \
     -serial file:./qemu.log \
-    -serial tcp:localhost:4567,server,nowait \
     -monitor unix:qemu-monitor-socket,server,nowait \
     -curses \
     -s \
@@ -30,11 +32,11 @@ qemu_line="qemu-system-i386 \
 
 GDB_CMD="gdb"
 QEMU_CMD="$qemu_line"
-# QEMU_LOG_CMD="sleep .1; stty -icanon -echo; socat file:\$(tty),raw,echo=0 unix-connect:qemu-serial-socket | tee ./com2.log"
-QEMU_LOG_CMD="sleep 1; stty raw -echo; socat - tcp:localhost:4567 | tee ./com2.log"
 QEMU_MONITOR_CMD="sleep 1; stty -icanon -echo; socat - unix-connect:qemu-monitor-socket | tee ./qemu_monitor.log"
 QEMU_DEBUG_CMD="unset GREP_COLORS; tail --retry -f ./qemu.log | GREP_COLOR=\"1;31\" grep --line-buffered --color=always -E \"^.*\[E\].*$|$\""
 OBJDUMP_CMD="objdump -D ./imgs/protura_x86_multiboot | less"
+NC_LISTEN_CMD="nc -l -p $RND_PORT"
+TCPDUMP_CMD="sudo tcpdump -i tap0 -ntv port $RND_PORT"
 
 tmux new -d -s protura-debug -x $COLUMNS -y $LINES
 
@@ -46,8 +48,9 @@ tmux split-window -v
 
 tmux select-pane -t 2
 tmux split-window -v
+tmux split-window -v
 
-tmux select-pane -t 4
+tmux select-pane -t 5
 tmux split-window -v
 
 tmux new-window
@@ -61,21 +64,27 @@ tmux select-pane -t 2
 tmux send-keys "$GDB_CMD" Enter
 
 tmux select-pane -t 3
-tmux send-keys "$QEMU_LOG_CMD" Enter
+tmux send-keys "$NC_LISTEN_CMD" Enter
 
 tmux select-pane -t 4
+tmux send-keys "$TCPDUMP_CMD" Enter
+
+tmux select-pane -t 5
 tmux send-keys "$QEMU_CMD" Enter
 
 tmux select-pane -t 1
 tmux send-keys "$QEMU_MONITOR_CMD" Enter
 
-tmux select-pane -t 5
+tmux select-pane -t 6
 tmux send-keys "$QEMU_DEBUG_CMD" Enter
 
 tmux select-pane -t 1
-tmux resize-pane -x 70 -y 15
+tmux resize-pane -x 70 -y 5
 
-tmux select-pane -t 4
+tmux select-pane -t 3
+tmux resize-pane -y 5
+
+tmux select-pane -t 5
 tmux resize-pane -y 26 -x 80
 
 TTYS=( $(tmux list-panes -F "#{pane_tty}") )
