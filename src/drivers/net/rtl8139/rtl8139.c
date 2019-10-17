@@ -31,20 +31,39 @@
 /* Defines the functions rtl_outb, rtl_outw, rtl_outl, rtl_inb, etc... */
 DEFINE_REG_ACCESS_FUNCTIONS(rtl, struct net_interface_rtl *rtl, rtl->io_base);
 
+static struct rtl_rx_packet *rtl_iter_next_rx_buf(struct net_interface_rtl *rtl, struct rtl_rx_packet *prev_rx_buf)
+{
+    /* Add the packet length and the length of the header, and 3 is used to align the offset to 4-bytes */
+    rtl->rx_cur_offset = ALIGN_2(rtl->rx_cur_offset + prev_rx_buf->len + sizeof(struct rtl_rx_packet), 4);
+    rtl->rx_cur_offset %= 8192;
+
+    rtl_outw(rtl, REG_CAPR, rtl->rx_cur_offset - 0x10); /* The subtraction avoids overflow issues */
+    return rtl->rx_buffer->virt + rtl->rx_cur_offset;
+}
+
+static int rtl_has_rx_buf(struct net_interface_rtl *rtl)
+{
+    return !(rtl_inb(rtl, REG_CR) & REG_CR_BUFE);
+}
+
+static struct rtl_rx_packet *rtl_cur_rx_buf(struct net_interface_rtl *rtl)
+{
+    return rtl->rx_buffer->virt + rtl->rx_cur_offset;
+}
+
+#define foreach_rx_buf(rtl, buf) \
+    for (buf = rtl_cur_rx_buf((rtl)); \
+         rtl_has_rx_buf(rtl); \
+         buf = rtl_iter_next_rx_buf(rtl, buf))
+
 static void rtl_handle_rx(struct net_interface_rtl *rtl)
 {
-    uint8_t cmd;
+    struct rtl_rx_packet *rx_buf;
 
-    while (!(cmd = rtl_inb(rtl, REG_CR) & REG_CR_BUFE)) {
-        struct rtl_rx_packet *rx_buf;
+    foreach_rx_buf(rtl, rx_buf) {
         struct packet *packet;
 
-        if (rtl->rx_cur_offset > 8192)
-            rtl->rx_cur_offset %= 8192;
-
-        rx_buf = rtl->rx_buffer->virt + rtl->rx_cur_offset;
-
-        if (rx_buf->len > 0) {
+        if ((rx_buf->status & RSR_ROK) && rx_buf->len > 0 && rx_buf->len < PG_SIZE) {
             packet = packet_new(PAL_KERNEL | PAL_ATOMIC);
 
             memcpy(packet->start, rx_buf->packet, rx_buf->len);
@@ -55,14 +74,8 @@ static void rtl_handle_rx(struct net_interface_rtl *rtl)
 
             net_packet_receive(packet);
         } else {
-            kp(KP_NORMAL, "rtl8139: Recieved empty packet\n");
+            kp(KP_NORMAL, "rtl8139: Ignoring packet with length %d\n", rx_buf->len);
         }
-
-        /* The header is 4 bytes long, and 3 is used to align the offset to 4-bytes */
-        rtl->rx_cur_offset += (rx_buf->len + 4 + 3) & ~3;
-        rx_buf = (struct rtl_rx_packet *)((char *)rx_buf + rx_buf->len + 2);
-
-        rtl_outw(rtl, REG_CAPR, rtl->rx_cur_offset - 0x10); /* The subtraction avoids overflow issues */
     }
 }
 
