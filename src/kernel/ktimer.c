@@ -38,21 +38,25 @@ void timer_handle_timers(uint64_t tick)
 {
     struct ktimer *timer, *next;
 
-    using_spinlock(&timers_lock) {
-        timer = list_first_entry(&timer_list, struct ktimer, timer_entry);
+    while (1) {
+        scoped_spinlock(&timers_lock) {
+            timer = list_first_entry(&timer_list, struct ktimer, timer_entry);
 
-        if (timer->wake_up_tick != tick)
-            break;
+            if (timer->wake_up_tick != tick)
+                return;
 
-        /*
-         * FIXME: The callbacks should really be called outside of the spinlock.
-         */
+            list_del(&timer->timer_entry);
+        }
+
+        list_head_t list = LIST_HEAD_INIT(list);
+        list_replace_init(&list, &timer->timer_list);
+
+        /* We're careful to release the spinlock before calling the callbacks */
         (timer->callback) (timer);
 
-        list_foreach_take_entry(&timer->timer_list, next, timer_entry)
-            (next->callback) (timer);
+        list_foreach_take_entry(&list, next, timer_entry)
+            (next->callback) (next);
 
-        list_del(&timer->timer_entry);
     }
 }
 
