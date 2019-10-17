@@ -2,6 +2,7 @@
 #define INCLUDE_PROTURA_NET_AF_IPV4_H
 
 #include <protura/net/sockaddr.h>
+#include <protura/net/ipv4/ip_route.h>
 
 typedef __kn32 in_addr_t;
 typedef __kn16 in_port_t;
@@ -52,6 +53,8 @@ struct ipv4_socket_private {
 
     in_port_t src_port;
     in_port_t dest_port;
+
+    struct ip_route_entry route;
 };
 
 static inline void sockaddr_in_assign(struct sockaddr *sock, in_addr_t addr, in_port_t port)

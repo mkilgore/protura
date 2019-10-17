@@ -167,6 +167,7 @@ int ip_route_get(n32 dest_ip, struct ip_route_entry *ret)
 void ip_route_clear(struct ip_route_entry *entry)
 {
     netdev_put(entry->iface);
+    entry->iface = NULL;
 }
 
 static int ip_route_readpage(void *page, size_t page_size, size_t *len)

@@ -60,25 +60,12 @@ int socket_open(int domain, int type, int protocol, struct socket **sock_ret)
 
 int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen, int nonblock)
 {
-    int ret;
-    struct packet *packet;
-
-    packet = packet_new(PAL_KERNEL);
-
-    packet_append_data(packet, buf, len);
-    // packet->sock = socket_dup(socket);
-
     kp(KP_NORMAL, "Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
     kp(KP_NORMAL, "proto: %p\n", socket->proto);
     kp(KP_NORMAL, "ops: %p\n", socket->proto->ops);
     kp(KP_NORMAL, "sendto: %p\n", socket->proto->ops->sendto);
-    ret = socket->proto->ops->sendto(socket->proto, socket, packet, dest, addrlen);
-    if (ret) {
-        packet_free(packet);
-        return ret;
-    }
 
-    return 0;
+    return socket->proto->ops->sendto(socket->proto, socket, buf, len, dest, addrlen);
 }
 
 int socket_send(struct socket *socket, const void *buf, size_t len, int flags)
@@ -91,8 +78,6 @@ int socket_recvfrom(struct socket *socket, void *buf, size_t len, int flags, str
     int ret = 0;
     struct packet *packet = NULL;
 
-    kp(KP_NORMAL, "nonblock: %d\n", nonblock);
-
     using_mutex(&socket->recv_lock) {
         if (list_empty(&socket->recv_queue)) {
             if (!nonblock)
@@ -101,35 +86,40 @@ int socket_recvfrom(struct socket *socket, void *buf, size_t len, int flags, str
                 ret = -EAGAIN;
         }
 
-        if (!ret)
-            packet = list_take_first(&socket->recv_queue, struct packet, packet_entry);
+        if (!ret) {
+            /* We may request less data than is in this packet. In that case,
+             * we remove that data from the packet but keep it in the queue */
+            packet = list_first(&socket->recv_queue, struct packet, packet_entry);
+
+            size_t plen = packet_len(packet);
+            int drop_packet = 0;
+
+            if (plen < len) {
+                memcpy(buf, packet->head, plen);
+                ret = plen;
+                drop_packet = 1;
+            } else {
+                memcpy(buf, packet->head, len);
+                ret = len;
+
+                /* move the head past the read data */
+                packet->head += len;
+            }
+
+            if (addr && *addrlen >= packet->src_len) {
+                memcpy(addr, &packet->src_addr, packet->src_len);
+                *addrlen = packet->src_len;
+            } else if (addr) {
+                memcpy(addr, &packet->src_addr, *addrlen);
+                *addrlen = packet->src_len;
+            }
+
+            if (drop_packet) {
+                list_del(&packet->packet_entry);
+                packet_free(packet);
+            }
+        }
     }
-
-    if (ret)
-        return ret;
-
-    size_t plen = packet_len(packet);
-
-    kp(KP_NORMAL, "Found packet, len:%d\n", plen);
-
-    if (plen < len) {
-        memcpy(buf, packet->head, plen);
-        ret = plen;
-    } else {
-        memcpy(buf, packet->head, len);
-        ret = len;
-    }
-
-    kp(KP_NORMAL, "Addr: %p, addrlen: %p, *addrlen: %d, src_len: %d\n", addr, addrlen, addrlen? *addrlen: 100, packet->src_len);
-    if (addr && *addrlen >= packet->src_len) {
-        memcpy(addr, &packet->src_addr, packet->src_len);
-        *addrlen = packet->src_len;
-    } else if (addr) {
-        memcpy(addr, &packet->src_addr, *addrlen);
-        *addrlen = packet->src_len;
-    }
-
-    packet_free(packet);
 
     return ret;
 }
@@ -205,14 +195,14 @@ int socket_listen(struct socket *socket, int backlog)
 
 int socket_shutdown(struct socket *socket, int how)
 {
-    if (flag_test(&socket->flags, SOCKET_IS_CLOSED))
+    if (socket_state_get(socket) == SOCKET_CLOSED)
         return 0;
 
     (socket->af->ops->delete) (socket->af, socket);
     if (socket->proto->ops->delete)
         (socket->proto->ops->delete) (socket->proto, socket);
 
-    flag_set(&socket->flags, SOCKET_IS_CLOSED);
+    socket_state_change(socket, SOCKET_CLOSED);
 
     return 0;
 }

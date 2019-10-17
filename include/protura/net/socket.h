@@ -14,18 +14,29 @@ struct protocol;
 
 enum socket_flags {
     SOCKET_IS_BOUND,
-    SOCKET_IS_CLOSED,
-    SOCKET_IS_CONNECTED,
+};
+
+enum socket_state {
+    SOCKET_CLOSED,
+    SOCKET_CONNECTING,
+    SOCKET_CONNECTED,
+    SOCKET_DISCONNECTING,
 };
 
 struct socket {
     atomic_t refs;
+
+    atomic_t state;
+    int last_err;
+    struct wait_queue state_changed;
 
     flags_t flags;
 
     int address_family;
     int sock_type;
     int protocol;
+
+    list_node_t proto_entry;
 
     list_node_t socket_entry;
 
@@ -34,6 +45,13 @@ struct socket {
     struct address_family *af;
     struct protocol *proto;
 
+    /* Order of locking:
+     *
+     * private_lock:
+     *     recv_lock
+     *     send_lock
+     */
+    mutex_t private_lock;
     union {
         struct ipv4_socket_private ipv4;
     } af_private;
@@ -46,16 +64,29 @@ struct socket {
     mutex_t recv_lock;
     struct wait_queue recv_wait_queue;
     list_head_t recv_queue;
+    list_head_t out_of_order_queue;
+
+    mutex_t send_lock;
+    struct wait_queue send_wait_queue;
+    list_head_t send_queue;
 };
+
 
 #define SOCKET_INIT(sock) \
     { \
         .refs = ATOMIC_INIT(0), \
+        .state = ATOMIC_INIT(SOCKET_CLOSED), \
+        .state_changed = WAIT_QUEUE_INIT((sock).state_changed, "socket-state-changed"), \
+        .proto_entry = LIST_NODE_INIT((sock).proto_entry), \
         .socket_entry = LIST_NODE_INIT((sock).socket_entry), \
         .socket_hash_entry = HLIST_NODE_INIT(), \
+        .private_lock = MUTEX_INIT((sock).private_lock, "socket-private-lock"), \
         .recv_lock = MUTEX_INIT((sock).recv_lock, "socket-recv-lock"), \
         .recv_wait_queue = WAIT_QUEUE_INIT((sock).recv_wait_queue, "socket-recv-wait-queue"), \
         .recv_queue = LIST_HEAD_INIT((sock).recv_queue), \
+        .send_lock = MUTEX_INIT((sock).send_lock, "socket-send-lock"), \
+        .send_wait_queue = WAIT_QUEUE_INIT((sock).send_wait_queue, "socket-send-wait-queue"), \
+        .send_queue = LIST_HEAD_INIT((sock).send_queue), \
     }
 
 static inline void socket_init(struct socket *socket)
@@ -77,6 +108,19 @@ static inline void socket_put(struct socket *socket)
     if (atomic_dec_and_test(&socket->refs))
         socket_free(socket);
 }
+
+enum socket_state socket_state_cmpxchg(struct socket *socket, enum socket_state cur, enum socket_state new);;
+void socket_state_change(struct socket *, enum socket_state);
+int socket_last_error(struct socket *);
+void socket_set_last_error(struct socket *socket, int err);
+
+static inline enum socket_state socket_state_get(struct socket *socket)
+{
+    return atomic_get(&socket->state);
+}
+
+#define using_socket_priv(socket) \
+    using_mutex(&(socket)->private_lock)
 
 void socket_subsystem_init(void);
 

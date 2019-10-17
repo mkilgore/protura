@@ -20,11 +20,10 @@
 
 static struct net_interface loopback_iface = NET_INTERFACE_INIT(loopback_iface);
 
-static int loopback_packet_send(struct net_interface *iface, struct packet *packet)
+static void loopback_packet_send(struct net_interface *iface, struct packet *packet)
 {
     packet->iface_rx = netdev_dup(iface);
     net_packet_receive(packet);
-    return 0;
 }
 
 void net_loopback_init(void)

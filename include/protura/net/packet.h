@@ -9,6 +9,7 @@
 #include <protura/string.h>
 #include <protura/net/sockaddr.h>
 #include <protura/net/ipv4/ipv4.h>
+#include <protura/net/ipv4/tcp.h>
 
 struct net_interface;
 
@@ -46,6 +47,13 @@ struct packet {
     void *start, *head, *tail, *end;
 
     void *ll_head, *af_head, *proto_head;
+
+    union {
+        struct tcp_packet_cb tcp;
+    } cb;
+
+    /* If filled in, the socket that sent this packet */
+    struct socket *sock;
 };
 
 #define PACKET_RESERVE_HEADER_SPACE 1024

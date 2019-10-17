@@ -11,6 +11,7 @@
 #include <protura/string.h>
 #include <protura/dump_mem.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/wait.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
 #include <arch/asm.h>
@@ -20,17 +21,9 @@
 #include <protura/net/ipv4/ipv4.h>
 #include <protura/net.h>
 #include "ipv4.h"
+#include "tcp.h"
 
 #define TCP_LOWEST_AUTOBIND_PORT 50000
-
-/* These are expected to be *host byte order* */
-struct tcp_lookup {
-    in_addr_t src_addr;
-    in_port_t src_port;
-
-    in_addr_t dest_addr;
-    in_port_t dest_port;
-};
 
 struct tcp_protocol {
     struct protocol proto;
@@ -42,18 +35,10 @@ struct tcp_protocol {
 static struct protocol_ops tcp_protocol_ops;
 
 static struct tcp_protocol tcp_protocol = {
-    .proto = PROTOCOL_INIT(&tcp_protocol_ops),
+    .proto = PROTOCOL_INIT("tcp", tcp_protocol.proto, &tcp_protocol_ops),
     .lock = MUTEX_INIT(tcp_protocol.lock, "tcp-protocol-lock"),
     .next_port = TCP_LOWEST_AUTOBIND_PORT,
 };
-
-struct pseudo_header {
-    n32 saddr;
-    n32 daddr;
-    uint8_t zero;
-    uint8_t proto;
-    n16 len;
-} __packed;
 
 static uint32_t sum_every_16(const void *data, size_t len)
 {
@@ -69,7 +54,7 @@ static uint32_t sum_every_16(const void *data, size_t len)
     return sum;
 }
 
-static n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t len)
+n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t len)
 {
     uint32_t sum = 0;
 
@@ -77,15 +62,42 @@ static n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t l
     sum += sum_every_16(data, len);
 
     /* Fold bits over to get the one's complement sum */
-    while ((sum >> 16) != 0)
+    while (sum >> 16)
         sum = (sum & 0xFFFF) + (sum >> 16);
 
-    return htons(sum);
+    return n16_make(~sum);
 }
 
-static void tcp_tx(struct protocol *proto, struct socket *sock, struct packet *packet)
+n16 tcp_checksum_packet(struct packet *packet)
 {
+    struct pseudo_header psuedo;
+    struct sockaddr_in *in = (struct sockaddr_in *)&packet->dest_addr;
 
+    memset(&psuedo, 0, sizeof(psuedo));
+
+    using_netdev_read(packet->iface_tx)
+        psuedo.saddr = packet->iface_tx->in_addr;
+
+    psuedo.daddr = in->sin_addr.s_addr;
+    psuedo.zero = 0;
+    psuedo.proto = IPPROTO_TCP;
+    psuedo.len = htons(packet_len(packet));
+
+    return tcp_checksum(&psuedo, packet->head, packet_len(packet));
+}
+
+static int tcp_autobind(struct protocol *proto, struct socket *sock)
+{
+    struct tcp_protocol *tcp = container_of(proto, struct tcp_protocol, proto);
+    int port = 0;
+
+    /* FIXME: We need to verify if this port is free */
+    using_mutex(&tcp->lock);
+        port = tcp->next_port++;
+
+    sock->af_private.ipv4.src_port = htons(port);
+
+    return 0;
 }
 
 void tcp_lookup_fill(struct ip_lookup *lookup, struct packet *packet)
@@ -96,60 +108,106 @@ void tcp_lookup_fill(struct ip_lookup *lookup, struct packet *packet)
     lookup->dest_port = tcp_head->source;
 }
 
-static void tcp_transmit(struct work *work)
+static int tcp_connect(struct protocol *proto, struct socket *sock, const struct sockaddr *addr, socklen_t len)
 {
-    struct packet *packet = container_of(work, struct packet, dwork.work);
-    struct sockaddr_in sockaddr;
+    struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
+    struct tcp_socket_private *priv = &sock->proto_private.tcp;
+    struct ipv4_socket_private *ip_priv = &sock->af_private.ipv4;
+    int ret = 0;
 
-    memcpy(&sockaddr, &packet->src_addr, sizeof(sockaddr));
+    const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
 
-    packet_free(packet);
-}
+    kp_tcp("TCP connect...\n");
 
-static void tcp_rx(struct protocol *proto, struct packet *packet)
-{
-    struct tcp_header *tcp_head = packet->head;
-    struct pseudo_header pseudo_header;
-    struct ip_header *ip_head = packet->af_head;
+    if (len < sizeof(*in))
+        return -EFAULT;
 
-    memset(&pseudo_header, 0, sizeof(pseudo_header));
+    if (addr->sa_family != AF_INET)
+        return -EINVAL;
 
-    pseudo_header.saddr = ip_head->source_ip;
-    pseudo_header.daddr = ip_head->dest_ip;
-    pseudo_header.proto = ip_head->protocol;
-    pseudo_header.len = htons(packet_len(packet));
+    enum socket_state cur_state = socket_state_cmpxchg(sock, SOCKET_CLOSED, SOCKET_CONNECTING);
+    if (cur_state != SOCKET_CLOSED)
+        return -EISCONN;
 
-    n16 checksum = tcp_checksum(&pseudo_header, packet->head, packet_len(packet));
+    using_socket_priv(sock) {
+        ip_priv->dest_addr = in->sin_addr.s_addr;
+        ip_priv->dest_port = in->sin_port;
 
-    kp_tcp("packet: %d -> %d, %d bytes\n", ntohs(tcp_head->source), ntohs(tcp_head->dest), packet_len(packet));
-    kp_tcp("CHKSUM: %s\n", (ntohs(checksum) == 0xFFFF)? "Correct": "Incorrect");
+        ret = ip_route_get(in->sin_addr.s_addr, &ip_priv->route);
+        if (ret)
+            return ret;
 
-    n16 tmp = tcp_head->dest;
-    tcp_head->dest = tcp_head->source;
-    tcp_head->source = tmp;
+        using_netdev_read(ip_priv->route.iface)
+            ip_priv->src_addr = ip_priv->route.iface->in_addr;
 
-    if (tcp_head->syn) {
-        tcp_head->ack = 1;
-        tcp_head->ack_seq = htonl(ntohl(tcp_head->seq) + 1);
-        tcp_head->seq = htonl(1234);
+        if (n32_equal(ip_priv->src_port, htons(0)))
+            tcp_autobind(proto, sock);
+
+        struct ip_lookup test_lookup = {
+            .proto = IPPROTO_TCP,
+            .src_port = ip_priv->src_port,
+            .src_addr = ip_priv->src_addr,
+            .dest_port = ip_priv->dest_port,
+            .dest_addr = ip_priv->dest_addr,
+        };
+
+        using_mutex(&af->lock) {
+            struct socket *s = __ipaf_find_socket(af, &test_lookup, 4);
+            if (s) {
+                ret = -EADDRINUSE;
+                break;
+            }
+
+            kp_udp("Adding tcp socket, src_port: %d, src_addr: "PRin_addr", dest_port: %d, dest_addr: "PRin_addr"\n", ntohs(test_lookup.src_port), Pin_addr(test_lookup.src_addr), ntohs(test_lookup.dest_port), Pin_addr(test_lookup.dest_addr));
+
+            __ipaf_add_socket(af, sock);
+        }
+
+        if (ret)
+            return ret;
+
+        socket_state_change(sock, SOCKET_CONNECTING);
+
+        priv->rcv_wnd = 44477;
+
+        priv->iss = 200;
+        priv->snd_una = 200;
+        priv->snd_up = 200;
+        priv->snd_nxt = 200;
+
+        priv->snd_wnd= 0;
+        priv->snd_wl1 = 0;
+        priv->rcv_nxt = 0;
+
+        kp_tcp("TCP connect sending SYN packet...\n");
+        tcp_send_syn(proto, sock);
+        priv->snd_nxt++;
     }
 
-    packet->tail -= (tcp_head->hl - 5) * 4;
+    int last_err;
+    ret = wait_queue_event_intr(&sock->state_changed, ({
+        cur_state = socket_state_get(sock);
+        last_err = socket_last_error(sock);
 
-    tcp_head->hl = 5;
-    tcp_head->check = htons(0);
+        last_err || cur_state != SOCKET_CONNECTING;
+    }));
 
-    tcp_head->check = tcp_checksum(&pseudo_header, packet->head, packet_len(packet));
+    if (ret)
+        return ret;
 
-    packet->protocol_type = IPPROTO_TCP;
+    kp(KP_NORMAL, "Socket: got state_changed signal current state: %d, last_err: %d\n", cur_state, last_err);
 
-    work_init_kwork(&packet->dwork.work, tcp_transmit);
-    flag_set(&packet->dwork.work.flags, WORK_ONESHOT);
-    work_schedule(&packet->dwork.work);
+    if (last_err || cur_state != SOCKET_CONNECTED)
+        return last_err;
+
+    return 0;
 }
 
 static struct protocol_ops tcp_protocol_ops = {
     .packet_rx = tcp_rx,
+    .autobind = tcp_autobind,
+
+    .connect = tcp_connect,
 };
 
 struct protocol *tcp_get_proto(void)

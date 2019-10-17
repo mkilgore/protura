@@ -12,6 +12,9 @@ extern struct procfs_entry_ops ipv4_route_ops;
 
 extern struct procfs_dir *ipv4_dir_procfs;
 
+/* A very conservative max-segment-size for all IP-based packets/protocols */
+#define IPV4_PACKET_MSS 1024
+
 struct ip_header {
     uint8_t ihl :4;
     uint8_t version :4;
@@ -30,6 +33,15 @@ struct ip_header {
     n32 dest_ip;
 } __packed;
 
+enum {
+    TCP_FIN = 1 << 0,
+    TCP_SYN = 1 << 1,
+    TCP_RST = 1 << 2,
+    TCP_PSH = 1 << 3,
+    TCP_ACK = 1 << 4,
+    TCP_URG = 1 << 5,
+};
+
 struct tcp_header {
     n16 source;
     n16 dest;
@@ -38,13 +50,9 @@ struct tcp_header {
 
     uint16_t res1 :4;
     uint16_t hl   :4;
-    uint16_t fin  :1;
-    uint16_t syn  :1;
-    uint16_t rst  :1;
-    uint16_t psh  :1;
-    uint16_t ack  :1;
-    uint16_t urg  :1;
-    uint16_t res2 :2;
+
+    union tcp_flags flags;
+
     n16 window;
     n16 check;
     n16 urg_ptr;
@@ -77,8 +85,9 @@ void __ipaf_remove_socket(struct address_family_ip *af, struct socket *sock);
 __must_check struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup *addr, int total_max_score);
 
 n16 ip_chksum(uint16_t *head, size_t byte_count);
-int ip_process_sockaddr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len);
-int ip_tx(struct packet *packet);
+int ip_packet_fill_route_addr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len);
+int ip_packet_fill_route(struct socket *sock, struct packet *packet);
+void ip_tx(struct packet *packet);
 
 void tcp_lookup_fill(struct ip_lookup *, struct packet *);
 void udp_lookup_fill(struct ip_lookup *, struct packet *);
@@ -86,6 +95,9 @@ void udp_lookup_fill(struct ip_lookup *, struct packet *);
 struct protocol *udp_get_proto(void);
 struct protocol *tcp_get_proto(void);
 struct protocol *ip_raw_get_proto(void);
+
+extern struct file_ops udp_proc_file_ops;
+extern struct file_ops ip_raw_proc_file_ops;
 
 #ifdef CONFIG_KERNEL_LOG_IP
 # define kp_ip(str, ...) kp(KP_NORMAL, "IP: " str, ## __VA_ARGS__)

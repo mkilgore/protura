@@ -150,13 +150,20 @@ static void arp_timeout_handler(struct ktimer *timer)
     kp(KP_NORMAL, "ARP Timeout\n");
 
     using_spinlock(&entry->lock) {
+        kp(KP_NORMAL, "ARP waiting_for_response: %d\n", entry->waiting_for_response);
         if (entry->waiting_for_response) {
             entry->waiting_for_response = 0;
             entry->does_not_exist = 1;
             struct packet *packet;
 
-            list_foreach_take_entry(&entry->packet_queue, packet, packet_entry)
+            kp(KP_NORMAL, "Draining ARP packet queue...\n");
+            list_foreach_take_entry(&entry->packet_queue, packet, packet_entry) {
+                kp(KP_NORMAL, "ARP: Packet sock: %p\n", packet->sock);
+                if (packet->sock)
+                    socket_set_last_error(packet->sock, -EHOSTUNREACH);
+
                 packet_free(packet);
+            }
         }
     }
 }
@@ -222,8 +229,11 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
                       Pmac(arp_head->send_hrd_addr), Pin_addr(arp_head->send_inet_addr),
                       Pmac(arp_head->recv_hrd_addr), Pin_addr(arp_head->recv_inet_addr));
         if (iface) {
+            kp(KP_NORMAL, "ARP: Sending response on iface %s\n", iface->netdev_name);
             arp_send_response(arp_head->send_inet_addr, arp_head->send_hrd_addr, iface);
             netdev_put(iface);
+        } else {
+            kp(KP_NORMAL, "ARP: no iface to send response, we don't have that IP\n");
         }
 
         break;
@@ -234,7 +244,7 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
     packet_free(packet);
 }
 
-int arp_tx(struct packet *packet)
+void arp_tx(struct packet *packet)
 {
     struct arp_entry *entry;
     int found = 0;
@@ -252,20 +262,16 @@ int arp_tx(struct packet *packet)
 
         if (found) {
             scoped_spinlock(&entry->lock) {
-                if (entry->waiting_for_response) {
-                    list_add_tail(&entry->packet_queue, &packet->packet_entry);
-                    return 0;
-                }
-
-                if (entry->does_not_exist) {
-                    packet_free(packet);
-                    return -1;
-                } else {
+                if (!entry->does_not_exist) {
                     memcpy(packet->dest_mac, entry->mac, 6);
+                    goto pass_on_packet;
+                } else {
+                    /* Reset this entry to be sent tried again */
+                    entry->waiting_for_response = 1;
                 }
-            }
 
-            goto pass_on_packet;
+                list_add_tail(&entry->packet_queue, &packet->packet_entry);
+            }
         } else {
             /* No entry, create a new one */
             kp(KP_NORMAL, "Creating new arp_entry: %d\n", arp_cache_length);
@@ -291,10 +297,10 @@ int arp_tx(struct packet *packet)
 
     timer_add(&entry->timeout_timer, ARP_MAX_RESPONSE_TIME);
 
-    return 0;
+    return;
 
   pass_on_packet:
-    return packet_linklayer_tx(packet);
+    packet_linklayer_tx(packet);
 }
 
 static void arp_setup_af(struct address_family *af)

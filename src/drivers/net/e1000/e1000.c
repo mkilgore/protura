@@ -107,9 +107,8 @@ static void e1000_read_mac(struct net_interface_e1000 *e1000)
     kp(KP_ERROR, "E1000 MAC: "PRmac"\n", Pmac(e1000->mac));
 }
 
-static int e1000_packet_send(struct net_interface *net, struct packet *packet)
+static void e1000_packet_send(struct net_interface *net, struct packet *packet)
 {
-    return 0;
 }
 
 void e1000_device_init(struct pci_dev *dev)

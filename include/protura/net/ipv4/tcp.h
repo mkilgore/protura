@@ -4,6 +4,9 @@
 #include <protura/types.h>
 #include <protura/net/types.h>
 
+#ifdef __KERNEL__
+# include <protura/list.h>
+
 enum {
     TCP_ESTABLISHED = 1,
     TCP_SYN_SENT,
@@ -18,24 +21,43 @@ enum {
     TCP_CLOSING
 };
 
-#ifdef __KERNEL__
-
-#include <protura/list.h>
-
 struct tcp_socket_private {
     int tcp_state;
 
-    n32 rcv_next;
-    n32 rcv_up;
-    n32 rcv_window;
+    uint32_t iss;
+    uint32_t irs;
 
-    n32 snd_next;
-    n32 snd_una;
-    n32 snd_up;
-    n32 snd_wl1;
-    n32 snd_wl2;
+    uint32_t rcv_nxt;
+    uint32_t rcv_up;
+    uint32_t rcv_wnd;
 
-    list_head_t packet_queue;
+    uint32_t snd_nxt;
+    uint32_t snd_una;
+    uint32_t snd_up;
+    uint32_t snd_wnd;
+    uint32_t snd_wl1;
+    uint32_t snd_wl2;
+};
+
+union tcp_flags {
+    uint8_t flags;
+    struct {
+        uint8_t fin :1;
+        uint8_t syn :1;
+        uint8_t rst :1;
+        uint8_t psh :1;
+        uint8_t ack :1;
+        uint8_t urg :1;
+        uint8_t res :2;
+    };
+};
+
+
+struct tcp_packet_cb {
+    uint32_t seq;
+    uint32_t ack_seq;
+    uint32_t window;
+    union tcp_flags flags;
 };
 
 #endif

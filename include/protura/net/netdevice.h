@@ -35,8 +35,8 @@ struct net_interface {
     int hwtype;
     uint8_t mac[6];
 
-    int (*linklayer_tx) (struct packet *);
-    int (*hard_tx) (struct net_interface *, struct packet *);
+    void (*linklayer_tx) (struct packet *);
+    void (*hard_tx) (struct net_interface *, struct packet *);
 
 };
 

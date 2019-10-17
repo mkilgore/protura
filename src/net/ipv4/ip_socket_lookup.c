@@ -44,14 +44,16 @@ struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup
     struct socket *ret = NULL;
     int maxscore = 0;
 
-    /* This looks complicated, but is actually pretty simple
-     * When an IP packet comes in, we have to amtch it to a coresponding
-     * socket, which is marked with a protocl, source/dest port, and
+    /*
+     * This looks complicated, but is actually pretty simple:
+     *
+     * When an IP packet comes in, we have to match it to a coresponding
+     * socket, which is marked with a protocol, source/dest port, and
      * source/dest IP addr.
      *
      * In the case of a listening socket, those source/dest values may be 0,
      * representing a bind to *any* value, so we skip checking those.
-     * Otherwise, the values have to matche exactly what we were passed.
+     * Otherwise, the values have to match exactly what we were passed.
      *
      * Beyond that, if we have, say, a socket listening for INADDR_ANY (zero)
      * on port X, and a socket with a direct connection to some specific IP on
@@ -62,6 +64,14 @@ struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup
      * right away if we hit that).
      */
     list_foreach_entry(&af->sockets, sock, socket_entry) {
+        /*
+         * NOTE: We do not lock the sock private here. This is important to
+         * avoid deadlocks, since this can be called with a socket already
+         * locked.
+         *
+         * This is ok because all of this information should be read-only after
+         * the socket is added to the IP lookup list.
+         */
         struct ipv4_socket_private *sockroute = &sock->af_private.ipv4;
         int score = 0;
 

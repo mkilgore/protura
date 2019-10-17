@@ -6,8 +6,7 @@
 struct packet;
 struct net_interface;
 
-//int arp_ipv4_to_mac(in_addr_t inet_addr, uint8_t *mac, struct net_interface *iface);
-int arp_tx(struct packet *);
+void arp_tx(struct packet *);
 
 void arp_init(void);
 

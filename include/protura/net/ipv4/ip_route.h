@@ -4,7 +4,7 @@
 #include <protura/types.h>
 #include <protura/atomic.h>
 #include <protura/bits.h>
-#include <protura/net/socket.h>
+#include <protura/net/types.h>
 
 struct net_interface;
 

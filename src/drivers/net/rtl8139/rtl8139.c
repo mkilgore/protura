@@ -121,7 +121,7 @@ static void rtl_rx_interrupt(struct irq_frame *frame, void *param)
     rtl_outw(rtl, REG_ISR, isr);
 }
 
-static int rtl_packet_send(struct net_interface *iface, struct packet *packet)
+static void rtl_packet_send(struct net_interface *iface, struct packet *packet)
 {
     size_t len;
     struct net_interface_rtl *rtl = container_of(iface, struct net_interface_rtl, net);
@@ -145,8 +145,6 @@ static int rtl_packet_send(struct net_interface *iface, struct packet *packet)
             list_add_tail(&rtl->tx_packet_queue, &packet->packet_entry);
         }
     }
-
-    return 0;
 }
 
 void rtl_device_init_rx(struct net_interface_rtl *rtl)

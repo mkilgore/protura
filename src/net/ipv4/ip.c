@@ -119,13 +119,17 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
 
     int maxscore = 2;
 
+    struct protocol *proto = NULL;
+
     switch (header->protocol) {
     case IPPROTO_TCP:
+        proto = tcp_get_proto();
         tcp_lookup_fill(&lookup, packet);
         maxscore = 4;
         break;
 
     case IPPROTO_UDP:
+        proto = udp_get_proto();
         udp_lookup_fill(&lookup, packet);
         maxscore = 4;
         break;
@@ -134,8 +138,8 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
     using_mutex(&af->lock)
         sock = __ipaf_find_socket(af, &lookup, maxscore);
 
-    if (sock)
-        (sock->proto->ops->packet_rx) (sock->proto, sock, packet);
+    if (proto)
+        (proto->ops->packet_rx) (proto, sock, packet);
     else {
         if (!packet_handled)
             kp_ip("  Packet Dropped! %p\n", packet);
@@ -143,9 +147,8 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
     }
 }
 
-int ip_tx(struct packet *packet)
+void ip_tx(struct packet *packet)
 {
-    struct ip_route_entry route;
     struct ip_header *header;
     struct sockaddr_in *in = (struct sockaddr_in *)&packet->dest_addr;
     size_t data_len;
@@ -166,17 +169,8 @@ int ip_tx(struct packet *packet)
     header->protocol = packet->protocol_type;
     header->total_length = htons(data_len + sizeof(*header));
 
-    int ret = ip_route_get(in->sin_addr.s_addr, &route);
-    if (ret)
-        return -EACCES;
-
-    packet->iface_tx = route.iface;
-    packet->ll_type = htons(ETH_P_IP);
-
-    using_netdev_read(route.iface)
-        header->source_ip = route.iface->in_addr;
-
-    packet->route_addr = ip_route_get_ip(&route);
+    using_netdev_read(packet->iface_tx)
+        header->source_ip = packet->iface_tx->in_addr;
 
     header->dest_ip = in->sin_addr.s_addr;
     header->csum = htons(0);
@@ -187,8 +181,28 @@ int ip_tx(struct packet *packet)
     return (packet->iface_tx->linklayer_tx) (packet);
 }
 
-int ip_process_sockaddr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
+int ip_packet_fill_route(struct socket *sock, struct packet *packet)
 {
+    return ip_packet_fill_route_addr(sock, packet, NULL, 0);
+}
+
+int ip_packet_fill_route_addr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
+{
+    struct ipv4_socket_private *ip_priv = &sock->af_private.ipv4;
+
+    /* If we're already connected, we just used the cached route */
+    enum socket_state cur_state = socket_state_get(sock);
+
+    if (cur_state == SOCKET_CONNECTING || cur_state == SOCKET_CONNECTED) {
+        sockaddr_in_assign_addr(&packet->dest_addr, ip_priv->dest_addr);
+
+        packet->iface_tx = netdev_dup(ip_priv->route.iface);
+        packet->ll_type = htons(ETH_P_IP);
+        packet->route_addr = ip_route_get_ip(&ip_priv->route);
+        return 0;
+    }
+
+    /* Else we attempt to lookup the route */
     if (addr) {
         const struct sockaddr_in *in;
 
@@ -201,11 +215,20 @@ int ip_process_sockaddr(struct socket *sock, struct packet *packet, const struct
         in = (const struct sockaddr_in *)addr;
 
         sockaddr_in_assign_addr(&packet->dest_addr, in->sin_addr.s_addr);
-    } else if (flag_test(&sock->flags, SOCKET_IS_CONNECTED)) {
-        sockaddr_in_assign_addr(&packet->dest_addr, sock->af_private.ipv4.dest_addr);
     } else {
         return -EDESTADDRREQ;
     }
+
+    struct sockaddr_in *in = (struct sockaddr_in *)&packet->dest_addr;
+    struct ip_route_entry route;
+
+    int ret = ip_route_get(in->sin_addr.s_addr, &route);
+    if (ret)
+        return -EACCES;
+
+    packet->iface_tx = route.iface;
+    packet->ll_type = htons(ETH_P_IP);
+    packet->route_addr = ip_route_get_ip(&route);
 
     return 0;
 }
@@ -218,6 +241,12 @@ static int ip_create(struct address_family *family, struct socket *socket)
 
         socket->proto = udp_get_proto();
         socket->af_private.ipv4.proto = IPPROTO_UDP;
+    } else if (socket->sock_type == SOCK_STREAM
+        && (socket->protocol == 0 || socket->protocol == IPPROTO_TCP)) {
+        kp_ip("Looking up TCP protocol\n");
+
+        socket->proto = tcp_get_proto();
+        socket->af_private.ipv4.proto = IPPROTO_TCP;
     } else if (socket->sock_type == SOCK_RAW) {
         if (socket->protocol > 255 || socket->protocol < 0)
             return -EINVAL;
@@ -232,13 +261,10 @@ static int ip_create(struct address_family *family, struct socket *socket)
     return 0;
 }
 
-static int ip_delete(struct address_family *family, struct socket *socket)
+static int ip_delete(struct address_family *family, struct socket *sock)
 {
-    // struct address_family_ip *ip = (struct address_family_ip *)family;
-
-    // using_mutex(&ip->lock) {
-    //     __ipaf_remove_socket(ip, socket);
-    // }
+    struct ipv4_socket_private *priv = &sock->af_private.ipv4;
+    ip_route_clear(&priv->route);
 
     return 0;
 }
@@ -264,4 +290,6 @@ void ip_init(void)
     ipv4_dir_procfs = procfs_register_dir(net_dir_procfs, "ipv4");
 
     procfs_register_entry_ops(ipv4_dir_procfs, "route", &ipv4_route_ops);
+    procfs_register_entry(ipv4_dir_procfs, "udp", &udp_proc_file_ops);
+    procfs_register_entry(ipv4_dir_procfs, "ip-raw", &ip_raw_proc_file_ops);
 }

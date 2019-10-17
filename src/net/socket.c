@@ -39,6 +39,36 @@ void socket_free(struct socket *socket)
     kfree(socket);
 }
 
+int socket_last_error(struct socket *socket)
+{
+    return xchg(&socket->last_err, 0);
+}
+
+void socket_set_last_error(struct socket *socket, int err)
+{
+    kp(KP_NORMAL, "Socket: Signalling last error: %d\n", err);
+    xchg(&socket->last_err, err);
+    wait_queue_wake(&socket->state_changed);
+}
+
+void socket_state_change(struct socket *socket, enum socket_state state)
+{
+    kp(KP_NORMAL, "Socket: Signalling state change to %d\n", state);
+    xchg(&socket->state, state);
+    wait_queue_wake(&socket->state_changed);
+}
+
+enum socket_state socket_state_cmpxchg(struct socket *socket, enum socket_state cur, enum socket_state new)
+{
+    kp(KP_NORMAL, "Socket: cmpxchg from %d to %d\n", cur, new);
+    int ret = cmpxchg(&socket->state, cur, new);
+
+    if (ret == new)
+        wait_queue_wake(&socket->state_changed);
+
+    return ret;
+}
+
 static int socket_proc_read(void *page, size_t page_size, size_t *len)
 {
     int sockets = atomic_get(&open_sockets);

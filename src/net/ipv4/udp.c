@@ -13,6 +13,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
+#include <protura/fs/seq_file.h>
 #include <arch/asm.h>
 
 #include <protura/net/socket.h>
@@ -40,7 +41,7 @@ struct udp_protocol {
 static struct protocol_ops udp_protocol_ops;
 
 static struct udp_protocol udp_protocol = {
-    .proto = PROTOCOL_INIT(&udp_protocol_ops),
+    .proto = PROTOCOL_INIT("udp", udp_protocol.proto, &udp_protocol_ops),
     .lock = MUTEX_INIT(udp_protocol.lock, "udp-protocol-lock"),
     .next_port = UDP_LOWEST_AUTOBIND_PORT,
 };
@@ -104,6 +105,11 @@ void udp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
     kp_udp(" %d -> %d, %d bytes\n", ntohs(header->source_port), ntohs(header->dest_port), ntohs(header->length));
 
+    if (!sock) {
+        kp_udp("  Packet Dropped! %p\n", packet);
+        return;
+    }
+
     /* Manually set the length according to the UDP length field */
     packet->tail = packet->head + ntohs(header->length);
     packet->head += sizeof(*header);
@@ -114,7 +120,7 @@ void udp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
     }
 }
 
-int udp_tx(struct packet *packet)
+void udp_tx(struct packet *packet)
 {
     const struct sockaddr_in *in;
     size_t plen;
@@ -136,7 +142,7 @@ int udp_tx(struct packet *packet)
 
     packet->protocol_type = IPPROTO_UDP;
 
-    return ip_tx(packet);
+    ip_tx(packet);
 }
 
 static int udp_process_sockaddr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
@@ -153,7 +159,7 @@ static int udp_process_sockaddr(struct socket *sock, struct packet *packet, cons
         in = (const struct sockaddr_in *)addr;
 
         sockaddr_in_assign_port(&packet->dest_addr, in->sin_port);
-    } else if (flag_test(&sock->flags, SOCKET_IS_CONNECTED)) {
+    } else if (socket_state_get(sock) == SOCKET_CONNECTED) {
         sockaddr_in_assign_port(&packet->dest_addr, sock->af_private.ipv4.dest_port);
     } else {
         return -EDESTADDRREQ;
@@ -162,7 +168,7 @@ static int udp_process_sockaddr(struct socket *sock, struct packet *packet, cons
     return 0;
 }
 
-static int udp_sendto(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
+static int udp_sendto_packet(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
     kp_udp("Processing sockaddr: %p\n", addr);
     int ret = udp_process_sockaddr(sock, packet, addr, len);
@@ -173,13 +179,45 @@ static int udp_sendto(struct protocol *protocol, struct socket *sock, struct pac
     sockaddr_in_assign(&packet->src_addr, INADDR_ANY, sock->af_private.ipv4.src_port);
 
     kp_udp("Processing packet IP sockaddr: %p\n", addr);
-    ret = ip_process_sockaddr(sock, packet, addr, len);
+    ret = ip_packet_fill_route_addr(sock, packet, addr, len);
     if (ret)
         return ret;
 
+    packet->sock = socket_dup(sock);
+
     kp_udp("Packet Tx\n");
-    return udp_tx(packet);
+    udp_tx(packet);
+    return 0;
 }
+
+static int udp_sendto(struct protocol *proto, struct socket *sock, const char *buf, size_t buf_len, const struct sockaddr *addr, socklen_t len)
+{
+    int err = socket_last_error(sock);
+    if (err)
+        return err;
+
+    while (buf_len) {
+        struct packet *packet = packet_new(PAL_KERNEL);
+        size_t append_len = (buf_len > IPV4_PACKET_MSS)? IPV4_PACKET_MSS: buf_len;
+
+        packet_append_data(packet, buf, append_len);
+        buf_len -= append_len;
+        buf += append_len;
+
+        int ret = 1;
+
+        using_socket_priv(sock)
+            ret = udp_sendto_packet(proto, sock, packet, addr, len);
+
+        if (ret) {
+            packet_free(packet);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 
 static int udp_bind(struct protocol *protocol, struct socket *sock, const struct sockaddr *addr, socklen_t len)
 {
@@ -193,13 +231,15 @@ static int udp_bind(struct protocol *protocol, struct socket *sock, const struct
     if (addr->sa_family != AF_INET)
         return -EINVAL;
 
-    sock->af_private.ipv4.src_addr = in->sin_addr.s_addr;
-    sock->af_private.ipv4.src_port = in->sin_port;
+    using_socket_priv(sock) {
+        sock->af_private.ipv4.src_addr = in->sin_addr.s_addr;
+        sock->af_private.ipv4.src_port = in->sin_port;
 
-    ret = udp_register_sock(udp, sock);
-    if (ret) {
-        sock->af_private.ipv4.src_port = htons(0);
-        return ret;
+        ret = udp_register_sock(udp, sock);
+        if (ret) {
+            sock->af_private.ipv4.src_port = htons(0);
+            return ret;
+        }
     }
 
     return 0;
@@ -210,13 +250,15 @@ static int udp_autobind(struct protocol *protocol, struct socket *sock)
     int ret;
     struct udp_protocol *udp = container_of(protocol, struct udp_protocol, proto);
 
-    sock->af_private.ipv4.src_addr = INADDR_ANY;
-    sock->af_private.ipv4.src_port = udp_find_port(udp);
+    using_socket_priv(sock) {
+        sock->af_private.ipv4.src_addr = INADDR_ANY;
+        sock->af_private.ipv4.src_port = udp_find_port(udp);
 
-    ret = udp_register_sock(udp, sock);
-    if (ret) {
-        sock->af_private.ipv4.src_port = htons(0);
-        return ret;
+        ret = udp_register_sock(udp, sock);
+        if (ret) {
+            sock->af_private.ipv4.src_port = htons(0);
+            return ret;
+        }
     }
 
     return 0;
@@ -224,6 +266,7 @@ static int udp_autobind(struct protocol *protocol, struct socket *sock)
 
 static int udp_connect(struct protocol *protocol, struct socket *socket, const struct sockaddr *addr, socklen_t len)
 {
+    struct ipv4_socket_private *ip_priv = &socket->af_private.ipv4;
     const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
 
     if (len < sizeof(*in))
@@ -232,26 +275,44 @@ static int udp_connect(struct protocol *protocol, struct socket *socket, const s
     if (addr->sa_family != AF_INET)
         return -EINVAL;
 
-    socket->af_private.ipv4.dest_addr = in->sin_addr.s_addr;
-    socket->af_private.ipv4.dest_port = in->sin_port;
+    using_socket_priv(socket) {
+        socket->af_private.ipv4.dest_addr = in->sin_addr.s_addr;
+        socket->af_private.ipv4.dest_port = in->sin_port;
 
-    flag_set(&socket->flags, SOCKET_IS_CONNECTED);
+        int ret = ip_route_get(in->sin_addr.s_addr, &ip_priv->route);
+        if (ret)
+            return ret;
+    }
+
+    socket_state_change(socket, SOCKET_CONNECTED);
 
     return 0;
 }
 
-static int udp_create(struct protocol *protocol, struct socket *sock)
+static int udp_create(struct protocol *proto, struct socket *sock)
 {
+    using_mutex(&proto->lock) {
+        sock = socket_dup(sock);
+        list_del(&sock->proto_entry);
+    }
+
     return 0;
 }
 
-static int udp_delete(struct protocol *protocol, struct socket *sock)
+static int udp_delete(struct protocol *proto, struct socket *sock)
 {
     struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
 
-    if (n32_nonzero(sock->af_private.ipv4.src_port)) {
-        using_mutex(&af->lock)
-            __ipaf_remove_socket(af, sock);
+    using_socket_priv(sock) {
+        if (n32_nonzero(sock->af_private.ipv4.src_port)) {
+            using_mutex(&af->lock)
+                __ipaf_remove_socket(af, sock);
+        }
+    }
+
+    using_mutex(&proto->lock) {
+        list_del(&sock->proto_entry);
+        socket_put(sock);
     }
 
     return 0;
@@ -294,3 +355,41 @@ struct protocol *udp_get_proto(void)
 {
     return &udp_protocol.proto;
 }
+
+static int udp_seq_start(struct seq_file *seq)
+{
+    return proto_seq_start(seq, &udp_protocol.proto);
+}
+
+static int udp_seq_render(struct seq_file *seq)
+{
+    struct socket *s = proto_seq_get_socket(seq);
+    if (!s)
+        return seq_printf(seq, "LocalAddr LocalPort RemoteAddr RemotePort\n");
+
+    struct ipv4_socket_private *private = &s->af_private.ipv4;
+
+    using_socket_priv(s)
+        return seq_printf(seq, PRin_addr" %d "PRin_addr" %d\n",
+                Pin_addr(private->src_addr), private->src_port,
+                Pin_addr(private->dest_addr), private->dest_port);
+}
+
+static const struct seq_file_ops udp_seq_file_ops = {
+    .start = udp_seq_start,
+    .render = udp_seq_render,
+    .next = proto_seq_next,
+    .end = proto_seq_end,
+};
+
+static int udp_file_seq_open(struct inode *inode, struct file *filp)
+{
+    return seq_open(filp, &udp_seq_file_ops);
+}
+
+struct file_ops udp_proc_file_ops = {
+    .open = udp_file_seq_open,
+    .lseek = seq_lseek,
+    .read = seq_read,
+    .release = seq_release,
+};
