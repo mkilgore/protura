@@ -55,7 +55,7 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
 
     /* first: check ACK bit */
     if (seg->flags.ack) {
-        kp_tcp("seq: %d, ack_seq: %d, snd_nxt: %d, snd_una: %d\n", seg->seq, seg->ack_seq, priv->snd_nxt, priv->snd_una);
+        kp_tcp("seq: %u, ack_seq: %u, snd_nxt: %u, snd_una: %u\n", seg->seq, seg->ack_seq, priv->snd_nxt, priv->snd_una);
         if (seg->ack_seq <= priv->iss
             || seg->ack_seq > priv->snd_nxt
             || seg->ack_seq < priv->snd_una) {
@@ -92,7 +92,7 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
     if (priv->snd_una > priv->iss) {
         priv->snd_una = priv->snd_nxt;
 
-        kp_tcp("tcp_syn_sent() - SYN ACK, established! isr: %d, rcv_nxt: %d\n", priv->irs, priv->rcv_nxt);
+        kp_tcp("tcp_syn_sent() - SYN ACK, established! isr: %u, rcv_nxt: %u\n", priv->irs, priv->rcv_nxt);
         tcp_send_ack(proto, sock);
         priv->tcp_state = TCP_ESTABLISHED;
 
@@ -126,7 +126,6 @@ static int tcp_sequence_valid(struct socket *sock, struct packet *packet)
         if (seg->seq == priv->rcv_nxt)
             return 1;
 
-
     if (!seg_length && priv->rcv_wnd)
         if (tcp_seq_between(priv->rcv_nxt + 1, seg->seq, priv->rcv_nxt + priv->rcv_wnd))
             return 1;
@@ -135,7 +134,7 @@ static int tcp_sequence_valid(struct socket *sock, struct packet *packet)
      * rcv_wnd and is past rcv_nxt */
     if (seg_length && priv->rcv_wnd)
         if (tcp_seq_between(priv->rcv_nxt + 1, seg->seq, priv->rcv_nxt + priv->rcv_wnd)
-            || tcp_seq_between(priv->rcv_nxt + 1, seg->seq+ seg_length + 1, priv->rcv_nxt + priv->rcv_wnd))
+            || tcp_seq_between(priv->rcv_nxt + 1, seg->seq + seg_length + 1, priv->rcv_nxt + priv->rcv_wnd))
             return 1;
 
     /* seg_length > 0 && priv->rcv_wnd == 0 is always invalid, so we don't check it. */
@@ -172,7 +171,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
     struct tcp_packet_cb *seg = &packet->cb.tcp;
 
     kp_tcp("%d -> %d, %d bytes, valid checksum!\n", ntohs(header->source), ntohs(header->dest), packet_len(packet));
-    kp_tcp("seq: %d, ack_seq: %d, flags: %d\n", seg->seq, seg->ack_seq, seg->flags.flags);
+    kp_tcp("seq: %u, ack_seq: %u, flags: %d\n", seg->seq, seg->ack_seq, seg->flags.flags);
 
     if (!sock)
         return tcp_closed(proto, packet);
@@ -193,7 +192,8 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
         /* first: check sequence number */
         if (!tcp_sequence_valid(sock, packet)) {
-            kp_tcp("packet sequence not valid, seq: %d, ack: %d\n", seg->seq, seg->ack_seq);
+            kp_tcp("packet sequence not valid, seq: %u, ack: %u, rcv_wnd: %u, rcv_nxt: %u\n", seg->seq, seg->ack_seq, priv->rcv_wnd, priv->rcv_nxt);
+
             /* If we get here, then the packet is not valid. We should send an ACK
              * unless we've been sent a RST, and then ignore the packet */
             if (!seg->flags.rst)
