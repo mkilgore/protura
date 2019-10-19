@@ -39,7 +39,7 @@ void timer_handle_timers(uint64_t tick)
     struct ktimer *timer, *next;
 
     while (1) {
-        scoped_spinlock(&timers_lock) {
+        using_spinlock(&timers_lock) {
             timer = list_first_entry(&timer_list, struct ktimer, timer_entry);
 
             if (timer->wake_up_tick != tick)

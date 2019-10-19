@@ -51,7 +51,7 @@ static struct printf_backbone klog_backbone = {
 
 static void klog_printf(struct kp_output *out, const char *fmt, va_list lst)
 {
-    scoped_spinlock(&klog.lock) {
+    using_spinlock(&klog.lock) {
         basic_printfv(&klog_backbone, fmt, lst);
         wait_queue_wake(&klog.has_pending);
     }
@@ -67,7 +67,7 @@ void klog_init(void)
 
 static int klog_read(struct file *filp, void *p, size_t size)
 {
-    scoped_spinlock(&klog.lock)
+    using_spinlock(&klog.lock)
         return char_buf_read(&klog.buf, p, size);
 }
 
@@ -75,7 +75,7 @@ static int klog_poll(struct file *filp, struct poll_table *table, int events)
 {
     int ret = 0;
 
-    scoped_spinlock(&klog.lock) {
+    using_spinlock(&klog.lock) {
         if (flag_test(&filp->flags, FILE_READABLE) && events & POLLIN) {
             if (char_buf_has_data(&klog.buf))
                 ret |= POLLIN;

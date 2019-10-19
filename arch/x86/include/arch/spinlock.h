@@ -76,6 +76,11 @@ static inline void spinlock_release_nolog_cleanup(spinlock_t **spinlock)
     spinlock_release_nolog(*spinlock);
 }
 
+static inline void spinlock_acquire_cleanup(spinlock_t **lock)
+{
+    spinlock_acquire(*lock);
+}
+
 static inline int spinlock_try_acquire(spinlock_t *lock)
 {
     uint32_t eflags;
@@ -101,11 +106,8 @@ static inline int spinlock_try_acquire(spinlock_t *lock)
 
 /* Wraps acquiring and releaseing a spinlock. Usages of 'using_spinlock' can't
  * ever leave-out a matching release for the acquire. */
-#define using_spinlock(lock) using_nocheck(spinlock_acquire(lock), spinlock_release(lock))
-#define using_spinlock_nolog(lock) using_nocheck(spinlock_acquire_nolog(lock), spinlock_release_nolog(lock))
-
-#define scoped_spinlock(lock) scoped_using_cond(1, spinlock_acquire, spinlock_release_cleanup, lock)
-#define scoped_spinlock_nolog(lock) scoped_using_cond(1, spinlock_acquire, spinlock_release_nolog_cleanup, lock)
+#define using_spinlock(lock) scoped_using_cond(1, spinlock_acquire, spinlock_release_cleanup, lock)
+#define using_spinlock_nolog(lock) scoped_using_cond(1, spinlock_acquire, spinlock_release_nolog_cleanup, lock)
 
 /* Can be used in a 'using_spinlock' block of code to release a lock for a
  * section of code, and then acquire it back after that code is done.
@@ -113,6 +115,6 @@ static inline int spinlock_try_acquire(spinlock_t *lock)
  * It's useful in sections of code where we may go to sleep, and we want to
  * release the lock before yielding, and then acquire the lock back when we
  * start running again. */
-#define not_using_spinlock(lock) using_nocheck(spinlock_release(lock), spinlock_acquire(lock))
+#define not_using_spinlock(lock) scoped_using_cond(1, spinlock_release, spinlock_acquire_cleanup, lock)
 
 #endif

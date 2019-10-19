@@ -617,7 +617,7 @@ static void __vt_process_char(struct vt *vt, char ch)
 
 int vt_write(struct vt *vt, const char *buf, size_t len)
 {
-    scoped_spinlock(&vt->lock) {
+    using_spinlock(&vt->lock) {
         size_t l;
         for (l = 0; l < len; l++)
             __vt_process_char(vt, buf[l]);

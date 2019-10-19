@@ -261,7 +261,7 @@ void arp_tx(struct packet *packet)
         }
 
         if (found) {
-            scoped_spinlock(&entry->lock) {
+            using_spinlock(&entry->lock) {
                 if (!entry->does_not_exist) {
                     memcpy(packet->dest_mac, entry->mac, 6);
                     goto pass_on_packet;
