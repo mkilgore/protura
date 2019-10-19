@@ -288,6 +288,12 @@ static inline list_node_t *__list_take_last(list_head_t *head)
          &pos->member != (head); \
          pos = list_next_entry(pos, member))
 
+#define list_foreach_entry_safe(head, pos, nxt, member) \
+    for (pos = list_first_entry(head, typeof(*pos), member), \
+            nxt = list_next_entry(pos, member); \
+         &pos->member != (head); \
+         pos = nxt, nxt = list_next_entry(nxt, member))
+
 #define list_foreach_entry_reverse(head, pos, member) \
     for (pos = list_last_entry(head, typeof(*pos), member); \
          &pos->member != (head); \

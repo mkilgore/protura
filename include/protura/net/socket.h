@@ -84,6 +84,7 @@ struct socket {
         .recv_lock = MUTEX_INIT((sock).recv_lock, "socket-recv-lock"), \
         .recv_wait_queue = WAIT_QUEUE_INIT((sock).recv_wait_queue, "socket-recv-wait-queue"), \
         .recv_queue = LIST_HEAD_INIT((sock).recv_queue), \
+        .out_of_order_queue = LIST_HEAD_INIT((sock).out_of_order_queue), \
         .send_lock = MUTEX_INIT((sock).send_lock, "socket-send-lock"), \
         .send_wait_queue = WAIT_QUEUE_INIT((sock).send_wait_queue, "socket-send-wait-queue"), \
         .send_queue = LIST_HEAD_INIT((sock).send_queue), \
