@@ -35,7 +35,7 @@ static inline int tcp_seq_after(uint32_t seq1, uint32_t seq2)
 /* Checks that seq1 < seq2 < seq3 */
 static inline int tcp_seq_between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 {
-    return tcp_seq_after(seq1, seq2) && tcp_seq_before(seq1, seq3);
+    return tcp_seq_before(seq1, seq2) && tcp_seq_before(seq2, seq3);
 }
 
 #endif
