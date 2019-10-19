@@ -189,6 +189,22 @@ void page_table_free_range(pgd_t *table, va_t virtual, int pages)
     }
 }
 
+int pgd_ptr_is_valid(pgd_t *pgd, va_t va)
+{
+    pde_t *pde = pgd_get_pde(pgd, va);
+
+    if (!pde || !pde_exists(pde))
+        return 0;
+
+    if (pde_is_huge(pde))
+        return 1;
+
+    pgt_t *pgt = pde_to_pgt(pde);
+    pte_t *pte = pgt_get_pte(pgt, va);
+
+    return pte && pte_exists(pte);
+}
+
 void page_table_change(pgd_t *new)
 {
     set_current_page_directory(V2P(new));

@@ -14,13 +14,6 @@
 
 #include <arch/backtrace.h>
 
-static int ptr_is_valid(pgd_t *pgd, void *ptr)
-{
-    pte_t *pte = page_table_get_entry(pgd, PG_ALIGN_DOWN(ptr));
-
-    return pte && pte_exists(pte);
-}
-
 void dump_stack_ptr(void *start)
 {
     struct stackframe *stack = start;
@@ -32,8 +25,8 @@ void dump_stack_ptr(void *start)
     kp(KP_ERROR, "  Stack: %p\n", start);
 
     for (frame = 1; stack != 0; stack = stack->caller_stackframe, frame++) {
-        if (!ptr_is_valid(pgd, stack)) {
-            kp(KP_ERROR, "  Stack is invalid past this point.\n");
+        if (!pgd_ptr_is_valid(pgd, stack)) {
+            kp(KP_ERROR, "  Stack is invalid past this point, was: %p\n", stack);
             return;
         }
 

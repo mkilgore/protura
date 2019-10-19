@@ -89,6 +89,10 @@ void page_table_free(pgd_t *);
 
 void page_table_change(pgd_t *new);
 
+/* Verifies that a pointer is mapped to backing memory in the provided page
+ * directory. */
+int pgd_ptr_is_valid(pgd_t *, va_t);
+
 #define mk_pde(addr, flags) ((pde_t){ .entry = PAGING_FRAME((addr)) | flags })
 #define mk_pte(addr, flags) ((pte_t){ .entry = PAGING_FRAME((addr)) | flags })
 
@@ -106,6 +110,7 @@ void page_table_change(pgd_t *new);
 #define pde_exists(pde) ((pde)->present)
 #define pde_writable(pde) ((pde)->writable)
 #define pde_is_user(pde) ((pde)->user_page)
+#define pde_is_huge(pde) ((pde)->page_size)
 
 #define pde_set_writable(pde) ((pde)->writable = 1)
 #define pde_unset_writable(pde) ((pde)->writable = 0)
