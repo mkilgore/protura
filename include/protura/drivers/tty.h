@@ -110,7 +110,7 @@ struct winsize {
 #define ECHOK	0000040   /* Echo KILL.  */ /* IGNORED */
 #define ECHONL	0000100   /* Echo NL.  */ /* IGNORED */
 #define ECHOCTL 0001000   /* Echo CTL */
-#define NOFLSH	0000200   /* Disable flush after interrupt or quit.  */ /* IGNORED */
+#define NOFLSH	0000200   /* Disable flush after interrupt or quit.  */
 #define TOSTOP	0000400   /* Send SIGTTOU for background output.  */ /* IGNORED */
 #define IEXTEN	0100000   /* Enable implementation-defined input processing.  */ /* IGNORED */
 
@@ -141,9 +141,9 @@ struct winsize {
 #define	TCION		3 /* IGNORED */
 
 /* tcflush() and TCFLSH use these */
-#define	TCIFLUSH	0 /* IGNORED */
-#define	TCOFLUSH	1 /* IGNORED */
-#define	TCIOFLUSH	2 /* IGNORED */
+#define	TCIFLUSH	0
+#define	TCOFLUSH	1
+#define	TCIOFLUSH	2
 
 /* tcsetattr() uses these */
 #define	TCSANOW		0 /* IGNORED */
@@ -242,6 +242,8 @@ int tty_write_buf(struct tty *tty, const char *buf, size_t len);
  *
  * Note: The buffer may be modified */
 void tty_add_input(struct tty *, const char *buf, size_t len);
+void tty_flush_input(struct tty *tty);
+void tty_flush_output(struct tty *tty);
 
 #define __TERMIOS_FLAG_OFLAG(termios, flag) (((termios)->c_oflag & (flag)) != 0)
 #define __TERMIOS_FLAG_CFLAG(termios, flag) (((termios)->c_cflag & (flag)) != 0)
@@ -254,6 +256,7 @@ void tty_add_input(struct tty *, const char *buf, size_t len);
 #define TERMIOS_ECHO(termios) __TERMIOS_FLAG_LFLAG((termios), ECHO)
 #define TERMIOS_ECHOE(termios) __TERMIOS_FLAG_LFLAG((termios), ECHOE)
 #define TERMIOS_ECHOCTL(termios) __TERMIOS_FLAG_LFLAG((termios), ECHOCTL)
+#define TERMIOS_NOFLSH(termios) __TERMIOS_FLAG_LFLAG((termios), NOFLSH)
 
 #define TERMIOS_IGNBRK(termios) __TERMIOS_FLAG_IFLAG((termios), IGNBRK)
 #define TERMIOS_ISTRIP(termios) __TERMIOS_FLAG_IFLAG((termios), ISTRIP)

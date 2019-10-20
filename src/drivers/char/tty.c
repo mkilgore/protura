@@ -161,6 +161,18 @@ void tty_add_input(struct tty *tty, const char *buf, size_t len)
     }
 }
 
+void tty_flush_input(struct tty *tty)
+{
+    using_spinlock(&tty->input_buf_lock)
+        char_buf_clear(&tty->input_buf);
+}
+
+void tty_flush_output(struct tty *tty)
+{
+    using_mutex(&tty->lock)
+        char_buf_clear(&tty->output_buf);
+}
+
 static int tty_read(struct file *filp, void *vbuf, size_t len)
 {
     struct tty *tty = filp->priv_data;
@@ -356,7 +368,7 @@ static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
         using_mutex(&tty->lock)
             tty->termios = *tios;
 
-        tty_line_buf_flush(tty);
+        tty_line_buf_drain(tty);
         return 0;
 
     case TIOCGWINSZ:
@@ -380,6 +392,23 @@ static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
         using_mutex(&tty->lock)
             tty->winsize = *wins;
         return 0;
+
+    case TCFLSH:
+        switch (arg) {
+        case TCIFLUSH:
+            tty_flush_input(tty);
+            break;
+
+        case TCOFLUSH:
+            tty_flush_output(tty);
+            break;
+
+        case TCIOFLUSH:
+            tty_flush_input(tty);
+            tty_flush_output(tty);
+            break;
+        }
+        break;
     }
 
     kp(KP_TRACE, "tty_ioctl: INVALID CMD: 0x%04x\n", cmd);

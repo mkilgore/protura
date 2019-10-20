@@ -64,7 +64,7 @@ static void output_post_process(struct tty *tty, const struct termios *termios, 
     send_output_char(tty, c);
 }
 
-static void __tty_line_buf_flush(struct tty *tty, const struct termios *termios)
+static void __tty_line_buf_drain(struct tty *tty, const struct termios *termios)
 {
     size_t i;
     for (i = 0; i < tty->line_buf_pos; i++)
@@ -73,10 +73,10 @@ static void __tty_line_buf_flush(struct tty *tty, const struct termios *termios)
     tty->line_buf_pos = 0;
 }
 
-void tty_line_buf_flush(struct tty *tty)
+void tty_line_buf_drain(struct tty *tty)
 {
     using_mutex(&tty->lock)
-        __tty_line_buf_flush(tty, &tty->termios);
+        __tty_line_buf_drain(tty, &tty->termios);
 }
 
 static void __tty_line_buf_append(struct tty *tty, char c)
@@ -136,7 +136,7 @@ static void icanon_char(struct tty *tty, struct termios *termios, char c)
         __tty_line_buf_append(tty, c);
 
         if (c == '\n')
-            __tty_line_buf_flush(tty, termios);
+            __tty_line_buf_drain(tty, termios);
     }
 }
 
@@ -156,7 +156,7 @@ static void echo_char(struct tty *tty, struct termios *termios, char c)
     }
 }
 
-static void tty_pgrp_signal(struct tty *tty, int sig)
+static void tty_pgrp_signal(struct tty *tty, struct termios *termios, int sig)
 {
     pid_t pgrp;
 
@@ -166,16 +166,21 @@ static void tty_pgrp_signal(struct tty *tty, int sig)
     if (pgrp) {
         kp(KP_TRACE, "tty: Sending %d to %d\n", sig, pgrp);
         scheduler_task_send_signal(-pgrp, sig, 0);
+
+        if (!TERMIOS_NOFLSH(termios)) {
+            tty_flush_input(tty);
+            tty_flush_output(tty);
+        }
     }
 }
 
 static int isig_handle(struct tty *tty, struct termios *termios, char c)
 {
     if (c == termios->c_cc[VINTR]) {
-        tty_pgrp_signal(tty, SIGINT);
+        tty_pgrp_signal(tty, termios, SIGINT);
         return 1;
     } else if (c == termios->c_cc[VSUSP]) {
-        tty_pgrp_signal(tty, SIGTSTP);
+        tty_pgrp_signal(tty, termios, SIGTSTP);
         return 1;
     }
 
