@@ -203,9 +203,21 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
     return 0;
 }
 
+static int tcp_delete(struct protocol *proto, struct socket *sock)
+{
+    struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
+
+    using_mutex(&af->lock)
+        __ipaf_remove_socket(af, sock);
+
+    return 0;
+}
+
 static struct protocol_ops tcp_protocol_ops = {
     .packet_rx = tcp_rx,
     .autobind = tcp_autobind,
+
+    .delete = tcp_delete,
 
     .connect = tcp_connect,
 };
