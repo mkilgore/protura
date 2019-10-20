@@ -19,6 +19,11 @@ void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet
 
 void tcp_recv_data(struct protocol *proto, struct socket *sock, struct packet *packet);
 
+void tcp_timers_init(struct socket *sock);
+void tcp_timers_reset(struct socket *sock);
+void tcp_delack_timer_start(struct socket *sock, uint32_t ms);
+void tcp_delack_timer_stop(struct socket *sock);
+
 n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t len);
 n16 tcp_checksum_packet(struct packet *packet);
 

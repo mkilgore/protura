@@ -203,6 +203,13 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
     return 0;
 }
 
+static int tcp_create(struct protocol *proto, struct socket *sock)
+{
+    tcp_socket_private_init(&sock->proto_private.tcp);
+    tcp_timers_init(sock);
+    return 0;
+}
+
 static int tcp_delete(struct protocol *proto, struct socket *sock)
 {
     struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
@@ -210,6 +217,7 @@ static int tcp_delete(struct protocol *proto, struct socket *sock)
     using_mutex(&af->lock)
         __ipaf_remove_socket(af, sock);
 
+    tcp_timers_reset(sock);
     return 0;
 }
 
@@ -217,6 +225,7 @@ static struct protocol_ops tcp_protocol_ops = {
     .packet_rx = tcp_rx,
     .autobind = tcp_autobind,
 
+    .create = tcp_create,
     .delete = tcp_delete,
 
     .connect = tcp_connect,

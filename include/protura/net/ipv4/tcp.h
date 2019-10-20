@@ -6,6 +6,7 @@
 
 #ifdef __KERNEL__
 # include <protura/list.h>
+# include <protura/ktimer.h>
 
 enum {
     TCP_ESTABLISHED = 1,
@@ -37,7 +38,19 @@ struct tcp_socket_private {
     uint32_t snd_wnd;
     uint32_t snd_wl1;
     uint32_t snd_wl2;
+
+    struct delay_work delack;
 };
+
+#define TCP_SOCKET_PRIVATE_INIT(priv) \
+    { \
+        .delack = DELAY_WORK_INIT((priv).delack), \
+    }
+
+static inline void tcp_socket_private_init(struct tcp_socket_private *priv)
+{
+    *priv = (struct tcp_socket_private)TCP_SOCKET_PRIVATE_INIT(*priv);
+}
 
 union tcp_flags {
     uint8_t flags;

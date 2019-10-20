@@ -96,5 +96,6 @@ void tcp_send_ack(struct protocol *proto, struct socket *sock)
     struct tcp_socket_private *priv = &sock->proto_private.tcp;
     struct packet *packet = packet_new(PAL_KERNEL);
 
+    tcp_delack_timer_stop(sock);
     tcp_send(proto, sock, packet, TCP_ACK, htonl(priv->snd_nxt));
 }

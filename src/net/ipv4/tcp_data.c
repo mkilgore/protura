@@ -22,6 +22,8 @@
 #include "ipv4.h"
 #include "tcp.h"
 
+#define TCP_DELACK_TIMER_MS 100
+
 /* out-of-order packets should be added to the queue in order of their segment */
 static void add_to_ooo_queue(struct socket *sock, struct packet *packet)
 {
@@ -99,15 +101,13 @@ void tcp_recv_data(struct protocol *proto, struct socket *sock, struct packet *p
             wait_queue_wake(&sock->recv_wait_queue);
         }
 
-        /* FIXME: This should be piggy-backed onto another packet, via a timer */
-        tcp_send_ack(proto, sock);
+        tcp_delack_timer_start(sock, TCP_DELACK_TIMER_MS);
     } else {
         /* 
          * packet is in window, but not the next one in line.
          * add it to the out-of-order queue
          */
 
-        /* FIXME: We're ignoring these packets and just sending an ACK */
         using_mutex(&sock->recv_lock)
             add_to_ooo_queue(sock, packet);
 
