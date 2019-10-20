@@ -49,7 +49,7 @@ int socket_open(int domain, int type, int protocol, struct socket **sock_ret)
             goto release_socket;
     }
 
-    kp(KP_NORMAL, "Socket ret: %p\n", socket);
+    kp(KP_NORMAL, "Socket ret: %p, refs: %d\n", socket, atomic_get(&socket->refs));
     *sock_ret = socket;
     return ret;
 
@@ -195,14 +195,13 @@ int socket_listen(struct socket *socket, int backlog)
 
 int socket_shutdown(struct socket *socket, int how)
 {
-    if (socket_state_get(socket) == SOCKET_CLOSED)
-        return 0;
+    enum socket_state cur_state = socket_state_cmpxchg(socket, SOCKET_CONNECTED, SOCKET_DISCONNECTING);
+    if (cur_state != SOCKET_CONNECTED)
+        return -ENOTCONN;
 
     (socket->af->ops->delete) (socket->af, socket);
     if (socket->proto->ops->delete)
         (socket->proto->ops->delete) (socket->proto, socket);
-
-    socket_state_change(socket, SOCKET_CLOSED);
 
     return 0;
 }
