@@ -103,6 +103,7 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
         list_foreach_entry(&af->raw_sockets, raw, socket_entry) {
             if (raw->protocol == header->protocol) {
                 struct packet *copy = packet_copy(packet, PAL_KERNEL);
+                copy->sock = socket_dup(raw);
 
                 (raw->proto->ops->packet_rx) (raw->proto, raw, copy);
                 packet_handled = 1;
@@ -137,6 +138,8 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
 
     using_mutex(&af->lock)
         sock = __ipaf_find_socket(af, &lookup, maxscore);
+
+    packet->sock = sock;
 
     if (proto)
         (proto->ops->packet_rx) (proto, sock, packet);
