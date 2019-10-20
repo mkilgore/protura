@@ -36,6 +36,8 @@ struct socket {
     int sock_type;
     int protocol;
 
+    list_node_t global_socket_entry;
+
     list_node_t proto_entry;
 
     list_node_t socket_entry;
@@ -77,6 +79,7 @@ struct socket {
         .refs = ATOMIC_INIT(0), \
         .state = ATOMIC_INIT(SOCKET_UNCONNECTED), \
         .state_changed = WAIT_QUEUE_INIT((sock).state_changed, "socket-state-changed"), \
+        .global_socket_entry = LIST_NODE_INIT((sock).global_socket_entry), \
         .proto_entry = LIST_NODE_INIT((sock).proto_entry), \
         .socket_entry = LIST_NODE_INIT((sock).socket_entry), \
         .socket_hash_entry = HLIST_NODE_INIT(), \
@@ -125,7 +128,7 @@ static inline enum socket_state socket_state_get(struct socket *socket)
 
 void socket_subsystem_init(void);
 
-extern struct procfs_entry_ops socket_procfs;
+extern struct file_ops socket_procfs_file_ops;
 
 int socket_open(int domain, int type, int protocol, struct socket **sock_ret);
 

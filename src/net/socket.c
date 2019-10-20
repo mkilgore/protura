@@ -20,7 +20,9 @@
 #include <protura/net/socket.h>
 #include <protura/net.h>
 
-atomic_t open_sockets = ATOMIC_INIT(0);
+static mutex_t socket_list_lock = MUTEX_INIT(socket_list_lock, "socket-list-lock");
+static atomic_t open_sockets = ATOMIC_INIT(0);
+static list_head_t socket_list = LIST_HEAD_INIT(socket_list);
 
 struct socket *socket_alloc(void)
 {
@@ -30,12 +32,23 @@ struct socket *socket_alloc(void)
     socket_init(socket);
     atomic_inc(&open_sockets);
 
+    using_mutex(&socket_list_lock)
+        list_add_tail(&socket_list, &socket->global_socket_entry);
+
+    kp(KP_NORMAL, "Allocate socket: %p\n", socket);
     return socket_dup(socket);
 }
 
 void socket_free(struct socket *socket)
 {
     atomic_dec(&open_sockets);
+
+    using_mutex(&socket_list_lock)
+        list_del(&socket->global_socket_entry);
+
+    /* FIXME: Clear various queues and such */
+
+    kp(KP_NORMAL, "Freeing socket: %p\n", socket);
     kfree(socket);
 }
 
@@ -69,16 +82,58 @@ enum socket_state socket_state_cmpxchg(struct socket *socket, enum socket_state 
     return ret;
 }
 
-static int socket_proc_read(void *page, size_t page_size, size_t *len)
-{
-    int sockets = atomic_get(&open_sockets);
-
-    *len = snprintf(page, page_size, "Sockets: %d\n", sockets);
-
-    return 0;
-}
-
-struct procfs_entry_ops socket_procfs = {
-    .readpage = socket_proc_read,
+static const char *socket_state[] = {
+    [SOCKET_UNCONNECTED] = "UNCONNECTED",
+    [SOCKET_CONNECTING] = "CONNECTING",
+    [SOCKET_CONNECTED] = "CONNECTED",
+    [SOCKET_DISCONNECTING] = "DISCONNECTING",
 };
 
+static int socket_seq_start(struct seq_file *seq)
+{
+    mutex_lock(&socket_list_lock);
+    return seq_list_start_header(seq, &socket_list);
+}
+
+static int socket_seq_render(struct seq_file *seq)
+{
+    struct socket *s = seq_list_get_entry(seq, struct socket, global_socket_entry);
+    if (!s)
+        return seq_printf(seq, "refs\taf\ttype\tproto\tstate\n");
+
+    return seq_printf(seq, "%d\t%d\t%d\t%d\t%s\n",
+            atomic_get(&s->refs),
+            s->address_family,
+            s->sock_type,
+            s->protocol,
+            socket_state[atomic_get(&s->state)]);
+}
+
+static int socket_seq_next(struct seq_file *seq)
+{
+    return seq_list_next(seq, &socket_list);
+}
+
+static void socket_seq_end(struct seq_file *seq)
+{
+    mutex_unlock(&socket_list_lock);
+}
+
+const static struct seq_file_ops socket_seq_file_ops = {
+    .start = socket_seq_start,
+    .next = socket_seq_next,
+    .render = socket_seq_render,
+    .end = socket_seq_end,
+};
+
+static int socket_file_seq_open(struct inode *inode, struct file *filp)
+{
+    return seq_open(filp, &socket_seq_file_ops);
+}
+
+struct file_ops socket_procfs_file_ops = {
+    .open = socket_file_seq_open,
+    .lseek = seq_lseek,
+    .read = seq_read,
+    .release = seq_release,
+};

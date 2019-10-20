@@ -48,6 +48,6 @@ void net_init(void)
     icmp_init();
 
     procfs_register_entry_ops(net_dir_procfs, "netdev", &netdevice_procfs);
-    procfs_register_entry_ops(net_dir_procfs, "sockets", &socket_procfs);
+    procfs_register_entry(net_dir_procfs, "sockets", &socket_procfs_file_ops);
 }
 
