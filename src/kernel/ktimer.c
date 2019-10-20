@@ -46,17 +46,19 @@ void timer_handle_timers(uint64_t tick)
                 return;
 
             list_del(&timer->timer_entry);
+
+            /* FIXME: We have to hold the spinlock to avoid races with
+             * timer_add and timer_del, however calling the callback while
+             * holding the spinlock is not ideal */
+            /* We're careful to release the spinlock before calling the callbacks */
+            flag_set(&timer->flags, KTIMER_FIRED);
+            (timer->callback) (timer);
+
+            list_foreach_take_entry(&timer->timer_list, next, timer_entry) {
+                flag_set(&next->flags, KTIMER_FIRED);
+                (next->callback) (next);
+            }
         }
-
-        list_head_t list = LIST_HEAD_INIT(list);
-        list_replace_init(&list, &timer->timer_list);
-
-        /* We're careful to release the spinlock before calling the callbacks */
-        (timer->callback) (timer);
-
-        list_foreach_take_entry(&list, next, timer_entry)
-            (next->callback) (next);
-
     }
 }
 
@@ -66,6 +68,12 @@ void timer_add(struct ktimer *timer, uint64_t ms)
     timer->wake_up_tick = timer_get_ticks() + ms * (TIMER_TICKS_PER_SEC / 1000);
 
     using_spinlock(&timers_lock) {
+        /* We're already scheduled, don't do anything
+         *
+         * FIXME: We should set the timer to the new time. */
+        if (list_node_is_in_list(&timer->timer_entry))
+            break;
+
         list_foreach_entry(&timer_list, t, timer_entry) {
             if (t->wake_up_tick == timer->wake_up_tick)
                 list_add_tail(&t->timer_list, &timer->timer_entry);
@@ -75,6 +83,8 @@ void timer_add(struct ktimer *timer, uint64_t ms)
 
         if (list_ptr_is_head(&t->timer_entry, &timer_list))
             list_add_tail(&timer_list, &timer->timer_entry);
+
+        flag_clear(&timer->flags, KTIMER_FIRED);
     }
 }
 

@@ -3,6 +3,7 @@
 
 #include <protura/types.h>
 #include <protura/list.h>
+#include <protura/bits.h>
 
 /*
  * ktimer - Kernel timers
@@ -11,10 +12,16 @@
  * a certain number of milliseconds have gone by.
  */
 
+enum ktimer_flags {
+    KTIMER_FIRED,
+};
+
 struct ktimer {
     list_node_t timer_entry;
-
     list_head_t timer_list;
+
+    flags_t flags;
+
     uint64_t wake_up_tick;
 
     void (*callback) (struct ktimer *);
