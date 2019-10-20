@@ -1,19 +1,9 @@
 #!/bin/bash
-#
-# Use with ./script [arguments]
-#
-# [arguments] are any extra arguments you want to pass on to the kernel when it is run.
 
 mv ./qemu.log ./qemu.log.bak
 
 # Select a random port from 40000 to 50000 to listen on
 RND_PORT=$(( ($RANDOM % 10000) + 40000))
-
-if [ -z "${@:0}" ]; then
-    kernel_cmdline=
-else
-    kernel_cmdline="-append \"${@:0}\""
-fi
 
 qemu_line="qemu-system-i386 \
     -serial file:./qemu.log \
@@ -27,8 +17,7 @@ qemu_line="qemu-system-i386 \
     -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
     -net nic,model=rtl8139 \
     -net nic,model=e1000 \
-    -net tap,ifname=tap0,script=no,downscript=no \
-    $kernel_cmdline"
+    -net tap,ifname=tap0,script=no,downscript=no"
 
 GDB_CMD="gdb"
 QEMU_CMD="$qemu_line"
