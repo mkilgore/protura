@@ -70,7 +70,7 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
         kp_tcp("tcp_syn_sent() - RST\n");
         priv->tcp_state = TCP_CLOSE;
         socket_set_last_error(sock, -ECONNREFUSED);
-        socket_state_change(sock, SOCKET_CLOSED);
+        socket_state_change(sock, SOCKET_UNCONNECTED);
         goto release_packet;
     }
 
@@ -219,7 +219,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
             }
 
             priv->tcp_state = TCP_CLOSE;
-            socket_state_change(sock, SOCKET_CLOSED);
+            socket_state_change(sock, SOCKET_UNCONNECTED);
             goto drop_packet;
         }
 
@@ -230,7 +230,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
             kp_tcp("SYN packet\n");
             socket_set_last_error(sock, -ECONNRESET);
             priv->tcp_state = TCP_CLOSE;
-            socket_state_change(sock, SOCKET_CLOSED);
+            socket_state_change(sock, SOCKET_UNCONNECTED);
             goto drop_packet;
         }
 

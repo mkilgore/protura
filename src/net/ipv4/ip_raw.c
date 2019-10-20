@@ -135,6 +135,8 @@ static int ip_raw_delete(struct protocol *proto, struct socket *sock)
         socket_put(sock);
     }
 
+    socket_state_change(sock, SOCKET_UNCONNECTED);
+
     return 0;
 }
 

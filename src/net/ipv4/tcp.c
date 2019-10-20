@@ -125,8 +125,8 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
     if (addr->sa_family != AF_INET)
         return -EINVAL;
 
-    enum socket_state cur_state = socket_state_cmpxchg(sock, SOCKET_CLOSED, SOCKET_CONNECTING);
-    if (cur_state != SOCKET_CLOSED)
+    enum socket_state cur_state = socket_state_cmpxchg(sock, SOCKET_UNCONNECTED, SOCKET_CONNECTING);
+    if (cur_state != SOCKET_UNCONNECTED)
         return -EISCONN;
 
     using_socket_priv(sock) {

@@ -17,7 +17,7 @@ enum socket_flags {
 };
 
 enum socket_state {
-    SOCKET_CLOSED,
+    SOCKET_UNCONNECTED,
     SOCKET_CONNECTING,
     SOCKET_CONNECTED,
     SOCKET_DISCONNECTING,
@@ -75,7 +75,7 @@ struct socket {
 #define SOCKET_INIT(sock) \
     { \
         .refs = ATOMIC_INIT(0), \
-        .state = ATOMIC_INIT(SOCKET_CLOSED), \
+        .state = ATOMIC_INIT(SOCKET_UNCONNECTED), \
         .state_changed = WAIT_QUEUE_INIT((sock).state_changed, "socket-state-changed"), \
         .proto_entry = LIST_NODE_INIT((sock).proto_entry), \
         .socket_entry = LIST_NODE_INIT((sock).socket_entry), \
