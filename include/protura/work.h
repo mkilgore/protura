@@ -140,6 +140,12 @@ struct delay_work {
         .queue = (q), \
     }
 
+#define DELAY_WORK_INIT(w) \
+    { \
+        .work = WORK_INIT((w).work), \
+        .timer = KTIMER_INIT((w).timer), \
+    }
+
 #define DELAY_WORK_INIT_KWORK(w, func) \
     { \
         .work = WORK_INIT_KWORK((w).work, func), \
