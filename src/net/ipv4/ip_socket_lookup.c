@@ -33,8 +33,10 @@ void __ipaf_add_socket(struct address_family_ip *af, struct socket *sock)
 
 void __ipaf_remove_socket(struct address_family_ip *af, struct socket *sock)
 {
-    list_del(&sock->socket_entry);
-    socket_put(sock);
+    if (list_node_is_in_list(&sock->socket_entry)) {
+        list_del(&sock->socket_entry);
+        socket_put(sock);
+    }
 }
 
 __must_check
@@ -103,7 +105,7 @@ struct socket *__ipaf_find_socket(struct address_family_ip *af, struct ip_lookup
         }
 
         if (score == total_max_score)
-            return sock;
+            return socket_dup(sock);
 
         if (maxscore >= score)
             continue;
