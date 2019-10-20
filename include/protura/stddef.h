@@ -91,7 +91,6 @@
  * still release the locks. 'return' will *not* release the lock though, so
  * return should basically never be used inside a using_cond.
  *
- *
  * The actual macro itself isn't *too* complicated, just follow the 'goto's
  * through the code, just fairly messy. The key to reading this code is that
  * most of it will be removed by the compiler, and a lot of the blocks are
@@ -128,6 +127,17 @@
 # define using_cond(cond, cmd1, cmd2) \
     using_cond_ctr(cond, cmd1, cmd2, __COUNTER__)
 
+/*
+ * This one works almost identical to the above using_cond. The different is
+ * that this one makes use of the __cleanup attribute from GCC. This bring the
+ * *huge* advantage that cmd2 will be called regardless of how the scope is
+ * exited. IE. return and goto both trigger cmd2 to run.
+ *
+ * The small disadvantage is that you need to write a wrapper function for
+ * __cleanup which takes a pointer to the argument (due to the way __cleanup
+ * works).
+ *
+ */
 # define scoped_using_cond_ctr(cond, cmd1, cmd2, arg, ctr) \
     if (0) { \
         TP(__using_finished, ctr):; \
