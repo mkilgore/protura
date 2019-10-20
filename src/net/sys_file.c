@@ -60,6 +60,8 @@ static int socket_release(struct file *filp)
 
     socket_shutdown(socket, SHUT_RDWR);
 
+    socket_put(socket);
+
     return 0;
 }
 

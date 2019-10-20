@@ -43,19 +43,9 @@ static struct inode *socket_inode_alloc(struct super_block *socket_superblocK)
     return &inode->i;
 }
 
-static int socket_inode_delete(struct super_block *socket_superblock, struct inode *i)
-{
-    struct inode_socket *inode = container_of(i, struct inode_socket, i);
-
-    socket_put(inode->socket);
-
-    return 0;
-}
-
 static struct super_block_ops socket_fake_super_block_ops = {
     .inode_dealloc = socket_inode_dealloc,
     .inode_alloc = socket_inode_alloc,
-    .inode_delete = socket_inode_delete,
 };
 
 static struct super_block socket_fake_super_block = SUPER_BLOCK_INIT(socket_fake_super_block);
