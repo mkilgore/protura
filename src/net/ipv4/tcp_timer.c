@@ -49,8 +49,10 @@ void tcp_delack_timer_stop(struct socket *sock)
 
     timer_del(timer);
 
-    if (!flag_test(&timer->flags, KTIMER_FIRED))
+    if (!flag_test(&timer->flags, KTIMER_FIRED)) {
         socket_put(sock);
+        flag_set(&timer->flags, KTIMER_FIRED);
+    }
 }
 
 void tcp_timers_reset(struct socket *sock)
