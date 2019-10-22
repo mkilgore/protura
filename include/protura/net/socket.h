@@ -101,17 +101,35 @@ static inline void socket_init(struct socket *socket)
 struct socket *socket_alloc(void);
 void socket_free(struct socket *socket);
 
-static inline struct socket *socket_dup(struct socket *socket)
+#ifdef CONFIG_KERNEL_LOG_SOCKET_REF
+# define kp_socket_ref(str, ...) kp(KP_NORMAL, "SOCKET REF: " str, ## __VA_ARGS__)
+#else
+# define kp_socket_ref(str, ...) do { ; } while (0)
+#endif
+
+static inline struct socket *__socket_dup(struct socket *socket)
 {
     atomic_inc(&socket->refs);
     return socket;
 }
 
-static inline void socket_put(struct socket *socket)
+#define socket_dup(s) \
+    ({ \
+        kp_socket_ref("%s: %d: %p socket dup\n", __func__, __LINE__, (s)); \
+        __socket_dup((s)); \
+    })
+
+static inline void __socket_put(struct socket *socket)
 {
     if (atomic_dec_and_test(&socket->refs))
         socket_free(socket);
 }
+
+#define socket_put(s) \
+    ({ \
+        kp_socket_ref("%s: %d: %p socket put\n", __func__, __LINE__, (s)); \
+        __socket_put((s)); \
+    })
 
 enum socket_state socket_state_cmpxchg(struct socket *socket, enum socket_state cur, enum socket_state new);;
 void socket_state_change(struct socket *, enum socket_state);
@@ -150,5 +168,6 @@ int socket_connect(struct socket *, const struct sockaddr *addr, socklen_t addrl
 int socket_listen(struct socket *, int backlog);
 
 int socket_shutdown(struct socket *, int how);
+void socket_release(struct socket *);
 
 #endif
