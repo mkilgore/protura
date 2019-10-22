@@ -25,6 +25,9 @@ void tcp_timers_reset(struct socket *sock);
 void tcp_delack_timer_start(struct socket *sock, uint32_t ms);
 void tcp_delack_timer_stop(struct socket *sock);
 
+void tcp_procfs_register(struct protocol *proto, struct socket *sock);
+void tcp_procfs_unregister(struct protocol *proto, struct socket *sock);
+
 n16 tcp_checksum(struct pseudo_header *header, const char *data, size_t len);
 n16 tcp_checksum_packet(struct packet *packet);
 
@@ -43,5 +46,14 @@ static inline int tcp_seq_between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 {
     return tcp_seq_before(seq1, seq2) && tcp_seq_before(seq2, seq3);
 }
+
+struct tcp_protocol {
+    struct protocol proto;
+
+    mutex_t lock;
+    uint16_t next_port;
+};
+
+extern struct tcp_protocol tcp_protocol;
 
 #endif

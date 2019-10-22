@@ -292,4 +292,5 @@ void ip_init(void)
     procfs_register_entry_ops(ipv4_dir_procfs, "route", &ipv4_route_ops);
     procfs_register_entry(ipv4_dir_procfs, "udp", &udp_proc_file_ops);
     procfs_register_entry(ipv4_dir_procfs, "ip-raw", &ip_raw_proc_file_ops);
+    procfs_register_entry(ipv4_dir_procfs, "tcp", &tcp_proc_file_ops);
 }

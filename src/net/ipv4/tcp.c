@@ -25,16 +25,9 @@
 
 #define TCP_LOWEST_AUTOBIND_PORT 50000
 
-struct tcp_protocol {
-    struct protocol proto;
-
-    mutex_t lock;
-    uint16_t next_port;
-};
-
 static struct protocol_ops tcp_protocol_ops;
 
-static struct tcp_protocol tcp_protocol = {
+struct tcp_protocol tcp_protocol = {
     .proto = PROTOCOL_INIT("tcp", tcp_protocol.proto, &tcp_protocol_ops),
     .lock = MUTEX_INIT(tcp_protocol.lock, "tcp-protocol-lock"),
     .next_port = TCP_LOWEST_AUTOBIND_PORT,
@@ -208,6 +201,7 @@ static int tcp_create(struct protocol *proto, struct socket *sock)
 {
     tcp_socket_private_init(&sock->proto_private.tcp);
     tcp_timers_init(sock);
+    tcp_procfs_register(proto, sock);
     return 0;
 }
 
@@ -225,6 +219,8 @@ static void tcp_release(struct protocol *proto, struct socket *sock)
     struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
 
     ip_release(sock->af, sock);
+
+    tcp_procfs_unregister(proto, sock);
 
     using_mutex(&af->lock)
         __ipaf_remove_socket(af, sock);

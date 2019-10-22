@@ -10,6 +10,7 @@ objs-y += tcp_data.o
 objs-y += tcp_input.o
 objs-y += tcp_output.o
 objs-y += tcp_timer.o
+objs-y += tcp_procfs.o
 objs-y += tcp_test.o
 
 objs-y += ip_raw.o

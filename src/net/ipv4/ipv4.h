@@ -99,6 +99,7 @@ struct protocol *ip_raw_get_proto(void);
 
 extern struct file_ops udp_proc_file_ops;
 extern struct file_ops ip_raw_proc_file_ops;
+extern struct file_ops tcp_proc_file_ops;
 
 #ifdef CONFIG_KERNEL_LOG_IP
 # define kp_ip(str, ...) kp(KP_NORMAL, "IP: " str, ## __VA_ARGS__)
