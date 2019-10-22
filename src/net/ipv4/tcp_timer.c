@@ -24,7 +24,8 @@ static void delack_callback(struct work *work)
 {
     struct socket *sock = container_of(work, struct socket, proto_private.tcp.delack.work);
 
-    tcp_send_ack(sock->proto, sock);
+    using_socket_priv(sock)
+        tcp_send_ack(sock->proto, sock);
 
     socket_put(sock);
 }
@@ -57,5 +58,6 @@ void tcp_delack_timer_stop(struct socket *sock)
 
 void tcp_timers_reset(struct socket *sock)
 {
-    tcp_delack_timer_stop(sock);
+    using_socket_priv(sock)
+        tcp_delack_timer_stop(sock);
 }
