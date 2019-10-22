@@ -27,9 +27,10 @@
 
 #include "sys_common.h"
 
-static int socket_inode_dealloc(struct super_block *socket_superblock, struct inode *socket_inode)
+static int socket_inode_dealloc(struct super_block *socket_superblock, struct inode *inode)
 {
-    kfree(socket_inode);
+    struct inode_socket *inode_socket = container_of(inode, struct inode_socket, i);
+    kfree(inode_socket);
 
     return 0;
 }
