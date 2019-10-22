@@ -32,12 +32,6 @@ static void slab_test_frame_new(struct ktest *kt)
 
     new_frame = __slab_frame_new(&test_slab, PAL_KERNEL);
 
-    int i;
-    for (i = 0; i < 10000; i++) {
-        void *test_ptr = kmalloc(4, PAL_KERNEL);
-        kfree(test_ptr);
-    }
-
     ktest_assert_notequal(kt, NULL, new_frame);
     ktest_assert_equal(kt, obj_count, new_frame->object_count);
     ktest_assert_equal(kt, obj_count, new_frame->free_object_count);
@@ -52,13 +46,13 @@ static void slab_test_frame_new(struct ktest *kt)
 
     ktest_assert_equal(kt, obj_count, free_count);
 
-    __slab_frame_free(new_frame);
+    __slab_frame_free(&test_slab, new_frame);
     slab_clear(&test_slab);
 }
 
 static void slab_test_two_frames(struct ktest *kt)
 {
-    int obj_size = 1024;
+    int obj_size = 512;
     struct slab_alloc test_slab = SLAB_ALLOC_INIT("test-slab", obj_size);
     struct page *pages = palloc(0, PAL_KERNEL);
     void **ptrs = pages->virt;
@@ -89,8 +83,10 @@ static void slab_test_two_frames(struct ktest *kt)
 
     ktest_assert_equal(kt, 2, frame_count);
 
-    for (i = 0; i < obj_count * 2; i++)
+    for (i = 0; i < obj_count * 2; i++) {
+        ktest_assert_equal(kt, 0, (uintptr_t)ptrs[i] & 0xFF);
         slab_free(&test_slab, ptrs[i]);
+    }
 
     frame_count = 0;
     for (frame = test_slab.first_frame; frame; frame = frame->next, frame_count++) {
