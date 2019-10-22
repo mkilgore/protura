@@ -29,6 +29,7 @@ struct ktimer {
 
 #define KTIMER_INIT(timer) \
     { \
+        .flags = F(KTIMER_FIRED), \
         .timer_entry = LIST_NODE_INIT((timer).timer_entry), \
         .timer_list = LIST_HEAD_INIT((timer).timer_list), \
     }
