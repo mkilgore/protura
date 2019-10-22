@@ -65,7 +65,10 @@ int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags,
     kp(KP_NORMAL, "ops: %p\n", socket->proto->ops);
     kp(KP_NORMAL, "sendto: %p\n", socket->proto->ops->sendto);
 
-    return socket->proto->ops->sendto(socket->proto, socket, buf, len, dest, addrlen);
+    if (socket->proto->ops->sendto)
+        return socket->proto->ops->sendto(socket->proto, socket, buf, len, dest, addrlen);
+    else
+        return -ENOTSUP;
 }
 
 int socket_send(struct socket *socket, const void *buf, size_t len, int flags)
