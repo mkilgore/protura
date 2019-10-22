@@ -230,7 +230,61 @@ static void tcp_release(struct protocol *proto, struct socket *sock)
         __ipaf_remove_socket(af, sock);
 
     tcp_timers_reset(sock);
+}
+
+static int tcp_sendto_packet(struct protocol *proto, struct socket *sock, struct packet *packet, int psh)
+{
+    struct tcp_socket_private *priv = &sock->proto_private.tcp;
+    struct tcp_packet_cb *cb = &packet->cb.tcp;
+
+    cb->seq = priv->snd_nxt;
+    cb->ack_seq = priv->rcv_nxt;
+    cb->window = priv->rcv_wnd;
+    cb->flags.ack = 1;
+
+    if (psh)
+        cb->flags.psh = 1;
+
+    tcp_send(proto, sock, packet);
+
     return 0;
+}
+
+static int tcp_sendto(struct protocol *proto, struct socket *sock, const char *buf, size_t buf_len, const struct sockaddr *addr, socklen_t addr_len)
+{
+    struct tcp_socket_private *priv = &sock->proto_private.tcp;
+
+    if (addr || addr_len)
+        return -EISCONN;
+
+    int err = socket_last_error(sock);
+    if (err)
+        return err;
+
+    size_t orig_buf_len = buf_len;
+
+    while (buf_len) {
+        struct packet *packet = packet_new(PAL_KERNEL);
+        size_t append_len = (buf_len > IPV4_PACKET_MSS)? IPV4_PACKET_MSS: buf_len;
+
+        packet_append_data(packet, buf, append_len);
+        buf_len -= append_len;
+        buf += append_len;
+
+        int ret = 1;
+
+        using_socket_priv(sock)
+            ret = tcp_sendto_packet(proto, sock, packet, buf_len == 0);
+
+        priv->snd_nxt += append_len;
+
+        if (ret) {
+            packet_free(packet);
+            return ret;
+        }
+    }
+
+    return orig_buf_len;
 }
 
 static struct protocol_ops tcp_protocol_ops = {
@@ -242,6 +296,7 @@ static struct protocol_ops tcp_protocol_ops = {
     .release = tcp_release,
 
     .connect = tcp_connect,
+    .sendto = tcp_sendto,
 };
 
 struct protocol *tcp_get_proto(void)
