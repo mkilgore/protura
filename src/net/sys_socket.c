@@ -195,14 +195,16 @@ int socket_listen(struct socket *socket, int backlog)
 
 int socket_shutdown(struct socket *socket, int how)
 {
-    enum socket_state cur_state = socket_state_cmpxchg(socket, SOCKET_CONNECTED, SOCKET_DISCONNECTING);
-    if (cur_state != SOCKET_CONNECTED)
-        return -ENOTCONN;
-
-    (socket->af->ops->delete) (socket->af, socket);
-    if (socket->proto->ops->delete)
-        (socket->proto->ops->delete) (socket->proto, socket);
+    if (socket->proto->ops->shutdown)
+        return (socket->proto->ops->shutdown) (socket->proto, socket, how);
+    else
+        return -ENOTSUP;
 
     return 0;
 }
 
+void socket_release(struct socket *socket)
+{
+    if (socket->proto->ops->release)
+        (socket->proto->ops->release) (socket->proto, socket);
+}

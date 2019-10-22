@@ -293,15 +293,22 @@ static int udp_create(struct protocol *proto, struct socket *sock)
 {
     using_mutex(&proto->lock) {
         sock = socket_dup(sock);
-        list_del(&sock->proto_entry);
+        list_add_tail(&proto->socket_list, &sock->proto_entry);
     }
 
     return 0;
 }
 
-static int udp_delete(struct protocol *proto, struct socket *sock)
+static int udp_shutdown(struct protocol *proto, struct socket *sock, int how)
+{
+    return -ENOTCONN;
+}
+
+static void udp_release(struct protocol *proto, struct socket *sock)
 {
     struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
+
+    ip_release(sock->af, sock);
 
     using_socket_priv(sock) {
         if (n32_nonzero(sock->af_private.ipv4.src_port)) {
@@ -316,8 +323,6 @@ static int udp_delete(struct protocol *proto, struct socket *sock)
     }
 
     socket_state_change(sock, SOCKET_UNCONNECTED);
-
-    return 0;
 }
 
 static int udp_getsockname(struct protocol *protocol, struct socket *sock, struct sockaddr *addr, socklen_t *len)
@@ -348,9 +353,10 @@ static struct protocol_ops udp_protocol_ops = {
     .bind = udp_bind,
     .autobind = udp_autobind,
     .getsockname = udp_getsockname,
+    .shutdown = udp_shutdown,
 
     .create = udp_create,
-    .delete = udp_delete,
+    .release = udp_release,
 };
 
 struct protocol *udp_get_proto(void)

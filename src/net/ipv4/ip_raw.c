@@ -121,9 +121,16 @@ static int ip_raw_create(struct protocol *proto, struct socket *sock)
     return 0;
 }
 
-static int ip_raw_delete(struct protocol *proto, struct socket *sock)
+static int ip_raw_shutdown(struct protocol *proto, struct socket *sock, int how)
+{
+    return -ENOTCONN;
+}
+
+static void ip_raw_release(struct protocol *proto, struct socket *sock)
 {
     struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
+
+    ip_release(sock->af, sock);
 
     using_mutex(&proto->lock) {
         list_del(&sock->proto_entry);
@@ -136,8 +143,6 @@ static int ip_raw_delete(struct protocol *proto, struct socket *sock)
     }
 
     socket_state_change(sock, SOCKET_UNCONNECTED);
-
-    return 0;
 }
 
 static struct protocol_ops ip_raw_protocol_ops  = {
@@ -145,11 +150,12 @@ static struct protocol_ops ip_raw_protocol_ops  = {
     .sendto = ip_raw_sendto,
 
     .create = ip_raw_create,
-    .delete = ip_raw_delete,
+    .release = ip_raw_release,
 
     .bind = ip_raw_bind,
     .autobind = ip_raw_autobind,
     .getsockname = ip_raw_getsockname,
+    .shutdown = ip_raw_shutdown,
 };
 
 struct protocol *ip_raw_get_proto(void)

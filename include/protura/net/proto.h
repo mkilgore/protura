@@ -35,7 +35,9 @@ struct protocol_ops {
     void (*packet_rx) (struct protocol *, struct socket *, struct packet *);
 
     int (*create) (struct protocol *, struct socket *);
-    int (*delete) (struct protocol *, struct socket *);
+    void (*release) (struct protocol *, struct socket *);
+
+    int (*shutdown) (struct protocol *, struct socket *, int how);
 
     int (*sendto) (struct protocol *, struct socket *, const char *buf, size_t len, const struct sockaddr *, socklen_t);
 

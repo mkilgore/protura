@@ -88,6 +88,7 @@ n16 ip_chksum(uint16_t *head, size_t byte_count);
 int ip_packet_fill_route_addr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len);
 int ip_packet_fill_route(struct socket *sock, struct packet *packet);
 void ip_tx(struct packet *packet);
+void ip_release(struct address_family *family, struct socket *sock);
 
 void tcp_lookup_fill(struct ip_lookup *, struct packet *);
 void udp_lookup_fill(struct ip_lookup *, struct packet *);

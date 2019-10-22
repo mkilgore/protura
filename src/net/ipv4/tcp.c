@@ -210,9 +210,20 @@ static int tcp_create(struct protocol *proto, struct socket *sock)
     return 0;
 }
 
-static int tcp_delete(struct protocol *proto, struct socket *sock)
+static int tcp_shutdown(struct protocol *proto, struct socket *sock, int how)
+{
+     enum socket_state cur_state = socket_state_cmpxchg(sock, SOCKET_CONNECTED, SOCKET_DISCONNECTING);
+     if (cur_state != SOCKET_CONNECTED)
+         return -ENOTCONN;
+
+     return 0;
+}
+
+static void tcp_release(struct protocol *proto, struct socket *sock)
 {
     struct address_family_ip *af = container_of(sock->af, struct address_family_ip, af);
+
+    ip_release(sock->af, sock);
 
     using_mutex(&af->lock)
         __ipaf_remove_socket(af, sock);
@@ -224,9 +235,10 @@ static int tcp_delete(struct protocol *proto, struct socket *sock)
 static struct protocol_ops tcp_protocol_ops = {
     .packet_rx = tcp_rx,
     .autobind = tcp_autobind,
+    .shutdown = tcp_shutdown,
 
     .create = tcp_create,
-    .delete = tcp_delete,
+    .release = tcp_release,
 
     .connect = tcp_connect,
 };

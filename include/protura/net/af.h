@@ -31,7 +31,6 @@ struct address_family_ops {
     void (*setup_af) (struct address_family *);
 
     int (*create) (struct address_family *, struct socket *);
-    int (*delete) (struct address_family *, struct socket *);
 
     void (*packet_rx) (struct address_family *, struct packet *);
 };

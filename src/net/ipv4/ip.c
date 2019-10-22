@@ -264,12 +264,10 @@ static int ip_create(struct address_family *family, struct socket *socket)
     return 0;
 }
 
-static int ip_delete(struct address_family *family, struct socket *sock)
+void ip_release(struct address_family *family, struct socket *sock)
 {
     struct ipv4_socket_private *priv = &sock->af_private.ipv4;
     ip_route_clear(&priv->route);
-
-    return 0;
 }
 
 static void ip_setup(struct address_family *fam)
@@ -280,7 +278,6 @@ static void ip_setup(struct address_family *fam)
 static struct address_family_ops ip_address_family_ops = {
     .setup_af = ip_setup,
     .create = ip_create,
-    .delete = ip_delete,
     .packet_rx = ip_rx,
 };
 

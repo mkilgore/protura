@@ -50,7 +50,7 @@ static int socket_poll(struct file *filp, struct poll_table *table, int events)
     return ret;
 }
 
-static int socket_release(struct file *filp)
+static int socket_file_release(struct file *filp)
 {
     struct inode_socket *inode;
     struct socket *socket;
@@ -58,8 +58,7 @@ static int socket_release(struct file *filp)
     inode = container_of(filp->inode, struct inode_socket, i);
     socket = inode->socket;
 
-    socket_shutdown(socket, SHUT_RDWR);
-
+    socket_release(socket);
     socket_put(socket);
 
     return 0;
@@ -82,7 +81,7 @@ static int socket_ioctl(struct file *filp, int cmd, uintptr_t arg)
 
 struct file_ops socket_file_ops = {
     .poll = socket_poll,
-    .release = socket_release,
+    .release = socket_file_release,
 
     .read = socket_read,
     .write = socket_write,
