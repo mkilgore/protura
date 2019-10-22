@@ -154,6 +154,7 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
         using_mutex(&af->lock) {
             struct socket *s = __ipaf_find_socket(af, &test_lookup, 4);
             if (s) {
+                socket_put(s);
                 ret = -EADDRINUSE;
                 break;
             }

@@ -83,6 +83,7 @@ static int udp_register_sock(struct udp_protocol *proto, struct socket *sock)
     using_mutex(&af->lock) {
         struct socket *s = __ipaf_find_socket(af, &test_lookup, 4);
         if (s) {
+            socket_put(s);
             ret = -EADDRINUSE;
             break;
         }
