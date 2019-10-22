@@ -75,12 +75,13 @@ static int klog_poll(struct file *filp, struct poll_table *table, int events)
 {
     int ret = 0;
 
+    if (flag_test(&filp->flags, FILE_READABLE) && events & POLLIN)
+        poll_table_add(table, &klog.has_pending);
+
     using_spinlock(&klog.lock) {
         if (flag_test(&filp->flags, FILE_READABLE) && events & POLLIN) {
             if (char_buf_has_data(&klog.buf))
                 ret |= POLLIN;
-            else
-                poll_table_add(table, &klog.has_pending);
         }
     }
 
