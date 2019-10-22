@@ -34,6 +34,7 @@ struct cpu_info {
 
 void cpu_set_kernel_stack(struct cpu_info *c, void *kstack);
 void cpu_start_scheduler(void);
+void cpu_init_early(void);
 void cpu_info_init(void);
 void cpu_setup_idle(void);
 

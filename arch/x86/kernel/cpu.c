@@ -118,9 +118,13 @@ void cpu_start_scheduler(void)
     scheduler();
 }
 
-void cpu_info_init(void)
+void cpu_init_early(void)
 {
     cpu_gdt(&cpu);
+}
+
+void cpu_info_init(void)
+{
     cpu_tss(&cpu);
     cpu_setup_fpu(&cpu);
     cpu.cpu = &cpu;

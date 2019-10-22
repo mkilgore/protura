@@ -74,6 +74,8 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
 
     cpuid_init();
 
+    cpu_init_early();
+
     /* initialize klog so that it captures all of the early boot logging */
     klog_init();
 
