@@ -197,6 +197,8 @@ static int udp_sendto(struct protocol *proto, struct socket *sock, const char *b
     if (err)
         return err;
 
+    size_t orig_buf_len = buf_len;
+
     while (buf_len) {
         struct packet *packet = packet_new(PAL_KERNEL);
         size_t append_len = (buf_len > IPV4_PACKET_MSS)? IPV4_PACKET_MSS: buf_len;
@@ -216,7 +218,7 @@ static int udp_sendto(struct protocol *proto, struct socket *sock, const char *b
         }
     }
 
-    return 0;
+    return orig_buf_len;
 }
 
 
