@@ -188,7 +188,7 @@ static inline struct ktest_value __ktest_make_mem(const char *str, const void *p
     _Generic((v), \
         int64_t: __ktest_make_int64, \
         uint64_t: __ktest_make_uint64, \
-        default: _Generic((v - v), \
+        default: _Generic(((v) - (v)), \
             ptrdiff_t: __ktest_make_ptr, \
             default: __ktest_make_int64 \
         ) \
