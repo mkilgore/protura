@@ -15,6 +15,11 @@
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(*a))
 
+enum {
+    STDIN_FD,
+    SOCKET_FD,
+};
+
 int main(int argc, char **argv)
 {
     int s;
@@ -40,20 +45,47 @@ int main(int argc, char **argv)
 
     char buf[11];
 
+    struct pollfd pollfds[] = {
+        [STDIN_FD]  = { .fd = STDIN_FILENO, .events = POLLIN, .revents = 0 },
+        [SOCKET_FD] = { .fd = s,            .events = POLLIN, .revents = 0 },
+    };
+
     while (1) {
-        struct pollfd pollfd = { .fd = s, .events = POLLIN, .revents = 0 };
+        int i;
+        for (i = 0; i < ARRAY_SIZE(pollfds); i++)
+            pollfds[i].revents = 0;
 
-        ret = poll(&pollfd, 1, -1);
+        ret = poll(pollfds, ARRAY_SIZE(pollfds), -1);
 
-        /* make sure buf is NUL terminated */
-        memset(buf, 0, sizeof(buf));
-        ssize_t len = read(s, buf, sizeof(buf) - 1);
+        if (pollfds[SOCKET_FD].revents & POLLIN) {
+            /* make sure buf is NUL terminated */
+            memset(buf, 0, sizeof(buf));
+            ssize_t len = read(s, buf, sizeof(buf) - 1);
 
-        if (len == -1) {
-            printf("\npoll error: %s\n", strerror(errno));
-            break;
-        } else {
-            printf("%s", buf);
+            if (len == -1) {
+                printf("\npoll error: %s\n", strerror(errno));
+                break;
+            } else if (len) {
+                printf("%s", buf);
+            } else {
+                printf("\nSOCKET EOF!\n");
+                return 0;
+            }
+        }
+
+        if (pollfds[STDIN_FD].revents & POLLIN) {
+            /* make sure buf is NUL terminated */
+            memset(buf, 0, sizeof(buf));
+            ssize_t len = read(STDIN_FILENO, buf, sizeof(buf) - 1);
+
+            if (len) {
+                ssize_t write_ret = write(s, buf, len);
+                if (write_ret == -1)
+                    printf("\nwrite error: %s\n", strerror(errno));
+            } else {
+                /* Stop polling stdin when we get an EOF */
+                pollfds[STDIN_FD].fd = -1;
+            }
         }
     }
 
