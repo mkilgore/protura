@@ -127,14 +127,14 @@ static int tcp_sequence_valid(struct socket *sock, struct packet *packet)
             return 1;
 
     if (!seg_length && priv->rcv_wnd)
-        if (tcp_seq_between(priv->rcv_nxt + 1, seg->seq, priv->rcv_nxt + priv->rcv_wnd))
+        if (tcp_seq_between(priv->rcv_nxt - 1, seg->seq, priv->rcv_nxt + priv->rcv_wnd))
             return 1;
 
     /* If a non-zero length, then verify that part of the packet is within the
      * rcv_wnd and is past rcv_nxt */
     if (seg_length && priv->rcv_wnd)
-        if (tcp_seq_between(priv->rcv_nxt + 1, seg->seq, priv->rcv_nxt + priv->rcv_wnd)
-            || tcp_seq_between(priv->rcv_nxt + 1, seg->seq + seg_length + 1, priv->rcv_nxt + priv->rcv_wnd))
+        if (tcp_seq_between(priv->rcv_nxt - 1, seg->seq, priv->rcv_nxt + priv->rcv_wnd)
+            || tcp_seq_between(priv->rcv_nxt - 1, seg->seq + seg_length - 1, priv->rcv_nxt + priv->rcv_wnd))
             return 1;
 
     /* seg_length > 0 && priv->rcv_wnd == 0 is always invalid, so we don't check it. */
