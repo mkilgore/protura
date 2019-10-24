@@ -57,6 +57,8 @@ static void packet_clear(struct packet *packet)
     packet->ll_head = NULL;
     packet->af_head = NULL;
     packet->proto_head = NULL;
+
+    memset(&packet->cb, 0, sizeof(packet->cb));
 }
 
 struct packet *packet_new(int pal_flags)
@@ -126,6 +128,8 @@ struct packet *packet_copy(struct packet *packet, int pal_flags)
 
     if (packet->sock)
         dup_packet->sock = socket_dup(packet->sock);
+
+    dup_packet->cb = packet->cb;
 
     return dup_packet;
 }
