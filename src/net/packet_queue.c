@@ -37,9 +37,8 @@ void net_packet_receive(struct packet *packet)
     work_init_workqueue(&packet->dwork.work, packet_process, &packet_queue);
     flag_set(&packet->dwork.work.flags, WORK_ONESHOT);
 
-    work_schedule(&packet->dwork.work);
-
     kp(KP_NORMAL, "Queued packet, length: %d\n", packet_len(packet));
+    work_schedule(&packet->dwork.work);
 }
 
 void net_packet_transmit(struct packet *packet)
