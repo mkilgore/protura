@@ -49,5 +49,5 @@ void net_packet_transmit(struct packet *packet)
 
 void net_packet_queue_init(void)
 {
-    workqueue_start_multiple(&packet_queue, "packet-queue", 4);
+    workqueue_start(&packet_queue, "packet-queue");
 }
