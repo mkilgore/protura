@@ -118,7 +118,7 @@ static void *__slab_frame_object_alloc(struct slab_alloc *slab, struct slab_page
     int k = 0;
     for (; k < poison_count; k++) {
         if (poison[k] != SLAB_POISON) {
-            kp(KP_ERROR, "SLAB %s: %p: POISON IS INVALID, offset: %zd!!!!", slab->slab_name, obj, k * 4 + sizeof(*obj));
+            kp(KP_ERROR, "SLAB %s: %p: POISON IS INVALID, offset: %zd!!!!\n", slab->slab_name, obj, k * 4 + sizeof(*obj));
             dump_stack();
             break;
         }
