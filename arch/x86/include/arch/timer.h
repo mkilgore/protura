@@ -9,11 +9,12 @@
 #define INCLUDE_ARCH_TIMER_H
 
 #include <protura/types.h>
+#include <arch/drivers/pic8259_timer.h>
 
 uint32_t timer_get_ms(void);
 uint32_t timer_get_ticks(void);
 uint32_t sys_clock(void);
 
-#define TIMER_TICKS_PER_SEC 1000
+#define TIMER_TICKS_PER_SEC PIC8259_TICKS_PER_SEC
 
 #endif

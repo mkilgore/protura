@@ -9,6 +9,7 @@
 #define INCLUDE_ARCH_DRIVERS_PIC8259_TIMER_H
 
 #include <protura/types.h>
+#include <arch/timer.h>
 
 #define PIC8259_TIMER_IO      0x40
 
@@ -22,7 +23,7 @@
 
 #define PIC8259_TIMER_IRQ     0x00 + 0x20
 
-#define TIMER_TICKS_PER_SEC 1000
+#define PIC8259_TICKS_PER_SEC 2000
 
 void pic8259_timer_init(void);
 uint32_t timer_get_ticks(void);
