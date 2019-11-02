@@ -19,6 +19,9 @@ cache:
 
 # texinfo is necessary for some of the extra things we build
 # mpc/gmp/mpfr are necessary for compiling the cross-compiler
+# grub-gc is necessary for making the raw bootable dism image
+# virtualbox is necessary for creating the vbox image
+# qemu is necessary for the testing
 install:
   - sudo apt-get install build-essential
   - sudo apt-get install texinfo
