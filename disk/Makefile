@@ -50,7 +50,7 @@ rebuild-newlib:
 
 DISK_PROGS += $(DISK_UTIL_PROGS)
 
-DISK_EXTRA_FILES := $(wildcard ./disk/etc/*) $(wildcard ./disk/home/*)
+DISK_EXTRA_FILES := $(wildcard ./disk/etc/*) $(wildcard ./disk/home/*) $(wildcard ./disk/tests/*)
 
 disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gen_partdisk.sh $(DISK_EXTRA_FILES) $(wildcard ./disk/extras/*.built)
 	@echo " GENDISK $@"
@@ -72,8 +72,15 @@ gendisk: disk.img
 gendisk2: disk2.img
 
 PHONY += check
-check: disk.img
+check: check-kernel check-ext2
+
+PHONY += check-kernel
+check-kernel: disk.img disk2.img
 	$(Q)./scripts/ci/run_tests.sh
+
+PHONY += check-ext2
+check-ext2: disk.img disk2.img
+	$(Q)./scripts/ci/run_ext2_tests.sh $(TEST)
 
 ifeq ($(MAKECMDGOALS),disk)
 -include $(DISK_DEP)

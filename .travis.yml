@@ -48,6 +48,7 @@ script:
   - make vbox
   - ./scripts/ci/setup_tuntap.sh
   - make check
+  - make check-ext2
 
 deploy:
   provider: releases
