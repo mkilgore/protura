@@ -364,10 +364,10 @@ static void ide_identify(struct block_device *device)
     struct ide_identify_format *id = page->virt;
     ide_fix_string(id->model, sizeof(id->model));
 
-    kp(KP_NORMAL, "IDENTIFY Model: %s, capacity: %dMB\n", id->model, id->lba_capacity);
+    kp(KP_NORMAL, "IDENTIFY Model: %s, capacity: %dMB\n", id->model, id->lba_capacity * IDE_SECTOR_SIZE / 1024 / 1024);
 
     flag_set(&device->flags, BLOCK_DEV_EXISTS);
-    device->device_size = id->lba_capacity;
+    device->device_size = id->lba_capacity * IDE_SECTOR_SIZE;
 
   cleanup:
     pfree(page, 0);
@@ -426,10 +426,10 @@ void ide_init(void)
 static void ide_sync_block(struct block *b, int master_or_slave)
 {
     /* If the block is valid and not dirty, then there is no syncing needed */
-    if (flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY))
-        return ;
-
     using_spinlock(&ide_state.lock) {
+        if (flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY))
+            return ;
+
         int start = ide_queue_empty(&ide_state);
 
         list_head_t *list = (master_or_slave)
