@@ -30,14 +30,12 @@
 #define BLOCKS_IN_DINDIRECT(block_size) ((BLOCKS_IN_INDIRECT(block_size)) * (BLOCKS_IN_INDIRECT(block_size)))
 #define BLOCKS_IN_TINDIRECT(block_size) ((BLOCKS_IN_INDIRECT(block_size)) * (BLOCKS_IN_DINDIRECT(block_size)))
 
-/* Points back into the `tmp_page`, used to hold sectors being freed.
+/* Used to hold sectors being freed.
  * This exists so that we don't have to keep blocks locked when we call
  * into other functions, prevent possible deadlocks. */
 struct tmp_blocks {
     uint32_t *ptrs;
     int next_ptr;
-
-    int released_blocks;
 };
 
 struct truncate_state {
@@ -45,8 +43,6 @@ struct truncate_state {
     struct ext2_super_block *sb;
     off_t block_size;
     int cleared_block_count;
-
-    struct page *tmp_page;
 
     struct tmp_blocks tmp_indirect;
     struct tmp_blocks tmp_dindirect;
@@ -59,13 +55,12 @@ static void __tmp_blocks_add_block(struct tmp_blocks *blocks, uint32_t block_add
         blocks->ptrs[blocks->next_ptr++] = block_addr;
 }
 
-static void __tmp_blocks_release_blocks(struct ext2_super_block *sb, struct tmp_blocks *blocks)
+static void __tmp_blocks_release_blocks(struct ext2_super_block *sb, struct ext2_inode *inode, struct tmp_blocks *blocks)
 {
     int i;
     for (i = 0; i < blocks->next_ptr; i++)
-        ext2_block_release(sb, blocks->ptrs[i]);
+        ext2_block_release(sb, inode, blocks->ptrs[i]);
 
-    blocks->released_blocks += blocks->next_ptr;
     blocks->next_ptr = 0;
 }
 
@@ -85,7 +80,7 @@ static int __ext2_inode_truncate_indirect_page(struct truncate_state *state, sec
         block_mark_dirty(b);
     }
 
-    __tmp_blocks_release_blocks(state->sb, &state->tmp_indirect);
+    __tmp_blocks_release_blocks(state->sb, state->inode, &state->tmp_indirect);
     return 0;
 }
 
@@ -111,7 +106,7 @@ static int __ext2_inode_truncate_dindirect_page(struct truncate_state *state, se
         starting_direct_block = 0;
     }
 
-    __tmp_blocks_release_blocks(state->sb, &state->tmp_dindirect);
+    __tmp_blocks_release_blocks(state->sb, state->inode, &state->tmp_dindirect);
     return 0;
 }
 
@@ -138,16 +133,15 @@ static int __ext2_inode_truncate_tindirect_page(struct truncate_state *state, se
         starting_direct_block = 0;
     }
 
-    __tmp_blocks_release_blocks(state->sb, &state->tmp_tindirect);
+    __tmp_blocks_release_blocks(state->sb, state->inode, &state->tmp_tindirect);
     return 0;
 }
 
-static int __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t starting_block)
+static void __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t starting_block)
 {
     const int block_size = sb->block_size;
     const int ptrs_per_blk = PTRS_PER_BLOCK(block_size);
     struct truncate_state trunc_state;
-    int freed_blocks = 0;
 
     memset(&trunc_state, 0, sizeof(trunc_state));
 
@@ -162,13 +156,10 @@ static int __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2
     if (starting_block < ARRAY_SIZE(inode->blk_ptrs_direct)) {
         sector_t i;
 
-        kp_ext2(sb, "Truncate Direct: %d\n", starting_block);
         for (i = starting_block; i < ARRAY_SIZE(inode->blk_ptrs_direct); i++) {
-            /* FIXME: check for zeros, count freed blocks */
             if (inode->blk_ptrs_direct[i]) {
-                ext2_block_release(sb, inode->blk_ptrs_direct[i]);
+                ext2_block_release(sb, inode, inode->blk_ptrs_direct[i]);
                 inode->blk_ptrs_direct[i] = 0;
-                freed_blocks++;
             }
         }
 
@@ -178,11 +169,10 @@ static int __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2
     }
 
     if (starting_block < BLOCKS_IN_INDIRECT(block_size)) {
-        kp_ext2(sb, "Truncate Indirect, starting at: %d\n", starting_block);
         if (inode->blk_ptrs_single[0]) {
             __ext2_inode_truncate_indirect_page(&trunc_state, inode->blk_ptrs_single[0], starting_block);
             if (starting_block == 0) {
-                ext2_block_release(sb, inode->blk_ptrs_single[0]);
+                ext2_block_release(sb, inode, inode->blk_ptrs_single[0]);
                 inode->blk_ptrs_single[0] = 0;
             }
         }
@@ -195,11 +185,10 @@ static int __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2
         sector_t idblock = starting_block / ptrs_per_blk;
         sector_t dblock = starting_block % ptrs_per_blk;
 
-        kp_ext2(sb, "Truncate Dindirect, starting at: %d, %d\n", idblock, dblock);
         if (inode->blk_ptrs_double[0]) {
             __ext2_inode_truncate_dindirect_page(&trunc_state, inode->blk_ptrs_double[0], idblock, dblock);
             if (starting_block == 0) {
-                ext2_block_release(sb, inode->blk_ptrs_double[0]);
+                ext2_block_release(sb, inode, inode->blk_ptrs_double[0]);
                 inode->blk_ptrs_double[0] = 0;
             }
         }
@@ -214,11 +203,10 @@ static int __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2
         sector_t idblock = (starting_block / ptrs_per_blk) % ptrs_per_blk;
         sector_t dblock = starting_block / ptrs_per_blk / ptrs_per_blk / ptrs_per_blk;
 
-        kp_ext2(sb, "Truncate tindirect, starting at: %d, %d, %d\n", didblock, idblock, dblock);
         if (inode->blk_ptrs_triple[0]) {
             __ext2_inode_truncate_tindirect_page(&trunc_state, inode->blk_ptrs_triple[0], didblock, idblock, dblock);
             if (starting_block == 0) {
-                ext2_block_release(sb, inode->blk_ptrs_triple[0]);
+                ext2_block_release(sb, inode, inode->blk_ptrs_triple[0]);
                 inode->blk_ptrs_triple[0] = 0;
             }
         }
@@ -227,10 +215,6 @@ static int __ext2_inode_truncate_remove(struct ext2_super_block *sb, struct ext2
     pfree_va(trunc_state.tmp_indirect.ptrs, 0);
     pfree_va(trunc_state.tmp_dindirect.ptrs, 0);
     pfree_va(trunc_state.tmp_tindirect.ptrs, 0);
-
-    freed_blocks += trunc_state.tmp_indirect.released_blocks;
-
-    return freed_blocks;
 }
 
 int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
@@ -239,7 +223,6 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     int block_size = sb->block_size;
     sector_t starting_block, ending_block;
     struct block *b;
-    size_t freed_blocks = 0;
 
     starting_block = ALIGN_2(size, block_size) / block_size;
     ending_block = ALIGN_2_DOWN(inode->i.size, block_size) / block_size;
@@ -247,7 +230,7 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     if (starting_block > ending_block)
         goto set_size_and_ret;
 
-    freed_blocks = __ext2_inode_truncate_remove(sb, inode, starting_block);
+    __ext2_inode_truncate_remove(sb, inode, starting_block);
 
     /* If size does not end on a block boundary, then it is required to clear
      * the last block till the end with zeros. */
@@ -259,13 +242,6 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     }
 
   set_size_and_ret:
-    /* i_blocks is the count of 512 blocks, not fs-blocks */
-    if (inode->i.blocks >= freed_blocks)
-        inode->i.blocks -= freed_blocks * (block_size / 512);
-    else {
-        kp(KP_WARNING, "Inode "PRinode" block count wrong, was %d, removed %d, more blocks then listed! Setting to zero, run fsck\n", Pinode(&inode->i), inode->i.blocks, freed_blocks);
-        inode->i.blocks = 0;
-    }
     inode->i.size = size;
     inode->i.ctime = inode->i.mtime = protura_current_time_get();
     inode_set_dirty(&inode->i);

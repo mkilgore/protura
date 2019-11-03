@@ -26,7 +26,7 @@ extern struct file_ops ext2_file_ops_file;
 extern struct inode_ops ext2_inode_ops_symlink;
 
 sector_t ext2_block_alloc(struct ext2_super_block *);
-void ext2_block_release(struct ext2_super_block *, sector_t);
+void ext2_block_release(struct ext2_super_block *, struct ext2_inode *, sector_t);
 
 void ext2_inode_setup_ops(struct inode *inode);
 

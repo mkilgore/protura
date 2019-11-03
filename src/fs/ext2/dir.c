@@ -242,6 +242,7 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     int ret;
     struct inode *ino;
     struct task *current = cpu_get_local()->current;
+    struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
 
     mode &= ~S_IFMT;
     mode |= S_IFREG;
@@ -250,7 +251,7 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     if (ret)
         return ret;
 
-    kp_ext2(dir->sb, "Creating %s, new inode: %d, %p\n", name, ino->ino, ino);
+    kp_ext2(sb, "Creating %s, new inode: %d, %p\n", name, ino->ino, ino);
 
     ino->mode = mode;
     ino->ops = &ext2_inode_ops_file;
@@ -282,7 +283,7 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
 
-    kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&ino->ref));
+    kp_ext2(sb, "Inode links: %d\n", atomic32_get(&ino->ref));
 
     using_super_block(ino->sb)
         ino->sb->ops->inode_write(ino->sb, ino);

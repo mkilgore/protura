@@ -91,6 +91,8 @@ struct ext2_disk_block_group {
     uint8_t  reserved[12];
 };
 
+#define EXT2_BLOCKS_SECTOR_SIZE 512
+
 struct ext2_disk_inode {
     uint16_t mode;
     uint16_t uid;
@@ -101,7 +103,7 @@ struct ext2_disk_inode {
     int32_t dtime;
     uint16_t gid;
     uint16_t links_count;
-    uint32_t blocks; /* Recorded in number of 512 byte blocks */
+    uint32_t blocks; /* Recorded in number of 512 byte blocks - EXT2_BLOCKS_SECTOR_SIZE */
     uint32_t flags;
     uint32_t osd1;
     uint32_t blk_ptrs[15];
