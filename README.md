@@ -26,18 +26,19 @@ Current existing components/subsystems:
 - Block device layer
   - Currently, IDE is the only block device
   - A block cache sits inbetween the file systems and block devices
-    - A witethrough approach is used for simplicity
+    - A `bdflush` daemon runs in the kernel and periodically syncs blocks to disk
+    - `sync()` can also be used to sync the blocks and FS on demand.
   - Supports MBR partition table
   - No I/O Scheduler, so each I/O block request is submitted one at a time.
-    - Currently this is a significant performance cost, though once things are loaded into the block-cache
-      things get a lot snappier.
 - Char device layer
   - Basic devices like /dev/null, /dev/zero, and /dev/full
 - File System
   - Supports a combined VFS filesystem, with one device at the root, and other file systems can be mounted at verious points
   - Current supported filesystems:
     - EXT2
-      - Support is more or less complete. The code for the triple-indirect blocks is not quite complete.
+      - Support is more or less complete, though support for most extra EXT2 features is not there yet.
+      - Inode and Block allocation lacks an algorithm to prevent fragmentation.
+      - There's a small test suite that verifies the FS modifications.
     - Proc
       - A virtual file system device that exposes various kernel information and APIs
   - Supports executing ELF and #! programs.
@@ -50,10 +51,9 @@ Current existing components/subsystems:
   - Current supported devices:
     - E1000 (Network card)
     - RTL8139 (Network card)
-    - PIIX3 (IDE DMA Controller)
+    - PIIX3 (IDE DMA Controller - disabled, doesn't work on VirtualBox)
 - Network Layer
-  - Doesn't exactly work at the moment, needs redesigning to be more async-designed
-  - Current syncronious approach works for basic UDP and things like ICMP/ping
+  - The IPv4 support is decent.
   - Implements ARP machine discovery, and interfaces for implementing tools like `ifconfig`.
 
 External OS components:
@@ -63,7 +63,7 @@ External OS components:
     - Note it's lots of versions behind at the moment because I haven't udpated it
 - protura newlib
   - A version of newlib with lots of extra code to provide Protura support
-    - Provides a full `libc` along with lots of extra Unix/POSIX syscalls/interfaces that are not implemented in `newlib1`.
+    - Provides a full `libc` along with lots of extra Unix/POSIX syscalls/interfaces that are not implemented in `newlib`.
 - /bin/init
   - A very basic init program that can parse `/etc/inittab` to determine what programs to start on boot.
   - Also runs `/etc/rc.local`
