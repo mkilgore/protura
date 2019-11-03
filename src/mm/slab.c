@@ -25,7 +25,7 @@
 # define kp_slab(s, str, ...) do { ; } while (0)
 #endif
 
-#define SLAB_POISON (0x0EADBEAF)
+#define SLAB_POISON (0xDEADBEAF)
 
 struct page_frame_obj_empty {
     struct page_frame_obj_empty *next;
