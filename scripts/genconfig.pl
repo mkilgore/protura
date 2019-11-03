@@ -53,7 +53,7 @@ foreach my $line (<STDIN>) {
         next;
     }
     if (!(substr($line, 0, 1) eq '#')) {
-        my @str = split(' ', $line);
+        my @str = split(' ', $line, 3);
         my $id  = $str[0];
         my $val = $str[2];
 
