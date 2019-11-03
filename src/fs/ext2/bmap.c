@@ -42,7 +42,7 @@ static sector_t __ext2_mark_block(struct ext2_super_block *sb)
 
             kp_ext2(sb, "First zero: %d\n", location);
 
-            ret = i * blocks_per_group + location;
+            ret = i * blocks_per_group + location + sb->disksb.sb_block_number;
             bit_set(b->data, location);
             sb->groups[i].block_unused_total--;
 
@@ -74,7 +74,7 @@ sector_t ext2_block_alloc(struct ext2_super_block *sb)
 void ext2_block_release(struct ext2_super_block *sb, sector_t orig_block)
 {
     int blocks_per_group = sb->block_size * CHAR_BIT;
-    int block = orig_block - 1;
+    int block = orig_block - sb->disksb.sb_block_number;
     int group = block / blocks_per_group;
     int index = block % blocks_per_group;
     struct block *b;
