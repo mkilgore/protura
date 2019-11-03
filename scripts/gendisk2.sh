@@ -6,7 +6,7 @@ rm -f ./disk2.img
 
 mkdir ./disk2_ext2
 
-mkfs.ext2 -b 1024 -O ^large_file ./disk2.img 32768
+mkfs.ext2 -b 4096 -O ^large_file,^dir_index,^sparse_super,^resize_inode,filetype ./disk2.img 128M
 mount ./disk2.img ./disk2_ext2
 
 newdir=./disk2_ext2
