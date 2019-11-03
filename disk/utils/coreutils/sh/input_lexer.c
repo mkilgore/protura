@@ -15,6 +15,7 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "shell.h"
 #include "input_lexer.h"
 
 char *lexer_input_replace_env(const char *line)
@@ -57,8 +58,18 @@ char *lexer_input_replace_env(const char *line)
 
         char *env = getenv(c);
 
-        if (env)
+        if (env) {
             a_sprintf_append(&new_line, "%s", env);
+        } else {
+            char *endp = NULL;
+            int arg_num = strtol(c, &endp, 10);
+
+            /* If the string wasn't empty, and we read the whole string */
+            if (endp && !*endp
+                && arg_num >= 0 && arg_num < sh_argc) {
+                a_sprintf_append(&new_line, "%s", sh_args[arg_num]);
+            }
+        }
 
         /* If the char after the env variable wasn't '\0', then print it and
          * set start after that value */

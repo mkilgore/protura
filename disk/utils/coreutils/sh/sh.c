@@ -49,6 +49,8 @@ static const struct arg args[] = {
 };
 
 char *cwd;
+char **sh_args;
+int sh_argc;
 
 int main(int argc, char **argv)
 {
@@ -56,6 +58,9 @@ int main(int argc, char **argv)
     enum arg_index ret;
     int is_script = 0;
     sigset_t blocked;
+
+    sh_argc = argc;
+    sh_args = argv;
 
     while ((ret = arg_parser(argc, argv, args)) != ARG_DONE) {
         switch (ret) {
