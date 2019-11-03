@@ -64,7 +64,7 @@ static char copy_buffer[4096 * 8];
 
 static void poll_klog(int klog_fd, int output_fd)
 {
-    struct pollfd pollfd = { .fd = klog_fd };
+    struct pollfd pollfd = { .fd = klog_fd, .events = POLLIN };
 
     while (1) {
         pollfd.events = POLLIN;
@@ -74,13 +74,11 @@ static void poll_klog(int klog_fd, int output_fd)
 
         ssize_t ret;
         while ((ret = read(klog_fd, copy_buffer, sizeof(copy_buffer)))) {
-            if (ret == -1)
+            if (ret <= -1)
                 break;
 
             write(output_fd, copy_buffer, ret);
         }
-
-        sync();
     }
 }
 
