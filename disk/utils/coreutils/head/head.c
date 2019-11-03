@@ -12,8 +12,6 @@
 #include "arg_parser.h"
 #include "file.h"
 
-#define BUFSZ 1024
-
 static const char *arg_str = "[Flags] [Files]";
 static const char *usage_str = "Print the first 10 lines of each File to standard output.\n";
 static const char *arg_desc_str  = "Files: List of one or more files to read and output to standard out.\n";
@@ -99,16 +97,17 @@ int main(int argc, char **argv) {
     return 0;
 }
 
+static char read_buf[4096 * 16];
+
 void output_beginning(int infile, int outfile)
 {
-    char buf[BUFSZ];
     int count = 0;
     int ret;
 
     do {
         int i;
 
-        ret = read(infile, buf, sizeof(buf));
+        ret = read(infile, read_buf, sizeof(read_buf));
         if (ret == 0)
             break;
 
@@ -117,30 +116,38 @@ void output_beginning(int infile, int outfile)
             break;
         }
 
-        for (i = 0; i < ret; i++) {
-            switch (output_type) {
-            case OUTPUT_BYTES:
-                count++;
+        i = 0;
+        switch (output_type) {
+        case OUTPUT_BYTES:
+            if (count + ret >= output_count) {
+                i = output_count - count;
+                count = output_count;
+            } else {
+                i = ret;
+                count += ret;
+            }
+            break;
 
-                if (count == output_count)
-                    goto write_buf_to_i;
-
-                break;
-
-            case OUTPUT_LINES:
-                if (buf[i] == '\n')
+        case OUTPUT_LINES:
+            for (i = 0; i < ret; i++) {
+                if (read_buf[i] == '\n')
                     count++;
 
-                if (count == output_count)
+                if (count == output_count) {
+                    i++;
                     goto write_buf_to_i;
-
-                break;
+                }
             }
+            break;
         }
 
     write_buf_to_i:
 
-        write(outfile, buf, i + 1);
+        ret = write(outfile, read_buf, i);
+        if (ret < 0) {
+            perror("write");
+            break;
+        }
 
         if (count == output_count)
             break;
