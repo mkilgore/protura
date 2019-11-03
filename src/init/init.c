@@ -12,6 +12,7 @@
 #include <protura/string.h>
 #include <protura/scheduler.h>
 #include <protura/task.h>
+#include <protura/cmdline.h>
 #include <protura/mm/kmalloc.h>
 #include <arch/init.h>
 #include <arch/asm.h>
@@ -52,8 +53,11 @@ static int start_user_init(void *unused)
     if (ret)
         panic("UNABLE TO MOUNT ROOT FILESYSTEM\n");
 
-    kp(KP_NORMAL, "Starting /bin/init...\n");
-    task_pid1 = task_user_new_exec("/bin/init");
+    const char *init_prog = kernel_cmdline_get_string("init", "/bin/init");
+
+    kp(KP_NORMAL, "Starting \"%s\"...\n", init_prog);
+
+    task_pid1 = task_user_new_exec(init_prog);
     task_pid1->pid = 1;
 
     scheduler_task_add(task_pid1);
@@ -70,6 +74,8 @@ static int start_user_init(void *unused)
  */
 void kmain(void)
 {
+    reboot_on_panic  = kernel_cmdline_get_bool("reboot_on_panic", 0);
+
     cpu_setup_idle();
 
     struct task *t = kmalloc(sizeof(*t), PAL_KERNEL | PAL_ATOMIC);
