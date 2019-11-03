@@ -30,6 +30,9 @@ mkdir $NEW_ROOT/srv
 mkdir $NEW_ROOT/srv/http
 chown -R 33:33 $NEW_ROOT/srv
 
+mkdir $NEW_ROOT/tests
+cp -R ./disk/tests/* $NEW_ROOT/tests
+
 mkdir $NEW_ROOT/proc
 mkdir $NEW_ROOT/tmp
 mkdir $NEW_ROOT/dev
