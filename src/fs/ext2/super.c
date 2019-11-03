@@ -53,7 +53,7 @@ void ext2_inode_setup_ops(struct inode *inode)
         inode->default_fops = &fifo_default_file_ops;
         inode->ops = &inode_ops_null;
     } else {
-        kp(KP_NORMAL, "Uhh found the problem. mode: 0x%04x\n", inode->mode & S_IFMT);
+        kp(KP_WARNING, "EXT2, incorrect mode format: 0x%04x\n", inode->mode & S_IFMT);
     }
 }
 
@@ -240,8 +240,10 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
     struct block *b;
     int inode_group, inode_entry;
 
-    if (atomic32_get(&i->nlinks) != 0)
-        panic("EXT2 (%p): Error, attempted to delete an inode(%d) with a non-zero number of hard-links\n", sb, i->ino);
+    if (atomic32_get(&i->nlinks) != 0) {
+        kp(KP_WARNING, "EXT2 (%p): Error, attempted to delete an inode(%d) with a non-zero number of hard-links\n", sb, i->ino);
+        return -ENOENT;
+    }
 
     if (i->ino == EXT2_ACL_IDX_INO || i->ino == EXT2_ACL_DATA_INO)
         return 0;
@@ -263,7 +265,7 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
 
         using_block(super->dev, sb->groups[inode_group].block_nr_inode_bitmap, b) {
             if (bit_test(b->data, inode_entry) == 0)
-                panic("EXT2 (%p): Error, attempted to delete inode with ino(%d) not currently used!\n", sb, i->ino);
+                kp_ext2(sb, "EXT2 (%p): Error, attempted to delete inode with ino(%d) not currently used!\n", sb, i->ino);
 
             bit_clear(b->data, inode_entry);
             block_mark_dirty(b);
@@ -327,8 +329,10 @@ static struct super_block *ext2_sb_read(dev_t dev)
 
     kp_ext2(sb, "ext2_magic=%04x\n", ext2_magic);
 
-    if (ext2_magic != EXT2_MAGIC)
-        panic("EXT2: Error: Incorrect magic bits\n");
+    if (ext2_magic != EXT2_MAGIC) {
+        kp(KP_WARNING, "EXT2: Error: Incorrect magic bits\n");
+        return NULL;
+    }
 
     block_dev_set_block_size(dev, block_size);
     sb->block_size = block_size;
@@ -353,7 +357,8 @@ static struct super_block *ext2_sb_read(dev_t dev)
         break;
 
     default:
-        panic("EXT2: Error, unable to handle block_size\n");
+        kp(KP_ERROR, "EXT2: Error, unable to handle block_size\n");
+        return NULL;
     }
 
     kp_ext2(sb, "version_major=%d,      version_minor=%d\n", \
@@ -376,13 +381,13 @@ static struct super_block *ext2_sb_read(dev_t dev)
     kp_ext2(sb, "required_features=%d\n", sb->disksb.required_features);
 
     if (sb->disksb.required_features & ~(EXT2_REQUIRED_FEATURE_DIR_TYPE))
-        panic("EXT2: Error, unsupported ext2 required features!\n");
+        kp(KP_WARNING, "EXT2: Error, unsupported ext2 required features!\n");
 
     kp_ext2(sb, "read_only_features=%d\n", \
             sb->disksb.read_only_features);
 
     if (sb->disksb.read_only_features & ~(EXT2_RO_FEATURE_SPARSE_SB | EXT2_RO_FEATURE_64BIT_LEN))
-        panic("EXT2: Error, unsupported ext2 read_only features!\n");
+        kp(KP_WARNING, "EXT2: Error, unsupported ext2 read_only features!\n");
 
     if (sb->disksb.read_only_features & EXT2_RO_FEATURE_64BIT_LEN)
         kp(KP_WARNING, "EXT2: Ignoring unsupported 64bit length!\n");
