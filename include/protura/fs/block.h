@@ -32,6 +32,8 @@ enum {
 };
 
 struct block {
+    atomic_t refs;
+
     /* The actual data for this block */
     char *data;
 
@@ -56,6 +58,8 @@ struct block {
 #endif
 
     struct wait_queue queue;
+
+    list_node_t block_sync_node;
 
     list_node_t block_list_node;
     struct hlist_node cache;
@@ -146,6 +150,7 @@ size_t block_dev_get_block_size(dev_t device);
 size_t block_dev_get_device_size(dev_t device);
 
 void block_dev_clear(dev_t dev);
+void block_dev_sync(struct block_device *, dev_t, int wait);
 
 #define BLOCK_CRC_POLY CRC_ANSI_POLY
 
@@ -157,8 +162,10 @@ static inline void block_set_crc(struct block *b)
 
 static inline void block_check_crc(struct block *b)
 {
-    if (crc16(b->data, b->block_size, BLOCK_CRC_POLY) != b->crc)
-        panic("Block %d:%d: CRC check failed, b->dirty should be set! b->dirty=%d\n", b->dev, b->sector, flag_test(&b->flags, BLOCK_DIRTY));
+    if (crc16(b->data, b->block_size, BLOCK_CRC_POLY) != b->crc) {
+        kp(KP_ERROR, "Block %d:%d: CRC check failed, b->dirty should be set! b->dirty=%d\n", b->dev, b->sector, flag_test(&b->flags, BLOCK_DIRTY));
+        flag_set(&b->flags, BLOCK_DIRTY);
+    }
 }
 #else
 static inline void block_set_crc(struct block *b) { }
@@ -180,7 +187,6 @@ static inline void block_lock(struct block *b)
 {
     kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
     mutex_lock(&b->block_mutex);
-    block_dev_sync_block(b->bdev, b);
     kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
 }
 
@@ -188,7 +194,6 @@ static inline int block_try_lock(struct block *b)
 {
     kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
     if (mutex_try_lock(&b->block_mutex)) {
-        block_dev_sync_block(b->bdev, b);
         kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
         return SUCCESS;
     }
@@ -199,7 +204,6 @@ static inline int block_try_lock(struct block *b)
 static inline void block_unlock(struct block *b)
 {
     kp(KP_LOCK, "block %d:%d: Unlocking\n", b->dev, b->sector);
-    block_dev_sync_block(b->bdev, b);
     mutex_unlock(&b->block_mutex);
     kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
 }
