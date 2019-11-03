@@ -95,7 +95,7 @@ void sys_exit(int code)
     irq_disable();
 
     if (t->pid == 1)
-        panic("PID 1 exited!@\n");
+        panic("PID 1 exited!\n");
 
     /* We're going to delete our address-space, including our page-table, so we
      * need to switch to the kernel's to ensure we don't attempt to keep using
