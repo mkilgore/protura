@@ -23,4 +23,6 @@
 #define DEV_TO_USERSPACE(dev) (((DEV_MAJOR(dev)) << 8) | (DEV_MINOR(dev)))
 #define DEV_FROM_USERSPACE(dev) DEV_MAKE(((dev) >> 8), ((dev) & 0xFF))
 
+#define DEV_NONE ((dev_t)0xFFFF)
+
 #endif
