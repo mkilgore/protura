@@ -51,6 +51,7 @@ COREUTILS_PROGS = \
 	uname \
 	klogd \
 	grep \
+	reboot \
 
 DISK_COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROGS))
 DISK_PROGS += $(DISK_COREUTILS_PROGS)
