@@ -11,6 +11,7 @@ objs-$(CONFIG_KERNEL_TESTS) += ktest.o
 objs-y += cmdline.o
 objs-y += kbuf.o
 objs-y += klog.o
+objs-y += reboot.o
 
 subdir-y += str
 subdir-y += sched

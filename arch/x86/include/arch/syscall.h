@@ -96,6 +96,7 @@
 #define SYSCALL_ACCEPT       0x54
 #define SYSCALL_CONNECT      0x55
 #define SYSCALL_LISTEN       0x56
+#define SYSCALL_REBOOT       0x57
 
 #ifdef __KERNEL__
 #ifndef ASM

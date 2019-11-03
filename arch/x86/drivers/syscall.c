@@ -22,6 +22,7 @@
 #include <protura/signal.h>
 #include <protura/users.h>
 #include <protura/utsname.h>
+#include <protura/reboot.h>
 
 /* 
  * These simple functions serve as the glue between the underlying
@@ -443,6 +444,11 @@ static void sys_handler_listen(struct irq_frame *frame)
     frame->eax = sys_listen(frame->ebx, frame->ecx);
 }
 
+static void sys_handler_reboot(struct irq_frame *frame)
+{
+    frame->eax = sys_reboot(frame->ebx, frame->ecx, frame->edx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -533,6 +539,7 @@ static struct syscall_handler {
     SYSCALL(ACCEPT, sys_handler_accept),
     SYSCALL(CONNECT, sys_handler_connect),
     SYSCALL(LISTEN, sys_handler_listen),
+    SYSCALL(REBOOT, sys_handler_reboot),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)
