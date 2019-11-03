@@ -28,7 +28,7 @@ LOOP_DEVICE_PART1=${LOOP_DEVICE}p1
 echo "Loop device: $LOOP_DEVICE"
 echo "Loop partition: $LOOP_DEVICE_PART1"
 
-mkfs.ext2 -b 4096 -O ^large_file,^dir_index,^sparse_super,^resize_inode,^filetype $LOOP_DEVICE_PART1 \
+mkfs.ext2 -b 4096 -O ^large_file,^dir_index,^sparse_super,^resize_inode,filetype $LOOP_DEVICE_PART1 \
     || exit 1
 
 mkdir -p $DISK_MOUNT
