@@ -20,6 +20,8 @@ enum {
     SOCKET_FD,
 };
 
+static char buf[4096 * 2];
+
 int main(int argc, char **argv)
 {
     int s;
@@ -42,8 +44,6 @@ int main(int argc, char **argv)
         printf("  Error: %s\n", strerror(errno));
         return 1;
     }
-
-    char buf[11];
 
     struct pollfd pollfds[] = {
         [STDIN_FD]  = { .fd = STDIN_FILENO, .events = POLLIN, .revents = 0 },
