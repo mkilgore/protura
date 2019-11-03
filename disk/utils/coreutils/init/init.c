@@ -185,6 +185,7 @@ static void handle_children(int sig)
 static pid_t start_prog(const char *prog, char *const argv[], char *const envp[])
 {
     pid_t child_pid;
+    sigset_t set;
 
     switch ((child_pid = fork())) {
     case -1:
@@ -193,6 +194,8 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 
     case 0:
         /* In child */
+        sigemptyset(&set);
+        sigprocmask(SIG_SETMASK, &set, NULL);
         execve(prog, argv, envp);
         exit(0);
 
