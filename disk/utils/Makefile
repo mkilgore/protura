@@ -23,13 +23,15 @@ DISK_UTIL_SRCS := \
 	./disk/utils/socket_test.c \
 	./disk/utils/color_test.c \
 	./disk/utils/tcp_test.c \
+	./disk/utils/test_runner/run_test.c \
 
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
 DISK_UTIL_EXTRA_OBJS :=
 
 include ./disk/utils/coreutils/Makefile
 
-DISK_UTIL_PROGS := $(patsubst ./disk/utils/%.o,$(DISK_BINDIR)/%,$(DISK_UTIL_OBJS))
+DISK_UTIL_PROGS := $(foreach file,$(DISK_UTIL_OBJS),$(notdir $(file)))
+DISK_UTIL_PROGS := $(patsubst %.o,$(DISK_BINDIR)/%,$(DISK_UTIL_PROGS))
 
 UTIL_DISK_DEP := $(DISK_UTIL_OBJS:.o=.d) $(DISK_UTIL_EXTRA_OBJS:.o=.d)
 DISK_DEP += $(foreach file,$(UTIL_DISK_DEP),$(dir $(file)).$(notdir $(file)))
@@ -47,6 +49,12 @@ disk/.%.d: disk/%.c
 	$(Q)$(CC) -MM -MP -MF $@ $(DISK_CFLAGS) $< -MT disk/$*.o -MT $@
 
 disk/root/bin/%: disk/utils/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./disk/root/usr
+	@echo " CCLD    $@"
+	$(Q)$(CC) -o ./$@ ./$< $(DISK_LDFLAGS)
+	@echo " OBJCOPY $@"
+	$(Q)$(OBJCOPY) --strip-unneeded $@
+
+disk/root/bin/%: disk/utils/test_runner/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./disk/root/usr
 	@echo " CCLD    $@"
 	$(Q)$(CC) -o ./$@ ./$< $(DISK_LDFLAGS)
 	@echo " OBJCOPY $@"
