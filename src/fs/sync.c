@@ -64,32 +64,31 @@ static struct super_block *super_get(dev_t device, const char *filesystem)
     if (!system)
         return NULL;
 
-    if (!system->read_sb)
-        return NULL;
+    using_mutex(&super_lock) {
+        if (!system->read_sb)
+            return NULL;
 
-    sb = (system->read_sb) (device);
+        /* Don't allow mounting devices that are already mounted elsewhere */
+        list_foreach_entry(&super_block_list, sb, list_entry)
+            if (sb->dev == device)
+                return NULL;
 
-    using_mutex(&super_lock)
+        sb = (system->read_sb) (device);
+        if (!sb)
+            return NULL;
+
         list_add(&super_block_list, &sb->list_entry);
+    }
 
     return sb;
-}
-
-static int super_put(struct super_block *super)
-{
-    kp(KP_TRACE, "Super put\n");
-    using_mutex(&super_lock)
-        list_del(&super->list_entry);
-
-    using_mutex(&super->super_block_lock)
-        sb_put(super);
-
-    return 0;
 }
 
 void __super_sync(struct super_block *sb)
 {
     struct inode *inode;
+
+    if (sb->bdev)
+        block_dev_sync(sb->bdev, sb->dev, 0);
 
     if (sb->ops->inode_write)
         list_foreach_take_entry(&sb->dirty_inodes, inode, sb_dirty_entry)
@@ -97,6 +96,22 @@ void __super_sync(struct super_block *sb)
 
     if (sb->ops->sb_write)
         sb->ops->sb_write(sb);
+
+    if (sb->bdev)
+        block_dev_sync(sb->bdev, sb->dev, 1);
+}
+
+static int super_put(struct super_block *super)
+{
+    kp(KP_TRACE, "Super put\n");
+    __super_sync(super);
+
+    using_mutex(&super_lock)
+        list_del(&super->list_entry);
+
+    sb_put(super);
+
+    return 0;
 }
 
 void super_sync(struct super_block *sb)
@@ -177,7 +192,7 @@ static int super_mount(struct super_block *super, struct inode *mount_point)
     int ret = 0;
 
     using_inode_mount(mount_point) {
-        if (!flag_test(&mount_point->flags, INO_MOUNT)) {
+        if (!flag_test(&mount_point->flags, INO_MOUNT) && mount_point != super->root) {
             super->covered = inode_dup(mount_point);
             mount_point->mount = inode_dup(super->root);
             flag_set(&mount_point->flags, INO_MOUNT);
