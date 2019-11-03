@@ -49,12 +49,10 @@ void packet_linklayer_rx(struct packet *packet)
 
     switch (ntohs(ehead->ether_type)) {
     case ETH_P_ARP:
-        kp(KP_NORMAL, "ARP packet\n");
         (ether.arp->ops->packet_rx) (ether.arp, packet);
         break;
 
     case ETH_P_IP:
-        kp(KP_NORMAL, "IP packet\n");
         (ether.ip->ops->packet_rx) (ether.ip, packet);
         break;
 
@@ -74,8 +72,6 @@ int packet_linklayer_tx(struct packet *packet)
     memcpy(ehead.mac_dest, packet->dest_mac, sizeof(ehead.mac_dest));
     memcpy(ehead.mac_src, packet->iface_tx->mac, sizeof(ehead.mac_src));
     ehead.ether_type = packet->ll_type;
-
-    kp(KP_NORMAL, "Ether type: 0x%04x\n", ntohs(ehead.ether_type));
 
     if (packet_len(packet) + 14 < 60)
         packet_pad_zero(packet, 60 - (packet_len(packet) + 14));

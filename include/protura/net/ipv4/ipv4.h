@@ -2,7 +2,6 @@
 #define INCLUDE_PROTURA_NET_AF_IPV4_H
 
 #include <protura/net/sockaddr.h>
-#include <protura/net/ipv4/ip_route.h>
 
 typedef __kn32 in_addr_t;
 typedef __kn16 in_port_t;
@@ -29,6 +28,7 @@ struct sockaddr_in {
 #define INADDR_BROADCAST ((in_addr_t) __kn32_make(0xFFFFFFFF))
 
 #ifdef __KERNEL__
+# include <protura/net/ipv4/ip_route.h>
 
 struct packet;
 struct address_family;

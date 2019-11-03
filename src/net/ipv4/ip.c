@@ -256,7 +256,6 @@ static int ip_create(struct address_family *family, struct socket *socket)
 
         socket->proto = ip_raw_get_proto();
         socket->af_private.ipv4.proto = socket->protocol;
-        kp(KP_NORMAL, "Proto: %p\n", socket->proto);
     } else {
         return -EINVAL;
     }

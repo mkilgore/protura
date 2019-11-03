@@ -253,7 +253,6 @@ void arp_tx(struct packet *packet)
     using_mutex(&arp_cache_lock) {
         list_foreach_entry(&arp_cache, entry, cache_entry) {
             if (n32_equal(entry->addr, addr)) {
-                kp(KP_NORMAL, "Found ARP entry.\n");
                 found = 1;
                 break;
 

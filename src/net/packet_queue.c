@@ -22,13 +22,18 @@
 #include <protura/net/linklayer.h>
 #include <protura/net.h>
 
+static atomic_t queue_count = ATOMIC_INIT(0);
 static struct workqueue packet_queue = WORKQUEUE_INIT(packet_queue);
 
 static void packet_process(struct work *work)
 {
     struct packet *packet = container_of(work, struct packet, dwork.work);
 
-    kp(KP_NORMAL, "Recieved packet! len: %d\n", packet_len(packet));
+    int count = atomic_dec_return(&queue_count);
+
+    if (unlikely(count > 30))
+        kp(KP_WARNING, "Packet queue depth: %d\n", count);
+
     packet_linklayer_rx(packet);
 }
 
@@ -37,7 +42,7 @@ void net_packet_receive(struct packet *packet)
     work_init_workqueue(&packet->dwork.work, packet_process, &packet_queue);
     flag_set(&packet->dwork.work.flags, WORK_ONESHOT);
 
-    kp(KP_NORMAL, "Queued packet, length: %d\n", packet_len(packet));
+    atomic_inc(&queue_count);
     work_schedule(&packet->dwork.work);
 }
 
