@@ -10,5 +10,6 @@
 
 void kernel_cmdline_init(void);
 int kernel_cmdline_get_bool(const char *, int def);
+const char *kernel_cmdline_get_string(const char *, const char *def);
 
 #endif

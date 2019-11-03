@@ -148,3 +148,13 @@ int kernel_cmdline_get_bool(const char *name, int def)
 
     return val;
 }
+
+const char *kernel_cmdline_get_string(const char *name, const char *def)
+{
+    struct cmd_arg *arg = find_arg(name);
+
+    if (arg)
+        return arg->value;
+
+    return def;
+}
