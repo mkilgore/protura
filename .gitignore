@@ -7,4 +7,5 @@ cscope*
 disk.img
 
 disk_mount/
+test_results/
 
