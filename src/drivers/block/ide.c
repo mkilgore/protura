@@ -286,9 +286,12 @@ static void __ide_handle_intr(struct irq_frame *frame)
 
         st = __ide_read_status();
 
-        if ((dma_stat & 7))
+        if ((dma_stat & 2)) {
             kp(KP_WARNING, "DATA READ ERROR: 0x%02x\n", dma_stat);
-        else if ((st & (IDE_STATUS_BUSY | IDE_STATUS_DATA_READ)) != IDE_STATUS_DATA_READ)
+            ide_dma_clear_error(&ide_state.dma);
+        }
+
+        if (st & IDE_STATUS_ERROR)
             kp(KP_WARNING, "DATA STATUS ERROR: 0x%02x\n", st);
     } else {
         /* If we were doing a read, then read the data now. We have to wait until

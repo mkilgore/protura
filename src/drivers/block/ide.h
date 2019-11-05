@@ -87,9 +87,7 @@ void ide_dma_start(struct ide_dma_info *);
 
 void ide_dma_abort(struct ide_dma_info *);
 int  ide_dma_check(struct ide_dma_info *);
-
-void ide_dma_device_init(struct pci_dev *dev);
-
+void ide_dma_clear_error(struct ide_dma_info *info);
 #else
 
 static inline void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev) { }
@@ -111,6 +109,7 @@ static inline int  ide_dma_check(struct ide_dma_info *info)
 {
     return -ENOTSUP;
 }
+static inline void ide_dma_clear_error(struct ide_dma_info *info) { }
 
 #endif
 
