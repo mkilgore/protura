@@ -30,7 +30,7 @@
 #define IDE_DMA_IO_PRDT1 4
 
 #define IDE_DMA_CMD_SSBM  (1 << 0) /* Start bus mastering */
-#define IDE_DMA_CMD_RWCON (1 << 3) /* If set, we're doing a write */
+#define IDE_DMA_CMD_RWCON (1 << 3) /* If set, we're doing a read */
 
 static void ide_dma_setup_prdt(struct ide_dma_info *info, struct block *block)
 {
@@ -51,7 +51,8 @@ int ide_dma_setup_read(struct ide_dma_info *info, struct block *block)
     kp(KP_IDE_DMA, "IDE setup dma read\n");
     ide_dma_setup_prdt(info, block);
 
-    info->dma_dir = 0;
+    info->dma_dir = IDE_DMA_CMD_RWCON;
+    outb(info->dma_io_base + IDE_DMA_IO_CMD1, info->dma_dir);
     outb(info->dma_io_base + IDE_DMA_IO_STAT1, inb(info->dma_io_base + IDE_DMA_IO_STAT1)); /* Per Linux, clear status register */
 
     return 0;
@@ -62,7 +63,8 @@ int ide_dma_setup_write(struct ide_dma_info *info, struct block *block)
     kp(KP_IDE_DMA, "IDE setup dma write\n");
     ide_dma_setup_prdt(info, block);
 
-    info->dma_dir = IDE_DMA_CMD_RWCON;
+    info->dma_dir = 0;
+    outb(info->dma_io_base + IDE_DMA_IO_CMD1, info->dma_dir);
     outb(info->dma_io_base + IDE_DMA_IO_STAT1, inb(info->dma_io_base + IDE_DMA_IO_STAT1)); /* Per Linux, clear status register */
 
     return 0;
@@ -89,6 +91,11 @@ int ide_dma_check(struct ide_dma_info *info)
     return inb(info->dma_io_base + IDE_DMA_IO_STAT1);
 }
 
+void ide_dma_clear_error(struct ide_dma_info *info)
+{
+    outb(info->dma_io_base + IDE_DMA_IO_STAT1, 0x02);
+}
+
 void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev)
 {
     uint16_t command_reg;
@@ -106,7 +113,7 @@ void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev)
     kp(KP_NORMAL, "  BAR4: 0x%04x\n", info->dma_io_base);
     kp(KP_NORMAL, "  Timing: 0x%08x\n", pci_config_read_uint32(dev, 0x40));
 
-    pci_config_write_uint16(&info->device, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER);
+    pci_config_write_uint16(dev, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_IO_SPACE);
     kp(KP_NORMAL, "  PCI BUS MASTERING ENABLED\n");
 
     outb(info->dma_io_base + IDE_DMA_IO_STAT1, inb(info->dma_io_base + IDE_DMA_IO_STAT1) | (0x30));
