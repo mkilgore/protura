@@ -58,6 +58,12 @@ static void socket_recv_packet(struct socket *sock, struct packet *packet)
     struct tcp_packet_cb *cur_seg = &packet->cb.tcp;
 
     priv->rcv_nxt += packet_len(packet);
+
+    if (cur_seg->flags.fin) {
+        priv->rcv_nxt++;
+        tcp_fin(sock, packet);
+    }
+
     kp_tcp("RECV packet seq: %u, len: %d, new rcv_nxt: %u\n", cur_seg->seq, packet_len(packet), priv->rcv_nxt);
     list_add_tail(&sock->recv_queue, &packet->packet_entry);
 }

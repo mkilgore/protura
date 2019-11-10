@@ -87,6 +87,7 @@ __must_check struct socket *__ipaf_find_socket(struct address_family_ip *af, str
 n16 ip_chksum(uint16_t *head, size_t byte_count);
 int ip_packet_fill_route_addr(struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len);
 int ip_packet_fill_route(struct socket *sock, struct packet *packet);
+int ip_packet_fill_raw(struct packet *packet, in_addr_t dest_addr);
 void ip_tx(struct packet *packet);
 void ip_release(struct address_family *family, struct socket *sock);
 

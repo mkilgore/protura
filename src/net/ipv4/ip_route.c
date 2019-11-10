@@ -166,7 +166,9 @@ int ip_route_get(n32 dest_ip, struct ip_route_entry *ret)
 
 void ip_route_clear(struct ip_route_entry *entry)
 {
-    netdev_put(entry->iface);
+    if (entry->iface)
+        netdev_put(entry->iface);
+
     entry->iface = NULL;
 }
 

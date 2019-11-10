@@ -226,6 +226,15 @@ static void tcp_release(struct protocol *proto, struct socket *sock)
         __ipaf_remove_socket(af, sock);
 
     tcp_timers_reset(sock);
+
+    using_mutex(&sock->recv_lock) {
+        kp(KP_NORMAL, "Recv queue is empty: %d\n", list_empty(&sock->recv_queue));
+
+        struct packet *packet;
+
+        list_foreach_take_entry(&sock->recv_queue, packet, packet_entry)
+            packet_free(packet);
+    }
 }
 
 static int tcp_sendto_packet(struct protocol *proto, struct socket *sock, struct packet *packet, int psh)

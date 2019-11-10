@@ -14,11 +14,15 @@ struct pseudo_header {
 
 void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet);
 
+void tcp_send_reset(struct protocol *proto, struct packet *old_packet);
 void tcp_send_syn(struct protocol *proto, struct socket *sock);
 void tcp_send_ack(struct protocol *proto, struct socket *sock);
 void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet);
+void tcp_send_raw(struct protocol *proto, struct packet *packet, n16 src_port, n32 dest_addr, n16 dest_port);
 
 void tcp_recv_data(struct protocol *proto, struct socket *sock, struct packet *packet);
+
+void tcp_fin(struct socket *, struct packet *);
 
 void tcp_timers_init(struct socket *sock);
 void tcp_timers_reset(struct socket *sock);

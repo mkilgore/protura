@@ -236,6 +236,23 @@ int ip_packet_fill_route_addr(struct socket *sock, struct packet *packet, const 
     return 0;
 }
 
+int ip_packet_fill_raw(struct packet *packet, in_addr_t dest_addr)
+{
+    struct ip_route_entry route;
+
+    int ret = ip_route_get(dest_addr, &route);
+    if (ret)
+        return -EACCES;
+
+    sockaddr_in_assign_addr(&packet->dest_addr, dest_addr);
+
+    packet->iface_tx = route.iface;
+    packet->ll_type = htons(ETH_P_IP);
+    packet->route_addr = ip_route_get_ip(&route);
+
+    return 0;
+}
+
 static int ip_create(struct address_family *family, struct socket *socket)
 {
     if (socket->sock_type == SOCK_DGRAM

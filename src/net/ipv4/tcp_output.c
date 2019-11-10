@@ -22,20 +22,8 @@
 #include "ipv4.h"
 #include "tcp.h"
 
-struct tcp_raw_args {
-    struct protocol *proto;
-    struct socket *sock;
-    uint8_t flags;
-    n32 seq;
-    n32 seq_ack;
-    n16 window;
-};
-
-// void tcp_send_raw(struct protocol *proto, struct socket *sock, struct packet *packet, 
-
-void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet)
+static void tcp_send_inner(struct protocol *proto, struct packet *packet)
 {
-    struct ipv4_socket_private *ip_priv = &sock->af_private.ipv4;
     struct tcp_packet_cb *cb = &packet->cb.tcp;
     struct tcp_header *head;
 
@@ -47,8 +35,8 @@ void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet
 
     head->hl = sizeof(*head) / 4;
 
-    head->source = ip_priv->src_port;
-    head->dest = ip_priv->dest_port;
+    head->source = sockaddr_in_get_port(&packet->src_addr);
+    head->dest = sockaddr_in_get_port(&packet->dest_addr);
 
     head->flags = cb->flags;
 
@@ -61,6 +49,31 @@ void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet
 
     packet->protocol_type = IPPROTO_TCP;
 
+    head->check = htons(0);
+
+    head->check = tcp_checksum_packet(packet);
+    ip_tx(packet);
+}
+
+void tcp_send_raw(struct protocol *proto, struct packet *packet, n16 src_port, n32 dest_addr, n16 dest_port)
+{
+    int ret = ip_packet_fill_raw(packet, dest_addr);
+    kp_tcp("TCP send packet, ip route ret: %d\n", ret);
+    if (ret) {
+        packet_free(packet);
+        return;
+    }
+
+    sockaddr_in_assign_port(&packet->src_addr, src_port);
+    sockaddr_in_assign_port(&packet->dest_addr, dest_port);
+
+    tcp_send_inner(proto, packet);
+}
+
+void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet)
+{
+    struct ipv4_socket_private *ip_priv = &sock->af_private.ipv4;
+
     int ret = ip_packet_fill_route(sock, packet);
     kp_tcp("TCP send packet, ip route ret: %d\n", ret);
     if (ret) {
@@ -71,13 +84,8 @@ void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet
     sockaddr_in_assign_port(&packet->src_addr, ip_priv->src_port);
     sockaddr_in_assign_port(&packet->dest_addr, ip_priv->dest_port);
 
-    head->check = htons(0);
-
-    head->check = tcp_checksum_packet(packet);
-    if (!packet->sock)
-        packet->sock = socket_dup(sock);
-
-    ip_tx(packet);
+    packet->sock = socket_dup(sock);
+    tcp_send_inner(proto, packet);
 }
 
 void tcp_send_syn(struct protocol *proto, struct socket *sock)
@@ -109,4 +117,41 @@ void tcp_send_ack(struct protocol *proto, struct socket *sock)
 
     tcp_delack_timer_stop(sock);
     tcp_send(proto, sock, packet);
+}
+
+void tcp_send_reset(struct protocol *proto, struct packet *old_packet)
+{
+    struct tcp_packet_cb *old_cb = &old_packet->cb.tcp;
+
+    struct tcp_header *tcp_head = old_packet->proto_head;
+    struct ip_header *ip_head = old_packet->af_head;
+
+    struct packet *packet = packet_new(PAL_KERNEL);
+    struct tcp_packet_cb *cb = &packet->cb.tcp;
+
+    /* If the received packet is an RST, don't send one in response */
+    if (old_cb->flags.rst)
+        goto release_old_packet;
+
+    /* If we're responding to an ACK, we make it look like an acceptable ACK
+     * If not, we just use sequence number 0 */
+    if (!old_cb->flags.ack) {
+        cb->seq = 0;
+        cb->ack_seq = old_cb->seq + packet_len(old_packet);
+        cb->flags.rst = 1;
+        cb->flags.ack = 1;
+
+        if (old_cb->flags.syn)
+            cb->ack_seq++;
+    } else {
+        cb->seq = old_cb->ack_seq;
+        cb->flags.rst = 1;
+    }
+
+    kp(KP_NORMAL, "RESET, SrcIP: "PRin_addr", DestIP: "PRin_addr"\n", Pin_addr(ip_head->source_ip), Pin_addr(ip_head->dest_ip));
+    tcp_send_raw(proto, packet, tcp_head->dest, ip_head->source_ip, tcp_head->source);
+
+  release_old_packet:
+    /* Consume the old packet */
+    packet_free(old_packet);
 }

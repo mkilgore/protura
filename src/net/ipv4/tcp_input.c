@@ -43,7 +43,33 @@ static int tcp_checksum_valid(struct packet *packet)
 void tcp_closed(struct protocol *proto, struct packet *packet)
 {
     kp_tcp("tcp_closed()\n");
-    /* FIXME: We need to send a RST even with no socket */
+    tcp_send_reset(proto, packet);
+}
+
+void tcp_fin(struct socket *sock, struct packet *packet)
+{
+    struct tcp_socket_private *priv = &sock->proto_private.tcp;
+
+    switch (priv->tcp_state) {
+    case TCP_SYN_RECV:
+    case TCP_ESTABLISHED:
+        kp_tcp("Entering CLOSE-WAIT state\n");
+        priv->tcp_state = TCP_CLOSE_WAIT;
+        break;
+
+    case TCP_FIN_WAIT1:
+        /* FIXME: has our FIN been acked? */
+        break;
+
+    case TCP_FIN_WAIT2:
+        priv->tcp_state = TCP_TIME_WAIT;
+        /* FIXME: start time-wait timer */
+        break;
+
+    case TCP_TIME_WAIT:
+        /* FIXME: restart time-wait timer */
+        break;
+    }
 }
 
 void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *packet)
@@ -59,9 +85,9 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
         if (seg->ack_seq <= priv->iss
             || seg->ack_seq > priv->snd_nxt
             || seg->ack_seq < priv->snd_una) {
-            /* FiXME: Send reset */
             kp_tcp("tcp_syn_sent() - bad ACK, RST\n");
-            goto release_packet;
+            tcp_send_reset(proto, packet);
+            return;
         }
     }
 
@@ -161,6 +187,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
     /* If checksum is invalid, ignore */
     if (!tcp_checksum_valid(packet)) {
         kp_tcp("packet: %d -> %d, %d bytes, invalid checksum!\n", ntohs(header->source), ntohs(header->dest), packet_len(packet));
+        packet_free(packet);
         return;
     }
 
@@ -246,8 +273,8 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
                 priv->tcp_state = TCP_ESTABLISHED;
                 socket_state_change(sock, SOCKET_CONNECTED);
             } else {
-                /* FIXME: send RST, SEQ=seg->ack_seq */
-                goto drop_packet;
+                tcp_send_reset(proto, packet);
+                return;
             }
             break;
 
@@ -308,46 +335,23 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
         /* FIXME: sixth: check URG bit */
 
-        /* cache the fin information, since the packet may be consumed when processing the data */
-        int fin = seg->flags.fin;
-        int fin_ack = seg->seq + packet_len(packet) + 1;
-
         /* seventh: process segment text */
         switch (priv->tcp_state) {
         case TCP_ESTABLISHED:
         case TCP_FIN_WAIT1:
         case TCP_FIN_WAIT2:
-            if (seg->flags.psh || packet_len(packet)) {
+            /* FIN implies PSH. We also need to ensure the FIN is correctly
+             * processed in the event of out-of-order packets. */
+            if (seg->flags.psh || seg->flags.fin || packet_len(packet)) {
                 kp_tcp("recv data!\n");
                 tcp_recv_data(proto, sock, packet);
-                /* We still need to process FIN, but we cannot use the packet anymore */
                 packet = NULL;
             }
             break;
         }
 
-        if (!fin)
-            goto drop_packet;
-
-        switch (priv->tcp_state) {
-        case TCP_SYN_RECV:
-        case TCP_ESTABLISHED:
-            priv->tcp_state = TCP_CLOSE_WAIT;
-            break;
-
-        case TCP_FIN_WAIT1:
-            /* FIXME: has our FIN been acked? */
-            break;
-
-        case TCP_FIN_WAIT2:
-            priv->tcp_state = TCP_TIME_WAIT;
-            /* FIXME: start time-wait timer */
-            break;
-
-        case TCP_TIME_WAIT:
-            /* FIXME: restart time-wait timer */
-            break;
-        }
+        if (packet && seg->flags.fin)
+            tcp_fin(sock, packet);
     }
 
   drop_packet:

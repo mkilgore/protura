@@ -77,6 +77,18 @@ static inline void sockaddr_in_assign_port(struct sockaddr *sock, in_port_t port
     in->sin_port = port;
 }
 
+static inline in_addr_t sockaddr_in_get_addr(struct sockaddr *sock)
+{
+    struct sockaddr_in *in = (struct sockaddr_in *)sock;
+    return in->sin_addr.s_addr;
+}
+
+static inline in_port_t sockaddr_in_get_port(struct sockaddr *sock)
+{
+    struct sockaddr_in *in = (struct sockaddr_in *)sock;
+    return in->sin_port;
+}
+
 #endif
 
 #endif
