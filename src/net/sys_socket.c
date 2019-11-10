@@ -97,7 +97,7 @@ int socket_recvfrom(struct socket *socket, void *buf, size_t len, int flags, str
             size_t plen = packet_len(packet);
             int drop_packet = 0;
 
-            if (plen < len) {
+            if (plen <= len) {
                 memcpy(buf, packet->head, plen);
                 ret = plen;
                 drop_packet = 1;
