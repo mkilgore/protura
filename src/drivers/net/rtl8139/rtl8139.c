@@ -215,6 +215,8 @@ void rtl_device_init(struct pci_dev *dev)
     rtl->net.mac[5] = rtl_inb(rtl, REG_MAC5);
     rtl->net.hwtype = ARPHRD_ETHER;
 
+    kp(KP_NORMAL, "  MAC: "PRmac"\n", Pmac(rtl->net.mac));
+
     rtl_device_init_rx(rtl);
     rtl_device_init_tx(rtl);
 
