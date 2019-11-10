@@ -156,10 +156,10 @@ static void kwork_delay_timer_callback(struct ktimer *timer)
     workqueue_add_work(&kwork, &work->work);
 }
 
-void kwork_delay_schedule(struct delay_work *work, int delay_ms)
+int kwork_delay_schedule(struct delay_work *work, int delay_ms)
 {
     work->timer.callback = kwork_delay_timer_callback;
-    timer_add(&work->timer, delay_ms);
+    return timer_add(&work->timer, delay_ms);
 }
 
 int kwork_delay_unschedule(struct delay_work *work)

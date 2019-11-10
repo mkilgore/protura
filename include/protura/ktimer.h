@@ -12,15 +12,9 @@
  * a certain number of milliseconds have gone by.
  */
 
-enum ktimer_flags {
-    KTIMER_FIRED,
-};
-
 struct ktimer {
     list_node_t timer_entry;
     list_head_t timer_list;
-
-    flags_t flags;
 
     uint64_t wake_up_tick;
 
@@ -29,7 +23,6 @@ struct ktimer {
 
 #define KTIMER_INIT(timer) \
     { \
-        .flags = F(KTIMER_FIRED), \
         .timer_entry = LIST_NODE_INIT((timer).timer_entry), \
         .timer_list = LIST_HEAD_INIT((timer).timer_list), \
     }
@@ -45,7 +38,9 @@ static inline void ktimer_clear(struct ktimer *timer)
 }
 
 void timer_handle_timers(uint64_t tick);
-void timer_add(struct ktimer *timer, uint64_t ms);
+int timer_add(struct ktimer *timer, uint64_t ms);
+
+/* Returns 0 if the timer was deleted, -1 if the timer was not scheduled */
 int timer_del(struct ktimer *timer);
 
 #endif

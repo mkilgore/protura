@@ -288,13 +288,13 @@ void arp_tx(struct packet *packet)
             list_add_tail(&arp_cache, &entry->cache_entry);
             arp_cache_length++;
         }
+
+        kp(KP_NORMAL, "Sending ARP request for: "PRin_addr"\n", Pin_addr(addr));
+        arp_send_request(addr, packet->iface_tx);
+        kp(KP_NORMAL, "Waiting for ARP response.\n");
+
+        timer_add(&entry->timeout_timer, ARP_MAX_RESPONSE_TIME);
     }
-
-    kp(KP_NORMAL, "Sending ARP request for: "PRin_addr"\n", Pin_addr(addr));
-    arp_send_request(addr, packet->iface_tx);
-    kp(KP_NORMAL, "Waiting for ARP response.\n");
-
-    timer_add(&entry->timeout_timer, ARP_MAX_RESPONSE_TIME);
 
     return;
 

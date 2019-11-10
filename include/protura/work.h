@@ -195,8 +195,11 @@ void workqueue_add_work(struct workqueue *, struct work *);
 
 void work_schedule(struct work *);
 
-void kwork_delay_schedule(struct delay_work *, int delay_ms);
-int kwork_delay_unschedule(struct delay_work *work);
+/* Returns 0 if work was newly scheduled, -1 if work was already scheduled */
+int kwork_delay_schedule(struct delay_work *, int delay_ms);
+
+/* Returns 0 if the timer was deleted, -1 if the timer was not scheduled */
+int kwork_delay_unschedule(struct delay_work *);
 
 /*
  * Convinence methods for setting the callback and scheduling in one go.

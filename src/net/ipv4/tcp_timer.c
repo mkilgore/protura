@@ -38,22 +38,18 @@ void tcp_timers_init(struct socket *sock)
     flag_set(&delack_work->flags, WORK_ONESHOT);
 }
 
-void tcp_delack_timer_start(struct socket *sock, uint32_t ms)
-{
-    socket_dup(sock);
-    kwork_delay_schedule(&sock->proto_private.tcp.delack, ms);
-}
-
 void tcp_delack_timer_stop(struct socket *sock)
 {
-    struct ktimer *timer = &sock->proto_private.tcp.delack.timer;
+    struct delay_work *dwork = &sock->proto_private.tcp.delack;
 
-    timer_del(timer);
-
-    if (!flag_test(&timer->flags, KTIMER_FIRED)) {
+    if (kwork_delay_unschedule(dwork) == 0)
         socket_put(sock);
-        flag_set(&timer->flags, KTIMER_FIRED);
-    }
+}
+
+void tcp_delack_timer_start(struct socket *sock, uint32_t ms)
+{
+    if (kwork_delay_schedule(&sock->proto_private.tcp.delack, ms) == 0)
+        socket_dup(sock);
 }
 
 void tcp_timers_reset(struct socket *sock)

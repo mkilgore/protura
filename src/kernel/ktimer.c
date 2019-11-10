@@ -34,9 +34,18 @@
 static spinlock_t timers_lock;
 static list_head_t timer_list = LIST_HEAD_INIT(timer_list);
 
+static void run_timer_outside_lock(struct ktimer *timer)
+{
+    void (*callback) (struct ktimer *) = timer->callback;
+
+    not_using_spinlock(&timers_lock)
+        (callback) (timer);
+}
+
 void timer_handle_timers(uint64_t tick)
 {
     struct ktimer *timer, *next;
+    list_head_t tmp_list = LIST_HEAD_INIT(tmp_list);
 
     while (1) {
         using_spinlock(&timers_lock) {
@@ -46,33 +55,25 @@ void timer_handle_timers(uint64_t tick)
                 return;
 
             list_del(&timer->timer_entry);
+            list_replace(&timer->timer_list, &tmp_list);
 
-            /* FIXME: We have to hold the spinlock to avoid races with
-             * timer_add and timer_del, however calling the callback while
-             * holding the spinlock is not ideal */
-            /* We're careful to release the spinlock before calling the callbacks */
-            flag_set(&timer->flags, KTIMER_FIRED);
-            (timer->callback) (timer);
+            run_timer_outside_lock(timer);
 
-            list_foreach_take_entry(&timer->timer_list, next, timer_entry) {
-                flag_set(&next->flags, KTIMER_FIRED);
-                (next->callback) (next);
-            }
+            list_foreach_take_entry(&tmp_list, next, timer_entry)
+                run_timer_outside_lock(next);
         }
     }
 }
 
-void timer_add(struct ktimer *timer, uint64_t ms)
+int timer_add(struct ktimer *timer, uint64_t ms)
 {
     struct ktimer *t;
     timer->wake_up_tick = timer_get_ticks() + ms * (TIMER_TICKS_PER_SEC / 1000);
 
     using_spinlock(&timers_lock) {
-        /* We're already scheduled, don't do anything
-         *
-         * FIXME: We should set the timer to the new time. */
+        /* We're already scheduled, don't do anything */
         if (list_node_is_in_list(&timer->timer_entry))
-            break;
+            return -1;
 
         list_foreach_entry(&timer_list, t, timer_entry) {
             if (t->wake_up_tick == timer->wake_up_tick)
@@ -84,7 +85,7 @@ void timer_add(struct ktimer *timer, uint64_t ms)
         if (list_ptr_is_head(&t->timer_entry, &timer_list))
             list_add_tail(&timer_list, &timer->timer_entry);
 
-        flag_clear(&timer->flags, KTIMER_FIRED);
+        return 0;
     }
 }
 
