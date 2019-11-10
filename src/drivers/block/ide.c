@@ -393,7 +393,6 @@ void ide_init(void)
     int i;
     struct block_device *master, *slave;
 
-    pic8259_enable_irq(IDE_IRQ);
     irq_register_callback(PIC8259_IRQ0 + IDE_IRQ, ide_handle_intr, "IDE", IRQ_INTERRUPT, NULL);
 
     outb(IDE_PORT_PRIMARY_CTL, 0);

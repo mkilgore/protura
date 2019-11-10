@@ -194,7 +194,6 @@ void rtl_device_init(struct pci_dev *dev)
     kp(KP_NORMAL, "  Interrupt: %d\n", int_line);
 
     irq_register_callback(PIC8259_IRQ0 + int_line, rtl_rx_interrupt, "RealTek RTL8239", IRQ_INTERRUPT, rtl);
-    pic8259_enable_irq(int_line);
 
     rtl->io_base = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFFE;
 

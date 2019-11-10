@@ -46,6 +46,9 @@ void irq_register_callback(uint8_t irqno, void (*handler)(struct irq_frame *, vo
     ident->name = id;
     ident->type = type;
     ident->param = param;
+
+    if (irqno >= PIC8259_IRQ0 && irqno <= PIC8259_IRQ0 + 16)
+        pic8259_enable_irq(irqno - PIC8259_IRQ0);
 }
 
 static const char *cpu_exception_name[] = {
@@ -196,6 +199,7 @@ void irq_global_handler(struct irq_frame *iframe)
     struct task *t;
     struct cpu_info *cpu = cpu_get_local();
     int frame_flag = 0;
+    int pic8259_irq = -1;
 
     atomic32_inc(&ident->count);
 
@@ -215,30 +219,20 @@ void irq_global_handler(struct irq_frame *iframe)
     if (cpuid_has_sse() && t)
         i387_fxsave(&t->arch_info.fxsave);
 
-    /* This is more complex then is normally done. This is because we check the
-     * ISR registers of both PIC's to avoid sending EOI's for Spurious
-     * Interrupts */
+    /* When we get an IRQ from the 8259PIC, we disable the IRQ, send the EOI,
+     * and then able it after we're done handling the IRQ */
     if (iframe->intno >= PIC8259_IRQ0 && iframe->intno <= PIC8259_IRQ0 + 16) {
-        if (iframe->intno >= PIC8259_IRQ0 + 8) {
-            uint8_t isr = pic8259_read_slave_isr();
-            /* Calculate the Intno on the slave - subtract 8 since the slave holds IRQ 8-15 */
-            uint8_t ino_bit = 1 << (iframe->intno - PIC8259_IRQ0 - 8);
+        pic8259_irq = iframe->intno - PIC8259_IRQ0;
 
-            if (isr & ino_bit)
-                outb(PIC8259_IO_PIC2, PIC8259_EOI);
-
-            outb(PIC8259_IO_PIC1, PIC8259_EOI);
-        } else {
-            uint8_t isr = pic8259_read_master_isr();
-            uint8_t ino_bit = 1 << (iframe->intno - PIC8259_IRQ0);
-
-            if (isr & ino_bit)
-                outb(PIC8259_IO_PIC1, PIC8259_EOI);
-        }
+        pic8259_disable_irq(pic8259_irq);
+        pic8259_send_eoi(pic8259_irq);
     }
 
     if (ident->handler != NULL)
         (ident->handler) (iframe, ident->param);
+
+    if (pic8259_irq >= 0)
+        pic8259_enable_irq(pic8259_irq);
 
     if (frame_flag && t && t->sig_pending)
         signal_handle(t, iframe);

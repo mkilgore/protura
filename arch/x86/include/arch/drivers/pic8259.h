@@ -20,6 +20,8 @@
 #define PIC8259_EOI 0x20
 
 void pic8259_enable_irq(int irq);
+void pic8259_disable_irq(int irq);
+void pic8259_send_eoi(int irq);
 
 void pic8259_init(void);
 

@@ -116,7 +116,6 @@ static void com_init_ports(void)
         kp(KP_DEBUG, "Registering COM%d IRQ\n", i);
 
         irq_register_callback(com_ports[i].irq, com_int_handler, "com", IRQ_INTERRUPT, com_ports + i);
-        pic8259_enable_irq(com_ports[i].irq);
 
         outb(com_ports[i].ioport + UART_IER, UART_IER_RDI);
 
