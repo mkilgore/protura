@@ -98,7 +98,7 @@ static inline void list_del(list_node_t *entry)
     list_node_init(entry);
 }
 
-static inline void list_replace(list_node_t *new, list_node_t *old)
+static inline void list_replace(list_node_t *old, list_node_t *new)
 {
     new->next = old->next;
     new->next->prev = new;
@@ -106,9 +106,9 @@ static inline void list_replace(list_node_t *new, list_node_t *old)
     new->prev->next = new;
 }
 
-static inline void list_replace_init(list_node_t *new, list_node_t *old)
+static inline void list_replace_init(list_node_t *old, list_node_t *new)
 {
-    list_replace(new, old);
+    list_replace(old, new);
     list_head_init(old);
 }
 

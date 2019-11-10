@@ -213,8 +213,8 @@ static void arp_handle_packet(struct address_family *af, struct packet *packet)
 
                         arp_process_packet_queue(entry);
 
-                        /* Move the list to our local list_head_t for processing outside the lock */
-                        list_replace_init(&packets_to_process, &entry->packet_queue);
+                        /* Move the list to our local list_head_t for processing outside the locks */
+                        list_replace_init(&entry->packet_queue, &packets_to_process);
                         break;
                     }
                 }
