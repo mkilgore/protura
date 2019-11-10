@@ -240,7 +240,7 @@ void vm_area_allocator_init(void)
 void *kmmap(pa_t address, size_t len, flags_t vm_flags)
 {
     size_t addr_offset = address % PG_SIZE;
-    pa_t pg_addr = address & PG_SIZE;
+    pa_t pg_addr = address & ~PG_SIZE;
     int pages = PG_ALIGN(len + addr_offset) >> PG_SHIFT;
     struct vm_area *area;
     int i;
