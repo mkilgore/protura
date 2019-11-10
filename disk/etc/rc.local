@@ -3,11 +3,11 @@
 ifconfig lo addr 127.0.0.1/8
 ifconfig lo up
 
-ifconfig eth0 addr 192.168.2.2/24
+ifconfig eth0 addr 192.168.56.20/24
 ifconfig eth0 up
 
 route add 127.0.0.0 netmask 255.0.0.0 dev lo
 
-route add 192.168.2.0 netmask 255.255.255.0 dev eth0
-route add default gw 192.168.2.1 dev eth0
+route add 192.168.56.0 netmask 255.255.255.0 dev eth0
+route add default gw 192.168.56.1 dev eth0
 
