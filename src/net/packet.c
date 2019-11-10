@@ -20,12 +20,20 @@
 #include <protura/net.h>
 
 static spinlock_t packet_list_lock = SPINLOCK_INIT("packet-free-list-lock");
+
+/* TODO: Have a separate list for packets which have had their page removed,
+ * and prefer to use those to avoid allocating a new page. */
+/* TODO: There should be a separate slab allocator just for packets */
 static list_head_t packet_free_list = LIST_HEAD_INIT(packet_free_list);
 
 static void packet_clear(struct packet *packet)
 {
-    packet->head = packet->start + PACKET_RESERVE_HEADER_SPACE;
-    packet->tail = packet->head;
+    if (packet->page) {
+        packet->head = packet->start + PACKET_RESERVE_HEADER_SPACE;
+        packet->tail = packet->head;
+    } else {
+        packet->head = packet->start = packet->tail = packet->end = NULL;
+    }
 
     packet->ll_type = htons(0);
     memset(&packet->dest_mac, 0, sizeof(packet->dest_mac));
@@ -72,7 +80,11 @@ struct packet *packet_new(int pal_flags)
     if (!packet) {
         packet = kmalloc(sizeof(*packet), pal_flags);
         packet_init(packet);
-        packet->start = palloc_va(0, pal_flags);
+    }
+
+    if (!packet->page) {
+        packet->page = palloc(0, pal_flags);
+        packet->start = packet->page->virt;
         packet->head = packet->start + PACKET_RESERVE_HEADER_SPACE;
         packet->tail = packet->head;
         packet->end = packet->start + PG_SIZE;

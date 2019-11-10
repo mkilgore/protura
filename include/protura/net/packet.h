@@ -91,4 +91,11 @@ static inline void packet_to_buffer(struct packet *packet, void *buf, size_t buf
     memcpy(buf, packet->head, len);
 }
 
+static inline struct page *packet_take_page(struct packet *packet)
+{
+    struct page *page = packet->page;
+    packet->page = NULL;
+    return page;
+}
+
 #endif
