@@ -15,7 +15,6 @@ qemu_line="qemu-system-i386 \
     -d cpu_reset \
     -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
     -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
-    -net nic,model=rtl8139 \
     -net nic,model=e1000 \
     -net tap,ifname=tap0,script=no,downscript=no"
 
