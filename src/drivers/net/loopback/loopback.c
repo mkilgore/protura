@@ -20,15 +20,21 @@
 
 static struct net_interface loopback_iface = NET_INTERFACE_INIT(loopback_iface);
 
-static void loopback_packet_send(struct net_interface *iface, struct packet *packet)
+static void loopback_process_tx_queue(struct net_interface *iface)
 {
-    packet->iface_rx = netdev_dup(iface);
-    net_packet_receive(packet);
+    using_spinlock(&iface->tx_lock) {
+        while (__net_iface_has_tx_packet(iface)) {
+            struct packet *packet = __net_iface_tx_packet_pop(iface);
+
+            packet->iface_rx = netdev_dup(iface);
+            net_packet_receive(packet);
+        }
+    }
 }
 
 void net_loopback_init(void)
 {
-    loopback_iface.hard_tx = loopback_packet_send;
+    loopback_iface.process_tx_queue = loopback_process_tx_queue;
     loopback_iface.linklayer_tx = arp_tx;
     loopback_iface.hwtype = ARPHRD_LOOPBACK;
 

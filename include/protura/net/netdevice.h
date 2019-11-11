@@ -36,8 +36,11 @@ struct net_interface {
     uint8_t mac[6];
 
     void (*linklayer_tx) (struct packet *);
-    void (*hard_tx) (struct net_interface *, struct packet *);
 
+    void (*process_tx_queue) (struct net_interface *);
+
+    spinlock_t tx_lock;
+    list_head_t tx_packet_queue;
 };
 
 #define NET_INTERFACE_INIT(iface) \
@@ -45,6 +48,8 @@ struct net_interface {
         .iface_entry = LIST_NODE_INIT((iface).iface_entry), \
         .refs = ATOMIC_INIT(0), \
         .lock = MUTEX_INIT((iface).lock, "net-interface-lock"), \
+        .tx_lock = SPINLOCK_INIT("net-interface-tx-lock"), \
+        .tx_packet_queue = LIST_HEAD_INIT((iface).tx_packet_queue), \
     }
 
 static inline void net_interface_init(struct net_interface *iface)
@@ -105,5 +110,11 @@ static inline void netdev_unlock_write(struct net_interface *iface)
 
 void net_interface_register(struct net_interface *iface);
 void net_init(void);
+
+struct packet *__net_iface_tx_packet_pop(struct net_interface *);
+static inline int __net_iface_has_tx_packet(struct net_interface *iface)
+{
+    return !list_empty(&iface->tx_packet_queue);
+}
 
 #endif

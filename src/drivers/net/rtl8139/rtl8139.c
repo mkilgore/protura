@@ -87,6 +87,31 @@ static void __rtl_send_packet(struct net_interface_rtl *rtl, struct packet *pack
     rtl->tx_cur_buffer = (rtl->tx_cur_buffer + 1) % 4;
 }
 
+static void rtl_process_tx_queue(struct net_interface *iface)
+{
+    struct net_interface_rtl *rtl = container_of(iface, struct net_interface_rtl, net);
+
+    using_spinlock(&rtl->net.tx_lock) {
+        while (__net_iface_has_tx_packet(&rtl->net)) {
+            int i, own = 0;
+
+            /* We loop up to 10 times checking for the current buffer to become
+             * usable.
+             *
+             * If it doesn't become usable then we add this packet to the queue, to be sent-off at a TOK. */
+            for (i = 0; i < 10 && !own; i++)
+                own = rtl_inl(rtl, REG_TSD(rtl->tx_cur_buffer)) & REG_TSD_OWN;
+
+            if (!own)
+                return;
+
+            struct packet *packet = __net_iface_tx_packet_pop(iface);
+            __rtl_send_packet(rtl, packet, packet_len(packet));
+            packet_free(packet);
+        }
+    }
+}
+
 static void rtl_rx_interrupt(struct irq_frame *frame, void *param)
 {
     struct net_interface_rtl *rtl = param;
@@ -95,56 +120,11 @@ static void rtl_rx_interrupt(struct irq_frame *frame, void *param)
     if (isr & REG_ISR_ROK)
         rtl_handle_rx(rtl);
 
-    if (isr & REG_ISR_TOK) {
-        /* 
-         * Packet sent successfully
-         * 
-         * Check packet queue for any new packets, and send the next one in
-         * line if so.
-         */
-        using_spinlock(&rtl->tx_lock) {
-            /*
-             * We do a loop here to attempt to queue up as many packets as we
-             * can. it's possible that more then one TX buffer has become
-             * availiable since the TOK was sent
-             */
-            while (!list_empty(&rtl->tx_packet_queue)
-                   && (rtl_inl(rtl, REG_TSD(rtl->tx_cur_buffer)) & REG_TSD_OWN)) {
-                struct packet *packet = list_take_first(&rtl->tx_packet_queue, struct packet, packet_entry);
-                __rtl_send_packet(rtl, packet, packet_len(packet));
-                packet_free(packet);
-            }
-        }
-    }
+    if (isr & REG_ISR_TOK)
+        rtl_process_tx_queue(&rtl->net);
 
     /* ACK Interrupt */
     rtl_outw(rtl, REG_ISR, isr);
-}
-
-static void rtl_packet_send(struct net_interface *iface, struct packet *packet)
-{
-    size_t len;
-    struct net_interface_rtl *rtl = container_of(iface, struct net_interface_rtl, net);
-
-    len = packet_len(packet);
-
-    using_spinlock(&rtl->tx_lock) {
-        int i, own = 0;
-
-        /* We loop up to 10 times checking for the current buffer to become
-         * usable.
-         *
-         * If it doesn't become usable then we add this packet to the queue, to be sent-off at a TOK. */
-        for (i = 0; i < 10 && !own; i++)
-            own = rtl_inl(rtl, REG_TSD(rtl->tx_cur_buffer)) & REG_TSD_OWN;
-
-        if (own) {
-            __rtl_send_packet(rtl, packet, len);
-            packet_free(packet);
-        } else {
-            list_add_tail(&rtl->tx_packet_queue, &packet->packet_entry);
-        }
-    }
 }
 
 void rtl_device_init_rx(struct net_interface_rtl *rtl)
@@ -177,9 +157,7 @@ void rtl_device_init(struct pci_dev *dev)
 
     net_interface_init(&rtl->net);
 
-    spinlock_init(&rtl->tx_lock, "rtl8139-lock");
-    list_head_init(&rtl->tx_packet_queue);
-    rtl->net.hard_tx = rtl_packet_send;
+    rtl->net.process_tx_queue = rtl_process_tx_queue;
     rtl->net.linklayer_tx = arp_tx;
 
     kp(KP_NORMAL, "Found RealTek RTL8139 Fast Ethernet: "PRpci_dev"\n", Ppci_dev(dev));

@@ -46,9 +46,31 @@ void net_packet_receive(struct packet *packet)
     work_schedule(&packet->dwork.work);
 }
 
+struct packet *__net_iface_tx_packet_pop(struct net_interface *iface)
+{
+    if (list_empty(&iface->tx_packet_queue))
+        return NULL;
+
+    return list_take_first(&iface->tx_packet_queue, struct packet, packet_entry);
+}
+
 void net_packet_transmit(struct packet *packet)
 {
-    packet_linklayer_tx(packet);
+    struct net_interface *iface = packet->iface_tx;
+
+    if (flag_test(&iface->flags, NET_IFACE_UP)) {
+        using_netdev_write(iface) {
+            iface->metrics.tx_packets++;
+            iface->metrics.tx_bytes += packet_len(packet);
+        }
+
+        using_spinlock(&iface->tx_lock)
+            list_add_tail(&iface->tx_packet_queue, &packet->packet_entry);
+
+        (iface->process_tx_queue) (iface);
+    } else {
+        packet_free(packet);
+    }
 }
 
 void net_packet_queue_init(void)

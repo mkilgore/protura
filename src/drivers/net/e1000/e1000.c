@@ -200,31 +200,21 @@ static void __e1000_queue_tx(struct net_interface_e1000 *e1000, struct packet *p
 
 static void __e1000_flush_packet_queue(struct net_interface_e1000 *e1000)
 {
-    while (__e1000_tx_queue_has_space(e1000) && !list_empty(&e1000->tx_packet_queue)) {
-        struct packet *packet = list_take_first(&e1000->tx_packet_queue, struct packet, packet_entry);
+    while (__e1000_tx_queue_has_space(e1000) && __net_iface_has_tx_packet(&e1000->net)) {
+        struct packet *packet = __net_iface_tx_packet_pop(&e1000->net);
 
         __e1000_queue_tx(e1000, packet);
     }
 }
 
-static void e1000_packet_send(struct net_interface *net, struct packet *packet)
+static void e1000_process_tx_queue(struct net_interface *net)
 {
     struct net_interface_e1000 *e1000 = container_of(net, struct net_interface_e1000, net);
 
-    kp(KP_NORMAL, "e1000: sending packet!\n");
-
-    using_spinlock(&e1000->tx_lock) {
+    kp(KP_NORMAL, "e1000: process tx queue\n");
+    using_spinlock(&e1000->net.tx_lock) {
         __e1000_clear_tx_descs(e1000);
         __e1000_flush_packet_queue(e1000);
-
-        /* If we still have space after flushing the queue then send packet
-         * directly. If not, then queue it for later */
-        if (__e1000_tx_queue_has_space(e1000))
-            __e1000_queue_tx(e1000, packet);
-        else {
-            kp(KP_NORMAL, "e1000: queued packet for sending later...\n");
-            list_add_tail(&e1000->tx_packet_queue, &packet->packet_entry);
-        }
     }
 }
 
@@ -243,7 +233,7 @@ static void e1000_interrupt(struct irq_frame *frame, void *param)
 
     /* We turn on the TXDW interrupt, but we check and try to queue packets
      * even if it isn't a TXDW */
-    using_spinlock(&e1000->tx_lock) {
+    using_spinlock(&e1000->net.tx_lock) {
         __e1000_clear_tx_descs(e1000);
         __e1000_flush_packet_queue(e1000);
     }
@@ -303,13 +293,11 @@ void e1000_device_init(struct pci_dev *dev)
 
     net_interface_init(&e1000->net);
     spinlock_init(&e1000->rx_lock, "e1000-rx-lock");
-    spinlock_init(&e1000->tx_lock, "e1000-tx-lock");
-    list_head_init(&e1000->tx_packet_queue);
 
     kp(KP_NORMAL, "Found Intel E1000 NIC: "PRpci_dev"\n", Ppci_dev(dev));
 
     e1000->net.name = "eth";
-    e1000->net.hard_tx = e1000_packet_send;
+    e1000->net.process_tx_queue = e1000_process_tx_queue;
     e1000->net.linklayer_tx = arp_tx;
 
     e1000->dev = *dev;

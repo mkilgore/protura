@@ -78,16 +78,7 @@ int packet_linklayer_tx(struct packet *packet)
 
     packet_add_header(packet, &ehead, sizeof(ehead));
 
-    if (flag_test(&packet->iface_tx->flags, NET_IFACE_UP)) {
-        using_netdev_write(packet->iface_tx) {
-            packet->iface_tx->metrics.tx_packets++;
-            packet->iface_tx->metrics.tx_bytes += packet_len(packet);
-        }
-
-        (packet->iface_tx->hard_tx) (packet->iface_tx, packet);
-    } else {
-        packet_free(packet);
-    }
+    net_packet_transmit(packet);
 
     return 0;
 }

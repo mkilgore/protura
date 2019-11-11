@@ -190,8 +190,6 @@ struct net_interface_e1000 {
     struct e1000_rx_desc *rx_descs;
     int cur_rx; /* RDT = cur_rx - 1 */
 
-    spinlock_t tx_lock;
-    list_head_t tx_packet_queue;
     struct e1000_tx_desc *tx_descs;
     int last_clear; /* TDH - but updated manually */
     int next_tx; /* TDT = next_tx */

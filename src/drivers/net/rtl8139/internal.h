@@ -173,9 +173,6 @@ struct net_interface_rtl {
     struct page *rx_buffer;
     int rx_cur_offset;
 
-    spinlock_t tx_lock;
-    list_head_t tx_packet_queue;
-
     struct page *tx_buffer[4];
     int tx_cur_buffer;
 
