@@ -121,6 +121,7 @@ static void __e1000_rx_interrupt(struct net_interface_e1000 *e1000)
 
     while (e1000->rx_descs[e1000->cur_rx].status & RXD_STAT_DD) {
         struct e1000_rx_desc *desc = e1000->rx_descs + e1000->cur_rx;
+        desc->status = 0;
 
         void *buf = P2V(desc->addr);
         kp(KP_NORMAL, "Got Rx packet!\n");
