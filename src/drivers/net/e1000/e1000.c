@@ -124,7 +124,6 @@ static void __e1000_rx_interrupt(struct net_interface_e1000 *e1000)
         desc->status = 0;
 
         void *buf = P2V(desc->addr);
-        kp(KP_NORMAL, "Got Rx packet!\n");
 
         if (desc->length < PG_SIZE) {
             struct packet *packet = packet_new(PAL_KERNEL | PAL_ATOMIC);
@@ -153,14 +152,12 @@ static void __e1000_clear_tx_descs(struct net_interface_e1000 *e1000)
 {
     struct e1000_tx_desc *descs = e1000->tx_descs;
 
-    kp(KP_NORMAL, "e1000: clearing tx descs, last_clear: %d\n", e1000->last_clear);
     int next = (e1000->last_clear + 1) % E1000_NUM_TX_DESC;
     if (next == e1000->next_tx)
         return;
 
     /* Any packets with TSTA_DD set has already been sent by the hardware */
     while (descs[next].status & TSTA_DD) {
-        kp(KP_NORMAL, "e1000: cleared desc %d\n", next);
         descs[next].status = 0;
         pa_t page = PG_ALIGN_DOWN(descs[next].addr);
 
@@ -180,7 +177,6 @@ static void __e1000_queue_tx(struct net_interface_e1000 *e1000, struct packet *p
 {
     struct e1000_tx_desc *desc = e1000->tx_descs + e1000->next_tx;
 
-    kp(KP_NORMAL, "e1000: queuing tx packet!\n");
     void *head = packet->head;
     size_t len = packet_len(packet);
 
@@ -211,7 +207,6 @@ static void e1000_process_tx_queue(struct net_interface *net)
 {
     struct net_interface_e1000 *e1000 = container_of(net, struct net_interface_e1000, net);
 
-    kp(KP_NORMAL, "e1000: process tx queue\n");
     using_spinlock(&e1000->net.tx_lock) {
         __e1000_clear_tx_descs(e1000);
         __e1000_flush_packet_queue(e1000);
@@ -225,7 +220,6 @@ static void e1000_interrupt(struct irq_frame *frame, void *param)
     uint32_t icr = e1000_command_read32(e1000, REG_ICR);
     e1000_command_write32(e1000, REG_ICR, icr);
 
-    kp(KP_NORMAL, "INT E1000! ICR: 0x%08x, status: %08x\n", icr, e1000_command_read32(e1000, REG_STATUS));
     if (icr & (ICR_RXT0 | ICR_LSC)) {
         using_spinlock(&e1000->rx_lock)
             __e1000_rx_interrupt(e1000);
