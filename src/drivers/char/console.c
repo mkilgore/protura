@@ -29,7 +29,7 @@ static void vt_tty_init(struct tty *tty)
     struct vt *vt = container_of(tty->driver, struct vt, driver);
     vt->tty = tty;
 
-    arch_keyboard_set_tty(vt->tty);
+    keyboard_set_tty(vt->tty);
 }
 
 static struct tty_ops vt_ops = {

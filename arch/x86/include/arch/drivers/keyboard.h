@@ -17,20 +17,7 @@
 #include <protura/scheduler.h>
 #include <protura/work.h>
 
-enum {
-    KEY_HOME = 0x4700,
-    KEY_UP   = 0x4800,
-    KEY_PGUP = 0x4900,
-    KEY_LEFT = 0x4B00,
-    KEY_RIGHT = 0x4D00,
-    KEY_END   = 0x4F00,
-    KEY_DOWN  = 0x5000,
-    KEY_PGDN  = 0x5100,
-    KEY_INSERT = 0x5200,
-    KEY_DELETE = 0x5300,
-};
-
 void arch_keyboard_init(void);
-void arch_keyboard_set_tty(struct tty *);
+void arch_keyboard_set_leds(int led_flags);
 
 #endif

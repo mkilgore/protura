@@ -161,6 +161,16 @@ void tty_add_input(struct tty *tty, const char *buf, size_t len)
     }
 }
 
+void tty_add_input_str(struct tty *tty, const char *str)
+{
+    size_t len = strlen(str);
+
+    using_spinlock(&tty->input_buf_lock) {
+        char_buf_write(&tty->input_buf, str, len);
+        work_schedule(&tty->work);
+    }
+}
+
 void tty_flush_input(struct tty *tty)
 {
     using_spinlock(&tty->input_buf_lock)

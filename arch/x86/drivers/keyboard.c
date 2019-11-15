@@ -15,102 +15,145 @@
 #include <protura/list.h>
 #include <protura/work.h>
 #include <protura/drivers/tty.h>
+#include <protura/drivers/keyboard.h>
 
 #include <arch/spinlock.h>
 #include <arch/asm.h>
 #include <arch/idt.h>
 #include <arch/reset.h>
 #include <arch/drivers/pic8259.h>
-#include <arch/drivers/scancode.h>
 #include <arch/drivers/keyboard.h>
-
-static struct keyboard {
-    uint8_t led_status;
-    uint8_t control_keys;
-
-    struct tty *tty;
-} keyboard = {
-    .led_status = 0,
-    .control_keys = 0,
-};
 
 #define KEY_READ_BUF_PORT (0x60)
 #define KEY_WRITE_BUF_PORT (0x60)
 #define KEY_READ_STATUS_PORT (0x64)
 #define KEY_WRITE_CMD_PORT (0x64)
 
-static void set_leds(void)
+enum {
+    X86_LED_NUM_LOCK = 2,
+    X86_LED_SCROLL_LOCK = 1,
+    X86_LED_CAPS_LOCK = 4,
+};
+
+static int led_flags_to_x86(int led_flags)
 {
+    int ret = 0;
+
+    if (led_flags & KEY_LED_CAPSLOCK)
+        ret |= X86_LED_CAPS_LOCK;
+
+    if (led_flags & KEY_LED_SCROLLLOCK)
+        ret |= X86_LED_SCROLL_LOCK;
+
+    if (led_flags & KEY_LED_NUMLOCK)
+        ret |= X86_LED_NUM_LOCK;
+
+    return ret;
+}
+
+void arch_keyboard_set_leds(int led_flags)
+{
+    int x86_flags = led_flags_to_x86(led_flags);
+
     outb(KEY_WRITE_BUF_PORT, 0xED);
     while (inb(KEY_READ_STATUS_PORT) & 2)
         ;
-    outb(KEY_WRITE_BUF_PORT, keyboard.led_status);
+
+    outb(KEY_WRITE_BUF_PORT, x86_flags);
     while (inb(KEY_READ_STATUS_PORT) & 2)
         ;
 }
 
+/*
+ * From the Linux Kernel source (GPLv2)
+ *
+ * Converts a keyboard scancode into a keysym for use by the generic keyboard
+ * support.
+ */
+#define E0_BASE 0x60
+
+#define E0_KPENTER (E0_BASE+0)
+#define E0_RCTRL   (E0_BASE+1)
+#define E0_KPSLASH (E0_BASE+2)
+#define E0_PRSCR   (E0_BASE+3)
+#define E0_RALT    (E0_BASE+4)
+#define E0_BREAK   (E0_BASE+5)  /* (control-pause) */
+#define E0_HOME    (E0_BASE+6)
+#define E0_UP      (E0_BASE+7)
+#define E0_PGUP    (E0_BASE+8)
+#define E0_LEFT    (E0_BASE+9)
+#define E0_RIGHT   (E0_BASE+10)
+#define E0_END     (E0_BASE+11)
+#define E0_DOWN    (E0_BASE+12)
+#define E0_PGDN    (E0_BASE+13)
+#define E0_INS     (E0_BASE+14)
+#define E0_DEL     (E0_BASE+15)
+/* BTC */
+#define E0_MACRO   (E0_BASE+16)
+/* LK450 */
+#define E0_F13     (E0_BASE+17)
+#define E0_F14     (E0_BASE+18)
+#define E0_HELP    (E0_BASE+19)
+#define E0_DO      (E0_BASE+20)
+#define E0_F17     (E0_BASE+21)
+#define E0_KPMINPLUS (E0_BASE+22)
+
+#define E1_PAUSE   (E0_BASE+23)
+
+static uint8_t e0_keys[128] = {
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x00-0x07 */
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x08-0x0f */
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x10-0x17 */
+    0, 0, 0, 0, E0_KPENTER, E0_RCTRL, 0, 0,	      /* 0x18-0x1f */
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x20-0x27 */
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x28-0x2f */
+    0, 0, 0, 0, 0, E0_KPSLASH, 0, E0_PRSCR,	      /* 0x30-0x37 */
+    E0_RALT, 0, 0, 0, 0, E0_F13, E0_F14, E0_HELP,	      /* 0x38-0x3f */
+    E0_DO, E0_F17, 0, 0, 0, 0, E0_BREAK, E0_HOME,	      /* 0x40-0x47 */
+    E0_UP, E0_PGUP, 0, E0_LEFT, 0, E0_RIGHT, E0_KPMINPLUS, E0_END,/* 0x48-0x4f */
+    E0_DOWN, E0_PGDN, E0_INS, E0_DEL, 0, 0, 0, 0,	      /* 0x50-0x57 */
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x58-0x5f */
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x60-0x67 */
+    0, 0, 0, 0, 0, 0, 0, E0_MACRO,		      /* 0x68-0x6f */
+    0, 0, 0, 0, 0, 0, 0, 0,			      /* 0x70-0x77 */
+    0, 0, 0, 0, 0, 0, 0, 0			      /* 0x78-0x7f */
+};
+
+static uint8_t prev_scancode = 0;
+
 static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param)
 {
-    int scancode;
-    short asc_char = 0;
+    uint8_t scancode;
+    int release_flag = 0;
 
     scancode = inb(KEY_READ_BUF_PORT);
 
-    if (scancode == KEY_CAPS_LOCK) {
-        keyboard.led_status ^= LED_CAPS_LOCK;
-        set_leds();
-    } else if (scancode == KEY_NUM_LOCK) {
-        keyboard.led_status ^= LED_NUM_LOCK;
-        set_leds();
-    } else if (scancode == KEY_SCROLL_LOCK) {
-        keyboard.led_status ^= LED_SCROLL_LOCK;
-        set_leds();
+    if (scancode == 0xE0) {
+        prev_scancode = scancode;
+        return;
     }
 
-    if (scancode == KEY_CONTROL)
-        keyboard.control_keys |= CK_CTRL;
+    release_flag = scancode & 0x80;
+    scancode = scancode & 0x7F;
 
-    if (scancode == (0x80 + KEY_CONTROL))
-        keyboard.control_keys &= ~CK_CTRL;
+    if (prev_scancode == 0xE0) {
+        prev_scancode = 0;
 
-    if (scancode == KEY_LEFT_SHIFT || scancode == KEY_RIGHT_SHIFT)
-        keyboard.control_keys |= CK_SHIFT;
+        if (scancode == 0x2A || scancode == 0x36)
+            return;
 
-    if (scancode == (0x80 + KEY_LEFT_SHIFT) || scancode == (0x80 + KEY_RIGHT_SHIFT))
-        keyboard.control_keys &= ~CK_SHIFT;
+        if (!e0_keys[scancode]) {
+            kp(KP_WARNING, "keyboard: unknown scancode E0 %02x\n", scancode);
+            return;
+        }
 
-    if (scancode == KEY_ALT)
-        keyboard.control_keys |= CK_ALT;
-
-    if (scancode == (0x80 + KEY_ALT))
-        keyboard.control_keys &= ~CK_ALT;
-
-    if (scancode & 0x80)
-        return ;
-
-    if ((keyboard.control_keys & CK_SHIFT) && (keyboard.led_status & LED_CAPS_LOCK))
-        asc_char = scancode2_to_ascii[scancode][6];
-    else if (keyboard.control_keys & CK_SHIFT)
-        asc_char = scancode2_to_ascii[scancode][1];
-    else if (keyboard.control_keys & CK_CTRL)
-        asc_char = scancode2_to_ascii[scancode][2];
-    else if (keyboard.control_keys & CK_ALT)
-        asc_char = scancode2_to_ascii[scancode][3];
-    else if ((keyboard.control_keys & CK_SHIFT) && (keyboard.led_status & LED_NUM_LOCK))
-        asc_char = scancode2_to_ascii[scancode][7];
-    else if (keyboard.led_status & LED_CAPS_LOCK)
-        asc_char = scancode2_to_ascii[scancode][5];
-    else if (keyboard.led_status & LED_NUM_LOCK)
-        asc_char = scancode2_to_ascii[scancode][4];
-    else if (keyboard.control_keys == 0)
-        asc_char = scancode2_to_ascii[scancode][0];
-
-    if (asc_char) {
-        char c = asc_char;
-
-        if (keyboard.tty)
-            tty_add_input(keyboard.tty, &c, 1);
+        scancode = e0_keys[scancode];
+    } else if (scancode >= E0_BASE) {
+        kp(KP_WARNING, "keyboard: scancode not in range 00-%02x\n", E0_BASE - 1);
+        return;
     }
+
+    keyboard_submit_keysym(scancode, release_flag);
 }
 
 void arch_keyboard_init(void)
@@ -127,11 +170,6 @@ static void clear_keyboard(void)
         if (test & 0x01)
             inb(KEY_READ_BUF_PORT);
     } while (test & 0x02);
-}
-
-void arch_keyboard_set_tty(struct tty *tty)
-{
-    keyboard.tty = tty;
 }
 
 /* A fake IDT setup - Issuing an interrupt with this IDT will triple-fault the

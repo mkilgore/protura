@@ -242,6 +242,7 @@ int tty_write_buf(struct tty *tty, const char *buf, size_t len);
  *
  * Note: The buffer may be modified */
 void tty_add_input(struct tty *, const char *buf, size_t len);
+void tty_add_input_str(struct tty *, const char *str);
 void tty_flush_input(struct tty *tty);
 void tty_flush_output(struct tty *tty);
 
