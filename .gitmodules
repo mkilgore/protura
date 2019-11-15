@@ -29,3 +29,7 @@
 [submodule "disk/extras/binutils"]
 	path = disk/extras/binutils
 	url = https://github.com/mkilgore/protura-binutils
+[submodule "disk/extras/less"]
+	path = disk/extras/less
+	url = https://github.com/mkilgore/protura-less.git
+	branch = protura

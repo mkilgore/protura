@@ -19,6 +19,15 @@ disk/extras/vim.built: disk/extras/ncurses.built
 	@echo " TOUCH   $@"
 	$(Q)touch ./disk/extras/vim.built
 
+.PHONY: extra-less
+DISK_CLEAN_EXTRA += ./disk/extra/less.built
+extra-less: disk/extras/less.built
+disk/extras/less.built: disk/extras/ncurses.built
+	@echo " BUILD   less"
+	$(Q)cd disk/extras/; ./build_less.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	@echo " TOUCH   $@"
+	$(Q)touch $@
+
 .PHONY: extra-ed
 DISK_CLEAN_EXTRA += ./disk/extras/ed.built
 extra-ed: disk/extras/ed.built
