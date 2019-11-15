@@ -507,6 +507,16 @@ static void vt_esc_insert_character(struct vt *vt, char cmd)
     __vt_shift_right_from_cursor(vt, chars);
 }
 
+static void vt_esc_reverse_linefeed(struct vt *vt, char cmd)
+{
+    int new_row = vt->cur_row;
+
+    if (new_row > 0)
+        __vt_set_cursor(vt, new_row - 1, vt->cur_col);
+    else
+        __vt_scroll_up_from_cursor(vt, 1);
+}
+
 static void (*lbracket_table[256]) (struct vt *, char) = {
     ['m'] = vt_esc_set_attributes,
     ['H'] = vt_esc_cursor_move,
@@ -575,6 +585,11 @@ static void vt_state_esc(struct vt *vt, char ch)
         vt->state = VT_STATE_LBRACKET;
         vt->esc_param_count = 0;
         memset(vt->esc_params, 0, sizeof(vt->esc_params));
+        break;
+
+    case 'M':
+        vt_esc_reverse_linefeed(vt, ch);
+        vt->state = VT_STATE_BEGIN;
         break;
 
     default:
