@@ -220,7 +220,7 @@ static void __vt_shift_right_from_cursor(struct vt *vt, int chars)
         vt->screen->buf[vt->cur_row][c] = tmp;
 }
 
-static void __vt_putchar_nocur(struct vt *vt, char ch)
+static void __vt_putchar_nocursor(struct vt *vt, char ch)
 {
     uint8_t r = vt->cur_row;
     uint8_t c = vt->cur_col;
@@ -605,7 +605,7 @@ static void vt_state_begin(struct vt *vt, char ch)
         return;
     }
 
-    __vt_putchar_nocur(vt, ch);
+    __vt_putchar_nocursor(vt, ch);
 }
 
 static void (*vt_states[]) (struct vt *, char) = {
@@ -620,7 +620,7 @@ static void __vt_process_char(struct vt *vt, char ch)
             || ch == '\r'
             || ch == '\t'
             || ch == '\b')
-        return __vt_putchar_nocur(vt, ch);
+        return __vt_putchar_nocursor(vt, ch);
 
     /* We don't handle these control characters, but we shouldn't display them */
     if (ch == 7 || ch == 14 || ch == 15)
