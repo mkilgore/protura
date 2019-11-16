@@ -44,8 +44,9 @@ static void handle_reg(uint8_t keysym, int release_flag)
     if (release_flag)
         return;
 
-    if (keyboard.tty)
-        tty_add_input(keyboard.tty, (char *)&keysym, 1);
+    struct tty *tty = READ_ONCE(keyboard.tty);
+    if (tty)
+        tty_add_input(tty, (char *)&keysym, 1);
 }
 
 /* keysum is a KEY_LED_* flag */
@@ -85,8 +86,9 @@ static void handle_cursor(uint8_t keysym, int release_flag)
     char buf[4] = { 27, '[', 0 };
     buf[2] = "ABDC"[keysym];
 
-    if (keyboard.tty)
-        tty_add_input(keyboard.tty, buf, 3);
+    struct tty *tty = READ_ONCE(keyboard.tty);
+    if (tty)
+        tty_add_input(tty, buf, 3);
 }
 
 /* keysum is an index into the string array */
@@ -95,8 +97,9 @@ static void handle_str(uint8_t keysym, int release_flag)
     if (release_flag || keysym >= KEY_STR_MAX)
         return;
 
-    if (keyboard.tty)
-        tty_add_input_str(keyboard.tty, keycode_str_table[keysym]);
+    struct tty *tty = READ_ONCE(keyboard.tty);
+    if (tty)
+        tty_add_input_str(tty, keycode_str_table[keysym]);
 }
 
 static const char *pad_num_strs[KEY_PAD_MAX] = {
@@ -123,14 +126,15 @@ static void handle_pad(uint8_t keysym, int release_flag)
     if (release_flag)
         return;
 
-    if (!keyboard.tty)
+    struct tty *tty = READ_ONCE(keyboard.tty);
+    if (!tty)
         return;
 
     if (keysym >= KEY_PAD_MAX)
         return;
 
     if (flag_test(&keyboard.led_status, KEY_LED_NUMLOCK)) {
-        tty_add_input_str(keyboard.tty, pad_num_strs[keysym]);
+        tty_add_input_str(tty, pad_num_strs[keysym]);
     } else {
         switch (keysym) {
         case KEY_PAD_SEVEN:  return handle_str(KEY_STR_HOME, release_flag);
@@ -190,7 +194,7 @@ void keyboard_submit_keysym(uint8_t keysym, int release_flag)
 
 void keyboard_set_tty(struct tty *tty)
 {
-    keyboard.tty = tty;
+    WRITE_ONCE(keyboard.tty, tty);
 }
 
 void keyboard_init(void)
