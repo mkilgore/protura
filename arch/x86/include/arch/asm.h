@@ -154,6 +154,38 @@ static __always_inline void *atomic_ptr_swap(volatile void *addr, void *new)
     return (void *)xchg(addr, (uint32_t)new);
 }
 
+#define READ_ONCE(v) \
+    ({ \
+        typeof(v) __atomic_val; \
+        \
+        STATIC_ASSERT(sizeof(v) == 1 \
+                   || sizeof(v) == 2 \
+                   || sizeof(v) == 4); \
+        \
+        switch (sizeof(v)) { \
+        case 1: *(uint8_t *)&__atomic_val = *(volatile uint8_t *)&v; break; \
+        case 2: *(uint16_t *)&__atomic_val = *(volatile uint16_t *)&v; break; \
+        case 4: *(uint32_t *)&__atomic_val = *(volatile uint32_t *)&v; break; \
+        } \
+        __atomic_val; \
+    })
+
+#define WRITE_ONCE(t, v) \
+    ({ \
+        STATIC_ASSERT(sizeof(v) == 1 \
+                   || sizeof(v) == 2 \
+                   || sizeof(v) == 4); \
+        \
+        STATIC_ASSERT(sizeof(v) == sizeof(t)); \
+        \
+        switch (sizeof(v)) { \
+        case 1: *(uint8_t *)&t = *(volatile uint8_t *)&v; break; \
+        case 2: *(uint16_t *)&t = *(volatile uint16_t *)&v; break; \
+        case 4: *(uint32_t *)&t = *(volatile uint32_t *)&v; break; \
+        } \
+    })
+
+
 static __always_inline void *atomic_ptr_cmpxchg(volatile void *addr, void *cmp, void *new)
 {
     return (void *)cmpxchg(addr, (uint32_t)cmp, (uint32_t)new);
