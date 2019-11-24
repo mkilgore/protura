@@ -216,6 +216,9 @@ static void setup_kernel_pagedir(void **kbrk)
     }
 }
 
+static struct irq_handler page_fault_irq_handler
+    = IRQ_HANDLER_INIT(page_fault_irq_handler, "Page fault handler", page_fault_handler, NULL, IRQ_SYSCALL, 0);
+
 void paging_setup_kernelspace(void **kbrk)
 {
     uint32_t pse, pge;
@@ -235,7 +238,9 @@ void paging_setup_kernelspace(void **kbrk)
 
     set_current_page_directory(v_to_p(&kernel_dir));
 
-    irq_register_callback(14, page_fault_handler, "Page fault handler", IRQ_SYSCALL, NULL);
+    int err = cpu_exception_register_callback(14, &page_fault_irq_handler);
+    if (err)
+        panic("Unable to register Page Fault Handler!\n");
 
     return ;
 }

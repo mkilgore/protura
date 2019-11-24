@@ -43,6 +43,8 @@ struct com_port {
     int exists :1;
 
     struct tty *tty;
+
+    struct irq_handler handler;
 };
 
 static struct com_port com_ports[];
@@ -71,18 +73,20 @@ static struct com_port com_ports[] = {
     [COM1] = {
         .ioport = 0x3F8,
         .baud = 38400,
-        .irq = PIC8259_IRQ0 + 4,
+        .irq = 4,
         .exists = 1,
+        .handler = IRQ_HANDLER_INIT(com_ports[COM1].handler, "COM1", com_int_handler, com_ports + COM1, IRQ_INTERRUPT, 0),
     },
     [COM2] = {
         .ioport = 0x2F8,
         .baud = 38400,
-        .irq = PIC8259_IRQ0 + 3,
+        .irq = 3,
         .exists = 1,
+        .handler = IRQ_HANDLER_INIT(com_ports[COM2].handler, "COM2", com_int_handler, com_ports + COM2, IRQ_INTERRUPT, 0),
     },
 };
 
-static void com_init_ports(void)
+static void com_init_ports_tx(void)
 {
     size_t i;
     irq_flags_t irq_flags;
@@ -93,8 +97,6 @@ static void com_init_ports(void)
     for (i = 0; i < ARRAY_SIZE(com_ports); i++) {
         if (!com_ports[i].exists)
             continue;
-
-        kp(KP_DEBUG, "Programming COM%d\n", i);
 
         outb(com_ports[i].ioport + UART_IER, 0x00);
         outb(com_ports[i].ioport + UART_LCR, UART_LCR_DLAB);
@@ -108,14 +110,34 @@ static void com_init_ports(void)
         outb(com_ports[i].ioport + 4, 0x0B);
 
         if (inb(com_ports[i].ioport + UART_LSR) == 0xFF) {
-            kp(KP_DEBUG, "COM%d not found\n", i);
+            kp(KP_WARNING, "COM%d not found\n", i);
             com_ports[i].exists = 0;
             continue;
         }
+    }
 
-        kp(KP_DEBUG, "Registering COM%d IRQ\n", i);
+    irq_restore(irq_flags);
+}
 
-        irq_register_callback(com_ports[i].irq, com_int_handler, "com", IRQ_INTERRUPT, com_ports + i);
+static void com_init_ports_rx(void)
+{
+    size_t i;
+    irq_flags_t irq_flags;
+
+    irq_flags = irq_save();
+    irq_disable();
+
+    for (i = 0; i < ARRAY_SIZE(com_ports); i++) {
+        if (!com_ports[i].exists)
+            continue;
+
+        /* All that's left to do here is register the RX interrupt */
+
+        int err = irq_register_handler(com_ports[i].irq, &com_ports[i].handler);
+        if (err) {
+            kp(KP_ERROR, "COM%d: Interrupt %d is already taken!\n", i, com_ports[i].irq);
+            continue;
+        }
 
         outb(com_ports[i].ioport + UART_IER, UART_IER_RDI);
 
@@ -170,12 +192,14 @@ void com_tty_init(void)
 void com_init(void)
 {
     if (!com_init_was_early)
-        com_init_ports();
+        com_init_ports_tx();
+
+    com_init_ports_rx();
 }
 
 int com_init_early(void)
 {
-    com_init_ports();
+    com_init_ports_tx();
     com_init_was_early = 1;
 
     return 0;

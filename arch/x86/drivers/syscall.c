@@ -548,8 +548,12 @@ static void syscall_handler(struct irq_frame *frame, void *param)
         (syscall_handlers[frame->eax].handler) (frame);
 }
 
+static struct irq_handler syscall_irq_handler
+    = IRQ_HANDLER_INIT(syscall_irq_handler, "syscall", syscall_handler, NULL, IRQ_SYSCALL, 0);
+
 void syscall_init(void)
 {
-    irq_register_callback(INT_SYSCALL, syscall_handler, "syscall", IRQ_SYSCALL, NULL);
+    int err = x86_register_interrupt_handler(INT_SYSCALL, &syscall_irq_handler);
+    if (err)
+        panic("Syscall: syscall interrupt already taken, unable to register timer!\n");
 }
-

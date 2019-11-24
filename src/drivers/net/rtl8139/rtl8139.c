@@ -171,8 +171,6 @@ void rtl_device_init(struct pci_dev *dev)
     int_line = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
     kp(KP_NORMAL, "  Interrupt: %d\n", int_line);
 
-    irq_register_callback(PIC8259_IRQ0 + int_line, rtl_rx_interrupt, "RealTek RTL8239", IRQ_INTERRUPT, rtl);
-
     rtl->io_base = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFFE;
 
     /* Turn the RTl8139 on */
@@ -198,11 +196,15 @@ void rtl_device_init(struct pci_dev *dev)
     rtl_device_init_rx(rtl);
     rtl_device_init_tx(rtl);
 
+    int err = irq_register_callback(int_line, rtl_rx_interrupt, "RealTek RTL8239", IRQ_INTERRUPT, rtl, F(IRQF_SHARED));
+    if (err) {
+        kp(KP_WARNING, "rtl8139: Interrupt %d already taken and not shared!\n", PIC8259_IRQ0 + int_line);
+        return;
+    }
+
     rtl_outw(rtl, REG_IMR, REG_IMR_TOK | REG_IMR_ROK);
     rtl_outb(rtl, REG_CR, REG_CR_TE | REG_CR_RE);
 
     net_interface_register(&rtl->net);
-
-    return ;
 }
 

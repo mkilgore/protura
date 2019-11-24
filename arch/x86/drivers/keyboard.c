@@ -139,6 +139,8 @@ static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param
     if (prev_scancode == 0xE0) {
         prev_scancode = 0;
 
+        /* This reports the state of the caps-lock and pause key, since those are toggles
+         * We handle the state of thsoe keys ourselve, so we ignore these messages */
         if (scancode == 0x2A || scancode == 0x36)
             return;
 
@@ -156,10 +158,14 @@ static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param
     keyboard_submit_keysym(scancode, release_flag);
 }
 
+static struct irq_handler keyboard_handler
+    = IRQ_HANDLER_INIT(keyboard_handler, "Keyboard", arch_keyboard_interrupt_handler, NULL, IRQ_INTERRUPT, 0);
+
 void arch_keyboard_init(void)
 {
-    irq_register_callback(PIC8259_IRQ0 + 1, arch_keyboard_interrupt_handler, "Keyboard", IRQ_INTERRUPT, NULL);
-    pic8259_enable_irq(1);
+    int err = irq_register_handler(1, &keyboard_handler);
+    if (err)
+        kp(KP_ERROR, "keyboard: Unable to register keyboard interrupt, already registered!\n");
 }
 
 static void clear_keyboard(void)

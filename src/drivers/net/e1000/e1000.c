@@ -321,10 +321,14 @@ void e1000_device_init(struct pci_dev *dev)
     int int_line = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
     kp(KP_NORMAL, "  Interrupt: %d\n", int_line);
 
-    irq_register_callback(PIC8259_IRQ0 + int_line, e1000_interrupt, "E1000", IRQ_INTERRUPT, e1000);
-
     e1000_setup_rx(e1000);
     e1000_setup_tx(e1000);
+
+    int err = irq_register_callback(int_line, e1000_interrupt, "E1000", IRQ_INTERRUPT, e1000, F(IRQF_SHARED));
+    if (err) {
+        kp(KP_WARNING, "e1000: Interrupt %d already taken and not shared!\n", PIC8259_IRQ0 + int_line);
+        return;
+    }
 
     e1000_command_write32(e1000, REG_IMS, IMS_RXT0
                                         | IMS_TXDW

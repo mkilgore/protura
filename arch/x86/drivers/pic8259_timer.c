@@ -49,6 +49,9 @@ uint32_t sys_clock(void)
     return timer_get_ticks();
 }
 
+static struct irq_handler timer_handler
+    = IRQ_HANDLER_INIT(timer_handler, "Timer", timer_callback, NULL, IRQ_INTERRUPT, 0);
+
 void pic8259_timer_init(void)
 {
     outb(PIC8259_TIMER_MODE,
@@ -60,8 +63,7 @@ void pic8259_timer_init(void)
     outb(PIC8259_TIMER_IO,
             PIC8259_TIMER_DIV(TIMER_TICKS_PER_SEC) / 256);
 
-    pic8259_enable_irq(PIC8259_TIMER_IRQ);
-
-    irq_register_callback(PIC8259_IRQ0, timer_callback, "PIC 8259 Timer", IRQ_INTERRUPT, NULL);
+    int err = irq_register_handler(0, &timer_handler);
+    if (err)
+        panic("Timer: Timer interrupt already taken, unable to register timer!\n");
 }
-

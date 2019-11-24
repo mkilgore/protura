@@ -393,7 +393,11 @@ void ide_init(void)
     int i;
     struct block_device *master, *slave;
 
-    irq_register_callback(PIC8259_IRQ0 + IDE_IRQ, ide_handle_intr, "IDE", IRQ_INTERRUPT, NULL);
+    int err = irq_register_callback(IDE_IRQ, ide_handle_intr, "IDE", IRQ_INTERRUPT, NULL, 0);
+    if (err) {
+        kp(KP_WARNING, "IDE: Interrupt %d is already in use!\n", PIC8259_IRQ0 + IDE_IRQ);
+        return;
+    }
 
     outb(IDE_PORT_PRIMARY_CTL, 0);
     outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET | IDE_DH_LBA);
