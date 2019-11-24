@@ -2,35 +2,45 @@
 #include <protura/types.h>
 #include <protura/string.h>
 
-void memcpy(void *restrict dest, const void *restrict src, size_t len)
+void memcpy(void *restrict vdest, const void *restrict vsrc, size_t len)
 {
-    asm ("cld; rep movsb"
-        :
-        : "D" (dest), "S" (src), "c" (len)
-        );
+    char *dest = vdest;
+    const char *src = vsrc;
+
+    asm ("rep movsb"
+        : "+D" (dest), "+S" (src), "+c" (len), "=m" (*dest)
+        : "m" (*src)
+        : "cc");
 }
 
-
-void memmove(void *dest, const void *src, size_t len)
+void memmove(void *vdest, const void *vsrc, size_t len)
 {
+    char *dest = vdest;
+    const char *src = vsrc;
+
+    char *dest_end = dest + len - 1;
+    const char *src_end = src + len - 1;
+
     if (dest < src) {
-        asm ("cld; rep movsb"
-            :
-            : "D" (dest), "S" (src), "c" (len)
-            );
+        asm ("rep movsb"
+            : "+D" (dest), "+S" (src), "+c" (len), "=m" (*dest)
+            : "m" (*src)
+            : "cc");
     } else {
-        asm ("std; rep movsb"
-            :
-            : "D" (dest + len - 1), "S" (src + len - 1), "c" (len)
-            );
+        asm ("std; rep movsb; cld"
+            : "+D" (dest_end), "+S" (src_end), "+c" (len), "=m" (*dest)
+            : "m" (*src)
+            : "cc");
     }
 }
 
-void memset(void *ptr, int c, size_t len)
+void memset(void *vptr, int c, size_t len)
 {
-    asm ("cld; rep stosb"
+    char *ptr = vptr;
+
+    asm ("rep stosb"
+        : "+D" (ptr), "+a" (c), "+c" (len), "=m" (*ptr)
         :
-        : "D" (ptr), "a" (c), "c" (len)
-        );
+        : "cc");
 }
 
