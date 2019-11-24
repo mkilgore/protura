@@ -55,9 +55,14 @@ static int __seq_file_fill(struct seq_file *seq)
 
         /* Loop until we hit the end of the sequence, or run out of space */
         while (1) {
+            struct kbuf_pos starting_pos = kbuf_get_pos(&seq->buf);
+            seq->overflowed = 0;
+
             err = (seq->ops->render) (seq);
-            if (err < 0)
+            if (err < 0 && seq->overflowed) {
+                kbuf_reset_pos(&seq->buf, starting_pos);
                 break;
+            }
 
             err = (seq->ops->next) (seq);
             if (err < 0)
@@ -99,7 +104,11 @@ int seq_printf(struct seq_file *seq, const char *fmt, ...)
 {
     va_list lst;
     va_start(lst, fmt);
+
     int ret = kbuf_printfv(&seq->buf, fmt, lst);
+    if (ret < 0)
+        seq->overflowed = 1;
+
     va_end(lst);
     return ret;
 }

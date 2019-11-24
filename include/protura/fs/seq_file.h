@@ -22,6 +22,8 @@ struct seq_file {
     mutex_t lock;
     flags_t flags;
     struct kbuf buf;
+
+    int overflowed;
 };
 
 /*
