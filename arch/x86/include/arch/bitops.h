@@ -96,6 +96,30 @@ static __always_inline int bit32_find_first_set(uint32_t value)
     return position;
 }
 
+static __always_inline int bit_find_next_set(const void *value, size_t bytes, int start_loc)
+{
+    const uint8_t *b = value;
+    size_t i;
+
+    size_t start_byte = start_loc / CHAR_BIT;
+    size_t start_bit = start_loc % CHAR_BIT;
+
+    for (i = start_byte; i < bytes; i++) {
+        if (b[i] == 0x00)
+            continue;
+
+        uint8_t c = b[i] >> start_bit;
+        int k;
+        for (k = start_bit; k < CHAR_BIT; k++, c >>= 1)
+            if (c & 1)
+                return i * CHAR_BIT + k;
+
+        start_bit = 0;
+    }
+
+    return -1;
+}
+
 #define flag_set(flags, f) bit_set(flags, f)
 #define flag_clear(flags, f) bit_clear(flags, f)
 #define flag_test(flags, f) bit_test(flags, f)
