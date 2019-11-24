@@ -11,6 +11,7 @@
 #include <protura/atomic.h>
 #include <protura/scheduler.h>
 #include <protura/mm/memlayout.h>
+#include <protura/mm/kmalloc.h>
 #include <protura/drivers/console.h>
 #include <protura/snprintf.h>
 #include <protura/fs/seq_file.h>
@@ -30,54 +31,105 @@ static struct idt_entry idt_entries[256] = { {0} };
 
 struct idt_identifier {
     atomic32_t count;
-    const char *name;
     enum irq_type type;
-    void *param;
-    void (*handler) (struct irq_frame *, void *);
+    flags_t flags;
+
+    list_head_t list;
 };
 
-static struct idt_identifier idt_ids[256] = { { ATOMIC32_INIT(0), 0 } };
+static struct idt_identifier idt_ids[256];
 
-void irq_register_callback(uint8_t irqno, void (*handler)(struct irq_frame *, void *param), const char *id, enum irq_type type, void *param)
+int x86_register_interrupt_handler(uint8_t irqno, struct irq_handler *hand)
 {
+    int err = 0;
+    irq_flags_t flags;
+    int enable = 0;
     struct idt_identifier *ident = idt_ids + irqno;
 
-    ident->handler = handler;
-    ident->name = id;
-    ident->type = type;
-    ident->param = param;
+    /* FIXME: Because we don't yet support SMP, we're avoiding locking the
+     * idt_identifier entries using a spinlock, instead we're protecting them
+     * by simply ensuring interrupts are always off while manipulating them. */
+    flags = irq_save();
+    irq_disable();
 
-    if (irqno >= PIC8259_IRQ0 && irqno <= PIC8259_IRQ0 + 16)
+    if (!list_empty(&ident->list)) {
+        if (!flag_test(&ident->flags, IRQF_SHARED)) {
+            err = -1;
+            goto restore_flags;
+        }
+
+        if (ident->type != hand->type) {
+            err = -1;
+            goto restore_flags;
+        }
+    } else {
+        enable = 1;
+        ident->type = hand->type;
+        ident->flags = hand->flags;
+    }
+
+    kp(KP_NORMAL, "interrupt %d, name: %s\n", irqno, hand->id);
+
+    list_add_tail(&ident->list, &hand->entry);
+
+    if (enable && irqno >= PIC8259_IRQ0 && irqno <= PIC8259_IRQ0 + 16)
         pic8259_enable_irq(irqno - PIC8259_IRQ0);
+
+  restore_flags:
+    irq_restore(flags);
+    return err;
 }
 
-static const char *cpu_exception_name[] = {
-    "Divide by zero",
-    "Debug",
-    "NMI",
-    "Breakpoint",
-    "Overflow",
-    "Bound Range Exceeded",
-    "Invalid OP",
-    "Device Not Available",
-    "Double Fault",
-    "",
-    "Invalid TSS",
-    "Segment Not Present",
-    "Stack-Segment Fault",
-    "General Protection Fault",
-    "Page Fault",
-    "",
-    "Floating-Point Exception",
-    "Alignment Check",
-    "Machine Check",
-    "SIMD Floating-Point Exception",
-    "Virtualization Exception",
-    "",
-    "Security Exception",
-    "",
-    "Triple Fault",
-    "",
+int cpu_exception_register_callback(uint8_t exception_no, struct irq_handler *hand)
+{
+    return x86_register_interrupt_handler(exception_no, hand);
+}
+
+int irq_register_handler(uint8_t irqno, struct irq_handler *hand)
+{
+    return x86_register_interrupt_handler(irqno + PIC8259_IRQ0, hand);
+}
+
+int irq_register_callback(uint8_t irqno, void (*handler)(struct irq_frame *, void *param), const char *id, enum irq_type type, void *param, int flags)
+{
+    struct irq_handler *hand = kmalloc(sizeof(*hand), PAL_KERNEL);
+    irq_handler_init(hand);
+
+    hand->callback = handler;
+    hand->type = type;
+    hand->id = id;
+    hand->param = param;
+    hand->flags = flags;
+
+    int err = irq_register_handler(irqno, hand);
+
+    if (err)
+        kfree(hand);
+
+    return err;
+}
+
+static const char *cpu_exception_name[32] = {
+    [0] = "Divide by zero",
+    [1] = "Debug",
+    [2] = "NMI",
+    [3] = "Breakpoint",
+    [4] = "Overflow",
+    [5] = "Bound Range Exceeded",
+    [6] = "Invalid OP",
+    [7] = "Device Not Available",
+    [8] = "Double Fault",
+    [10] = "Invalid TSS",
+    [11] = "Segment Not Present",
+    [12] = "Stack-Segment Fault",
+    [13] = "General Protection Fault",
+    [14] = "Page Fault",
+    [16] = "Floating-Point Exception",
+    [17] = "Alignment Check",
+    [18] = "Machine Check",
+    [19] = "SIMD Floating-Point Exception",
+    [20] = "Virtualization Exception",
+    [30] = "Security Exception",
 };
 
 void unhandled_cpu_exception(struct irq_frame *frame, void *param)
@@ -156,6 +208,28 @@ static void div_by_zero_handler(struct irq_frame *frame, void *param)
     scheduler_task_send_signal(current->pid, SIGFPE, 1);
 }
 
+static struct irq_handler cpu_exceptions[] = {
+    [0] = IRQ_HANDLER_INIT(cpu_exceptions[0], "Divide By Zero", div_by_zero_handler, NULL, IRQ_INTERRUPT, 0),
+    [1] = IRQ_HANDLER_INIT(cpu_exceptions[0], "Debug", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [2] = IRQ_HANDLER_INIT(cpu_exceptions[2], "NMI", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [3] = IRQ_HANDLER_INIT(cpu_exceptions[3], "Breakpoint", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [4] = IRQ_HANDLER_INIT(cpu_exceptions[4], "Overflow", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [5] = IRQ_HANDLER_INIT(cpu_exceptions[5], "Bound Range Exceeded", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [6] = IRQ_HANDLER_INIT(cpu_exceptions[6], "Invalid OP", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [7] = IRQ_HANDLER_INIT(cpu_exceptions[7], "Device Not Available", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [8] = IRQ_HANDLER_INIT(cpu_exceptions[8], "Double Fault", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [10] = IRQ_HANDLER_INIT(cpu_exceptions[10], "Invalid TSS", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [11] = IRQ_HANDLER_INIT(cpu_exceptions[11], "Segment Not Present", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [12] = IRQ_HANDLER_INIT(cpu_exceptions[12], "Stack-Segment Fault", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [13] = IRQ_HANDLER_INIT(cpu_exceptions[13], "General Protection Fault", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [16] = IRQ_HANDLER_INIT(cpu_exceptions[16], "Floating-Point Exception", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [17] = IRQ_HANDLER_INIT(cpu_exceptions[17], "Alignment Check", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [18] = IRQ_HANDLER_INIT(cpu_exceptions[18], "Machine Check", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [19] = IRQ_HANDLER_INIT(cpu_exceptions[19], "SIMD Floating-Point Exception", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [20] = IRQ_HANDLER_INIT(cpu_exceptions[20], "Virtualization Exception", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+    [30] = IRQ_HANDLER_INIT(cpu_exceptions[30], "Security Exception", unhandled_cpu_exception, NULL, IRQ_INTERRUPT, 0),
+};
+
 void idt_init(void)
 {
     int i;
@@ -163,34 +237,19 @@ void idt_init(void)
     idt_ptr.limit = sizeof(idt_entries) - 1;
     idt_ptr.base  = (uintptr_t)&idt_entries;
 
-    for (i = 0; i < 256; i++)
+    for (i = 0; i < 256; i++) {
+        list_head_init(&idt_ids[i].list);
+
         IDT_SET_ENT(idt_entries[i], 0, _KERNEL_CS, (uint32_t)(irq_hands[i]), DPL_KERNEL);
-
-    IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
-    IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
-
-    for (i = 0; i < 0x20; i++) {
-        idt_ids[i].handler = unhandled_cpu_exception;
-        idt_ids[i].name = "Unhandled CPU Exception";
-        idt_ids[i].type = IRQ_INTERRUPT;
     }
 
-    irq_register_callback(0, div_by_zero_handler, "Divide By Zero Handler", IRQ_INTERRUPT, NULL);
+    IDT_SET_ENT(idt_entries[INT_SYSCALL], 1, _KERNEL_CS, (uint32_t)(irq_hands[INT_SYSCALL]), DPL_USER);
+
+    for (i = 0; i < ARRAY_SIZE(cpu_exceptions); i++)
+        if (cpu_exceptions[i].callback)
+            cpu_exception_register_callback(i, cpu_exceptions + i);
 
     idt_flush(((uintptr_t)&idt_ptr));
-}
-
-void interrupt_dump_stats(void (*print) (const char *fmt, ...))
-{
-    int k;
-    (print) ("Interrupt stats:\n");
-    for (k = 0; k < 256; k++) {
-        /* Only display IRQ's that have a handler */
-        if (!idt_ids[k].handler)
-            continue;
-
-        (print) (" %s(%02d) - %d\n", idt_ids[k].name, k, atomic32_get(&idt_ids[k].count));
-    }
 }
 
 void irq_global_handler(struct irq_frame *iframe)
@@ -228,8 +287,9 @@ void irq_global_handler(struct irq_frame *iframe)
         pic8259_send_eoi(pic8259_irq);
     }
 
-    if (ident->handler != NULL)
-        (ident->handler) (iframe, ident->param);
+    struct irq_handler *hand;
+    list_foreach_entry(&ident->list, hand, entry)
+        (hand->callback) (iframe, hand->param);
 
     if (pic8259_irq >= 0)
         pic8259_enable_irq(pic8259_irq);
@@ -278,16 +338,7 @@ void irq_global_handler(struct irq_frame *iframe)
 
 static int interrupts_seq_start(struct seq_file *seq)
 {
-    int k;
-
-    /* Only display IRQ's that have a handler */
-    for (k = seq->iter_offset; k < 256; k++)
-        if (idt_ids[k].handler)
-            break;
-
-    seq->iter_offset = k;
-
-    if (k == 256)
+    if (seq->iter_offset == 256)
         flag_set(&seq->flags, SEQ_FILE_DONE);
 
     return 0;
@@ -299,22 +350,22 @@ static void interrupts_seq_end(struct seq_file *seq)
 
 static int interrupts_seq_render(struct seq_file *seq)
 {
-    return seq_printf(seq, "%d\t%d\n", seq->iter_offset, atomic32_get(&idt_ids[seq->iter_offset].count));
+    irq_flags_t flags = irq_save();
+    irq_disable();
+
+    struct irq_handler *hand;
+    list_foreach_entry(&idt_ids[seq->iter_offset].list, hand, entry)
+        seq_printf(seq, "%d: %d %s\n", seq->iter_offset, atomic32_get(&idt_ids[seq->iter_offset].count), hand->id);
+
+    irq_restore(flags);
+    return 0;
 }
 
 static int interrupts_seq_next(struct seq_file *seq)
 {
-    int k;
     seq->iter_offset++;
 
-    /* Only display IRQ's that have a handler */
-    for (k = seq->iter_offset; k < 256; k++)
-        if (idt_ids[k].handler)
-            break;
-
-    seq->iter_offset = k;
-
-    if (k == 256)
+    if (seq->iter_offset == 256)
         flag_set(&seq->flags, SEQ_FILE_DONE);
 
     return 0;

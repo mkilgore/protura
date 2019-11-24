@@ -53,14 +53,45 @@ enum irq_type {
     IRQ_SYSCALL
 };
 
+enum {
+    IRQF_SHARED,
+};
+
+struct irq_handler {
+    const char *id;
+    void (*callback)(struct irq_frame *, void *);
+    void *param;
+    enum irq_type type;
+    flags_t flags;
+    list_node_t entry;
+};
+
+#define IRQ_HANDLER_INIT(h, i, call, prm, typ, f) \
+    { \
+        .id = (i), \
+        .callback = (call), \
+        .param = (prm), \
+        .type = (typ), \
+        .flags = (f), \
+        .entry = LIST_NODE_INIT((h).entry), \
+    }
+
+static inline void irq_handler_init(struct irq_handler *hand)
+{
+    *hand = (struct irq_handler) { .entry = LIST_NODE_INIT(hand->entry) };
+}
+
+/* Returns -1 if the registration fails */
+int irq_register_handler(uint8_t irqno, struct irq_handler *);
+int irq_register_callback(uint8_t irqno, void (*handler)(struct irq_frame *, void *param), const char *id, enum irq_type type, void *param, int flags);
+int cpu_exception_register_callback(uint8_t exception_no, struct irq_handler *hand);
+int x86_register_interrupt_handler(uint8_t irqno, struct irq_handler *hand);
+
 void idt_flush(uint32_t);
 
 void idt_init(void);
 
 void irq_global_handler(struct irq_frame *);
-void irq_register_callback(uint8_t irqno, void (*callback)(struct irq_frame *, void *), const char *id, enum irq_type, void *param);
-
-void interrupt_dump_stats(void (*print) (const char *fmt, ...) __printf(1, 2));
 
 extern const struct file_ops interrupts_file_ops;
 
