@@ -18,6 +18,9 @@ enum vt_state {
     VT_STATE_BEGIN,
     VT_STATE_ESC,
     VT_STATE_LBRACKET,
+    VT_STATE_NUMBERSIGN,
+    VT_STATE_OPENPAREN,
+    VT_STATE_CLOSEPAREN,
 };
 
 enum vt_disp_attrs {
@@ -38,12 +41,24 @@ struct vt {
     spinlock_t lock;
     int cur_row, cur_col;
 
+    int scroll_top, scroll_bottom;
+
     uint8_t fg_color :4;
     uint8_t bg_color :4;
     flags_t cur_attrs;
 
-    unsigned int ignore_next_nl :1;
+    int saved_cur_row, saved_cur_col;
+    uint8_t saved_fg_color, saved_bg_color;
+    flags_t saved_cur_attrs;
+
+    unsigned int wrap_next :1;
     unsigned int dec_private :1;
+    unsigned int wrap_on :1;
+    unsigned int cursor_is_on :1;
+    unsigned int origin_mode :1;
+    unsigned int insert_mode :1;
+
+    uint8_t tab_stops[SCR_COLS / 8];
 
     int early_init;
 

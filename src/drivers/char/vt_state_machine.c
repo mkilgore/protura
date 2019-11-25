@@ -16,9 +16,6 @@
 #include <protura/drivers/vt.h>
 #include "vt_internal.h"
 
-#define SCR_DEF_FORGROUND (SCR_WHITE)
-#define SCR_DEF_BACKGROUND (SCR_BLACK)
-
 static uint8_t vt_create_cur_color(struct vt *vt)
 {
     uint8_t fg = vt->fg_color, bg = vt->bg_color;
@@ -35,241 +32,75 @@ static uint8_t vt_create_cur_color(struct vt *vt)
     return screen_make_color(fg, bg);
 }
 
-static void __vt_clear_color(struct vt *vt, uint8_t color)
-{
-    int r, c;
-    struct screen_char tmp = {
-        .chr = 32,
-        .color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND),
-    };
-
-    for (r = 0; r < SCR_ROWS; r++)
-        for (c = 0; c < SCR_COLS; c++)
-            vt->screen->buf[r][c] = tmp;
-}
-
-static void __vt_clear_to_end(struct vt *vt)
-{
-    int r, c;
-    struct screen_char tmp = {
-        .chr = 32,
-        .color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND),
-    };
-
-    r = vt->cur_row;
-    c = vt->cur_col;
-
-    for (; r < SCR_ROWS; r++, c = 0)
-        for (; c < SCR_COLS; c++)
-            vt->screen->buf[r][c] = tmp;
-}
-
-static void __vt_clear_to_cursor(struct vt *vt)
-{
-    int r, c;
-    struct screen_char tmp = {
-        .chr = 32,
-        .color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND),
-    };
-
-    for (r = 0; r <= vt->cur_row; r++) {
-        int end_c = SCR_COLS;
-        if (r == vt->cur_row)
-            end_c = vt->cur_col;
-
-        for (c = 0; c < end_c; c++)
-            vt->screen->buf[r][c] = tmp;
-    }
-}
-
-static void __vt_clear_line_to_end(struct vt *vt)
-{
-    int c;
-    struct screen_char tmp = {
-        .chr = 32,
-        .color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND),
-    };
-
-    for (c = vt->cur_col; c < SCR_COLS; c++)
-        vt->screen->buf[vt->cur_row][c] = tmp;
-}
-
-static void __vt_clear_line_to_cursor(struct vt *vt)
-{
-    int c;
-    struct screen_char tmp = {
-        .chr = 32,
-        .color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND),
-    };
-
-    for (c = 0; c < vt->cur_col; c++)
-        vt->screen->buf[vt->cur_row][c] = tmp;
-}
-
-static void __vt_clear_line(struct vt *vt)
-{
-    int c;
-    struct screen_char tmp = {
-        .chr = 32,
-        .color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND),
-    };
-
-    for (c = 0; c < SCR_COLS; c++)
-        vt->screen->buf[vt->cur_row][c] = tmp;
-}
-
-void __vt_clear(struct vt *vt)
-{
-    __vt_clear_color(vt, screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND));
-}
-
-void __vt_updatecur(struct vt *vt)
-{
-    vt->screen->move_cursor(vt->cur_row, vt->cur_col);
-}
-
-static void __vt_scroll(struct vt *vt, int lines)
-{
-    memmove(vt->screen->buf,
-            vt->screen->buf[lines],
-            SCR_COLS * sizeof(struct screen_char) * (SCR_ROWS - lines));
-
-    struct screen_char tmp;
-
-    tmp.chr = 0;
-    tmp.color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
-
-    int c;
-    for (c = 0; c < SCR_COLS; c++)
-        vt->screen->buf[SCR_ROWS - 1][c] = tmp;
-}
-
-static void __vt_scroll_from_cursor(struct vt *vt, int lines)
-{
-    int start_row = vt->cur_row;
-
-    memmove(vt->screen->buf[start_row],
-            vt->screen->buf[start_row + lines],
-            SCR_COLS * sizeof(struct screen_char) * (SCR_ROWS - lines - start_row));
-
-    struct screen_char tmp;
-
-    tmp.chr = 0;
-    tmp.color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
-
-    int c;
-    int r;
-    for (r = SCR_ROWS - lines; r < SCR_ROWS; r++)
-        for (c = 0; c < SCR_COLS; c++)
-            vt->screen->buf[r][c] = tmp;
-}
-
-static void __vt_scroll_up_from_cursor(struct vt *vt, int lines)
-{
-    int start_row = vt->cur_row;
-
-    memmove(vt->screen->buf[start_row + lines],
-            vt->screen->buf[start_row],
-            SCR_COLS * sizeof(struct screen_char) * (SCR_ROWS - lines - start_row));
-
-    struct screen_char tmp;
-
-    tmp.chr = 0;
-    tmp.color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
-
-    int c;
-    int r;
-    for (r = start_row; r < start_row + lines; r++)
-        for (c = 0; c < SCR_COLS; c++)
-            vt->screen->buf[r][c] = tmp;
-}
-
-static void __vt_shift_left_from_cursor(struct vt *vt, int chars)
-{
-    int start_col = vt->cur_col;
-
-    memmove(vt->screen->buf[vt->cur_row] + start_col,
-            vt->screen->buf[vt->cur_row] + start_col + chars,
-            (SCR_COLS - chars - start_col));
-
-    struct screen_char tmp;
-
-    tmp.chr = 0;
-    tmp.color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
-
-    int c;
-    for (c = SCR_COLS - chars; c < SCR_COLS; c++)
-        vt->screen->buf[vt->cur_row][c] = tmp;
-}
-
-static void __vt_shift_right_from_cursor(struct vt *vt, int chars)
-{
-    int start_col = vt->cur_col;
-
-    memmove(vt->screen->buf[vt->cur_row] + start_col + chars,
-            vt->screen->buf[vt->cur_row] + start_col,
-            (SCR_COLS - chars - start_col));
-
-    struct screen_char tmp;
-
-    tmp.chr = 0;
-    tmp.color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
-
-    int c;
-    for (c = vt->cur_col; c < vt->cur_col + chars; c++)
-        vt->screen->buf[vt->cur_row][c] = tmp;
-}
-
 static void __vt_putchar_nocursor(struct vt *vt, char ch)
 {
     uint8_t r = vt->cur_row;
     uint8_t c = vt->cur_col;
-
-    /* We do this up here so that ignore_next_nl gets cleared for every other
-     * char. */
-    if (ch == '\r')
-        c = 0;
-
-    if (ch == '\n' && !vt->ignore_next_nl) {
-        c = 0;
-        r++;
-    } else {
-        vt->ignore_next_nl = 0;
-    }
+    int next_tab;
 
     switch (ch) {
-    case '\n':
     case '\r':
+        c = 0;
+        vt->wrap_next = 0;
+        break;
+
+    case '\n':
+    case 11:
+    case 12:
+        if (r == vt->scroll_bottom - 1)
+            __vt_scroll(vt, 1);
+        else
+            r++;
+
+        vt->wrap_next = 0;
         break;
 
     case '\t':
-        if ((c % 8) == 0)
-            c += 8;
-        c += 8 - (c % 8);
+        next_tab = bit_find_next_set(vt->tab_stops, sizeof(vt->tab_stops), c + 1);
+        if (next_tab != -1)
+            c = next_tab;
+        else
+            c = SCR_COLS - 1;
+
+        vt->wrap_next = 0;
         break;
 
     case '\b':
         if (c > 0)
             c--;
-        vt->screen->buf[r][c].color = vt_create_cur_color(vt);
-        vt->screen->buf[r][c].chr = ' ';
+
+        vt->wrap_next = 0;
         break;
 
     default:
-        vt->screen->buf[r][c].color = vt_create_cur_color(vt);
-        vt->screen->buf[r][c].chr = ch;
-        c++;
-        if (c >= SCR_COLS) {
-            vt->ignore_next_nl = 1;
+        if (vt->wrap_next && c == SCR_COLS - 1 && vt->wrap_on) {
+            vt->wrap_next = 0;
             c = 0;
             r++;
-        }
-        break;
-    }
 
-    if (r >= SCR_ROWS) {
-        __vt_scroll(vt, 1);
-        r--;
+            if (r == vt->scroll_bottom) {
+                __vt_scroll(vt, 1);
+                r--;
+            }
+
+            /* if the row is outside the scrolling region, we have to make sure
+             * we don't go past SCR_ROWS, but we don't scroll in this case */
+            if (r == SCR_ROWS)
+                r--;
+        }
+
+        if (vt->insert_mode)
+            __vt_shift_right_from_cursor(vt, 1);
+
+        vt->screen->buf[r][c].color = vt_create_cur_color(vt);
+        vt->screen->buf[r][c].chr = ch;
+
+        if (c == SCR_COLS - 1)
+            vt->wrap_next = 1;
+        else
+            c++;
+
+        break;
     }
 
     vt->cur_col = c;
@@ -282,10 +113,13 @@ static void __vt_putchar_nocursor(struct vt *vt, char ch)
  */
 static void __vt_set_cursor(struct vt *vt, int new_row, int new_col)
 {
-    if (new_row < 0)
-        vt->cur_row = 0;
-    else if (new_row > SCR_ROWS - 1)
-        vt->cur_row = SCR_ROWS - 1;
+    int max_row = vt->origin_mode? vt->scroll_bottom: SCR_ROWS;
+    int min_row = vt->origin_mode? vt->scroll_top: 0;
+
+    if (new_row < min_row)
+        vt->cur_row = min_row;
+    else if (new_row > max_row - 1)
+        vt->cur_row = max_row - 1;
     else
         vt->cur_row = new_row;
 
@@ -296,7 +130,17 @@ static void __vt_set_cursor(struct vt *vt, int new_row, int new_col)
     else
         vt->cur_col = new_col;
 
-    vt->ignore_next_nl = 0;
+    vt->wrap_next = 0;
+}
+
+/* The arguments to this function are relative to the scrolling regin when
+ * origin_mode is on */
+static void __vt_set_cursor_origin_relative(struct vt *vt, int new_row, int new_col)
+{
+    if (vt->origin_mode)
+        __vt_set_cursor(vt, new_row + vt->scroll_top, new_col);
+    else
+        __vt_set_cursor(vt, new_row, new_col);
 }
 
 static int attribute_to_screen_color(int color)
@@ -383,7 +227,7 @@ static void vt_esc_cursor_move(struct vt *vt, char cmd)
     if (new_col)
         new_col--;
 
-    __vt_set_cursor(vt, new_row, new_col);
+    __vt_set_cursor_origin_relative(vt, new_row, new_col);
 }
 
 /* Handles ESC[A, ESC[B, ESC[C, ESC[D */
@@ -395,8 +239,8 @@ static void vt_esc_cursor_cmd(struct vt *vt, char cmd)
 
     switch (cmd) {
     case 'A': return __vt_set_cursor(vt, vt->cur_row - count, vt->cur_col);
-    case 'e':
 
+    case 'e':
     case 'B': return __vt_set_cursor(vt, vt->cur_row + count, vt->cur_col);
 
     case 'a':
@@ -433,9 +277,12 @@ static void vt_esc_clear_line(struct vt *vt, char cmd)
     }
 }
 
-static void vt_tty_write_string(struct tty *tty, const char *str)
+static void vt_tty_write_string(struct vt *vt, const char *str)
 {
-    tty_add_input(tty, str, strlen(str));
+    /* When we're in the booting "early init" stage, the tty may not yet have
+     * been created */
+    if (vt->tty)
+        tty_add_input(vt->tty, str, strlen(str));
 }
 
 static void vt_esc_report(struct vt *vt, char cmd)
@@ -444,12 +291,21 @@ static void vt_esc_report(struct vt *vt, char cmd)
 
     switch (vt->esc_params[0]) {
     case 6:
-        snprintf(buf, sizeof(buf), "\033[%d;%dR", vt->cur_row + 1, vt->cur_col + 1);
-        return vt_tty_write_string(vt->tty, buf);
+        if (vt->origin_mode)
+            snprintf(buf, sizeof(buf), "\033[%d;%dR", vt->cur_row + 1 - vt->scroll_bottom, vt->cur_col + 1);
+        else
+            snprintf(buf, sizeof(buf), "\033[%d;%dR", vt->cur_row + 1, vt->cur_col + 1);
+
+        return vt_tty_write_string(vt, buf);
 
     case 7:
-        return vt_tty_write_string(vt->tty, "\033[0n");
+        return vt_tty_write_string(vt, "\033[0n");
     }
+}
+
+static void vt_esc_who_are_you(struct vt *vt, char cmd)
+{
+    vt_tty_write_string(vt, "\033[?6c");
 }
 
 static void vt_esc_set_mode(struct vt *vt, char cmd)
@@ -458,15 +314,21 @@ static void vt_esc_set_mode(struct vt *vt, char cmd)
     if (cmd == 'l')
         mode_on = 0;
 
-    if (!vt->dec_private)
-        return;
-
     switch (vt->esc_params[0]) {
+    case 4:
+        vt->insert_mode = mode_on;
+        break;
+
     case 25:
-        if (mode_on)
-            (vt->screen->cursor_on) ();
-        else
-            (vt->screen->cursor_off) ();
+        vt->cursor_is_on = mode_on;
+
+        if (mode_on) {
+            if (vt->screen->cursor_on)
+                (vt->screen->cursor_on) ();
+        } else {
+            if (vt->screen->cursor_off)
+                (vt->screen->cursor_off) ();
+        }
         break;
     }
 }
@@ -509,17 +371,155 @@ static void vt_esc_insert_character(struct vt *vt, char cmd)
 
 static void vt_esc_reverse_linefeed(struct vt *vt, char cmd)
 {
-    int new_row = vt->cur_row;
-
-    if (new_row > 0)
-        __vt_set_cursor(vt, new_row - 1, vt->cur_col);
+    if (vt->cur_row > vt->scroll_top)
+        __vt_set_cursor(vt, vt->cur_row - 1, vt->cur_col);
     else
         __vt_scroll_up_from_cursor(vt, 1);
+}
+
+static void vt_save_cursor(struct vt *vt, char cmd)
+{
+    vt->saved_cur_row = vt->cur_row;
+    vt->saved_cur_col = vt->cur_col;
+    vt->saved_fg_color = vt->fg_color;
+    vt->saved_bg_color = vt->bg_color;
+    vt->saved_cur_attrs = vt->cur_attrs;
+}
+
+static void vt_restore_cursor(struct vt *vt, char cmd)
+{
+    vt->saved_fg_color = vt->fg_color;
+    vt->saved_bg_color = vt->bg_color;
+    vt->cur_attrs = vt->saved_cur_attrs;
+
+    __vt_set_cursor(vt, vt->saved_cur_row, vt->saved_cur_col);
+    vt->wrap_next = 0;
+}
+
+static void vt_set_scrolling_region(struct vt *vt, char cmd)
+{
+    int new_top = vt->esc_params[0];
+    int new_bottom = vt->esc_params[1];
+    if (new_top)
+        new_top--;
+
+    if (new_bottom)
+        new_bottom--;
+    else
+        new_bottom = SCR_ROWS - 1;
+
+    if (new_bottom >= SCR_ROWS)
+        return;
+
+    /* The selected region must be at least 2 lines */
+    if (new_top >= new_bottom)
+        return;
+
+    /* The actual stored region is till one past the top.
+     *
+     * This makes logic a little simpler. Normally we deal with SCR_ROWS, which
+     * is also one past the top */
+    vt->scroll_top = new_top;
+    vt->scroll_bottom = new_bottom + 1;
+
+    __vt_set_cursor_origin_relative(vt, 0, 0);
+}
+
+static void vt_set_dec_setting(struct vt *vt, char cmd)
+{
+    switch (vt->esc_params[0]) {
+    case 7:
+        vt->wrap_on = 1;
+        break;
+
+    case 6:
+        vt->origin_mode = 1;
+        __vt_set_cursor_origin_relative(vt, 0, 0);
+        break;
+
+    case 3: /* switch to 132 columns - unsupported */
+        __vt_clear(vt);
+        __vt_set_cursor_origin_relative(vt, 0, 0);
+        break;
+    }
+}
+
+static void vt_unset_dec_setting(struct vt *vt, char cmd)
+{
+    switch (vt->esc_params[0]) {
+    case 7:
+        vt->wrap_on = 0;
+        break;
+
+    case 6:
+        vt->origin_mode = 0;
+        __vt_set_cursor_origin_relative(vt, 0, 0);
+        break;
+
+    case 3: /* switch to 80 columns */
+        __vt_clear(vt);
+        __vt_set_cursor_origin_relative(vt, 0, 0);
+        break;
+    }
+}
+
+static void vt_unset_tab(struct vt *vt, char cmd)
+{
+    switch (vt->esc_params[0]) {
+    case 0:
+        bit_clear(vt->tab_stops, vt->cur_col);
+        break;
+
+    case 3:
+        memset(vt->tab_stops, 0, sizeof(vt->tab_stops));
+        break;
+    }
+}
+
+static void vt_reset(struct vt *vt)
+{
+    vt->fg_color = SCR_DEF_FORGROUND;
+    vt->bg_color = SCR_DEF_BACKGROUND;
+    vt->cur_attrs = 0;
+    vt->cur_row = 0;
+    vt->cur_col = 0;
+
+    vt->wrap_on = 1;
+    vt->wrap_next = 0;
+
+    vt->origin_mode = 0;
+    vt->scroll_top = 0;
+    vt->scroll_bottom = SCR_ROWS;
+
+    vt->saved_cur_col = 0;
+    vt->saved_cur_row = 0;
+    vt->saved_cur_attrs = 0;
+
+    vt->dec_private = 0;
+    vt->insert_mode = 0;
+    vt->cursor_is_on = 1;
+
+    memset(vt->tab_stops, 0, sizeof(vt->tab_stops));
+    bit_set(vt->tab_stops, 0);
+    bit_set(vt->tab_stops, 8);
+    bit_set(vt->tab_stops, 16);
+    bit_set(vt->tab_stops, 24);
+    bit_set(vt->tab_stops, 32);
+    bit_set(vt->tab_stops, 40);
+    bit_set(vt->tab_stops, 48);
+    bit_set(vt->tab_stops, 56);
+    bit_set(vt->tab_stops, 64);
+    bit_set(vt->tab_stops, 72);
+    bit_set(vt->tab_stops, 80);
+
+    __vt_clear(vt);
+    __vt_updatecur(vt);
 }
 
 static void (*lbracket_table[256]) (struct vt *, char) = {
     ['m'] = vt_esc_set_attributes,
     ['H'] = vt_esc_cursor_move,
+    ['f'] = vt_esc_cursor_move,
     ['A'] = vt_esc_cursor_cmd,
     ['e'] = vt_esc_cursor_cmd,
     ['B'] = vt_esc_cursor_cmd,
@@ -540,6 +540,14 @@ static void (*lbracket_table[256]) (struct vt *, char) = {
     ['P'] = vt_esc_delete_character,
     ['L'] = vt_esc_insert_line,
     ['@'] = vt_esc_insert_character,
+    ['c'] = vt_esc_who_are_you,
+    ['r'] = vt_set_scrolling_region,
+    ['g'] = vt_unset_tab,
+};
+
+static void (*lbracket_table_dec_private[256]) (struct vt *, char) = {
+    ['h'] = vt_set_dec_setting,
+    ['l'] = vt_unset_dec_setting,
 };
 
 static void vt_state_lbracket(struct vt *vt, char ch)
@@ -560,16 +568,16 @@ static void vt_state_lbracket(struct vt *vt, char ch)
     default:
         vt->esc_param_count++;
 
-        if (lbracket_table[(int)ch])
-            (lbracket_table[(int)ch]) (vt, ch);
-        else {
-            kp(KP_NORMAL, "Unhandled esc[ '%c', %d\n", ch, ch);
-            if (vt->dec_private) {
-                int i;
-                kp(KP_NORMAL, "DEC PRIVATE mode: '%c', %d\n", ch, ch);
-                for (i = 0; i < vt->esc_param_count; i++)
-                    kp(KP_NORMAL, "    ARG: %d\n", vt->esc_params[i]);
-            }
+        if (vt->dec_private) {
+            if (lbracket_table_dec_private[(int)ch])
+                (lbracket_table_dec_private[(int)ch]) (vt, ch);
+            else
+                kp(KP_NORMAL, "Unhandled esc[? '%c', %d\n", ch, ch);
+        } else {
+            if (lbracket_table[(int)ch])
+                (lbracket_table[(int)ch]) (vt, ch);
+            else
+                kp(KP_NORMAL, "Unhandled esc[ '%c', %d\n", ch, ch);
         }
 
         vt->state = VT_STATE_BEGIN;
@@ -577,6 +585,30 @@ static void vt_state_lbracket(struct vt *vt, char ch)
         break;
     }
 }
+
+static void vt_state_numbersign(struct vt *vt, char ch)
+{
+    int r, c;
+    struct screen_char tmp_e = {
+        .chr = 'E',
+        .color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND),
+    };
+
+    switch (ch) {
+    case '8':
+        /* Console test feature, entire console is cleared with "E" characters */
+        for (r = 0; r < SCR_ROWS; r++)
+            for (c = 0; c < SCR_COLS; c++)
+                vt->screen->buf[r][c] = tmp_e;
+        break;
+
+    default:
+        kp(KP_NORMAL, "Unhandled Esc# '%c' (%d)\n", ch, ch);
+        vt->state = VT_STATE_BEGIN;
+        break;
+    }
+}
+
 
 static void vt_state_esc(struct vt *vt, char ch)
 {
@@ -592,7 +624,53 @@ static void vt_state_esc(struct vt *vt, char ch)
         vt->state = VT_STATE_BEGIN;
         break;
 
+    case 'D':
+        __vt_putchar_nocursor(vt, '\n');
+        vt->state = VT_STATE_BEGIN;
+        break;
+
+    case 'E':
+        __vt_putchar_nocursor(vt, '\r');
+        __vt_putchar_nocursor(vt, '\n');
+        vt->state = VT_STATE_BEGIN;
+        break;
+
+    case '7':
+        vt_save_cursor(vt, ch);
+        vt->state = VT_STATE_BEGIN;
+        break;
+
+    case '8':
+        vt_restore_cursor(vt, ch);
+        vt->state = VT_STATE_BEGIN;
+        break;
+
+    case 'c':
+        vt_reset(vt);
+        vt->state = VT_STATE_BEGIN;
+        break;
+
+    case 'H':
+        bit_set(vt->tab_stops, vt->cur_col);
+        vt->state = VT_STATE_BEGIN;
+        break;
+
+    case '#':
+        vt->state = VT_STATE_NUMBERSIGN;
+        vt->esc_param_count = 0;
+        memset(vt->esc_params, 0, sizeof(vt->esc_params));
+        break;
+
+    case '(':
+        vt->state = VT_STATE_OPENPAREN;
+        break;
+
+    case ')':
+        vt->state = VT_STATE_CLOSEPAREN;
+        break;
+
     default:
+        kp(KP_NORMAL, "Unexpected char after escape: '%c' (%d)\n", ch, ch);
         vt->state = VT_STATE_BEGIN;
         break;
     }
@@ -608,10 +686,22 @@ static void vt_state_begin(struct vt *vt, char ch)
     __vt_putchar_nocursor(vt, ch);
 }
 
+static void vt_state_paren(struct vt *vt, char ch)
+{
+    /* We don't currently handle switching character set. We still parse the
+     * ESC optino though so it doesn't display. We're simply eating the
+     * character. */
+
+    vt->state = VT_STATE_BEGIN;
+}
+
 static void (*vt_states[]) (struct vt *, char) = {
     [VT_STATE_BEGIN] = vt_state_begin,
     [VT_STATE_ESC] = vt_state_esc,
     [VT_STATE_LBRACKET] = vt_state_lbracket,
+    [VT_STATE_NUMBERSIGN] = vt_state_numbersign,
+    [VT_STATE_OPENPAREN] = vt_state_paren,
+    [VT_STATE_CLOSEPAREN] = vt_state_paren,
 };
 
 static void __vt_process_char(struct vt *vt, char ch)
@@ -619,12 +709,23 @@ static void __vt_process_char(struct vt *vt, char ch)
     if (ch == '\n'
             || ch == '\r'
             || ch == '\t'
-            || ch == '\b')
+            || ch == '\b'
+            || ch == '\v'
+            || ch == 12)
         return __vt_putchar_nocursor(vt, ch);
 
     /* We don't handle these control characters, but we shouldn't display them */
     if (ch == 7 || ch == 14 || ch == 15)
         return;
+
+    /* ESC starts a new sequence regardless of what state we were previously in */
+    if (ch == 27) {
+        vt->state = VT_STATE_ESC;
+        return;
+    }
+
+    if (ch < 32 && ch >= 0)
+        kp(KP_NORMAL, "CTR CHARACTER UNHANDLED: %u\n", (uint8_t)ch);
 
     if (vt->state < ARRAY_SIZE(vt_states) && vt_states[vt->state])
         (vt_states[vt->state]) (vt, ch);
@@ -651,14 +752,7 @@ int vt_tty_write(struct tty *tty, const char *buf, size_t len)
 
 void vt_early_init(struct vt *vt)
 {
-    arch_screen_init();
-
-    vt->fg_color = SCR_DEF_FORGROUND;
-    vt->bg_color = SCR_DEF_BACKGROUND;
-    vt->cur_attrs = 0;
-
-    __vt_clear(vt);
-    __vt_updatecur(vt);
+    vt_reset(vt);
 
     vt->early_init = 1;
 }
@@ -667,9 +761,6 @@ void vt_init(struct vt *vt)
 {
     if (!vt->early_init)
         vt_early_init(vt);
-
-    // screen_init();
-    keyboard_init();
 
     tty_driver_register(&vt->driver);
 }

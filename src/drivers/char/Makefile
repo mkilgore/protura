@@ -1,5 +1,6 @@
 
 objs-$(CONFIG_CONSOLE_DRIVER) += vt_state_machine.o
+objs-$(CONFIG_CONSOLE_DRIVER) += vt_scroll.o
 objs-$(CONFIG_CONSOLE_DRIVER) += vt.o
 objs-$(CONFIG_CONSOLE_DRIVER) += keyboard.o
 objs-$(CONFIG_CONSOLE_DRIVER) += console.o

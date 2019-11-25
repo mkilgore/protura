@@ -28,16 +28,30 @@ struct vt_printf_backbone {
     struct vt *vt;
 };
 
+/* Because this bypasses the TTY layer, no ONLCR processing happens. This is a
+ * small hack to ensure newlines turn into CRLFs. */
+static void __vt_write_with_crnl(struct vt_printf_backbone *vt, char ch)
+{
+    char cr = '\r';
+    if (ch == '\n')
+        vt_write(vt->vt, &cr, 1);
+
+    vt_write(vt->vt, &ch, 1);
+}
+
 static void __vt_printf_putchar(struct printf_backbone *b, char ch)
 {
     struct vt_printf_backbone *vt = container_of(b, struct vt_printf_backbone, backbone);
-    vt_write(vt->vt, &ch, 1);
+    __vt_write_with_crnl(vt, ch);
 }
 
 static void __vt_printf_putnstr(struct printf_backbone *b, const char *s, size_t len)
 {
     struct vt_printf_backbone *vt = container_of(b, struct vt_printf_backbone, backbone);
-    vt_write(vt->vt, s, len);
+    size_t i;
+
+    for (i = 0; i < len; i++)
+        __vt_write_with_crnl(vt, s[i]);
 }
 
 void vt_early_printf(struct kp_output *output, const char *fmt, va_list lst)
