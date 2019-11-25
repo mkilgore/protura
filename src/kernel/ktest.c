@@ -60,6 +60,14 @@ static noinline void run_test(struct ktest *ktest)
         ktest->unit->test(ktest);
 }
 
+/*
+ * This is used for breakpoints when debugging the kernel.
+ */
+noinline void ktest_fail_test(struct ktest *ktest)
+{
+    klongjmp(&ktest->ktest_assert_fail, 1);
+}
+
 static int run_module(struct ktest_module *module)
 {
     char buf[256];
@@ -218,7 +226,7 @@ void ktest_assert_equal_value_func(struct ktest *ktest, struct ktest_value *expe
         ktest_value_show("expected", actual->value_string, expected);
         ktest_value_show("actual  ", actual->value_string, actual);
 
-        klongjmp(&ktest->ktest_assert_fail, 1);
+        ktest_fail_test(ktest);
     }
 }
 
@@ -240,7 +248,7 @@ void ktest_assert_notequal_value_func(struct ktest *ktest, struct ktest_value *e
         kp(KP_NORMAL, " [%02d:%03d] %s: %d: %s != %s: %s\n", ktest->cur_unit_test, ktest->cur_test, func, lineno, expected->value_string, actual->value_string, buf);
         ktest_value_show("actual", actual->value_string, actual);
 
-        klongjmp(&ktest->ktest_assert_fail, 1);
+        ktest_fail_test(ktest);
     }
 }
 
@@ -254,7 +262,7 @@ void ktest_assert_failv(struct ktest *kt, const char *fmt, va_list lst)
     kp(KP_NORMAL, "  %s", buf);
 
     kt->failed_tests += 1;
-    klongjmp(&kt->ktest_assert_fail, 1);
+    ktest_fail_test(kt);
 }
 
 void ktest_assert_fail(struct ktest *kt, const char *fmt, ...)
