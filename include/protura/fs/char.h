@@ -22,6 +22,7 @@ enum {
     CHAR_DEV_NONE = 0,
     CHAR_DEV_TTY = 5,
     CHAR_DEV_MEM = 6,
+    CHAR_DEV_SERIAL_TTY = 7,
 };
 
 void char_dev_init(void);

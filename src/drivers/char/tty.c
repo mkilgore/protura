@@ -70,9 +70,8 @@ static const struct winsize default_winsize = {
  * data is immediately processed by the kernel as it comes in.
  */
 
-#define MAX_MINOR 32
-
-static struct tty *tty_array[MAX_MINOR];
+static spinlock_t tty_list_lock = SPINLOCK_INIT("tty-list-lock");
+static list_head_t tty_list = LIST_HEAD_INIT(tty_list);
 
 void tty_pump(struct work *work)
 {
@@ -103,18 +102,6 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->driver = driver;
     tty->device_no = devno;
 
-    kp(KP_TRACE, "TTY number name\n");
-    int ttyno = devno;
-    int digits = (ttyno < 10)? 1:
-                 (ttyno < 100)? 2: 3;
-    size_t name_len = strlen(driver->name) + digits;
-    kp(KP_TRACE, "TTY digits: %d, devno: %d, name_len: %d\n", digits, ttyno, name_len);
-
-    tty->name = kmalloc(name_len + 1, PAL_KERNEL);
-    snprintf(tty->name, name_len + 1, "%s%d", driver->name, ttyno);
-
-    kp(KP_TRACE, "TTY %s%d name: %s\n", driver->name, ttyno, tty->name);
-
     tty->output_buf.buffer = palloc_va(0, PAL_KERNEL);
     tty->output_buf.len = PG_SIZE;
 
@@ -129,28 +116,33 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
     tty->line_buf_size = PG_SIZE;
     tty->line_buf_pos = 0;
 
-    tty_array[devno + driver->minor_start] = tty;
+    using_spinlock(&tty_list_lock)
+        list_add_tail(&tty_list, &tty->tty_node);
 
     (driver->ops->init) (tty);
 }
 
 void tty_driver_register(struct tty_driver *driver)
 {
-    dev_t devices = driver->minor_end - driver->minor_start + 1;
     size_t i;
-
-    for (i = 0; i < devices; i++) {
-        kp(KP_TRACE, "Creating %s%d\n", driver->name, i);
-        tty_create(driver, i);
-    }
+    for (i = driver->minor_start; i <= driver->minor_end; i++)
+        tty_create(driver, DEV_MAKE(driver->major, i));
 }
 
-static struct tty *tty_find(dev_t minor)
+static struct tty *tty_find(dev_t dev)
 {
-    if (minor >= MAX_MINOR)
-        return NULL;
+    struct tty *tty;
 
-    return tty_array[minor];
+    using_spinlock(&tty_list_lock) {
+        list_foreach_entry(&tty_list, tty, tty_node) {
+            if (tty->device_no != dev)
+                continue;
+
+            return tty;
+        }
+    }
+
+    return NULL;
 }
 
 void tty_add_input(struct tty *tty, const char *buf, size_t len)
@@ -280,10 +272,12 @@ static int tty_open(struct inode *inode, struct file *filp)
 {
     struct task *current = cpu_get_local()->current;
     int noctty = flag_test(&filp->flags, FILE_NOCTTY);
+    int major = DEV_MAJOR(inode->dev_no);
     dev_t minor = DEV_MINOR(inode->dev_no);
     struct tty *tty;
 
-    if (minor == 0) {
+    /* Special case for /dev/tty - open the current controlling TTY */
+    if (minor == 0 && major == CHAR_DEV_TTY) {
         if (!current->tty)
             return -ENXIO;
 
@@ -291,7 +285,10 @@ static int tty_open(struct inode *inode, struct file *filp)
         return 0;
     }
 
-    tty = tty_find(minor);
+    tty = tty_find(inode->dev_no);
+    if (!tty)
+        return -ENXIO;
+
     filp->priv_data = tty;
 
     kp(KP_TRACE, "tty_open: noctty: %d, slead: %d, cur->tty: %p, id: %d\n",

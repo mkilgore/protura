@@ -153,7 +153,7 @@ static void com_init_ports_rx(void)
 
 static int com_tty_write(struct tty *tty, const char *buf, size_t len)
 {
-    struct com_port *com = com_ports + tty->device_no;
+    struct com_port *com = com_ports + DEV_MINOR(tty->device_no);
 
     size_t i;
     for (i = 0; i < len; i++) {
@@ -167,7 +167,7 @@ static int com_tty_write(struct tty *tty, const char *buf, size_t len)
 
 static void com_tty_ops_init(struct tty *tty)
 {
-    struct com_port *com = com_ports + tty->device_no;
+    struct com_port *com = com_ports + DEV_MINOR(tty->device_no);
     com->tty = tty;
 }
 
@@ -177,9 +177,9 @@ static struct tty_ops ops = {
 };
 
 static struct tty_driver driver = {
-    .name = "ttyS",
-    .minor_start = 2,
-    .minor_end = 3,
+    .major = CHAR_DEV_SERIAL_TTY,
+    .minor_start = 0,
+    .minor_end = 1,
     .ops = &ops,
 };
 

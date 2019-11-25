@@ -34,6 +34,11 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_TTY,
         .fops = &tty_file_ops,
     },
+    [CHAR_DEV_SERIAL_TTY] = {
+        .name = "ttyS",
+        .major = CHAR_DEV_SERIAL_TTY,
+        .fops = &tty_file_ops,
+    },
 #endif
     [CHAR_DEV_MEM] = {
         .name = "mem",

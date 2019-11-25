@@ -1,7 +1,13 @@
 /dev/tty c 5 0
 /dev/tty0 c 5 1
-/dev/ttyS0 c 5 2
-/dev/ttyS1 c 5 3
+/dev/tty1 c 5 2
+/dev/tty2 c 5 3
+/dev/tty3 c 5 4
+/dev/tty4 c 5 5
+/dev/tty5 c 5 6
+
+/dev/ttyS0 c 7 0
+/dev/ttyS1 c 7 1
 
 /dev/hda b 1 0
 /dev/hda1 b 1 1

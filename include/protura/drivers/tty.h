@@ -178,16 +178,16 @@ struct tty_ops {
 };
 
 struct tty_driver {
-    const char *name;
-    dev_t minor_start;
-    dev_t minor_end;
+    int major;
+    int minor_start;
+    int minor_end;
     const struct tty_ops *ops;
 };
 
 struct tty {
-    char *name;
-    /* Device number for the driver Minor number is equal to this + minor_start */
     dev_t device_no;
+
+    list_node_t tty_node;
 
     mutex_t lock;
 
@@ -223,6 +223,7 @@ void tty_pump(struct work *);
 
 #define TTY_INIT(tty) \
     { \
+        .tty_node = LIST_NODE_INIT((tty).tty_node), \
         .input_buf_lock = SPINLOCK_INIT("tty-input-buf-lock"), \
         .lock = MUTEX_INIT((tty).lock, "tty-lock"), \
         .work = WORK_INIT_KWORK((tty).work, tty_pump), \
