@@ -20,13 +20,11 @@ cache:
 # texinfo is necessary for some of the extra things we build
 # mpc/gmp/mpfr are necessary for compiling the cross-compiler
 # grub-gc is necessary for making the raw bootable dism image
-# virtualbox is necessary for creating the vbox image
 # qemu is necessary for the testing
 install:
   - sudo apt-get install build-essential
   - sudo apt-get install texinfo
   - sudo apt-get install libmpc-dev libgmp-dev libmpfr-dev
-  - sudo apt-get install virtualbox
   - sudo apt-get install grub-pc
   - sudo apt-get install qemu-system-i386
 
@@ -45,7 +43,7 @@ script:
   - make extra-mpc -j5
   - ./scripts/ci/travis_extra_gcc.sh
   - make disk
-  - make vbox
+  - make disk-other
   - ./scripts/ci/setup_tuntap.sh
   - make check
   - make check-ext2
@@ -59,6 +57,7 @@ deploy:
   file:
     - "./imgs/protura_x86_multiboot"
     - "./disk.img"
-    - "./vbox.vdi"
+    - "./disk.vdi"
+    - "./disk.vhd"
   on:
     tags: true
