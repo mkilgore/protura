@@ -102,6 +102,15 @@ static void handle_str(uint8_t keysym, int release_flag)
         tty_add_input_str(tty, keycode_str_table[keysym]);
 }
 
+static void handle_console(uint8_t keysym, int release_flag)
+{
+    if (release_flag)
+        return;
+
+    int new_console = keysym;
+    console_switch_vt(new_console);
+}
+
 static const char *pad_num_strs[KEY_PAD_MAX] = {
     [KEY_PAD_SEVEN]  = "7",
     [KEY_PAD_EIGHT]  = "8",
@@ -165,6 +174,7 @@ static void (*key_handler[KT_MAX]) (uint8_t, int) = {
     [KT_CURSOR] = handle_cursor,
     [KT_STR] = handle_str,
     [KT_PAD] = handle_pad,
+    [KT_CONSOLE] = handle_console,
 };
 
 void keyboard_submit_keysym(uint8_t keysym, int release_flag)

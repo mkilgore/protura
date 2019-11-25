@@ -43,6 +43,9 @@ enum keytype {
     /* A Keypad character */
     KT_PAD,
 
+    /* Switch to new console */
+    KT_CONSOLE,
+
     KT_MAX
 };
 
