@@ -30,7 +30,7 @@ struct task_api_info {
     unsigned int is_kernel :1;
     unsigned int has_tty :1;
 
-    char tty[12];
+    __kudev_t tty_devno;
     char name[128];
 };
 

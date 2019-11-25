@@ -46,7 +46,7 @@ static void __fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 
     if (task->tty) {
         tinfo->has_tty = 1;
-        strncpy(tinfo->tty, task->tty->name, sizeof(tinfo->tty));
+        tinfo->tty_devno = DEV_TO_USERSPACE(task->tty->device_no);
     }
 
     switch (task->state) {
