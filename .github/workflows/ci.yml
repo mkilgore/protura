@@ -1,0 +1,49 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Install Build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install build-essential flex bison
+        sudo apt-get install texinfo
+        sudo apt-get install libmpc-dev libgmp-dev libmpfr-dev
+        sudo apt-get install grub-pc
+        sudo apt-get install qemu-system-i386
+        sudo apt-get install qemu-utils
+
+    - name: Generate Configuration
+      run: make configure
+
+    - name: Install Kernel Headers
+      run: make install-kernel-headers
+
+    - uses: actions/cache@v1
+      id: cache
+      with:
+        path: toolchain
+        key: protura-host-toolchain
+
+    - name: Add Cross Compiler to PATH
+      run: echo "::add-path::$GITHUB_WORKSPACE/toolchain/bin"
+
+    - name: Build GCC Cross Compiler
+      run: ./scripts/ci/travis_gcc.sh
+
+    - name: Bulid Kernel
+      run: make kernel -j5
+
+    - name: Build raw disk image
+      run: make disk
+
+    - name: Run Kernel Tests
+      run: |
+        ./scripts/ci/setup_tuntap.sh
+        make check
