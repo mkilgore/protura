@@ -60,12 +60,16 @@ disk2.img: ./scripts/gendisk2.sh
 	@echo " GENDISK $@"
 	$(Q)sudo ./scripts/gendisk2.sh
 
-vbox.vdi: disk.img
-	@echo " VBOXIMG $@"
-	$(Q)VBoxManage convertfromraw $< $@ --format VDI
+disk.vdi: disk.img
+	@echo " QEMUIMG $@"
+	$(Q)qemu-img convert -f raw -O vdi $< $@
 
-PHONY += vbox
-vbox: vbox.vdi
+disk.vhd: disk.img
+	@echo " QEMUIMG $@"
+	$(Q)qemu-img convert -f raw -O vpc $< $@
+
+PHONY += disk-other
+disk-other: disk.vdi disk.vhd
 
 PHONY += gendisk gendisk2
 gendisk: disk.img
