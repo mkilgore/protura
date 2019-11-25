@@ -44,17 +44,32 @@ Current existing components/subsystems:
   - Supports executing ELF and #! programs.
 - TTY Layer
   - A TTY layer exists, with support for the most common `termios` settings
-  - The console understands most of the basic VT100 escape sequences, and ncurses includes a termiofo entry for Protura
+  - There is a "VT" layer for implmenting generic VT102 support
+    - This understands a fair amount of the VT102 escape sequences, and ncurses includes a terminfo entry for Protura
   - Currently no PTY support, the only supported TTYs are serial and keyboard/console
 - PCI
   - Currently supports a small set of PCI devices, though the basic framework is there to support more
   - Current supported devices:
     - E1000 (Network card)
     - RTL8139 (Network card)
-    - PIIX3 (IDE DMA Controller - disabled, doesn't work on VirtualBox)
+    - PIIX3 (chipset, IDE DMA Controller)
 - Network Layer
-  - The IPv4 support is decent.
-  - Implements ARP machine discovery, and interfaces for implementing tools like `ifconfig`.
+  - IPv4 support is fairly full featured
+    - An internal IPv4 routing table exists, along with userspace APIs for implementing `route`
+      - ARP is used to discover external MAC addresses according to the configured routes
+    - Another userspace API existing for network interfaces, which is used to implement `ifconfig`
+    - Supports several protocol selections:
+      - UDP
+        - Pretty simple, this is more or less complete
+      - "Raw" IP
+        - This protocol recieves a copy of any packet matching the supplied protocol ID.
+        - Used internally and externally to implement ICMP
+      - TCP
+        - About half-done, the 3-way TCP handshake and data rx/tx on an established connection are complete
+        - TCP connection closing is not yet implemented, so closing the socket drops the connection without actually closing it
+        - Retransmission of sent packets is not yet implemented, but the framework is there and timers are implemented.
+        - Listening sockets are not implemented
+  - Loopback device
 
 External OS components:
 
@@ -72,6 +87,8 @@ External OS components:
   - Sets up a few environment variables like the `PATH`.
 - Coreutils
   - See `disk/utils/coreutils` folder.
+- klogd
+  - A daemon that reads from /dev/kmsg and writes the contents to a persistent log on the disk at /var/log/klog
 
 Extra ported utilities:
 
@@ -82,6 +99,8 @@ Extra ported utilities:
     - Can also be compiled as `tiny`. This reduces load time, which is fairly slow.
 - ed
   - Mostly just useful before `vim` was ported.
+- less
+  - Really nice for viewing files, much nicer to use then `more` provided by our coreutils
 
 Build
 =====
@@ -139,9 +158,9 @@ Build the disk.img Protura disk image
 
     make disk
 
-Generate a VirtualBox VDI image from the disk image
+If necessary, generate VDI and VHD images from the disk image
 
-    make vbox
+    make disk-other
 
 Note that the build is setup to be very convient for those with nothing already
 setup, however for development it may be nicer to install the i686-protura
@@ -176,9 +195,23 @@ newlib.
 Testing
 =======
 
-Most of the kernel is tested manually, however there is now a kernel testing
-framework, `ktest`. It is fairly straight forward, the tests can be run via
-`make chcek`, and are run via `qemu`.
+The kernel currently has two different testing frameworks, the internal kernel
+testing framework, `ktest`, and also external test scripts located inside of
+the `./disk/tests` folder. The big difference bewteen the two is that the
+`ktest` framework supports tests that can run completely internally in the
+kernel (mainly, but not always, unit tests). The test scripts are designed for
+more end-to-end tests that run commands against the full kernel, and then
+analyze some result. At the moment, the only test scripts are `ext2` tests,
+which cover just about every `ext2` operation. The resulting disk after the
+script is run is checked against `e2fsck` to verify it is still consistent.
+
+To run tests on a built kernel, simply run the `check` target:
+
+    make check
+
+The tests are run via `qemu`. You can also use teh `ktest_debug.sh` script to
+start a debug environment that will run all of the ktest tests automatically,
+and break on any test failures.
 
 Running the OS
 ==============
@@ -189,8 +222,8 @@ logs, connecting up COM and IDE devices using the default disk.img. It also
 conviently sets up TMUX with all the various commands already running. The QEMU
 invocation in the script can be customized to your needs.
 
-In addition to QEMU, there is also a VirtualBox VDI image which can be used to
-run Protura in VirtualBox. To achieve this, wire the VDI image up as an IDE
-drive in VirtualBox and choose a "Linux 2.4/2.6/3.0" machine upon creation
-(Though the choice here isn't that important). You can then wire up extra
-devices like COM ports or a second IDE drive as wanted.
+In addition to QEMU, there is also VDI and VHD images which can be used to
+run Protura in VirtualBox or Hyper-V. For VirtualBox wire the VDI image up as
+an IDE drive in VirtualBox and choose a "Linux 2.4/2.6/3.0" machine upon
+creation (Though the choice here isn't that important). You can then wire up
+extra devices like COM ports or a second IDE drive as wanted.
