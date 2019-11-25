@@ -169,12 +169,41 @@ static int udp_process_sockaddr(struct socket *sock, struct packet *packet, cons
     return 0;
 }
 
+static int __udp_autobind(struct protocol *protocol, struct socket *sock)
+{
+    int ret;
+    struct udp_protocol *udp = container_of(protocol, struct udp_protocol, proto);
+
+    sock->af_private.ipv4.src_addr = INADDR_ANY;
+    sock->af_private.ipv4.src_port = udp_find_port(udp);
+
+    ret = udp_register_sock(udp, sock);
+    if (ret) {
+        sock->af_private.ipv4.src_port = htons(0);
+        return ret;
+    }
+
+    return 0;
+}
+
+static int udp_autobind(struct protocol *protocol, struct socket *sock)
+{
+    using_socket_priv(sock)
+        return __udp_autobind(protocol, sock);
+}
+
 static int udp_sendto_packet(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
     kp_udp("Processing sockaddr: %p\n", addr);
     int ret = udp_process_sockaddr(sock, packet, addr, len);
     if (ret)
         return ret;
+
+    if (n32_equal(sock->af_private.ipv4.src_port, htons(0))) {
+        ret = __udp_autobind(protocol, sock);
+        if (ret)
+            return ret;
+    }
 
     kp_udp("Assigning packet src_port\n");
     sockaddr_in_assign(&packet->src_addr, INADDR_ANY, sock->af_private.ipv4.src_port);
@@ -237,25 +266,6 @@ static int udp_bind(struct protocol *protocol, struct socket *sock, const struct
     using_socket_priv(sock) {
         sock->af_private.ipv4.src_addr = in->sin_addr.s_addr;
         sock->af_private.ipv4.src_port = in->sin_port;
-
-        ret = udp_register_sock(udp, sock);
-        if (ret) {
-            sock->af_private.ipv4.src_port = htons(0);
-            return ret;
-        }
-    }
-
-    return 0;
-}
-
-static int udp_autobind(struct protocol *protocol, struct socket *sock)
-{
-    int ret;
-    struct udp_protocol *udp = container_of(protocol, struct udp_protocol, proto);
-
-    using_socket_priv(sock) {
-        sock->af_private.ipv4.src_addr = INADDR_ANY;
-        sock->af_private.ipv4.src_port = udp_find_port(udp);
 
         ret = udp_register_sock(udp, sock);
         if (ret) {
