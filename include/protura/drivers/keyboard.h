@@ -22,7 +22,7 @@ extern struct file_ops keyboard_file_ops;
 enum keytype {
     KT_NULL,
 
-    /* "Regular characters/ascii values */
+    /* "Regular" characters/ascii values */
     KT_REG,
 
     /* Characters affected by shift/caps-lock */

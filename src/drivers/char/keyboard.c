@@ -27,6 +27,10 @@ static struct keyboard {
 
     uint16_t mod_flags;
     uint8_t mod_count[KEY_MOD_MAX];
+    uint8_t is_repeat :1;
+
+    /* Each bit represents whether or not a particular keysym is currently pressed */
+    uint8_t key_pressed_map[256 / 8];
 
     struct tty *tty;
 } keyboard = {
@@ -61,6 +65,11 @@ static void handle_led_key(uint8_t keysym, int release_flag)
 /* keysum is a KEY_MOD_* flag */
 static void handle_mod(uint8_t keysym, int release_flag)
 {
+    /* Ignore repeated mod keys, as we only get one release and we don't want
+     * to increment the mod_count for every repeated key */
+    if (keyboard.is_repeat)
+        return;
+
     if (release_flag) {
         if (keyboard.mod_count[keysym])
             keyboard.mod_count[keysym]--;
@@ -180,6 +189,18 @@ static void (*key_handler[KT_MAX]) (uint8_t, int) = {
 void keyboard_submit_keysym(uint8_t keysym, int release_flag)
 {
     uint8_t table = keyboard.mod_flags;
+
+    /* Record the state of the provided keysym in the key_pressed_map, and set
+     * is_repeat if appropriate */
+    if (release_flag) {
+        bit_clear(keyboard.key_pressed_map, keysym);
+        keyboard.is_repeat = 0;
+    } else {
+        if (bit_test(keyboard.key_pressed_map, keysym))
+            keyboard.is_repeat = 1;
+        else
+            bit_set(keyboard.key_pressed_map, keysym);
+    }
 
     if (table >= F(KEY_MOD_MAX) || !keycode_maps[table])
         return;
