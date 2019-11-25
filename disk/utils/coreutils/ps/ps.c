@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <sys/sysmacros.h>
 #include <protura/fs/fdset.h>
 #include <protura/task_api.h>
 
@@ -68,6 +69,28 @@ static int task_count;
 static enum ps_display display_choice = PS_NORMAL;
 static int show_kernel_tasks = 0;
 
+enum tty_major {
+    CHAR_DEV_TTY = 5,
+    CHAR_DEV_SERIAL_TTY = 7,
+};
+
+static void print_tty_name(struct util_line *line, int device)
+{
+    switch (major(device)) {
+    case CHAR_DEV_TTY:
+        util_line_printf(line, "tty%d", minor(device));
+        break;
+
+    case CHAR_DEV_SERIAL_TTY:
+        util_line_printf(line, "ttyS%d", minor(device));
+        break;
+
+    default:
+        util_line_printf(line, "tty(%d, %d)", major(device), minor(device));
+        break;
+    }
+}
+
 static void print_list_format(void)
 {
     struct task_api_info *t, *end = tinfo + task_count;
@@ -94,7 +117,12 @@ static void print_list_format(void)
         util_line_printf_ar(line, "%d", t->pgid);
         util_line_printf_ar(line, "%d", t->uid);
         util_line_printf_ar(line, "%d", t->gid);
-        util_line_printf(line, "%s", (t->has_tty)? t->tty: "?");
+
+        if (t->has_tty)
+            print_tty_name(line, t->tty_devno);
+        else
+            util_line_printf(line, "?");
+
         util_line_printf_ar(line, "%d", t->sid);
         util_line_printf(line, "%s", task_state_strs[t->state]);
 
