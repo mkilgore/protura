@@ -1,17 +1,20 @@
 #!/bin/bash
 
-mv ./qemu.log ./qemu.log.bak
+LOGS_DIR=./logs
+mkdir -p $LOGS_DIR
+
+mv $LOGS_DIR/qemu.log $LOGS_DIR/qemu.log.bak
 
 # Select a random port from 40000 to 50000 to listen on
 RND_PORT=$(( ($RANDOM % 10000) + 40000))
 
 qemu_line="qemu-system-i386 \
-    -serial file:./qemu.log \
+    -serial file:$LOGS_DIR/qemu.log \
     -monitor unix:qemu-monitor-socket,server,nowait \
     -curses \
     -s \
     -S \
-    -debugcon file:./qemu_debug.log \
+    -debugcon file:$LOGS_DIR/qemu_debug.log \
     -d cpu_reset \
     -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
     -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
@@ -20,8 +23,8 @@ qemu_line="qemu-system-i386 \
 
 GDB_CMD="gdb"
 QEMU_CMD="$qemu_line"
-QEMU_MONITOR_CMD="sleep 1; stty -icanon -echo; socat - unix-connect:qemu-monitor-socket | tee ./qemu_monitor.log"
-QEMU_DEBUG_CMD="unset GREP_COLORS; tail --retry -f ./qemu.log | GREP_COLOR=\"1;31\" grep --line-buffered --color=always -E \"^.*\[E\].*$|$\""
+QEMU_MONITOR_CMD="sleep 1; stty -icanon -echo; socat - unix-connect:qemu-monitor-socket | tee $LOGS_DIR/qemu_monitor.log"
+QEMU_DEBUG_CMD="unset GREP_COLORS; tail --retry -f $LOGS_DIR/qemu.log | GREP_COLOR=\"1;31\" grep --line-buffered --color=always -E \"^.*\[E\].*$|$\""
 OBJDUMP_CMD="objdump -D ./imgs/protura_x86_multiboot | less"
 NC_LISTEN_CMD="nc -l -p $RND_PORT"
 TCPDUMP_CMD="sudo tcpdump -i tap0 -ntv port $RND_PORT"

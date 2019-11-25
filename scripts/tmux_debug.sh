@@ -1,6 +1,9 @@
 #!/bin/bash
 
-mv ./qemu.log ./qemu.log.bak
+LOGS_DIR=./logs
+mkdir -p $LOGS_DIR
+
+mv $LOGS_DIR/qemu.log $LOGS_DIR/qemu.log.bak
 
 if [ -z "${@:0}" ]; then
     kernel_cmdline=
@@ -9,13 +12,13 @@ else
 fi
 
 qemu_line="qemu-system-i386 \
-    -serial file:./qemu.log \
+    -serial file:$LOGS_DIR/qemu.log \
     -serial tcp:localhost:4567,server,nowait \
     -monitor unix:qemu-monitor-socket,server,nowait \
     -curses \
     -s \
     -S \
-    -debugcon file:./qemu_debug.log \
+    -debugcon file:$LOGS_DIR/qemu_debug.log \
     -d cpu_reset \
     -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
     -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
@@ -26,9 +29,9 @@ qemu_line="qemu-system-i386 \
 GDB_CMD="gdb"
 QEMU_CMD="$qemu_line"
 # QEMU_LOG_CMD="sleep .1; stty -icanon -echo; socat file:\$(tty),raw,echo=0 unix-connect:qemu-serial-socket | tee ./com2.log"
-QEMU_LOG_CMD="sleep 1; stty raw -echo; socat - tcp:localhost:4567 | tee ./com2.log"
-QEMU_MONITOR_CMD="sleep 1; stty -icanon -echo; socat - unix-connect:qemu-monitor-socket | tee ./qemu_monitor.log"
-QEMU_DEBUG_CMD="unset GREP_COLORS; tail --retry -f ./qemu.log | GREP_COLOR=\"1;31\" grep --line-buffered --color=always -E \"^.*\[E\].*$|$\""
+QEMU_LOG_CMD="sleep 1; stty raw -echo; socat - tcp:localhost:4567 | tee $LOGS_DIR/com2.log"
+QEMU_MONITOR_CMD="sleep 1; stty -icanon -echo; socat - unix-connect:qemu-monitor-socket | tee $LOGS_DIR/qemu_monitor.log"
+QEMU_DEBUG_CMD="unset GREP_COLORS; tail --retry -f $LOGS_DIR/qemu.log | GREP_COLOR=\"1;31\" grep --line-buffered --color=always -E \"^.*\[E\].*$|$\""
 OBJDUMP_CMD="objdump -D ./imgs/protura_x86_multiboot | less"
 
 tmux new -d -s protura-debug -x $COLUMNS -y $LINES
