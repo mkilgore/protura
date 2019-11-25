@@ -3,6 +3,12 @@ rc1:1:wait:/bin/klogd
 rcl:1:wait:/etc/rc.local
 
 0:1:respawn:/bin/getty -t /dev/tty0
+1:1:respawn:/bin/getty -t /dev/tty1
+2:1:respawn:/bin/getty -t /dev/tty2
+3:1:respawn:/bin/getty -t /dev/tty3
+4:1:respawn:/bin/getty -t /dev/tty4
+5:1:respawn:/bin/getty -t /dev/tty5
+
 S1:1:respawn:/bin/getty -t /dev/ttyS1
 
 
