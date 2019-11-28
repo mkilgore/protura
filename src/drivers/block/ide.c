@@ -26,6 +26,9 @@
 #include <protura/drivers/ide.h>
 #include "ide.h"
 
+/* The max time we'll wait for the drive to report it is not busy before abandoning it */
+#define IDE_MAX_STATUS_TIMEOUT 50
+
 #ifdef CONFIG_KERNEL_LOG_IDE
 # define kp_ide(str, ...) kp(KP_NORMAL, "IDE: " str, ## __VA_ARGS__)
 #else
@@ -56,6 +59,9 @@ enum ide_status_format {
     IDE_STATUS_DATA_REQUEST = (1 << 3),
     IDE_STATUS_DATA_CORRECT = (1 << 2),
     IDE_STATUS_ERROR = (1 << 0),
+
+    /* This is not a real part of the status, but we report this if the status check hits the timeout */
+    IDE_STATUS_TIMEOUT = (1 << 8),
 };
 
 enum ide_ctl_format {
@@ -118,25 +124,15 @@ static int __ide_read_status(void)
     return inb(IDE_PORT_COMMAND_STATUS);
 }
 
-static int __ide_wait_for_status(int status)
-{
-    int ret;
 
-    do {
-        ret = __ide_read_status();
-    } while ((ret & (IDE_STATUS_BUSY | status)) != status);
-
-    return ret;
-}
-
-static int __ide_wait_for_status_ms(int status, uint32_t ms)
+static int __ide_wait_for_status(int status, uint32_t ms)
 {
     int ret;
     uint32_t start = timer_get_ms();
 
     do {
         if (timer_get_ms() - start > ms)
-            return IDE_STATUS_DRIVE_FAULT;
+            return IDE_STATUS_TIMEOUT;
 
         ret = __ide_read_status();
     } while ((ret & (IDE_STATUS_BUSY | status)) != status);
@@ -192,7 +188,7 @@ static void __ide_start_queue(void)
 
     /* Start the IDE data transfer */
 
-    /* We select the drive before issuing the __ide_wait_ready()
+    /* We select the drive before issuing the __ide_wait_for_status(IDE_STATUS_READY, IDE_MAX_STATUS_TIMEOUT)
      *
      * Then we send the sector info - which includes setting the drive-head a
      * second time
@@ -202,7 +198,9 @@ static void __ide_start_queue(void)
                                 | ((ide_state.next_is_slave)? IDE_DH_SLAVE: 0)
                                 );
 
-    __ide_wait_for_status(IDE_STATUS_READY);
+    int err = __ide_wait_for_status(IDE_STATUS_READY, IDE_MAX_STATUS_TIMEOUT);
+    if (err & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT | IDE_STATUS_TIMEOUT))
+        kp(KP_ERROR, "!!!! IDE DRIVE REPORTED ERROR AFTER SETTING DRIVE HEAD !!!!\n");
 
     kp_ide("B sector: %d, sector=%d, master/slave: %d, r/w: %s, use_dma: %d\n",
             b->sector,
@@ -239,15 +237,13 @@ static void __ide_start_queue(void)
 
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_WRITE);
         } else {
-            int err = 0;
-
             /* Revert to PIO if DMA can't work */
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_PIO_LBA28_WRITE);
 
             /* we have to send every sector individually */
             for (i = 0; i < sector_count; i++) {
-                if ((err = __ide_wait_for_status(IDE_STATUS_DATA_REQUEST)) & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) {
-                    kp(KP_ERROR, "IDE: __ide_wait_for_status() hit an error while writing, err: 0x%04x!!!\n", err);
+                if ((err = __ide_wait_for_status(IDE_STATUS_DATA_REQUEST, IDE_MAX_STATUS_TIMEOUT)) & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT | IDE_STATUS_TIMEOUT)) {
+                    kp(KP_ERROR, "IDE: __ide_wait_drq_ms() hit an error while writing, err: 0x%04x!!!\n", err);
                     break;
                 }
 
@@ -293,7 +289,7 @@ static void __ide_handle_intr(struct irq_frame *frame)
 
         ide_dma_abort(&ide_state.dma);
 
-        st = __ide_wait_for_status(0);
+        st = __ide_wait_for_status(0, IDE_MAX_STATUS_TIMEOUT);
 
         if ((dma_stat & 2)) {
             kp(KP_WARNING, "DATA READ ERROR: 0x%02x\n", dma_stat);
@@ -316,8 +312,8 @@ static void __ide_handle_intr(struct irq_frame *frame)
             int err = 0;
 
             for (i = 0; i < sector_count; i++) {
-                if ((err = __ide_wait_for_status(IDE_STATUS_DATA_REQUEST)) & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) {
-                    kp(KP_ERROR, "IDE: __ide_wait_for_status() hit an error while reading, err: 0x%04x!!!\n", err);
+                if ((err = __ide_wait_for_status(IDE_STATUS_DATA_REQUEST, IDE_MAX_STATUS_TIMEOUT)) & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT | IDE_STATUS_TIMEOUT)) {
+                    kp(KP_ERROR, "IDE: __ide_wait_drq_ms() hit an error while reading, err: 0x%04x!!!\n", err);
                     break;
                 }
 
@@ -370,8 +366,8 @@ static void ide_identify(struct block_device *device)
     struct page *page = palloc(0, PAL_KERNEL);
     outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_IDENTIFY);
 
-    int ret = __ide_wait_for_status_ms(IDE_STATUS_READY, 40);
-    if (ret & IDE_STATUS_DRIVE_FAULT || !(ret & IDE_STATUS_READY))
+    int ret = __ide_wait_for_status(IDE_STATUS_READY, 40);
+    if (ret & (IDE_STATUS_DRIVE_FAULT | IDE_STATUS_TIMEOUT) || !(ret & IDE_STATUS_READY))
         goto cleanup;
 
     __ide_do_pio_read(page->virt);
