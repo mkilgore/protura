@@ -53,7 +53,7 @@ enum ide_status_format {
     IDE_STATUS_BUSY = (1 << 7),
     IDE_STATUS_READY = (1 << 6),
     IDE_STATUS_DRIVE_FAULT = (1 << 5),
-    IDE_STATUS_DATA_READ = (1 << 3),
+    IDE_STATUS_DATA_REQUEST = (1 << 3),
     IDE_STATUS_DATA_CORRECT = (1 << 2),
     IDE_STATUS_ERROR = (1 << 0),
 };
@@ -118,18 +118,18 @@ static int __ide_read_status(void)
     return inb(IDE_PORT_COMMAND_STATUS);
 }
 
-static int __ide_wait_ready(void)
+static int __ide_wait_for_status(int status)
 {
     int ret;
 
     do {
         ret = __ide_read_status();
-    } while ((ret & (IDE_STATUS_BUSY | IDE_STATUS_READY)) != IDE_STATUS_READY);
+    } while ((ret & (IDE_STATUS_BUSY | status)) != status);
 
     return ret;
 }
 
-static int __ide_wait_ready_ms(uint32_t ms)
+static int __ide_wait_for_status_ms(int status, uint32_t ms)
 {
     int ret;
     uint32_t start = timer_get_ms();
@@ -139,7 +139,7 @@ static int __ide_wait_ready_ms(uint32_t ms)
             return IDE_STATUS_DRIVE_FAULT;
 
         ret = __ide_read_status();
-    } while ((ret & (IDE_STATUS_BUSY | IDE_STATUS_READY)) != IDE_STATUS_READY);
+    } while ((ret & (IDE_STATUS_BUSY | status)) != status);
 
     return ret;
 }
@@ -202,9 +202,14 @@ static void __ide_start_queue(void)
                                 | ((ide_state.next_is_slave)? IDE_DH_SLAVE: 0)
                                 );
 
-    __ide_wait_ready();
+    __ide_wait_for_status(IDE_STATUS_READY);
 
-    kp_ide("B sector: %d, IDE: sector=%d, master/slave: %d\n", b->sector, disk_sector, ide_state.next_is_slave);
+    kp_ide("B sector: %d, sector=%d, master/slave: %d, r/w: %s, use_dma: %d\n",
+            b->sector,
+            disk_sector,
+            ide_state.next_is_slave,
+            flag_test(&b->flags, BLOCK_DIRTY)? "write": "read",
+            use_dma);
 
     outb(IDE_PORT_DRIVE_HEAD, IDE_DH_SHOULD_BE_SET
                                 | IDE_DH_LBA
@@ -234,13 +239,17 @@ static void __ide_start_queue(void)
 
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_DMA_LBA28_WRITE);
         } else {
+            int err = 0;
+
             /* Revert to PIO if DMA can't work */
             outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_PIO_LBA28_WRITE);
 
             /* we have to send every sector individually */
             for (i = 0; i < sector_count; i++) {
-                if ((__ide_wait_ready() & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) != 0)
+                if ((err = __ide_wait_for_status(IDE_STATUS_DATA_REQUEST)) & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) {
+                    kp(KP_ERROR, "IDE: __ide_wait_for_status() hit an error while writing, err: 0x%04x!!!\n", err);
                     break;
+                }
 
                 __ide_do_pio_write(b->data + i * IDE_SECTOR_SIZE);
             }
@@ -284,7 +293,7 @@ static void __ide_handle_intr(struct irq_frame *frame)
 
         ide_dma_abort(&ide_state.dma);
 
-        st = __ide_read_status();
+        st = __ide_wait_for_status(0);
 
         if ((dma_stat & 2)) {
             kp(KP_WARNING, "DATA READ ERROR: 0x%02x\n", dma_stat);
@@ -295,19 +304,22 @@ static void __ide_handle_intr(struct irq_frame *frame)
             kp(KP_WARNING, "DATA STATUS ERROR: 0x%02x\n", st);
     } else {
         /* If we were doing a read, then read the data now. We have to wait until
-         * the drive is in the IDE_STATUS_READY state until we can start the read.
+         * the drive is in the IDE_STATUS_DATA_REQUEST state until we can start the read.
          *
          * Note that we don't attempt the read if there is an error reported by the
-         * drive (checked via __ide_wait_ready). Also, after reading every sector
-         * we have to do another __ide_wait_ready().
+         * drive (checked via __ide_wait_for_status(). Also, after reading every sector
+         * we have to do another __ide_wait_for_status().
          */
         if (!flag_test(&b->flags, BLOCK_DIRTY)) {
             int i;
             int sector_count = b->block_size / IDE_SECTOR_SIZE;
+            int err = 0;
 
             for (i = 0; i < sector_count; i++) {
-                if ((__ide_wait_ready() & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) != 0)
+                if ((err = __ide_wait_for_status(IDE_STATUS_DATA_REQUEST)) & (IDE_STATUS_ERROR | IDE_STATUS_DRIVE_FAULT)) {
+                    kp(KP_ERROR, "IDE: __ide_wait_for_status() hit an error while reading, err: 0x%04x!!!\n", err);
                     break;
+                }
 
                 __ide_do_pio_read(b->data + i * IDE_SECTOR_SIZE);
             }
@@ -358,8 +370,8 @@ static void ide_identify(struct block_device *device)
     struct page *page = palloc(0, PAL_KERNEL);
     outb(IDE_PORT_COMMAND_STATUS, IDE_COMMAND_IDENTIFY);
 
-    int ret = __ide_wait_ready_ms(40);
-    if (ret & IDE_STATUS_DRIVE_FAULT)
+    int ret = __ide_wait_for_status_ms(IDE_STATUS_READY, 40);
+    if (ret & IDE_STATUS_DRIVE_FAULT || !(ret & IDE_STATUS_READY))
         goto cleanup;
 
     __ide_do_pio_read(page->virt);
