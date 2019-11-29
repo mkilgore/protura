@@ -40,6 +40,26 @@ jobs:
     - name: Bulid Kernel
       run: make kernel -j5
 
+    - name: Build ed
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: make extra-ed -j5
+
+    - name: Build Vim
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: make extra-vim -j5
+
+    - name: Build Binutils
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: make extra-binutils -j5
+
+    - name: Build Hosted GCC
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        make extra-gmp -j5
+        make extra-mpfr -j5
+        make extra-mpc -j5
+        ./scripts/ci/travis_extra_gcc.sh
+
     - name: Build raw disk image
       run: make disk
 
@@ -47,3 +67,20 @@ jobs:
       run: |
         ./scripts/ci/setup_tuntap.sh
         make check
+
+    - name: Build extra disk images
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: make disk-other
+
+    - name: Create release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: true
+        files: |
+          imgs/protura_x86_multiboot
+          disk.vdi
+          disk.img
+          disk.vhd
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
