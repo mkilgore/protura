@@ -2,7 +2,7 @@
 EXE       := protura
 VERSION   := 0
 SUBLEVEL  := 7
-PATCH     := 0
+PATCH     := 1
 
 ARCH   := x86
 BITS   := 32
