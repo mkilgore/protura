@@ -6,10 +6,6 @@
  * Free Software Foundation.
  */
 
-/*
- * Note: Not currently working. See RTL8139 driver for a functional network card driver.
- */
-
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
