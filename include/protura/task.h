@@ -196,12 +196,12 @@ extern const char *task_states[];
 
 static inline void user_ptr_check_off(void)
 {
-    flag_set(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
+    flag_clear(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
 }
 
 static inline void user_ptr_check_on(void)
 {
-    flag_clear(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
+    flag_set(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
 }
 
 static inline int user_ptr_check_is_on(void)
@@ -215,6 +215,5 @@ static inline int signals_pending(void)
 
     return t->sig_pending & ~t->sig_blocked;
 }
-
 
 #endif
