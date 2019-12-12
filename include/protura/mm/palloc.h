@@ -135,6 +135,17 @@ static inline void pfree_pa(pa_t pa, int order)
     pfree(page_from_pa(pa), order);
 }
 
+/* `void *` to make it compatible with both `void *` and `char *` */
+static inline void pfree_va_cleanup(void *p)
+{
+    char **page = p;
+    if (*page)
+        pfree_va(*page, 0);
+}
+
+#define __pfree_single_va \
+    __cleanup(pfree_va_cleanup)
+
 /* Used to allocate 'count' pages from memory. The returned pages do *not* have
  * contiguous physical addresses. As a consiquence, the pages are 'returned' by
  * attaching them to the provided list_head_t.

@@ -88,6 +88,21 @@ static inline char __toupper(char c)
 #define tolower(c) __tolower((c))
 #define toupper(c) __toupper((c))
 
+/* This is always the size of two pointers */
+struct user_buffer {
+    void *ptr;
+    uintptr_t is_user :1;
+};
+
+#define make_user_buffer(p) \
+    (struct user_buffer) { .ptr = (void *)(p), .is_user = 1 }
+
+#define make_kernel_buffer(p) \
+    (struct user_buffer) { .ptr = (void *)(p), .is_user = 0 }
+
+#define user_buffer_offset(b, offset) \
+    (struct user_buffer) { .ptr = (b).ptr + (offset), .is_user = (b).is_user }
+
 #endif
 
 #endif

@@ -49,6 +49,7 @@ enum {
     TASK_FLAG_KILLED,
     TASK_FLAG_USER_PTR_CHECK,
     TASK_FLAG_SESSION_LEADER,
+    TASK_FLAG_RW_USER,
 };
 
 struct task {
@@ -100,6 +101,10 @@ struct task {
     struct credentials creds;
 
     struct arch_task_info arch_info;
+
+    /* The address to jump too if a user fault happens while reading/writing
+     * userspace */
+    void *user_check_jmp_address;
 
     char name[128];
 };

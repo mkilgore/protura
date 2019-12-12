@@ -134,6 +134,18 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
     if (!ret)
         return;
 
+    /* If we're currently doing a read/write to a user pointer from the kernel,
+     * then this flag will be set.
+     *
+     * To resolve the fault, we set the "return" to the provided address, which
+     * will handle the fault */
+    if (flag_test(&current->flags, TASK_FLAG_RW_USER) && current->user_check_jmp_address) {
+        frame->eip = (uint32_t)current->user_check_jmp_address;
+        return;
+    }
+
+    /* We had a page fault and it was not part of a read/write to userspace.
+     * Something is likely on fire... */
     if (pg_err_was_kernel(frame->err))
         halt_and_dump_stack(frame, p);
 
