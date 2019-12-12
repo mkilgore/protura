@@ -117,8 +117,6 @@ static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
     panic("KERNEL PAGE FAULT!\n");
 }
 
-#define SEG_FAULT_MSG "Seg-fault - Program terminated\n"
-
 static void page_fault_handler(struct irq_frame *frame, void *param)
 {
     uintptr_t p;
