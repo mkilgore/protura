@@ -166,8 +166,7 @@ $(eval $(call subdir_inc,src))
 $(eval $(call subdir_inc,arch/$(ARCH)))
 
 # This is a list of targets to create bootable images from
-# Ex. For x86, there is a multiboot compliant image, also a full realmode image
-# that can boot from a floppy.
+# Ex. For x86, there is a multiboot compliant image
 BOOT_TARGETS :=
 
 imgs_pfix := $(tree)/imgs/$(EXE)_$(ARCH)_
