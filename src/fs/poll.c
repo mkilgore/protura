@@ -161,21 +161,14 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
             if (!filps[i])
                 continue;
 
-            if (filps[i]->ops->poll) {
+            if (filps[i]->ops->poll)
                 fds[i].revents = (filps[i]->ops->poll) (filps[i], &table, fds[i].events) & fds[i].events;
-
-                if (fds[i].revents) {
-                    event_count++;
-                    exit_poll = 1;
-                }
-
-            } else {
+            else
                 fds[i].revents = (POLLIN | POLLOUT) & fds[i].events;
 
-                if (fds[i].revents) {
-                    event_count++;
-                    exit_poll = 1;
-                }
+            if (fds[i].revents) {
+                event_count++;
+                exit_poll = 1;
             }
         }
 
