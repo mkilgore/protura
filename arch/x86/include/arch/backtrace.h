@@ -4,8 +4,8 @@
 #include <protura/types.h>
 #include <protura/compiler.h>
 
-void dump_stack(void);
-void dump_stack_ptr(void *);
+void dump_stack(int log_level);
+void dump_stack_ptr(void *start, int log_level);
 
 struct stackframe {
     struct stackframe *caller_stackframe;

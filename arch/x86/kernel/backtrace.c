@@ -14,7 +14,7 @@
 
 #include <arch/backtrace.h>
 
-void dump_stack_ptr(void *start)
+void dump_stack_ptr(void *start, int log_level)
 {
     struct stackframe *stack = start;
     int frame = 0;
@@ -22,20 +22,20 @@ void dump_stack_ptr(void *start)
     pa_t page_dir = get_current_page_directory();
     pgd_t *pgd = p_to_v(page_dir);
 
-    kp(KP_ERROR, "  Stack: %p\n", start);
+    kp(log_level, "  Stack: %p\n", start);
 
     for (frame = 1; stack != 0; stack = stack->caller_stackframe, frame++) {
         if (!pgd_ptr_is_valid(pgd, stack)) {
-            kp(KP_ERROR, "  Stack is invalid past this point, was: %p\n", stack);
+            kp(log_level, "  Stack is invalid past this point, was: %p\n", stack);
             return;
         }
 
-        kp(KP_ERROR, "  [%d][0x%08x]\n", frame, stack->return_addr);
+        kp(log_level, "  [%d][0x%08x]\n", frame, stack->return_addr);
     }
 }
 
-void dump_stack(void)
+void dump_stack(int log_level)
 {
-    dump_stack_ptr(read_ebp());
+    dump_stack_ptr(read_ebp(), log_level);
 }
 

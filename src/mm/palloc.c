@@ -132,7 +132,7 @@ void pfree(struct page *p, int order)
 
     if (page_to_pa(p) < V2P(&kern_end)) {
         kp(KP_ERROR, "pfree() called on page that's before kern_end! Page was: %p!\n", p->virt);
-        dump_stack();
+        dump_stack(KP_ERROR);
         return;
     }
 
@@ -228,7 +228,7 @@ struct page *palloc(int order, unsigned int flags)
 
     if (page_to_pa(p) < V2P(&kern_end)) {
         kp(KP_ERROR, "palloc() is returning a page before kern_end!!!\n");
-        dump_stack();
+        dump_stack(KP_ERROR);
     }
 
 

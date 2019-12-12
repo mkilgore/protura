@@ -60,55 +60,64 @@ __align(0x1000) struct page_directory kernel_dir = {
 
 static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
 {
-    //term_setcurcolor(term_make_color(T_BLACK, T_RED));
-    kp(KP_ERROR, "PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%08x\n", (void *)frame->eip, (void *)p, frame->err);
+    int log_level = KP_ERROR;
 
-    kp(KP_ERROR, "TYPE: %s, ACCESS: %s, PRIV: %s\n",
-            pg_err_non_present_page(frame->err)? "non-present page": "protection fault",
-            pg_err_was_read(frame->err)? "read": "write",
-            pg_err_was_user(frame->err)? "user": "kernel"
+    /* unhandled userspace page faults produce similar logging, but they do not
+     * crash the kernel and are not logged as an error but just a warning. */
+    if (pg_err_was_user(frame->err))
+        log_level = KP_WARNING;
+
+    kp(log_level, "PAGE FAULT!!! AT: %p, ADDR: %p, ERR: 0x%08x\n", (void *)frame->eip, (void *)p, frame->err);
+
+    kp(log_level, "TYPE: %s, ACCESS: %s, PRIV: %s\n",
+        pg_err_non_present_page(frame->err)? "non-present page": "protection fault",
+        pg_err_was_read(frame->err)? "read": "write",
+        pg_err_was_user(frame->err)? "user": "kernel"
         );
 
-    kp(KP_ERROR, "PAGE DIR INDEX: 0x%08x, PAGE TABLE INDEX: 0x%08x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
     struct task *current = cpu_get_local()->current;
 
-    kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
-        frame->eax,
-        frame->ebx,
-        frame->ecx,
-        frame->edx);
+    if (!pg_err_was_user(frame->err)) {
+        kp(log_level, "PAGE DIR INDEX: 0x%08x, PAGE TABLE INDEX: 0x%08x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
 
-    kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
-        frame->esi,
-        frame->edi,
-        frame->esp,
-        frame->ebp);
+        kp(log_level, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
+            frame->eax,
+            frame->ebx,
+            frame->ecx,
+            frame->edx);
 
-    //term_setcurcolor(term_make_color(T_WHITE, T_BLACK));
-    kp(KP_ERROR, "Stack backtrace:\n");
-    dump_stack_ptr((void *)frame->ebp);
+        kp(log_level, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
+            frame->esi,
+            frame->edi,
+            frame->esp,
+            frame->ebp);
+
+        kp(log_level, "Stack backtrace:\n");
+        dump_stack_ptr((void *)frame->ebp, log_level);
+    }
+
     if (current && !flag_test(&current->flags, TASK_FLAG_KERNEL)) {
-        kp(KP_ERROR, "Current running program: %s\n", current->name);
+        kp(log_level, "Current running program: %s\n", current->name);
 
         if (current->context.frame) {
-            kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
+            kp(log_level, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
                     current->context.frame->eax,
                     current->context.frame->ebx,
                     current->context.frame->ecx,
                     current->context.frame->edx);
 
-            kp(KP_ERROR, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
+            kp(log_level, "ESI: 0x%08x EDI: 0x%08x ESP: 0x%08x EBP: 0x%08x\n",
                     current->context.frame->esi,
                     current->context.frame->edi,
                     current->context.frame->esp,
                     current->context.frame->ebp);
-            kp(KP_ERROR, "User stack dump:\n");
-            dump_stack_ptr((void *)current->context.frame->ebp);
+            kp(log_level, "User stack dump:\n");
+            dump_stack_ptr((void *)current->context.frame->ebp, log_level);
         } else {
-            kp(KP_ERROR, "Context Frame: null\n");
+            kp(log_level, "Context Frame: null\n");
         }
     }
-    kp(KP_ERROR, "End of backtrace\n");
+    kp(log_level, "End of backtrace\n");
 }
 
 static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)

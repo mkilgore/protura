@@ -169,7 +169,7 @@ void unhandled_cpu_exception(struct irq_frame *frame, void *param)
         frame->gs);
 
     kp(KP_ERROR, "Stack backtrace:\n");
-    dump_stack_ptr((void *)frame->ebp);
+    dump_stack_ptr((void *)frame->ebp, KP_ERROR);
     if (current && !flag_test(&current->flags, TASK_FLAG_KERNEL)) {
         kp(KP_ERROR, "Current running program: %s\n", current->name);
         kp(KP_ERROR, "EAX: 0x%08x EBX: 0x%08x\n",
@@ -189,7 +189,7 @@ void unhandled_cpu_exception(struct irq_frame *frame, void *param)
             current->context.frame->ebp);
 
         kp(KP_ERROR, "User stack dump:\n");
-        dump_stack_ptr((void *)current->context.frame->ebp);
+        dump_stack_ptr((void *)current->context.frame->ebp, KP_ERROR);
     }
     kp(KP_ERROR, "End of backtrace\n");
     kp(KP_ERROR, "Kernel halting\n");

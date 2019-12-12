@@ -60,7 +60,7 @@ void __panicv(const char *s, va_list lst)
 {
     cli();
     kprintfv_internal(s, lst);
-    dump_stack();
+    dump_stack(KP_ERROR);
 
     if (reboot_on_panic)
         system_reboot();
