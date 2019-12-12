@@ -17,13 +17,14 @@
 
 /* KP_STR99 is a 'catch-all' for debugging outputs which are not going to be
  * logged. */
-#define KP_STR99 ""
+/* Note: The KP_STR* macros need to be wrapped in Q() to get quoted */
+#define KP_STR99 [!]
 
-#define KP_STR4 "[T]"
-#define KP_STR3 "[D]"
-#define KP_STR2 "[N]"
-#define KP_STR1 "[W]"
-#define KP_STR0 "[E]"
+#define KP_STR4 [T]
+#define KP_STR3 [D]
+#define KP_STR2 [N]
+#define KP_STR1 [W]
+#define KP_STR0 [E]
 
 #define KP_TRACE 4
 #define KP_DEBUG 3
@@ -74,12 +75,28 @@ void kp_output_unregister(struct kp_output *);
 # define KP_CUR_LINE " "
 #endif
 
+static inline const char *__kp_get_loglevel_string(int level)
+{
+    switch (level) {
+    case KP_TRACE:   return Q(TP(KP_STR, KP_TRACE));
+    case KP_DEBUG:   return Q(TP(KP_STR, KP_DEBUG));
+    case KP_NORMAL:  return Q(TP(KP_STR, KP_NORMAL));
+    case KP_WARNING: return Q(TP(KP_STR, KP_WARNING));
+    case KP_ERROR:   return Q(TP(KP_STR, KP_ERROR));
+    default:         return Q(KP_STR99);
+    }
+}
+
 #define kp(level, str, ...) \
     do { \
         if (level <= CONFIG_KERNEL_LOG_LEVEL) { \
-            kprintf_internal("[%05ld]" TP(KP_STR, level) ":" KP_CUR_LINE str, protura_uptime_get(), ## __VA_ARGS__); \
+            if (__builtin_constant_p((level))) \
+                kprintf_internal("[%05ld]" Q(TP(KP_STR, level)) ":" KP_CUR_LINE str, protura_uptime_get(), ## __VA_ARGS__); \
+            else \
+                kprintf_internal("[%05ld]%s:" KP_CUR_LINE str, protura_uptime_get(), __kp_get_loglevel_string((level)), ## __VA_ARGS__); \
         } \
     } while (0)
+
 
 #define panic(str, ...) __panic("[%05ld][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
 
