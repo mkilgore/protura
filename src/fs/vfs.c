@@ -248,6 +248,11 @@ int vfs_chdir(const char *path)
     if (!name.found)
         return ret;
 
+    if (!S_ISDIR(name.found->mode)) {
+        inode_put(name.found);
+        return -ENOTDIR;
+    }
+
     inode_put(current->cwd);
     current->cwd = name.found;
 
