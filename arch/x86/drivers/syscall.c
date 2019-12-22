@@ -56,7 +56,7 @@ static void sys_handler_getppid(struct irq_frame *frame)
 
 static void sys_handler_open(struct irq_frame *frame)
 {
-    frame->eax = sys_open((char *)frame->ebx, frame->ecx, frame->edx);
+    frame->eax = sys_open(make_user_buffer(frame->ebx), frame->ecx, frame->edx);
 }
 
 static void sys_handler_close(struct irq_frame *frame)
@@ -66,12 +66,12 @@ static void sys_handler_close(struct irq_frame *frame)
 
 static void sys_handler_read(struct irq_frame *frame)
 {
-    frame->eax = sys_read(frame->ebx, (char *)frame->ecx, frame->edx);
+    frame->eax = sys_read(frame->ebx, make_user_buffer(frame->ecx), frame->edx);
 }
 
 static void sys_handler_write(struct irq_frame *frame)
 {
-    frame->eax = sys_write(frame->ebx, (char *)frame->ecx, frame->edx);
+    frame->eax = sys_write(frame->ebx, make_user_buffer(frame->ecx), frame->edx);
 }
 
 static void sys_handler_lseek(struct irq_frame *frame)
@@ -81,7 +81,7 @@ static void sys_handler_lseek(struct irq_frame *frame)
 
 static void sys_handler_execve(struct irq_frame *frame)
 {
-    sys_execve((char *)frame->ebx, (const char *const *)frame->ecx, (const char *const *)frame->edx, frame);
+    sys_execve(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx), make_user_buffer(frame->edx), frame);
 }
 
 static void sys_handler_yield(struct irq_frame *frame)
@@ -96,7 +96,7 @@ static void sys_handler_exit(struct irq_frame *frame)
 
 static void sys_handler_wait(struct irq_frame *frame)
 {
-    frame->eax = sys_wait((int *)frame->ebx);
+    frame->eax = sys_wait(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_dup(struct irq_frame *frame)
@@ -121,17 +121,17 @@ static void sys_handler_sbrk(struct irq_frame *frame)
 
 static void sys_handler_read_dent(struct irq_frame *frame)
 {
-    frame->eax = sys_read_dent(frame->ebx, (struct dent *)frame->ecx, frame->edx);
+    frame->eax = sys_read_dent(frame->ebx, make_user_buffer(frame->ecx), frame->edx);
 }
 
 static void sys_handler_chdir(struct irq_frame *frame)
 {
-    frame->eax = sys_chdir((const char *)frame->ebx);
+    frame->eax = sys_chdir(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_truncate(struct irq_frame *frame)
 {
-    frame->eax = sys_truncate((const char *)frame->ebx, (off_t)frame->ecx);
+    frame->eax = sys_truncate(make_user_buffer(frame->ebx), (off_t)frame->ecx);
 }
 
 static void sys_handler_ftruncate(struct irq_frame *frame)
@@ -141,7 +141,7 @@ static void sys_handler_ftruncate(struct irq_frame *frame)
 
 static void sys_handler_link(struct irq_frame *frame)
 {
-    frame->eax = sys_link((const char *)frame->ebx, (const char *)frame->ecx);
+    frame->eax = sys_link(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_sync(struct irq_frame *frame)
@@ -151,42 +151,42 @@ static void sys_handler_sync(struct irq_frame *frame)
 
 static void sys_handler_unlink(struct irq_frame *frame)
 {
-    frame->eax = sys_unlink((const char *)frame->ebx);
+    frame->eax = sys_unlink(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_stat(struct irq_frame *frame)
 {
-    frame->eax = sys_stat((const char *)frame->ebx, (struct stat *)frame->ecx);
+    frame->eax = sys_stat(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_fstat(struct irq_frame *frame)
 {
-    frame->eax = sys_fstat(frame->ebx, (struct stat *)frame->ecx);
+    frame->eax = sys_fstat(frame->ebx, make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_pipe(struct irq_frame *frame)
 {
-    frame->eax = sys_pipe((int *)frame->ebx);
+    frame->eax = sys_pipe(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_waitpid(struct irq_frame *frame)
 {
-    frame->eax = sys_waitpid((pid_t)frame->ebx, (int *)frame->ecx, frame->edx);
+    frame->eax = sys_waitpid((pid_t)frame->ebx, make_user_buffer(frame->ecx), frame->edx);
 }
 
 static void sys_handler_sigprocmask(struct irq_frame *frame)
 {
-    frame->eax = sys_sigprocmask(frame->ebx, (const sigset_t *)frame->ecx, (sigset_t *)frame->edx);
+    frame->eax = sys_sigprocmask(frame->ebx, make_user_buffer(frame->ecx), make_user_buffer(frame->edx));
 }
 
 static void sys_handler_sigpending(struct irq_frame *frame)
 {
-    frame->eax = sys_sigpending((sigset_t *)frame->ebx);
+    frame->eax = sys_sigpending(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_sigaction(struct irq_frame *frame)
 {
-    frame->eax = sys_sigaction(frame->ebx, (const struct sigaction *)frame->ecx, (struct sigaction *)frame->edx);
+    frame->eax = sys_sigaction(frame->ebx, make_user_buffer(frame->ecx), make_user_buffer(frame->edx));
 }
 
 static void sys_handler_signal(struct irq_frame *frame)
@@ -201,7 +201,7 @@ static void sys_handler_kill(struct irq_frame *frame)
 
 static void sys_handler_sigwait(struct irq_frame *frame)
 {
-    frame->eax = sys_sigwait((const sigset_t *)frame->ebx, (int *)frame->ecx);
+    frame->eax = sys_sigwait(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_sigreturn(struct irq_frame *frame)
@@ -216,52 +216,52 @@ static void sys_handler_pause(struct irq_frame *frame)
 
 static void sys_handler_sigsuspend(struct irq_frame *frame)
 {
-    frame->eax = sys_sigsuspend((const sigset_t *)frame->ebx);
+    frame->eax = sys_sigsuspend(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_mkdir(struct irq_frame *frame)
 {
-    frame->eax = sys_mkdir((const char *)frame->ebx, (mode_t)frame->ecx);
+    frame->eax = sys_mkdir(make_user_buffer(frame->ebx), (mode_t)frame->ecx);
 }
 
 static void sys_handler_mknod(struct irq_frame *frame)
 {
-    frame->eax = sys_mknod((const char *)frame->ebx, (mode_t)frame->ecx, (dev_t)frame->edx);
+    frame->eax = sys_mknod(make_user_buffer(frame->ebx), (mode_t)frame->ecx, (dev_t)frame->edx);
 }
 
 static void sys_handler_rmdir(struct irq_frame *frame)
 {
-    frame->eax = sys_rmdir((const char *)frame->ebx);
+    frame->eax = sys_rmdir(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_rename(struct irq_frame *frame)
 {
-    frame->eax = sys_rename((const char *)frame->ebx, (const char *)frame->ecx);
+    frame->eax = sys_rename(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_readlink(struct irq_frame *frame)
 {
-    frame->eax = sys_readlink((const char *)frame->ebx, (char *)frame->ecx, (size_t)frame->edx);
+    frame->eax = sys_readlink(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx), (size_t)frame->edx);
 }
 
 static void sys_handler_symlink(struct irq_frame *frame)
 {
-    frame->eax = sys_symlink((const char *)frame->ebx, (const char *)frame->ecx);
+    frame->eax = sys_symlink(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_lstat(struct irq_frame *frame)
 {
-    frame->eax = sys_lstat((const char *)frame->ebx, (struct stat *)frame->ecx);
+    frame->eax = sys_lstat(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_mount(struct irq_frame *frame)
 {
-    frame->eax = sys_mount((const char *)frame->ebx, (const char *)frame->ecx, (const char *)frame->edx, (unsigned long)frame->esi, (const void *)frame->edi);
+    frame->eax = sys_mount(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx), make_user_buffer(frame->edx), (unsigned long)frame->esi, make_user_buffer(frame->edi));
 }
 
 static void sys_handler_umount(struct irq_frame *frame)
 {
-    frame->eax = sys_umount((const char *)frame->ebx);
+    frame->eax = sys_umount(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_fcntl(struct irq_frame *frame)
@@ -271,7 +271,7 @@ static void sys_handler_fcntl(struct irq_frame *frame)
 
 static void sys_handler_time(struct irq_frame *frame)
 {
-    frame->eax = sys_time((time_t *)frame->ebx);
+    frame->eax = sys_time(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_setpgid(struct irq_frame *frame)
@@ -281,7 +281,7 @@ static void sys_handler_setpgid(struct irq_frame *frame)
 
 static void sys_handler_getpgrp(struct irq_frame *frame)
 {
-    frame->eax = sys_getpgrp((pid_t *)frame->ebx);
+    frame->eax = sys_getpgrp(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_fork_pgrp(struct irq_frame *frame)
@@ -291,12 +291,12 @@ static void sys_handler_fork_pgrp(struct irq_frame *frame)
 
 static void sys_handler_ioctl(struct irq_frame *frame)
 {
-    frame->eax = sys_ioctl(frame->ebx, frame->ecx, (uintptr_t)frame->edx);
+    frame->eax = sys_ioctl(frame->ebx, frame->ecx, make_user_buffer(frame->edx));
 }
 
 static void sys_handler_poll(struct irq_frame *frame)
 {
-    frame->eax = sys_poll((struct pollfd *)frame->ebx, (nfds_t)frame->ecx, frame->edx);
+    frame->eax = sys_poll(make_user_buffer(frame->ebx), (nfds_t)frame->ecx, frame->edx);
 }
 
 static void sys_handler_setsid(struct irq_frame *frame)
@@ -316,27 +316,27 @@ static void sys_handler_socket(struct irq_frame *frame)
 
 static void sys_handler_sendto(struct irq_frame *frame)
 {
-    frame->eax = sys_sendto(frame->ebx, (const void *)frame->ecx, (size_t)frame->edx, frame->esi, (const struct sockaddr *)frame->edi, (socklen_t)frame->ebp);
+    frame->eax = sys_sendto(frame->ebx, make_user_buffer(frame->ecx), (size_t)frame->edx, frame->esi, make_user_buffer(frame->edi), (socklen_t)frame->ebp);
 }
 
 static void sys_handler_recvfrom(struct irq_frame *frame)
 {
-    frame->eax = sys_recvfrom(frame->ebx, (void *)frame->ecx, (size_t)frame->edx, frame->esi, (struct sockaddr *)frame->edi, (socklen_t *)frame->ebp);
+    frame->eax = sys_recvfrom(frame->ebx, make_user_buffer(frame->ecx), (size_t)frame->edx, frame->esi, make_user_buffer(frame->edi), make_user_buffer(frame->ebp));
 }
 
 static void sys_handler_bind(struct irq_frame *frame)
 {
-    frame->eax = sys_bind(frame->ebx, (const struct sockaddr *)frame->ecx, (socklen_t)frame->edx);
+    frame->eax = sys_bind(frame->ebx, make_user_buffer(frame->ecx), (socklen_t)frame->edx);
 }
 
 static void sys_handler_setsockopt(struct irq_frame *frame)
 {
-    frame->eax = sys_setsockopt(frame->ebx, frame->ecx, frame->edx, (const void *)frame->esi, (socklen_t)frame->edi);
+    frame->eax = sys_setsockopt(frame->ebx, frame->ecx, frame->edx, make_user_buffer(frame->esi), (socklen_t)frame->edi);
 }
 
 static void sys_handler_getsockopt(struct irq_frame *frame)
 {
-    frame->eax = sys_getsockopt(frame->ebx, frame->ecx, frame->edx, (void *)frame->esi, (socklen_t *)frame->edi);
+    frame->eax = sys_getsockopt(frame->ebx, frame->ecx, frame->edx, make_user_buffer(frame->esi), make_user_buffer(frame->edi));
 }
 
 static void sys_handler_shutdown(struct irq_frame *frame)
@@ -346,22 +346,22 @@ static void sys_handler_shutdown(struct irq_frame *frame)
 
 static void sys_handler_getsockname(struct irq_frame *frame)
 {
-    frame->eax = sys_getsockname(frame->ebx, (struct sockaddr *)frame->ecx, (socklen_t *)frame->edx);
+    frame->eax = sys_getsockname(frame->ebx, make_user_buffer(frame->ecx), make_user_buffer(frame->edx));
 }
 
 static void sys_handler_send(struct irq_frame *frame)
 {
-    frame->eax = sys_send(frame->ebx, (const void *)frame->ecx, (size_t)frame->edx, frame->esi);
+    frame->eax = sys_send(frame->ebx, make_user_buffer(frame->ecx), (size_t)frame->edx, frame->esi);
 }
 
 static void sys_handler_recv(struct irq_frame *frame)
 {
-    frame->eax = sys_recv(frame->ebx, (void *)frame->ecx, (size_t)frame->edx, frame->esi);
+    frame->eax = sys_recv(frame->ebx, make_user_buffer(frame->ecx), (size_t)frame->edx, frame->esi);
 }
 
 static void sys_handler_gettimeofday(struct irq_frame *frame)
 {
-    frame->eax = sys_gettimeofday((struct timeval *)frame->ebx, (struct timezone *)frame->ecx);
+    frame->eax = sys_gettimeofday(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_setuid(struct irq_frame *frame)
@@ -416,27 +416,27 @@ static void sys_handler_getegid(struct irq_frame *frame)
 
 static void sys_handler_setgroups(struct irq_frame *frame)
 {
-    frame->eax = sys_setgroups((size_t)frame->ebx, (const gid_t *)frame->ecx);
+    frame->eax = sys_setgroups((size_t)frame->ebx, make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_getgroups(struct irq_frame *frame)
 {
-    frame->eax = sys_getgroups((size_t)frame->ebx, (gid_t *)frame->ecx);
+    frame->eax = sys_getgroups((size_t)frame->ebx, make_user_buffer(frame->ecx));
 }
 
 static void sys_handler_uname(struct irq_frame *frame)
 {
-    frame->eax = sys_uname((struct utsname *)frame->ebx);
+    frame->eax = sys_uname(make_user_buffer(frame->ebx));
 }
 
 static void sys_handler_accept(struct irq_frame *frame)
 {
-    frame->eax = sys_accept(frame->ebx, (struct sockaddr *)frame->ecx, (socklen_t *)frame->edx);
+    frame->eax = sys_accept(frame->ebx, make_user_buffer(frame->ecx), make_user_buffer(frame->edx));
 }
 
 static void sys_handler_connect(struct irq_frame *frame)
 {
-    frame->eax = sys_connect(frame->ebx, (const struct sockaddr *)frame->ecx, (socklen_t)frame->edx);
+    frame->eax = sys_connect(frame->ebx, make_user_buffer(frame->ecx), (socklen_t)frame->edx);
 }
 
 static void sys_handler_listen(struct irq_frame *frame)
