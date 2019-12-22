@@ -31,7 +31,7 @@ QEMU_CMD="$qemu_line"
 # QEMU_LOG_CMD="sleep .1; stty -icanon -echo; socat file:\$(tty),raw,echo=0 unix-connect:qemu-serial-socket | tee ./com2.log"
 QEMU_LOG_CMD="sleep 1; stty raw -echo; socat - tcp:localhost:4567 | tee $LOGS_DIR/com2.log"
 QEMU_MONITOR_CMD="sleep 1; stty -icanon -echo; socat - unix-connect:qemu-monitor-socket | tee $LOGS_DIR/qemu_monitor.log"
-QEMU_DEBUG_CMD="unset GREP_COLORS; tail --retry -f $LOGS_DIR/qemu.log | GREP_COLOR=\"1;31\" grep --line-buffered --color=always -E \"^.*\[E\].*$|$\""
+QEMU_DEBUG_CMD="unset GREP_COLORS; tail --retry -f $LOGS_DIR/qemu.log | GREP_COLOR=\"1;31\" grep --line-buffered --color=always -E \"^.*\[E\].*$|$\" | GREP_COLOR=\"1;33\" grep --line-buffered --color=always -E \"^.*\[W\].*$|$\""
 OBJDUMP_CMD="objdump -D ./imgs/protura_x86_multiboot | less"
 
 tmux new -d -s protura-debug -x $COLUMNS -y $LINES
