@@ -66,23 +66,21 @@ struct inode_ops procfs_dir_inode_ops = {
     .lookup = procfs_inode_dir_lookup,
 };
 
-static int fill_dent(struct dent *dent, size_t dent_size, ino_t ino, const char *name, size_t name_len)
+static int fill_dent(struct user_buffer dent, size_t dent_size, ino_t ino, const char *name, size_t name_len)
 {
     size_t required_size = sizeof(struct dent) + name_len + 1;
 
     if (required_size > dent_size)
         return -EINVAL;
 
-    dent->ino = ino;
-    dent->dent_len = required_size;
-    dent->name_len = name_len;
-    memcpy(dent->name, name, name_len);
-    dent->name[name_len] = '\0';
+    int ret = user_copy_dent(dent, ino, required_size, name_len, name);
+    if (ret)
+        return ret;
 
-    return 0;
+    return required_size;
 }
 
-static int procfs_inode_dir_read_dent(struct file *filp, struct dent *dent, size_t dent_size)
+static int procfs_inode_dir_read_dent(struct file *filp, struct user_buffer dent, size_t dent_size)
 {
     int ret = 0;
     int count = filp->offset - 2;
@@ -117,19 +115,17 @@ static int procfs_inode_dir_read_dent(struct file *filp, struct dent *dent, size
         if (found)
             ret = fill_dent(dent, dent_size, found->ino, found->name, found->len);
         else
-            ret = -EINVAL;
+            ret = 0;
+
         break;
     }
 
-    if (!ret)
+    if (ret > 0)
         filp->offset++;
 
     pinode->i.atime = protura_current_time_get();
 
-    if (ret)
-        return ret;
-    else
-        return dent->dent_len;
+    return ret;
 }
 
 struct file_ops procfs_dir_file_ops = {

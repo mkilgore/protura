@@ -15,6 +15,7 @@
 #include <arch/asm.h>
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 
 #include <protura/fs/block.h>
 #include <protura/fs/super.h>
@@ -24,9 +25,8 @@
 #include <protura/fs/vfs.h>
 
 /* Generic read implemented using bmap */
-int fs_file_generic_pread(struct file *filp, void *vbuf, size_t sizet_len, off_t off)
+int fs_file_generic_pread(struct file *filp, struct user_buffer buf, size_t sizet_len, off_t off)
 {
-    char *buf = vbuf;
     off_t len;
     off_t have_read = 0;
     dev_t dev = filp->inode->sb_dev;
@@ -65,11 +65,18 @@ int fs_file_generic_pread(struct file *filp, void *vbuf, size_t sizet_len, off_t
              *
              * This allows 'sparse' files, which don't have sectors allocated for
              * every position to save space. */
-            if (on_dev != SECTOR_INVALID)
+            if (on_dev != SECTOR_INVALID) {
+                int err;
                 using_block(dev, on_dev, b)
-                    memcpy(buf + have_read, b->data + sec_off, left);
-            else
-                memset(buf + have_read, 0, left);
+                    err = user_memcpy_from_kernel(user_buffer_index(buf, have_read), b->data + sec_off, left);
+
+                if (err)
+                    return err;
+            } else {
+                int err = user_memset_from_kernel(user_buffer_index(buf, have_read), 0, left);
+                if (err)
+                    return err;
+            }
 
             have_read += left;
 
@@ -84,9 +91,9 @@ int fs_file_generic_pread(struct file *filp, void *vbuf, size_t sizet_len, off_t
     return have_read;
 }
 
-int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
+int fs_file_generic_read(struct file *filp, struct user_buffer buf, size_t len)
 {
-    int ret = fs_file_generic_pread(filp, vbuf, len, filp->offset);
+    int ret = fs_file_generic_pread(filp, buf, len, filp->offset);
     if (ret < 0)
         return ret;
 
@@ -94,11 +101,10 @@ int fs_file_generic_read(struct file *filp, void *vbuf, size_t len)
     return ret;
 }
 
-int fs_file_generic_write(struct file *filp, const void *vbuf, size_t sizet_len)
+int fs_file_generic_write(struct file *filp, struct user_buffer buf, size_t sizet_len)
 {
     int ret = 0;
     off_t len;
-    const char *buf = vbuf;
     off_t have_written = 0;
     dev_t dev = filp->inode->sb_dev;
 
@@ -143,8 +149,11 @@ int fs_file_generic_write(struct file *filp, const void *vbuf, size_t sizet_len)
 
 
             using_block(dev, on_dev, b) {
-                memcpy(b->data + sec_off, buf + have_written, left);
+                int err = user_memcpy_to_kernel(b->data + sec_off, user_buffer_index(buf, have_written), left);
                 block_mark_dirty(b);
+
+                if (err)
+                    return err;
             }
 
             have_written += left;
@@ -196,42 +205,30 @@ struct file *file_dup(struct file *filp)
     return filp;
 }
 
-int fs_file_ioctl(struct file *filp, int cmd, uintptr_t arg)
+int fs_file_ioctl(struct file *filp, int cmd, struct user_buffer arg)
 {
     int ret;
-    int *ip;
-
+    int ip;
 
     switch (cmd) {
     case FIBMAP:
         if (!inode_has_bmap(filp->inode))
             return -EINVAL;
 
-        ip = (int *)arg;
-        ret = user_check_region(ip, sizeof(*ip), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        /* FIXME: Wrong type of check... */
+        ret = user_copy_to_kernel(&ip, arg);
         if (ret)
             return ret;
 
-        *ip = vfs_bmap(filp->inode, *ip);
-        return 0;
+        ip = vfs_bmap(filp->inode, ip);
+
+        return user_copy_from_kernel(arg, ip);
 
     case FIGETBSZ:
-        ip = (int *)arg;
-        ret = user_check_region(ip, sizeof(*ip), F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
-
-        *ip = filp->inode->block_size;
-        return 0;
+        return user_copy_from_kernel(arg, (int)filp->inode->block_size);
 
     case FIONREAD:
-        ip = (int *)arg;
-        ret = user_check_region(ip, sizeof(*ip), F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
-
-        *ip = filp->inode->size - filp->offset;
-        return 0;
+        return user_copy_from_kernel(arg, (int)(filp->inode->size - filp->offset));
     }
 
     return -EINVAL;

@@ -83,7 +83,7 @@ static int __seq_file_fill(struct seq_file *seq)
     return 0;
 }
 
-static int seq_file_read(struct seq_file *seq, off_t off, void *ptr, size_t sizet_len)
+static int seq_file_read(struct seq_file *seq, off_t off, struct user_buffer ptr, size_t sizet_len)
 {
     if (off < 0)
         return -EINVAL;
@@ -163,7 +163,7 @@ off_t seq_lseek(struct file *filp, off_t off, int whence)
     return filp->offset;
 }
 
-int seq_read(struct file *filp, void *ptr, size_t len)
+int seq_read(struct file *filp, struct user_buffer ptr, size_t len)
 {
     struct seq_file *seq = filp->priv_data;
 

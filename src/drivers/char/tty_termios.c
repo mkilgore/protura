@@ -13,6 +13,7 @@
 #include <protura/wait.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/snprintf.h>
 
 #include <arch/spinlock.h>
@@ -234,7 +235,7 @@ void tty_process_input(struct tty *tty, const char *buf, size_t buf_len)
     }
 }
 
-void tty_process_output(struct tty *tty, const char *buf, size_t buf_len)
+int tty_process_output(struct tty *tty, struct user_buffer buf, size_t buf_len)
 {
     struct termios termios;
 
@@ -242,6 +243,14 @@ void tty_process_output(struct tty *tty, const char *buf, size_t buf_len)
         termios = tty->termios;
 
     size_t i;
-    for (i = 0; i < buf_len; i++)
-        output_post_process(tty, &termios, buf[i]);
+    for (i = 0; i < buf_len; i++) {
+        char ch;
+        int ret = user_copy_to_kernel_indexed(&ch, buf, i);
+        if (ret)
+            return ret;
+
+        output_post_process(tty, &termios, ch);
+    }
+
+    return buf_len;
 }

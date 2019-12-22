@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/fs/block.h>
 #include <protura/dev.h>
 #include <protura/fs/inode.h>
@@ -18,9 +19,8 @@
 
 #include <protura/drivers/ide.h>
 
-int block_dev_pread_generic(struct file *filp, void *vbuf, size_t len, off_t off)
+int block_dev_pread_generic(struct file *filp, struct user_buffer buf, size_t len, off_t off)
 {
-    char *buf = vbuf;
     size_t have_read = 0;
     dev_t dev = filp->inode->dev_no;
 
@@ -47,8 +47,11 @@ int block_dev_pread_generic(struct file *filp, void *vbuf, size_t len, off_t off
                         block_size - sec_off:
                         len - have_read;
 
-        using_block(dev, sec, b)
-            memcpy(buf + have_read, b->data + sec_off, left);
+        using_block(dev, sec, b) {
+            int ret = user_memcpy_from_kernel(user_buffer_index(buf, have_read), b->data + sec_off, left);
+            if (ret)
+                return ret;
+        }
 
         have_read += left;
 
@@ -61,9 +64,9 @@ int block_dev_pread_generic(struct file *filp, void *vbuf, size_t len, off_t off
     return have_read;
 }
 
-int block_dev_read_generic(struct file *filp, void *vbuf, size_t len)
+int block_dev_read_generic(struct file *filp, struct user_buffer buf, size_t len)
 {
-    int ret = block_dev_pread_generic(filp, vbuf, len, filp->offset);
+    int ret = block_dev_pread_generic(filp, buf, len, filp->offset);
 
     filp->offset += ret;
 

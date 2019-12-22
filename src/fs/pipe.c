@@ -15,6 +15,7 @@
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/palloc.h>
+#include <protura/mm/user_check.h>
 #include <arch/task.h>
 
 #include <protura/fs/block.h>
@@ -152,7 +153,7 @@ static int pipe_rdwr_release(struct file *filp)
     return pipe_release(filp, 1, 1);
 }
 
-static int pipe_read(struct file *filp, void *data, size_t size)
+static int pipe_read(struct file *filp, struct user_buffer data, size_t size)
 {
     size_t original_size = size;
     struct pipe_info *pinfo = &filp->inode->pipe_info;
@@ -169,9 +170,11 @@ static int pipe_read(struct file *filp, void *data, size_t size)
             list_foreach_take_entry(&pinfo->bufs, p, page_list_node) {
                 size_t cpysize = (p->lenb > size)? size: p->lenb;
 
-                memcpy(data, p->virt + p->startb, cpysize);
+                int ret = user_memcpy_from_kernel(data, p->virt + p->startb, cpysize);
+                if (ret)
+                    return ret;
 
-                data += cpysize;
+                data = user_buffer_index(data, cpysize);
                 size -= cpysize;
 
                 p->startb += cpysize;
@@ -235,7 +238,7 @@ static int pipe_read(struct file *filp, void *data, size_t size)
         return ret;
 }
 
-static int pipe_write(struct file *filp, const void *data, size_t size)
+static int pipe_write(struct file *filp, struct user_buffer data, size_t size)
 {
     struct pipe_info *pinfo = &filp->inode->pipe_info;
     struct page *p;
@@ -258,12 +261,14 @@ static int pipe_write(struct file *filp, const void *data, size_t size)
             list_foreach_take_entry(&pinfo->free_pages, p, page_list_node) {
                 size_t cpysize = (PG_SIZE > size)? size: PG_SIZE;
 
-                memcpy(p->virt, data, cpysize);
+                int ret = user_memcpy_to_kernel(p->virt, data, cpysize);
+                if (ret)
+                    return ret;
 
                 p->startb = 0;
                 p->lenb = cpysize;
 
-                data += cpysize;
+                data = user_buffer_index(data, cpysize);
                 size -= cpysize;
 
                 list_add_tail(&pinfo->bufs, &p->page_list_node);
@@ -461,8 +466,9 @@ struct file_ops fifo_default_file_ops = {
     .open = fifo_open,
 };
 
-int sys_pipe(int *fds)
+int sys_pipe(struct user_buffer fds)
 {
+    int fd_local[2];
     int ret = 0;
     struct file *filps[2];
     struct inode *inode;
@@ -494,31 +500,33 @@ int sys_pipe(int *fds)
     atomic_inc(&filps[P_WRITE]->ref);
     inode->pipe_info.writers++;
 
-    fds[0] = fd_assign_empty(filps[0]);
+    fd_local[0] = fd_assign_empty(filps[0]);
 
-    if (fds[0] == -1) {
+    if (fd_local[0] == -1) {
         ret = -ENFILE;
         goto release_filps;
     }
 
-    fds[1] = fd_assign_empty(filps[1]);
+    fd_local[1] = fd_assign_empty(filps[1]);
 
-    if (fds[1] == -1) {
+    if (fd_local[1] == -1) {
         ret = -ENFILE;
         goto release_fd_0;
     }
 
-    FD_CLR(fds[P_READ], &current->close_on_exec);
-    FD_CLR(fds[P_WRITE], &current->close_on_exec);
+    FD_CLR(fd_local[P_READ], &current->close_on_exec);
+    FD_CLR(fd_local[P_WRITE], &current->close_on_exec);
 
-    kp(KP_NORMAL, "PIPE: 0 inode: %p, file_refs: %d\n", filps[0]->inode, atomic_get(&filps[0]->ref));
-    kp(KP_NORMAL, "PIPE: 1 inode: %p, file_refs: %d\n", filps[1]->inode, atomic_get(&filps[1]->ref));
+    ret = user_memcpy_from_kernel(fds, fd_local, sizeof(fd_local));
+    if (ret)
+        goto release_fd_1;
 
     return 0;
 
-    fd_release(fds[1]);
+  release_fd_1:
+    fd_release(fd_local[1]);
   release_fd_0:
-    fd_release(fds[0]);
+    fd_release(fd_local[0]);
   release_filps:
     kfree(filps[0]);
     kfree(filps[1]);

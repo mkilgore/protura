@@ -43,8 +43,8 @@ struct procfs_node {
 struct procfs_entry_ops {
     int (*readpage) (void *page, size_t page_size, size_t *len);
 
-    int (*read) (struct file *filp, void *buf, size_t);
-    int (*ioctl) (struct file *filp, int cmd, uintptr_t ptr);
+    int (*read) (struct file *filp, struct user_buffer buf, size_t);
+    int (*ioctl) (struct file *filp, int cmd, struct user_buffer ptr);
 };
 
 struct procfs_entry {

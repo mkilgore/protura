@@ -17,4 +17,6 @@ struct dent {
     char name[];
 };
 
+int user_copy_dent(struct user_buffer dent, ino_t ino, uint32_t dent_len, uint32_t name_len, const char *name);
+
 #endif

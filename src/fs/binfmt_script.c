@@ -41,7 +41,7 @@ static int load_script(struct exe_params *params, struct irq_frame *frame)
     int exe_len;
     int head_len, i;
 
-    head_len = vfs_read(params->exe, head, sizeof(head));
+    head_len = vfs_read(params->exe, make_kernel_buffer(head), sizeof(head));
 
     exe_len = 0;
     for (i = 0; i < head_len; i++) {

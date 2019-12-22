@@ -62,7 +62,7 @@ struct seq_file_ops {
 
 int seq_open(struct file *, const struct seq_file_ops *);
 off_t seq_lseek(struct file *, off_t, int);
-int seq_read(struct file *, void *, size_t);
+int seq_read(struct file *, struct user_buffer, size_t);
 int seq_release(struct file *);
 
 int seq_printf(struct seq_file *, const char *, ...);

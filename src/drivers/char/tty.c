@@ -13,6 +13,7 @@
 #include <protura/wait.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/snprintf.h>
 
 #include <arch/spinlock.h>
@@ -35,6 +36,7 @@ const struct termios default_termios = {
         [VINTR] = 0x03,
         [VERASE] = 0x7F,
         [VSUSP] = 0x1A,
+        [VEOF] = 0x04,
     },
 };
 
@@ -175,7 +177,7 @@ void tty_flush_output(struct tty *tty)
         char_buf_clear(&tty->output_buf);
 }
 
-static int tty_read(struct file *filp, void *vbuf, size_t len)
+static int tty_read(struct file *filp, struct user_buffer vbuf, size_t len)
 {
     struct tty *tty = filp->priv_data;
     size_t orig_len = len;
@@ -188,9 +190,9 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
         while (orig_len == len) {
             size_t read_count;
 
-            read_count = char_buf_read(&tty->output_buf, vbuf, len);
+            read_count = char_buf_read_user(&tty->output_buf, vbuf, len);
 
-            vbuf += read_count;
+            vbuf = user_buffer_index(vbuf, read_count);
             len -= read_count;
 
             /* The ret0 flag forces an immediate return from read.
@@ -223,26 +225,22 @@ static int tty_read(struct file *filp, void *vbuf, size_t len)
 }
 
 /* Used for things like the seg-fault message */
-int tty_write_buf(struct tty *tty, const char *buf, size_t len)
+int tty_write_buf_user(struct tty *tty, struct user_buffer buf, size_t len)
 {
     if (!tty)
         return -ENOTTY;
 
-    tty_process_output(tty, buf, len);
-
-    return 0;
+    return tty_process_output(tty, buf, len);
 }
 
-static int tty_write(struct file *filp, const void *vbuf, size_t len)
+int tty_write_buf(struct tty *tty, const char *buf, size_t len)
 {
-    struct tty *tty = filp->priv_data;
-    size_t orig_len = len;
+    return tty_write_buf_user(tty, make_kernel_buffer(buf), len);
+}
 
-    int ret = tty_write_buf(tty, vbuf, len);
-    if (ret)
-        return ret;
-
-    return orig_len;
+static int tty_write(struct file *filp, struct user_buffer vbuf, size_t len)
+{
+    return tty_write_buf_user(filp->priv_data, vbuf, len);
 }
 
 static int tty_poll(struct file *filp, struct poll_table *table, int events)
@@ -306,14 +304,14 @@ static int tty_open(struct inode *inode, struct file *filp)
     return 0;
 }
 
-static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
+static int tty_ioctl(struct file *filp, int cmd, struct user_buffer arg)
 {
-    pid_t *parg;
-    struct termios *tios;
-    struct winsize *wins;
     int ret;
     struct task *current = cpu_get_local()->current;
     struct tty *tty = filp->priv_data;
+    pid_t tmp;
+    struct termios tmp_tios;
+    struct winsize tmp_wins;
 
     kp(KP_TRACE, "tty_ioctl: tty: %p, cmd: %d, ctty: %p\n", tty, cmd, current->tty);
 
@@ -323,85 +321,73 @@ static int tty_ioctl(struct file *filp, int cmd, uintptr_t arg)
     switch (cmd) {
     case TIOCGPGRP:
         kp(KP_TRACE, "tty_ioctl: gpgrp\n");
-        parg = (pid_t *)arg;
-        ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
 
         using_mutex(&tty->lock)
-            *parg = tty->fg_pgrp;
-        return 0;
+            tmp = tty->fg_pgrp;
+
+        return user_copy_from_kernel(arg, tmp);
 
     case TIOCSPGRP:
         kp(KP_TRACE, "tty_ioctl: spgrp\n");
-        parg = (pid_t *)arg;
-        ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_READ));
+        ret = user_copy_to_kernel(&tmp, arg);
         if (ret)
             return ret;
 
         using_mutex(&tty->lock)
-            tty->fg_pgrp = *parg;
+            tty->fg_pgrp = tmp;
+
         return 0;
 
     case TIOCGSID:
         kp(KP_TRACE, "tty_ioctl: gsid\n");
-        parg = (pid_t *)arg;
-        ret = user_check_region(parg, sizeof(*parg), F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
 
         using_mutex(&tty->lock)
-            *parg = tty->session_id;
-        return 0;
+            tmp  = tty->session_id;
+
+        return user_copy_from_kernel(arg, tmp);
 
     case TCGETS:
         kp(KP_TRACE, "tty_ioctl: get termios\n");
-        tios = (struct termios *)arg;
-        ret = user_check_region(tios, sizeof(*tios), F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
 
         using_mutex(&tty->lock)
-            *tios = tty->termios;
-        return 0;
+            tmp_tios = tty->termios;
+
+        return user_copy_from_kernel(arg, tmp_tios);
 
     case TCSETS:
         kp(KP_TRACE, "tty_ioctl: set termios\n");
-        tios = (struct termios *)arg;
-        ret = user_check_region(tios, sizeof(*tios), F(VM_MAP_READ));
+        ret = user_copy_to_kernel(&tmp_tios, arg);
         if (ret)
             return ret;
 
         using_mutex(&tty->lock)
-            tty->termios = *tios;
+            tty->termios = tmp_tios;
 
         tty_line_buf_drain(tty);
         return 0;
 
     case TIOCGWINSZ:
         kp(KP_TRACE, "tty_ioctl: get winsize\n");
-        wins = (struct winsize *)arg;
-        ret = user_check_region(wins, sizeof(*wins), F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
 
         using_mutex(&tty->lock)
-            *wins = tty->winsize;
-        return 0;
+            tmp_wins = tty->winsize;
+
+        return user_copy_from_kernel(arg, tmp_wins);
 
     case TIOCSWINSZ:
         kp(KP_TRACE, "tty_ioctl: set winsize\n");
-        wins = (struct winsize *)arg;
-        ret = user_check_region(wins, sizeof(*wins), F(VM_MAP_READ));
+
+        ret = user_copy_to_kernel(&tmp_wins, arg);
         if (ret)
             return ret;
 
         using_mutex(&tty->lock)
-            tty->winsize = *wins;
+            tty->winsize = tmp_wins;
+
         return 0;
 
     case TCFLSH:
-        switch (arg) {
+        switch ((uintptr_t)arg.ptr) {
         case TCIFLUSH:
             tty_flush_input(tty);
             break;

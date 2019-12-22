@@ -9,6 +9,7 @@ objs-y += inode_table.o
 objs-y += sync.o
 
 objs-y += file.o
+objs-y += dir.o
 objs-y += fs.o
 objs-y += namei.o
 objs-y += vfs.o

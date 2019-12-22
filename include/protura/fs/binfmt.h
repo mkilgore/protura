@@ -87,10 +87,11 @@ extern const struct file_ops binfmt_file_ops;
 void script_register(void);
 
 void params_remove_args(struct exe_params *params, int count);
-void params_add_arg(struct exe_params *params, const char *arg);
-void params_fill(struct exe_params *params, const char *const argv[], const char *const envp[]);
+int params_add_arg(struct exe_params *params, const char *arg);
+int params_fill(struct exe_params *params, const char *const argv[], const char *const envp[]);
+int params_fill_from_user(struct exe_params *params, struct user_buffer argv, struct user_buffer envp);
 void params_clear(struct exe_params *params);
-void params_add_arg_first(struct exe_params *params, const char *arg);
+int params_add_arg_first(struct exe_params *params, const char *arg);
 
 char *params_copy_to_userspace(struct exe_params *params, char *ustack);
 

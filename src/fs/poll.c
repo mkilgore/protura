@@ -15,7 +15,7 @@
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/palloc.h>
-#include <protura/mm/user_ptr.h>
+#include <protura/mm/user_check.h>
 #include <protura/task.h>
 #include <protura/scheduler.h>
 
@@ -125,11 +125,12 @@ static void poll_table_unwait(struct poll_table *table)
     }
 }
 
-int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
+int sys_poll(struct user_buffer ufds, nfds_t nfds, int timeout)
 {
     struct poll_table table = POLL_TABLE_INIT(table);
-    struct file **filps = palloc_va(0, PAL_KERNEL);
+    struct file **filps;
     struct task *current = cpu_get_local()->current;
+    struct pollfd *fds;
     unsigned int i;
     int ret;
     int exit_poll = 0;
@@ -137,6 +138,25 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
     if (nfds == 0 && timeout < 0)
         return -EINVAL;
+
+    /* FIXME: This is too low, but due to us making a copy into a single
+     * allocated page below */
+    if (nfds > 512)
+        return -ERANGE;
+
+    filps = palloc_va(0, PAL_KERNEL);
+    if (!filps)
+        return -ENOMEM;
+
+    fds = palloc_va(0, PAL_KERNEL);
+    if (!fds) {
+        ret = -ENOMEM;
+        goto pfree_filps;
+    }
+
+    ret = user_memcpy_to_kernel(fds, ufds, nfds * sizeof(*fds));
+    if (ret)
+        goto pfree_fds;
 
     for (i = 0; i < nfds; i++) {
         if (fds[i].fd <= -1) {
@@ -146,7 +166,7 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
         ret = fd_get_checked(fds[i].fd, filps + i);
         if (ret)
-            return ret;
+            goto pfree_fds;
     }
 
     if (timeout > 0)
@@ -183,7 +203,17 @@ int sys_poll(struct pollfd *fds, nfds_t nfds, int timeout)
     if (event_count == 0 && has_pending_signal(current))
         event_count = -EINTR;
 
+    ret = user_memcpy_from_kernel(ufds, fds, nfds * sizeof(*fds));
+
+    if (!ret)
+        ret = event_count;
+
+
+  pfree_fds:
+    pfree_va(fds, 0);
+
+  pfree_filps:
     pfree_va(filps, 0);
-    return event_count;
+    return ret;
 }
 

@@ -58,7 +58,7 @@ int binary_load(struct exe_params *params, struct irq_frame *frame)
     char begin[128];
 
     memset(begin, 0, sizeof(begin));
-    vfs_read(params->exe, begin, sizeof(begin));
+    vfs_read(params->exe, make_kernel_buffer(begin), sizeof(begin));
     vfs_lseek(params->exe, 0, SEEK_SET);
 
     using_mutex(&binfmt_table.lock) {

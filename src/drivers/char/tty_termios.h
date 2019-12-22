@@ -8,10 +8,11 @@
 #ifndef SRC_DRIVERS_CHAR_TTY_TERMIOS_H
 #define SRC_DRIVERS_CHAR_TTY_TERMIOS_H
 
+#include <protura/mm/user_check.h>
 #include <protura/drivers/tty.h>
 
 void tty_process_input(struct tty *tty, const char *buf, size_t buf_len);
-void tty_process_output(struct tty *tty, const char *buf, size_t len);
+int tty_process_output(struct tty *tty, struct user_buffer buf, size_t len);
 void tty_line_buf_drain(struct tty *tty);
 
 #endif

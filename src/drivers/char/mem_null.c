@@ -13,12 +13,12 @@
 #include <protura/fs/char.h>
 #include <protura/drivers/mem.h>
 
-static int mem_null_read(struct file *filp, void *buf, size_t len)
+static int mem_null_read(struct file *filp, struct user_buffer buf, size_t len)
 {
     return 0;
 }
 
-static int mem_null_write(struct file *filp, const void *buf, size_t len)
+static int mem_null_write(struct file *filp, struct user_buffer buf, size_t len)
 {
     return len;
 }

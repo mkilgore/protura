@@ -13,6 +13,7 @@
 #include <protura/fs/file.h>
 #include <protura/fs/poll.h>
 #include <protura/fs/seq_file.h>
+#include <protura/mm/user_check.h>
 #include <protura/wait.h>
 #include <protura/char_buf.h>
 #include <protura/basic_printf.h>
@@ -65,10 +66,42 @@ void klog_init(void)
     kp_output_register(&klog_kp_output);
 }
 
-static int klog_read(struct file *filp, void *p, size_t size)
+static int klog_read(struct file *filp, struct user_buffer buf, size_t size)
 {
-    using_spinlock(&klog.lock)
-        return char_buf_read(&klog.buf, p, size);
+    int ret;
+    size_t have_read = 0;
+
+    struct page *page = palloc(0, PAL_KERNEL);
+    if (!page)
+        return -ENOMEM;
+
+    while (size) {
+        size_t to_read = size > PG_SIZE? PG_SIZE: size;
+        size_t bytes_read = 0;
+
+        /* We can't write to userspace while holding the spinlock */
+        using_spinlock(&klog.lock)
+            bytes_read = char_buf_read(&klog.buf, page->virt, to_read);
+
+        ret = user_memcpy_from_kernel(user_buffer_index(buf, have_read), page->virt, bytes_read);
+        if (ret)
+            goto pfree_ret;
+
+        have_read += bytes_read;
+        size -= bytes_read;
+
+        /* If we got back less bytes then we asked from the char_buf, then it
+         * is now empty and we exit early */
+        if (to_read != bytes_read)
+            break;
+    }
+
+  pfree_ret:
+    pfree(page, 0);
+    if (ret < 0)
+        return ret;
+    else
+        return have_read;
 }
 
 static int klog_poll(struct file *filp, struct poll_table *table, int events)

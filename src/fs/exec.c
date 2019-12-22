@@ -16,6 +16,7 @@
 #include <protura/mutex.h>
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/signal.h>
 #include <arch/task.h>
 
@@ -67,79 +68,43 @@ static void set_credentials(struct inode *inode, struct task *current)
     }
 }
 
-/* The end result of all this argument shifting is to end up with the below
- * setup:
- *
- * ----- Stack end -----
- * NULL
- * envp[envc - 1]
- * envp[envc - 2]
- * ...
- * envp[1]
- * envp[0]
- * NULL
- * argv[argc - 1]
- * argv[argc - 2]
- * ...
- * argv[1]
- * argv[0]
- * contents of string envp[argc - 1]
- * contents of string envp[argc - 2]
- * ...
- * contents of string envp[1]
- * contents of string envp[0]
- * contents of string argv[argc - 1]
- * contents of string argv[argc - 2]
- * ...
- * contents of string argv[1]
- * contents of string argv[0]
- * envp pointer
- * argv pointer
- * argc integer
- * ... Usable stack space ...
- * ----- Stack beginning -----
- *
- * Because the arguments are passed in from user-space, however, we can't
- * simply copy from the old stack to the new stack - By the time the new stack
- * is created, the old program's memory is gone. Thus, we make a simple
- * temporary copy of all the arguments into kernel memory before loading the
- * binary. That copy is setup like this:
- *
- * ----- Stack end -----
- * NULL
- * envp[envc - 1] offset
- * envp[envc - 2] offset
- * ...
- * envp[1] offset
- * envp[0] offset
- * NULL
- * argv[argc - 1] offset
- * argv[argc - 2] offset
- * ...
- * argv[1] offset
- * argv[0] offset
- * contents of string envp[argc - 1]
- * contents of string envp[argc - 2]
- * ...
- * contents of string envp[1]
- * contents of string envp[0]
- * contents of string argv[argc - 1]
- * contents of string argv[argc - 2]
- * ...
- * contents of string argv[1]
- * contents of string argv[0]
- * envp offset
- * argv offset
- * argc integer
- * ----- Stack beginning -----
- *
- * Where the offsets indicate how far from the top of the stack (end of the
- * stack) that pointer refers to. Thus, this setup can be copied almost
- * directly to the user-space, with the offsets being replaced with pointers
- * which are simply (stack end - offset).
- */
+static void generate_task_name(char *name, size_t len, const char *file, struct user_buffer argv_buf)
+{
+    size_t name_len = 0;
+    struct user_buffer arg;
+    char *str = NULL;
 
-static int execve(struct inode *inode, const char *file, const char *const argv[], const char *const envp[], struct irq_frame *frame)
+    /* This is the creation of the replacement name for the current task */
+    name_len = snprintf(name, len, "%s", file);
+
+    int err = user_copy_to_kernel(&str, argv_buf);
+    if (err)
+        return;
+
+    if (!str)
+        return;
+
+    /* We skip argv[0], as it should be the same as the filename above */
+    for (arg = user_buffer_index(argv_buf, sizeof(char *)); !user_buffer_is_null(arg); arg = user_buffer_index(arg, sizeof(char *))) {
+        err = user_copy_to_kernel(&str, arg);
+        if (err)
+            break;
+
+        if (!str)
+            break;
+
+        struct user_buffer str_wrapped = user_buffer_make(str, arg.is_user);
+
+        char arg_str[64];
+        err = user_strncpy_to_kernel(arg_str, str_wrapped, sizeof(arg_str));
+        if (err)
+            break;
+
+        name_len += snprintf(name + name_len, len - name_len, " %s", arg_str);
+    }
+}
+
+static int execve(struct inode *inode, const char *file, struct user_buffer argv_buf, struct user_buffer envp_buf, struct irq_frame *frame)
 {
     struct file *filp;
     struct exe_params params;
@@ -148,32 +113,29 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
     char *user_stack_end;
     struct task *current = cpu_get_local()->current;
     char new_name[128];
-    size_t name_len = 0;
-    const char *const *arg;
 
     exe_params_init(&params);
 
     strncpy(params.filename, file, sizeof(params.filename));
     params.filename[sizeof(params.filename) - 1] = '\0';
 
-    if (argv == NULL)
-        argv = (const char *[]) { file, NULL };
+    if (user_buffer_is_null(argv_buf))
+        argv_buf = make_kernel_buffer(((const char *[]) { file, NULL }));
 
-    if (envp == NULL)
-        envp = (const char *[]) { file, NULL };
+    if (user_buffer_is_null(envp_buf))
+        envp_buf = make_kernel_buffer(((const char *[]) { file, NULL }));
+
+    generate_task_name(new_name, sizeof(new_name), file, argv_buf);
+
+    ret = params_fill_from_user(&params, argv_buf, envp_buf);
+    if (ret) {
+        params_clear(&params);
+        return ret;
+    }
 
     ret = vfs_open(inode, F(FILE_READABLE), &filp);
     if (ret)
         return ret;
-
-    name_len = snprintf(new_name, sizeof(new_name), "%s", file);
-
-    /* We skip argv[0], as it should be the same as the filename above */
-    if (*argv)
-        for (arg = argv + 1; *arg && name_len < sizeof(new_name); arg++)
-            name_len += snprintf(new_name + name_len, sizeof(new_name) - name_len, " %s", *arg);
-
-    params_fill(&params, argv, envp);
 
     params.exe = filp;
     ret = binary_load(&params, frame);
@@ -217,50 +179,20 @@ static int execve(struct inode *inode, const char *file, const char *const argv[
     return ret;
 }
 
-static int verify_param_list(const char *const *list)
-{
-    int ret, i = 0;
-
-    for (i = 0; list[i]; i++) {
-        ret = user_check_region(list + i, sizeof(*list), F(VM_MAP_READ));
-        if (ret)
-            return ret;
-
-        if (list[i]) {
-            ret = user_check_strn(list[i], 256, F(VM_MAP_READ));
-            if (ret)
-                return ret;
-        }
-    }
-
-    return 0;
-}
-
-int sys_execve(const char *file, const char *const argv[], const char *const envp[], struct irq_frame *frame)
+int sys_execve(struct user_buffer file_buf, struct user_buffer argv_buf, struct user_buffer envp_buf, struct irq_frame *frame)
 {
     struct inode *exe;
     struct task *current = cpu_get_local()->current;
     int ret;
 
-    ret = user_check_strn(file, 256, F(VM_MAP_READ));
+    __cleanup_user_string char *tmp_file = NULL;
+    ret = user_alloc_string(file_buf, &tmp_file);
     if (ret)
         return ret;
 
-    if (argv) {
-        ret = verify_param_list(argv);
-        if (ret)
-            return ret;
-    }
+    kp(KP_TRACE, "Executing: %s\n", tmp_file);
 
-    if (envp) {
-        ret = verify_param_list(envp);
-        if (ret)
-            return ret;
-    }
-
-    kp(KP_TRACE, "Executing: %s\n", file);
-
-    ret = namex(file, current->cwd, &exe);
+    ret = namex(tmp_file, current->cwd, &exe);
     if (ret) {
         irq_frame_set_syscall_ret(frame, ret);
         return 0;
@@ -273,7 +205,7 @@ int sys_execve(const char *file, const char *const argv[], const char *const env
         return 0;
     }
 
-    ret = execve(exe, file, argv, envp, frame);
+    ret = execve(exe, tmp_file, argv_buf, envp_buf, frame);
 
     inode_put(exe);
 

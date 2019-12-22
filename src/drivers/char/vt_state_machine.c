@@ -706,6 +706,10 @@ static void (*vt_states[]) (struct vt *, char) = {
 
 static void __vt_process_char(struct vt *vt, char ch)
 {
+    /* The NUL character is ignored */
+    if (!ch)
+        return;
+
     if (ch == '\n'
             || ch == '\r'
             || ch == '\t'

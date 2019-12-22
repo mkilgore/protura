@@ -105,7 +105,7 @@ int vfs_close(struct file *filp)
     return ret;
 }
 
-int vfs_read(struct file *filp, void *buf, size_t len)
+int vfs_read(struct file *filp, struct user_buffer buf, size_t len)
 {
     if (S_ISDIR(filp->inode->mode))
         return -EISDIR;
@@ -116,7 +116,7 @@ int vfs_read(struct file *filp, void *buf, size_t len)
         return -ENOTSUP;
 }
 
-int vfs_pread(struct file *filp, void *buf, size_t len, off_t off)
+int vfs_pread(struct file *filp, struct user_buffer buf, size_t len, off_t off)
 {
     if (S_ISDIR(filp->inode->mode))
         return -EISDIR;
@@ -127,7 +127,7 @@ int vfs_pread(struct file *filp, void *buf, size_t len, off_t off)
         return -ENOTSUP;
 }
 
-int vfs_read_dent(struct file *filp, struct dent *dent, size_t size)
+int vfs_read_dent(struct file *filp, struct user_buffer dent, size_t size)
 {
     if (!S_ISDIR(filp->inode->mode))
         return -ENOTDIR;
@@ -138,7 +138,7 @@ int vfs_read_dent(struct file *filp, struct dent *dent, size_t size)
         return -ENOTSUP;
 }
 
-int vfs_write(struct file *filp, void *buf, size_t len)
+int vfs_write(struct file *filp, struct user_buffer buf, size_t len)
 {
     if (S_ISDIR(filp->inode->mode))
         return -EISDIR;

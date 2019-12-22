@@ -22,11 +22,13 @@
 int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp);
 int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *filp);
 int vfs_close(struct file *filp);
-int vfs_pread(struct file *filp, void *buf, size_t len, off_t off);
-int vfs_read(struct file *filp, void *buf, size_t len);
-int vfs_write(struct file *filp, void *buf, size_t len);
+
+int vfs_pread(struct file *filp, struct user_buffer buf, size_t len, off_t off);
+int vfs_read(struct file *filp, struct user_buffer buf, size_t len);
+int vfs_write(struct file *filp, const struct user_buffer buf, size_t len);
+
 off_t vfs_lseek(struct file *filp, off_t off, int whence);
-int vfs_read_dent(struct file *filp, struct dent *, size_t size);
+int vfs_read_dent(struct file *filp, struct user_buffer dent, size_t size);
 
 int vfs_lookup(struct inode *inode, const char *name, size_t len, struct inode **result);
 int vfs_truncate(struct inode *inode, off_t length);

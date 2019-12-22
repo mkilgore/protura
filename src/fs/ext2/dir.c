@@ -56,7 +56,7 @@ static int ext2_dir_readdir(struct file *filp, struct file_readdir_handler *hand
 }
 #endif
 
-static int ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t dent_size)
+static int ext2_dir_read_dent(struct file *filp, struct user_buffer dent, size_t dent_size)
 {
     int ret = 0;
 

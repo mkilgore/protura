@@ -12,6 +12,7 @@
 #include <protura/list.h>
 #include <protura/mutex.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 
 #include <arch/spinlock.h>
 #include <protura/fs/block.h>
@@ -25,7 +26,7 @@
 #include <protura/fs/procfs.h>
 #include "procfs_internal.h"
 
-static int procfs_file_read(struct file *filp, void *buf, size_t size)
+static int procfs_file_read(struct file *filp, struct user_buffer buf, size_t size)
 {
     struct procfs_inode *pinode = container_of(filp->inode, struct procfs_inode, i);
     struct procfs_node *node = pinode->node;
@@ -37,7 +38,7 @@ static int procfs_file_read(struct file *filp, void *buf, size_t size)
     pinode->i.atime = protura_current_time_get();
 
     if (entry->ops->read)
-        return (entry->ops->read)(filp, buf, size);
+        return (entry->ops->read) (filp, buf, size);
 
     if (filp->offset > 0)
         return 0;
@@ -55,7 +56,7 @@ static int procfs_file_read(struct file *filp, void *buf, size_t size)
 
     if (!ret) {
         cpysize = (data_len > size)? size: data_len;
-        memcpy(buf, p, cpysize);
+        ret = user_memcpy_from_kernel(buf, p, cpysize);
     }
 
     pfree_va(p, 0);
@@ -69,7 +70,7 @@ static int procfs_file_read(struct file *filp, void *buf, size_t size)
     }
 }
 
-static int procfs_file_ioctl(struct file *filp, int cmd, uintptr_t ptr)
+static int procfs_file_ioctl(struct file *filp, int cmd, struct user_buffer ptr)
 {
     struct procfs_inode *pinode = container_of(filp->inode, struct procfs_inode, i);
     struct procfs_node *node = pinode->node;

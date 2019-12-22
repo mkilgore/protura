@@ -29,7 +29,9 @@ static int mmap_file_fill_page(struct vm_map *map, va_t address)
     off_t memoffset = address - map->addr.start;
     off_t offset = memoffset + map->file_page_offset;
 
-    int err = vfs_pread(map->filp, p->virt, PG_SIZE, offset);
+    struct user_buffer read_buf = make_kernel_buffer(p->virt);
+
+    int err = vfs_pread(map->filp, read_buf, PG_SIZE, offset);
 
     if (err < 0)
         return err;

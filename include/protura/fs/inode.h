@@ -112,7 +112,7 @@ struct inode_ops {
                    struct inode *new_dir, const char *new_name, size_t new_len);
 
     int (*symlink) (struct inode *dir, const char *symlink, size_t len, const char *symlink_target);
-    int (*readlink) (struct inode *dir, char *buf, size_t buf_len);
+    int (*readlink) (struct inode *dir, char *, size_t buf_len);
     int (*follow_link) (struct inode *dir, struct inode *symlink, struct inode **result);
 };
 
@@ -225,10 +225,10 @@ static inline void inode_dec_nlinks(struct inode *inode)
 }
 
 #define using_inode_lock_read(inode) \
-    using_nocheck(inode_lock_read(inode), inode_unlock_read(inode))
+    using_mutex(&(inode)->lock)
 
 #define using_inode_lock_write(inode) \
-    using_nocheck(inode_lock_write(inode), inode_unlock_write(inode))
+    using_mutex(&(inode)->lock)
 
 #define using_inode(sb, ino, inode) \
     using((inode = inode_get(sb, ino)) != NULL, inode_put(inode))

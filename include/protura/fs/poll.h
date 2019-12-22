@@ -28,7 +28,7 @@ struct poll_table;
 
 void poll_table_add(struct poll_table *, struct wait_queue *);
 
-int sys_poll(struct pollfd *, nfds_t nfds, int timeout);
+int sys_poll(struct user_buffer pollfds, nfds_t nfds, int timeout);
 
 #endif
 

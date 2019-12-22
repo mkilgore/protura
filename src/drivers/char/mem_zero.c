@@ -9,18 +9,21 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
+#include <protura/mm/user_check.h>
 
 #include <protura/fs/char.h>
 #include <protura/drivers/mem.h>
 
-static int mem_zero_read(struct file *filp, void *vbuf, size_t len)
+static int mem_zero_read(struct file *filp, struct user_buffer buf, size_t len)
 {
-    memset(vbuf, 0, len);
+    int ret = user_memset_from_kernel(buf, 0, len);
+    if (ret)
+        return ret;
 
     return len;
 }
 
-static int mem_zero_write(struct file *filp, const void *vbuf, size_t len)
+static int mem_zero_write(struct file *filp, struct user_buffer buf, size_t len)
 {
     return len;
 }

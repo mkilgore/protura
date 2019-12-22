@@ -48,7 +48,7 @@ static int vm_map_pad_last_page(struct exe_params *params, struct vm_map *map, o
     off_t file_offset = PG_ALIGN_DOWN(file_size) + map->file_page_offset;
     int off = file_size - PG_ALIGN_DOWN(file_size);
 
-    int err = vfs_pread(map->filp, p->virt, off, file_offset);
+    int err = vfs_pread(map->filp, make_kernel_buffer(p->virt), off, file_offset);
     kp_elf(params, "read: %d\n", err);
     if (err < 0) {
         pfree(p, 0);
@@ -158,7 +158,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     struct address_space *new_addrspc;
     struct task *current;
 
-    ret = vfs_pread(params->exe, &head, sizeof(head), 0);
+    ret = vfs_pread(params->exe, make_kernel_buffer(&head), sizeof(head), 0);
     if (ret != sizeof(head))
         return -ENOEXEC;
 
@@ -175,7 +175,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     for (i = 0, current_off = head.prog_head_pos; i < head.prog_head_count; i++, current_off += sizeof(struct elf_prog_section)) {
 
         kp_elf(params, "Reading ELF section...\n");
-        ret = vfs_pread(params->exe, &sect, sizeof(sect), current_off);
+        ret = vfs_pread(params->exe, make_kernel_buffer(&sect), sizeof(sect), current_off);
         kp_elf(params, "Reading ret: %d\n", ret);
         if (ret != sizeof(sect))
             return -ENOEXEC;

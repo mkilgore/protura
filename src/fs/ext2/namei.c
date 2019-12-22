@@ -419,17 +419,20 @@ int __ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler)
     return ret;
 }
 
-int __ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t size)
+int __ext2_dir_read_dent(struct file *filp, struct user_buffer dent, size_t size)
 {
     struct block *b;
     struct inode *dir = filp->inode;
     struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
     int block_size = sb->block_size;
     int ret = 0;
+    int skip;
 
     kp_ext2(dir->sb, "Dir size: %ld\n", dir->size);
 
   again:
+    skip = 0;
+
     if (filp->offset == dir->size)
         return 0;
 
@@ -446,23 +449,28 @@ int __ext2_dir_read_dent(struct file *filp, struct dent *dent, size_t size)
 
         entry = (struct ext2_disk_directory_entry *)(b->data + block_off);
 
+        if (entry->ino == 0) {
+            skip = 1;
+            break;
+        }
+
         if (size < sizeof(struct dent) + entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW] + 1) {
             ret = -EINVAL;
         } else {
-            dent->ino = entry->ino;
-            dent->dent_len = sizeof(struct dent) + entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW] + 1;
-            dent->name_len = entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW];
-            memcpy(dent->name, entry->name, entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW]);
-            dent->name[entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW]] = '\0';
+            ret = user_copy_dent(dent,
+                                 entry->ino,
+                                 sizeof(struct dent) + entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW] + 1,
+                                 entry->name_len_and_type[EXT2_DENT_NAME_LEN_LOW],
+                                 entry->name);
 
-            kp_ext2(dir->sb, "Dir entry "PRinode": %s\n", Pinode(dir), dent->name);
-
-            ret = entry->rec_len;
-            filp->offset += entry->rec_len;
+            if (!ret) {
+                ret = entry->rec_len;
+                filp->offset += entry->rec_len;
+            }
         }
     }
 
-    if (dent->ino == 0)
+    if (skip)
         goto again;
 
     return ret;
