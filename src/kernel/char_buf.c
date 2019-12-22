@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/string.h>
 #include <protura/debug.h>
+#include <protura/mm/user_check.h>
 #include <protura/char_buf.h>
 
 void char_buf_init(struct char_buf *buf, void *nbuffer, size_t buf_size)
@@ -76,7 +77,7 @@ void char_buf_write(struct char_buf *buf, const void *data, size_t data_len)
     }
 }
 
-size_t char_buf_read(struct char_buf *buf, void *data, size_t data_len)
+int char_buf_read_user(struct char_buf *buf, struct user_buffer data, size_t data_len)
 {
     size_t orig_size;
 
@@ -89,7 +90,10 @@ size_t char_buf_read(struct char_buf *buf, void *data, size_t data_len)
     orig_size = data_len;
 
     if (buf->len - buf->start_pos >= data_len) {
-        memcpy(data, buf->buffer + buf->start_pos, data_len);
+        int ret = user_memcpy_from_kernel(data, buf->buffer + buf->start_pos, data_len);
+        if (ret)
+            return ret;
+
         buf->start_pos += data_len;
         buf->buf_len -= data_len;
 
@@ -97,20 +101,32 @@ size_t char_buf_read(struct char_buf *buf, void *data, size_t data_len)
             buf->start_pos = 0;
 
     } else {
-        if (buf->len - buf->start_pos > 0) {
-            memcpy(data, buf->buffer + buf->start_pos, buf->len - buf->start_pos);
+        int ret;
 
-            data += buf->len - buf->start_pos;
+        if (buf->len - buf->start_pos > 0) {
+            ret = user_memcpy_from_kernel(data, buf->buffer + buf->start_pos, buf->len - buf->start_pos);
+            if (ret)
+                return ret;
+
+            data = user_buffer_index(data, buf->len - buf->start_pos);
             data_len -= buf->len - buf->start_pos;
             buf->buf_len -= buf->len - buf->start_pos;
         }
 
-        memcpy(data, buf->buffer, data_len);
+        ret = user_memcpy_from_kernel(data, buf->buffer, data_len);
+        if (ret)
+            return ret;
+
         buf->start_pos = data_len;
         buf->buf_len -= data_len;
     }
 
     return orig_size;
+}
+
+int char_buf_read(struct char_buf *buf, void *data, size_t data_len)
+{
+    return char_buf_read_user(buf, make_kernel_buffer(data), data_len);
 }
 
 #ifdef CONFIG_KERNEL_TESTS

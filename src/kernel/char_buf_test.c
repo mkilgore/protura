@@ -41,6 +41,33 @@ static void char_buf_read_wrap_test(struct ktest *kt)
     pfree(page, 0);
 }
 
+static void char_buf_read_user_wrap_test(struct ktest *kt)
+{
+    struct page *page = palloc(0, PAL_KERNEL);
+    struct char_buf buf;
+    char_buf_init(&buf, page->virt, PG_SIZE);
+
+    char tmp[128];
+    int i;
+    for (i = 0; i < ARRAY_SIZE(tmp); i++)
+        tmp[i] = i;
+
+    buf.start_pos = PG_SIZE - 64;
+    buf.buf_len = 128;
+    memcpy(page->virt + PG_SIZE - 64, tmp, 64);
+    memcpy(page->virt, tmp + 64, 64);
+
+    char read_ret[128] = { 0 };
+    size_t ret = char_buf_read_user(&buf, make_kernel_buffer(read_ret), sizeof(read_ret));
+
+    ktest_assert_equal(kt, 128, ret);
+    ktest_assert_equal(kt, 64, buf.start_pos);
+    ktest_assert_equal(kt, 0, buf.buf_len);
+    ktest_assert_equal_mem(kt, tmp, read_ret, 128);
+
+    pfree(page, 0);
+}
+
 static void char_buf_write_wrap_test(struct ktest *kt)
 {
     struct page *page = palloc(0, PAL_KERNEL);
@@ -120,6 +147,7 @@ static void char_buf_empty_read_test(struct ktest *kt)
 
 static const struct ktest_unit char_buf_test_units[] = {
     KTEST_UNIT_INIT("char-buf-read-wrap-test", char_buf_read_wrap_test),
+    KTEST_UNIT_INIT("char-buf-read-user-wrap-test", char_buf_read_user_wrap_test),
     KTEST_UNIT_INIT("char-buf-write-wrap-test", char_buf_write_wrap_test),
     KTEST_UNIT_INIT("char-buf-write-test", char_buf_write_test),
     KTEST_UNIT_INIT("char-buf-empty-read-test", char_buf_empty_read_test),
