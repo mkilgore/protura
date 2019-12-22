@@ -43,8 +43,8 @@ extern struct procfs_entry_ops uptime_ops;
 extern struct procfs_entry_ops boot_time_ops;
 extern struct procfs_entry_ops current_time_ops;
 
-int sys_time(time_t *t);
-int sys_gettimeofday(struct timeval *tv, struct timezone *tz);
+int sys_time(struct user_buffer t);
+int sys_gettimeofday(struct user_buffer tv, struct user_buffer tz);
 
 #endif
 

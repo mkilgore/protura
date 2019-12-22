@@ -11,7 +11,7 @@
 #include <protura/snprintf.h>
 #include <protura/atomic.h>
 #include <protura/mm/vm.h>
-#include <protura/mm/user_ptr.h>
+#include <protura/mm/user_check.h>
 #include <protura/fs/procfs.h>
 #include <protura/time.h>
 
@@ -81,31 +81,19 @@ struct procfs_entry_ops current_time_ops = {
     .readpage = protura_current_time_read,
 };
 
-int sys_time(time_t *t)
+int sys_time(struct user_buffer t)
 {
-    int ret;
-
-    ret = user_check_region(t, sizeof(*t), F(VM_MAP_WRITE));
-    if (ret)
-        return ret;
-
-    *t = protura_current_time_get();
-
-    return 0;
+    return user_copy_from_kernel(t, protura_current_time_get());
 }
 
-int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
+int sys_gettimeofday(struct user_buffer tv, struct user_buffer tz)
 {
-    int ret;
     uint32_t tick = timer_get_ticks();
+    struct timeval tmp;
 
-    ret = user_check_region(tv, sizeof(*tv), F(VM_MAP_WRITE));
-    if (ret)
-        return ret;
+    tmp.tv_sec = tick / TIMER_TICKS_PER_SEC;
+    tmp.tv_usec = (tick % (TIMER_TICKS_PER_SEC)) * (TIMER_TICKS_PER_SEC / 1000);
 
-    tv->tv_sec = tick / TIMER_TICKS_PER_SEC;
-    tv->tv_usec = (tick % (TIMER_TICKS_PER_SEC)) * (TIMER_TICKS_PER_SEC / 1000);
-
-    return 0;
+    return user_copy_from_kernel(tv, tmp);
 }
 
