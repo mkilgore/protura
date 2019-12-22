@@ -12,6 +12,7 @@
 #include <protura/list.h>
 #include <protura/snprintf.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/drivers/tty.h>
 #include <protura/fs/procfs.h>
 #include <protura/task_api.h>
@@ -83,7 +84,7 @@ static void __fill_task_api_info(struct task_api_info *tinfo, struct task *task)
     memcpy(tinfo->name, task->name, sizeof(tinfo->name));
 }
 
-static int scheduler_task_api_read(struct file *filp, void *p, size_t size)
+static int scheduler_task_api_read(struct file *filp, struct user_buffer buf, size_t size)
 {
     struct task_api_info tinfo;
     struct task *task, *found = NULL;
@@ -111,10 +112,15 @@ static int scheduler_task_api_read(struct file *filp, void *p, size_t size)
 
     if (found) {
         filp->offset = found_pid;
+        int ret;
+
         if (size > sizeof(tinfo))
-            memcpy(p, &tinfo, sizeof(tinfo));
+            ret = user_memcpy_from_kernel(buf, &tinfo, sizeof(tinfo));
         else
-            memcpy(p, &tinfo, size);
+            ret = user_memcpy_from_kernel(buf, &tinfo, size);
+
+        if (ret)
+            return ret;
 
         return size;
     } else {
@@ -197,28 +203,44 @@ static int task_api_fill_file_info(struct task_api_file_info *info)
     return 0;
 }
 
-static int scheduler_task_api_ioctl(struct file *filp, int cmd, uintptr_t ptr)
+static int scheduler_task_api_ioctl(struct file *filp, int cmd, struct user_buffer ptr)
 {
-    struct task_api_mem_info *mem_info;
-    struct task_api_file_info *file_info;
+    struct task_api_mem_info *mem_info = NULL;
+    struct task_api_file_info *file_info = NULL;
     int ret;
 
     switch (cmd) {
     case TASKIO_MEM_INFO:
-        mem_info = (struct task_api_mem_info *)ptr;
-        ret = user_check_region(mem_info, sizeof(*mem_info), F(VM_MAP_READ) | F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
+        mem_info = kmalloc(sizeof(*mem_info), PAL_KERNEL);
+        if (!mem_info)
+            return -ENOMEM;
 
-        return task_api_fill_mem_info(mem_info);
+        ret = task_api_fill_mem_info(mem_info);
+        if (ret) {
+            kfree(mem_info);
+            return ret;
+        }
+
+        ret = user_copy_from_kernel(ptr, *mem_info);
+
+        kfree(mem_info);
+        return ret;
 
     case TASKIO_FILE_INFO:
-        file_info = (struct task_api_file_info *)ptr;
-        ret = user_check_region(file_info, sizeof(*file_info), F(VM_MAP_READ) | F(VM_MAP_WRITE));
-        if (ret)
-            return ret;
+        file_info = kmalloc(sizeof(*file_info), PAL_KERNEL);
+        if (!file_info)
+            return -ENOMEM;
 
-        return task_api_fill_file_info(file_info);
+        ret = task_api_fill_file_info(file_info);
+        if (ret) {
+            kfree(file_info);
+            return ret;
+        }
+
+        ret = user_copy_from_kernel(ptr, *file_info);
+
+        kfree(file_info);
+        return ret;
     }
 
     return -EINVAL;
