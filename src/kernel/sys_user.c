@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/snprintf.h>
 #include <protura/scheduler.h>
+#include <protura/mm/user_check.h>
 #include <protura/mm/vm.h>
 #include <protura/users.h>
 
@@ -234,41 +235,40 @@ int sys_getegid(void)
         return creds->egid;
 }
 
-int sys_setgroups(size_t size, const gid_t *__user list)
+int sys_setgroups(size_t size, struct user_buffer list)
 {
     struct credentials *creds = &cpu_get_local()->current->creds;
+    gid_t new_sup_groups[NGROUPS];
 
     if (size > NGROUPS)
         return -EPERM;
 
-    int ret = user_check_region(list, size * sizeof(*list), VM_MAP_READ);
-    if (ret)
-        return ret;
+    size_t i;
+    for (i = 0; i < size; i++) {
+        gid_t tmp;
+        int ret = user_copy_to_kernel_indexed(&tmp, list, i);
+        if (ret)
+            return ret;
+
+        new_sup_groups[i] = tmp;
+    }
+
+    if (i < NGROUPS)
+        new_sup_groups[i] = GID_INVALID;
 
     using_creds(creds) {
         if (creds->euid != 0)
             return -EPERM;
 
-        size_t i;
-        for (i = 0; i < size; i++)
-            creds->sup_groups[i] = list[i];
-
-        if (i < NGROUPS)
-            creds->sup_groups[i] = GID_INVALID;
+        memcpy(creds->sup_groups, new_sup_groups, sizeof(new_sup_groups));
     }
 
     return 0;
 }
 
-int sys_getgroups(size_t size, gid_t *__user list)
+int sys_getgroups(size_t size, struct user_buffer list)
 {
     struct credentials *creds = &cpu_get_local()->current->creds;
-
-    if (size) {
-        int ret = user_check_region(list, size * sizeof(*list), VM_MAP_WRITE);
-        if (ret)
-            return ret;
-    }
 
     using_creds(creds) {
         size_t i;
@@ -280,7 +280,9 @@ int sys_getgroups(size_t size, gid_t *__user list)
             if (i > size)
                 continue;
 
-            list[i] = creds->sup_groups[i];
+            int ret = user_copy_from_kernel_indexed(list, creds->sup_groups[i], i);
+            if (ret)
+                return ret;
         }
 
         return i;

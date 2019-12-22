@@ -45,7 +45,7 @@ int sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid);
 int sys_getgid(void);
 int sys_getegid(void);
 
-int sys_setgroups(size_t size, const gid_t *__user list);
-int sys_getgroups(size_t size, gid_t *__user list);
+int sys_setgroups(size_t size, struct user_buffer list);
+int sys_getgroups(size_t size, struct user_buffer list);
 
 #endif
