@@ -33,7 +33,7 @@ static struct {
     struct hlist_head cache[BLOCK_HASH_TABLE_SIZE];
     list_head_t lru;
 } block_cache = {
-    .lock = MUTEX_INIT(block_cache.lock, "Block-cache-lock"),
+    .lock = MUTEX_INIT(block_cache.lock),
     .cache_count = 0,
     .cache = { { NULL }, },
     .lru = LIST_HEAD_INIT(block_cache.lru),

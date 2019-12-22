@@ -50,7 +50,7 @@ ino_t procfs_next_ino(void)
  * table will be as evenly distributed as you could get */
 #define PROCFS_HASH_TABLE_SIZE 128
 
-static mutex_t procfs_hashtable_lock = MUTEX_INIT(procfs_hashtable_lock, "procfs-node-cache-lock");
+static mutex_t procfs_hashtable_lock = MUTEX_INIT(procfs_hashtable_lock);
 static hlist_head_t procfs_hashtable[PROCFS_HASH_TABLE_SIZE];
 
 /* Note: Already hold entry_lock on inode */

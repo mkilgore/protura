@@ -97,7 +97,7 @@ struct delay_work {
     { \
         .work_list = LIST_HEAD_INIT((queue).work_list), \
         .work_running_list = LIST_HEAD_INIT((queue).work_running_list), \
-        .lock = SPINLOCK_INIT("workqueue-lock"), \
+        .lock = SPINLOCK_INIT(), \
     }
 
 #define WORK_INIT(work) \

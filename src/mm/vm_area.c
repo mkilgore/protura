@@ -23,7 +23,7 @@
 /*
  * A lock covering vm_area_list and vm_area_mappings
  */
-static mutex_t vm_area_list_lock = MUTEX_INIT(vm_area_list_lock, "vm-area-list-lock");
+static mutex_t vm_area_list_lock = MUTEX_INIT(vm_area_list_lock);
 
 /*
  * vm_area_list is a list of all the currently free vm_area's, sorted by size.

@@ -22,7 +22,7 @@
 #include <protura/net/arphrd.h>
 #include <protura/net/netdevice.h>
 
-mutex_t net_interface_list_lock = MUTEX_INIT(net_interface_list_lock, "net-interface-list-lock");
+mutex_t net_interface_list_lock = MUTEX_INIT(net_interface_list_lock);
 list_head_t net_interface_list = LIST_HEAD_INIT(net_interface_list);
 
 static struct net_interface *__find_netdev_name(const char *name, int *index)

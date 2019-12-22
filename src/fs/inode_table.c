@@ -45,7 +45,7 @@ static struct {
 
     atomic_t inode_count;
 } inode_list = {
-    .lock = MUTEX_INIT(inode_list.lock, "inode-hash-list"),
+    .lock = MUTEX_INIT(inode_list.lock),
     .inode_hashes = { { .first = NULL } },
     .unused = LIST_HEAD_INIT(inode_list.unused),
     .inode_count = ATOMIC_INIT(0),

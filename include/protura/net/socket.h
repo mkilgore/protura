@@ -78,18 +78,18 @@ struct socket {
     { \
         .refs = ATOMIC_INIT(0), \
         .state = ATOMIC_INIT(SOCKET_UNCONNECTED), \
-        .state_changed = WAIT_QUEUE_INIT((sock).state_changed, "socket-state-changed"), \
+        .state_changed = WAIT_QUEUE_INIT((sock).state_changed), \
         .global_socket_entry = LIST_NODE_INIT((sock).global_socket_entry), \
         .proto_entry = LIST_NODE_INIT((sock).proto_entry), \
         .socket_entry = LIST_NODE_INIT((sock).socket_entry), \
         .socket_hash_entry = HLIST_NODE_INIT(), \
-        .private_lock = MUTEX_INIT((sock).private_lock, "socket-private-lock"), \
-        .recv_lock = MUTEX_INIT((sock).recv_lock, "socket-recv-lock"), \
-        .recv_wait_queue = WAIT_QUEUE_INIT((sock).recv_wait_queue, "socket-recv-wait-queue"), \
+        .private_lock = MUTEX_INIT((sock).private_lock), \
+        .recv_lock = MUTEX_INIT((sock).recv_lock), \
+        .recv_wait_queue = WAIT_QUEUE_INIT((sock).recv_wait_queue), \
         .recv_queue = LIST_HEAD_INIT((sock).recv_queue), \
         .out_of_order_queue = LIST_HEAD_INIT((sock).out_of_order_queue), \
-        .send_lock = MUTEX_INIT((sock).send_lock, "socket-send-lock"), \
-        .send_wait_queue = WAIT_QUEUE_INIT((sock).send_wait_queue, "socket-send-wait-queue"), \
+        .send_lock = MUTEX_INIT((sock).send_lock), \
+        .send_wait_queue = WAIT_QUEUE_INIT((sock).send_wait_queue), \
         .send_queue = LIST_HEAD_INIT((sock).send_queue), \
     }
 

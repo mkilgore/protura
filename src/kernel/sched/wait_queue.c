@@ -39,7 +39,7 @@ void wait_queue_init(struct wait_queue *queue)
 {
     memset(queue, 0, sizeof(*queue));
     list_head_init(&queue->queue);
-    spinlock_init(&queue->lock, "wait queue lock");
+    spinlock_init(&queue->lock);
 }
 
 void wait_queue_node_init(struct wait_queue_node *node)

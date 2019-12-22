@@ -104,7 +104,7 @@ struct ide_state {
 };
 
 static struct ide_state ide_state = {
-    .lock = SPINLOCK_INIT("ide_state lock"),
+    .lock = SPINLOCK_INIT(),
     .next_is_slave = 0,
     .block_queue_master = LIST_HEAD_INIT(ide_state.block_queue_master),
     .block_queue_slave = LIST_HEAD_INIT(ide_state.block_queue_slave),

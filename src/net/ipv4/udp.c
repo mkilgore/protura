@@ -42,7 +42,7 @@ static struct protocol_ops udp_protocol_ops;
 
 static struct udp_protocol udp_protocol = {
     .proto = PROTOCOL_INIT("udp", udp_protocol.proto, &udp_protocol_ops),
-    .lock = MUTEX_INIT(udp_protocol.lock, "udp-protocol-lock"),
+    .lock = MUTEX_INIT(udp_protocol.lock),
     .next_port = UDP_LOWEST_AUTOBIND_PORT,
 };
 

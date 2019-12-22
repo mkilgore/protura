@@ -34,9 +34,9 @@ struct wait_queue_node {
     struct work on_complete;
 };
 
-#define WAIT_QUEUE_INIT(q, name) \
+#define WAIT_QUEUE_INIT(q) \
     { .queue = LIST_HEAD_INIT((q).queue), \
-      .lock = SPINLOCK_INIT(name) }
+      .lock = SPINLOCK_INIT() }
 
 #define WAIT_QUEUE_NODE_INIT(q) \
     { .node = LIST_NODE_INIT((q).node), \

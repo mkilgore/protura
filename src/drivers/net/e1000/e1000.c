@@ -282,7 +282,7 @@ void e1000_device_init(struct pci_dev *dev)
     uint16_t command_reg;
 
     net_interface_init(&e1000->net);
-    spinlock_init(&e1000->rx_lock, "e1000-rx-lock");
+    spinlock_init(&e1000->rx_lock);
 
     kp(KP_NORMAL, "Found Intel E1000 NIC: "PRpci_dev"\n", Ppci_dev(dev));
 

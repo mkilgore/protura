@@ -224,10 +224,10 @@ void tty_pump(struct work *);
 #define TTY_INIT(tty) \
     { \
         .tty_node = LIST_NODE_INIT((tty).tty_node), \
-        .input_buf_lock = SPINLOCK_INIT("tty-input-buf-lock"), \
-        .lock = MUTEX_INIT((tty).lock, "tty-lock"), \
+        .input_buf_lock = SPINLOCK_INIT(), \
+        .lock = MUTEX_INIT((tty).lock), \
         .work = WORK_INIT_KWORK((tty).work, tty_pump), \
-        .in_wait_queue = WAIT_QUEUE_INIT((tty).in_wait_queue, "tty-in-wait-queue"), \
+        .in_wait_queue = WAIT_QUEUE_INIT((tty).in_wait_queue), \
     }
 
 static inline void tty_init(struct tty *tty)

@@ -72,7 +72,7 @@ static const struct winsize default_winsize = {
  * data is immediately processed by the kernel as it comes in.
  */
 
-static spinlock_t tty_list_lock = SPINLOCK_INIT("tty-list-lock");
+static spinlock_t tty_list_lock = SPINLOCK_INIT();
 static list_head_t tty_list = LIST_HEAD_INIT(tty_list);
 
 void tty_pump(struct work *work)

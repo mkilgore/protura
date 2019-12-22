@@ -19,7 +19,7 @@ struct slab_alloc {
     { \
         .slab_name = (name), \
         .object_size = (size), \
-        .lock = SPINLOCK_INIT("slab_alloc"), \
+        .lock = SPINLOCK_INIT(), \
         .first_frame = NULL, \
     }
 

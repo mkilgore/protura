@@ -65,7 +65,7 @@ struct arp_entry {
  * arp_cache_lock:
  *   arp_entry
  */
-static mutex_t arp_cache_lock = MUTEX_INIT(arp_cache_lock, "arp-cache-lock");
+static mutex_t arp_cache_lock = MUTEX_INIT(arp_cache_lock);
 static int arp_cache_length;
 static list_head_t arp_cache = LIST_HEAD_INIT(arp_cache);
 
@@ -74,7 +74,7 @@ static void arp_entry_init(struct arp_entry *entry)
     memset(entry, 0, sizeof(*entry));
     list_node_init(&entry->cache_entry);
     ktimer_init(&entry->timeout_timer);
-    spinlock_init(&entry->lock, "arp-entry-lock");
+    spinlock_init(&entry->lock);
     atomic_inc(&entry->refs);
     list_head_init(&entry->packet_queue);
 }

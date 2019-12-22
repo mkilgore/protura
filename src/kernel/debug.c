@@ -14,18 +14,18 @@
 #include <arch/reset.h>
 #include <arch/asm.h>
 
-static spinlock_t kprintf_lock = SPINLOCK_INIT(0);
+static spinlock_t kprintf_lock = SPINLOCK_INIT();
 static list_head_t kp_output_list = LIST_HEAD_INIT(kp_output_list);
 
 void kp_output_register(struct kp_output *output)
 {
-    using_spinlock_nolog(&kprintf_lock)
+    using_spinlock(&kprintf_lock)
         list_add_tail(&kp_output_list, &output->node);
 }
 
 void kp_output_unregister(struct kp_output *rm_output)
 {
-    using_spinlock_nolog(&kprintf_lock) {
+    using_spinlock(&kprintf_lock) {
         struct kp_output *output;
 
         list_foreach_entry(&kp_output_list, output, node) {
@@ -41,7 +41,7 @@ void kprintfv_internal(const char *fmt, va_list lst)
 {
     struct kp_output *output;
 
-    using_spinlock_nolog(&kprintf_lock)
+    using_spinlock(&kprintf_lock)
         list_foreach_entry(&kp_output_list, output, node)
             (output->print) (output, fmt, lst);
 }

@@ -20,7 +20,7 @@
 #include <protura/drivers/pci_ids.h>
 #include <protura/net.h>
 
-static spinlock_t packet_list_lock = SPINLOCK_INIT("packet-free-list-lock");
+static spinlock_t packet_list_lock = SPINLOCK_INIT();
 
 /* TODO: Have a separate list for packets which have had their page removed,
  * and prefer to use those to avoid allocating a new page. */

@@ -83,7 +83,7 @@ struct file_ops block_dev_file_ops_generic = {
     .readdir = NULL,
 };
 
-static mutex_t anon_dev_bitmap_lock = MUTEX_INIT(anon_dev_bitmap_lock, "anon-dev-bitmap-lock");
+static mutex_t anon_dev_bitmap_lock = MUTEX_INIT(anon_dev_bitmap_lock);
 static int anon_dev_bitmap[256 / sizeof(int) / CHAR_BIT];
 
 dev_t block_dev_anon_get(void)

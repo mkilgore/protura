@@ -30,7 +30,7 @@ static struct {
 
     list_head_t list;
 } binfmt_table = {
-    .lock = MUTEX_INIT(binfmt_table.lock, "Binfmt table lock"),
+    .lock = MUTEX_INIT(binfmt_table.lock),
     .list = LIST_HEAD_INIT(binfmt_table.list),
 };
 

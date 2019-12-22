@@ -20,7 +20,7 @@
 #include <protura/net/socket.h>
 #include <protura/net.h>
 
-static mutex_t socket_list_lock = MUTEX_INIT(socket_list_lock, "socket-list-lock");
+static mutex_t socket_list_lock = MUTEX_INIT(socket_list_lock);
 static atomic_t open_sockets = ATOMIC_INIT(0);
 static list_head_t socket_list = LIST_HEAD_INIT(socket_list);
 

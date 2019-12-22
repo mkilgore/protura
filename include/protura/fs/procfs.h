@@ -62,7 +62,7 @@ struct procfs_dir {
 #define PROCFS_NODE_INIT(node)\
     { \
         .inode_hash_entry = HLIST_NODE_INIT(), \
-        .lock = MUTEX_INIT((node).lock, "procfs-node-lock"), \
+        .lock = MUTEX_INIT((node).lock), \
         .parent_node = LIST_NODE_INIT((node).parent_node), \
     }
 

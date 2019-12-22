@@ -27,8 +27,8 @@ struct {
     struct wait_queue has_pending;
     struct char_buf buf;
 } klog = {
-    .lock = SPINLOCK_INIT("klog-lock"),
-    .has_pending = WAIT_QUEUE_INIT(klog.has_pending, "klog-has-pending"),
+    .lock = SPINLOCK_INIT(),
+    .has_pending = WAIT_QUEUE_INIT(klog.has_pending),
     .buf = {
         .buffer = klog_buffer,
         .len = sizeof(klog_buffer),

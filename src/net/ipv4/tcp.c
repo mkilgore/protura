@@ -29,7 +29,7 @@ static struct protocol_ops tcp_protocol_ops;
 
 struct tcp_protocol tcp_protocol = {
     .proto = PROTOCOL_INIT("tcp", tcp_protocol.proto, &tcp_protocol_ops),
-    .lock = MUTEX_INIT(tcp_protocol.lock, "tcp-protocol-lock"),
+    .lock = MUTEX_INIT(tcp_protocol.lock),
     .next_port = TCP_LOWEST_AUTOBIND_PORT,
 };
 

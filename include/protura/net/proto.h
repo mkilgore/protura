@@ -24,7 +24,7 @@ struct protocol {
         .name = (nam), \
         .ops = (op), \
         .socket_list = LIST_HEAD_INIT((pro).socket_list), \
-        .lock = MUTEX_INIT((pro).lock, "proto-socket-list-lock"), \
+        .lock = MUTEX_INIT((pro).lock), \
     }
 
 static inline void protocol_init(struct protocol *proto, const char *name, struct protocol_ops *ops)

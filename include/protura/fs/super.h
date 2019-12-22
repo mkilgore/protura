@@ -71,7 +71,7 @@ struct super_block {
         .bdev = NULL, \
         .root = NULL, \
         .list_entry = LIST_NODE_INIT((super_block).list_entry), \
-        .super_block_lock = MUTEX_INIT((super_block).super_block_lock, "sb-lock"), \
+        .super_block_lock = MUTEX_INIT((super_block).super_block_lock), \
         .dirty_inodes = LIST_HEAD_INIT((super_block).dirty_inodes), \
         .ops = NULL, \
     }

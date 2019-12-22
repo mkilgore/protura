@@ -44,7 +44,7 @@ struct page_buddy_alloc {
 static struct page_buddy_map buddy_maps[PALLOC_MAPS];
 
 static struct page_buddy_alloc buddy_allocator = {
-    .lock = SPINLOCK_INIT("Buddy-allocator"),
+    .lock = SPINLOCK_INIT(),
     .pages = NULL,
     .page_count = 0,
 

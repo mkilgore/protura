@@ -27,17 +27,17 @@ struct rwlock {
 
 typedef struct rwlock rwlock_t;
 
-#define RWLOCK_INIT(rwlock, name) \
-    { .lock = SPINLOCK_INIT(name), \
+#define RWLOCK_INIT(rwlock) \
+    { .lock = SPINLOCK_INIT(), \
       .count = 0, \
-      .readers = WAIT_QUEUE_INIT((rwlock).readers, "RWLOCK Readers queue"), \
-      .writers = WAIT_QUEUE_INIT((rwlock).writers, "RWLOCK Writers queue") }
+      .readers = WAIT_QUEUE_INIT((rwlock).readers), \
+      .writers = WAIT_QUEUE_INIT((rwlock).writers) }
 
 static inline void rwlock_init(rwlock_t *rwlock)
 {
     memset(rwlock, 0, sizeof(*rwlock));
 
-    spinlock_init(&rwlock->lock, "RWLock spinlock");
+    spinlock_init(&rwlock->lock);
     rwlock->count = 0;
     wait_queue_init(&rwlock->writers);
     wait_queue_init(&rwlock->readers);

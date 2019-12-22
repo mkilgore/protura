@@ -47,8 +47,8 @@ struct net_interface {
     { \
         .iface_entry = LIST_NODE_INIT((iface).iface_entry), \
         .refs = ATOMIC_INIT(0), \
-        .lock = MUTEX_INIT((iface).lock, "net-interface-lock"), \
-        .tx_lock = SPINLOCK_INIT("net-interface-tx-lock"), \
+        .lock = MUTEX_INIT((iface).lock), \
+        .tx_lock = SPINLOCK_INIT(), \
         .tx_packet_queue = LIST_HEAD_INIT((iface).tx_packet_queue), \
     }
 

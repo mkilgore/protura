@@ -13,7 +13,7 @@
 
 typedef struct semaphore mutex_t;
 
-#define MUTEX_INIT(sem, name) SEM_INIT(sem, name, 1)
+#define MUTEX_INIT(sem) SEM_INIT(sem, 1)
 
 static inline void mutex_init(mutex_t *mut)
 {
@@ -22,26 +22,17 @@ static inline void mutex_init(mutex_t *mut)
 
 static inline void mutex_lock(mutex_t *mut)
 {
-    kp(KP_LOCK, "Mutex %p: Locking\n", mut);
     sem_down(mut);
-    kp(KP_LOCK, "Mutex %p: Locked\n", mut);
 }
 
 static inline int mutex_try_lock(mutex_t *mut)
 {
-    kp(KP_LOCK, "Mutex %p: Attempting Locking\n", mut);
-    if (sem_try_down(mut)) {
-        kp(KP_LOCK, "Mutex %p: Locked\n", mut);
-        return 1;
-    }
-    return 0;
+    return sem_try_down(mut);
 }
 
 static inline void mutex_unlock(mutex_t *mut)
 {
-    kp(KP_LOCK, "Mutex %p: Unlocking\n", mut);
     sem_up(mut);
-    kp(KP_LOCK, "Mutex %p: Unlocked\n", mut);
 }
 
 static inline int mutex_waiting(mutex_t *mut)

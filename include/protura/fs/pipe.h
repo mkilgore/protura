@@ -48,9 +48,9 @@ struct pipe_info {
         .write_offset = 0, \
         .readers = 0, \
         .writers = 0, \
-        .read_queue = WAIT_QUEUE_INIT((pipe).read_queue, "pipe-info-read"), \
-        .write_queue = WAIT_QUEUE_INIT((pipe).write_queue, "pipe-info-write"), \
-        .pipe_buf_lock = MUTEX_INIT((pipe).pipe_buf_lock, "pipe-info-buf-lock"), \
+        .read_queue = WAIT_QUEUE_INIT((pipe).read_queue), \
+        .write_queue = WAIT_QUEUE_INIT((pipe).write_queue), \
+        .pipe_buf_lock = MUTEX_INIT((pipe).pipe_buf_lock), \
         .total_pages = 0, \
         .free_pages = LIST_HEAD_INIT((pipe).free_pages), \
         .bufs = LIST_HEAD_INIT((pipe).bufs), \

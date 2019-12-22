@@ -29,7 +29,7 @@
 #include <protura/fs/vfs.h>
 #include <protura/fs/fs.h>
 
-static mutex_t super_lock = MUTEX_INIT(super_lock, "super-block-list-lock");
+static mutex_t super_lock = MUTEX_INIT(super_lock);
 static list_head_t super_block_list = LIST_HEAD_INIT(super_block_list);
 
 struct vfs_mount {
@@ -52,7 +52,7 @@ static inline void vfs_mount_init(struct vfs_mount *mount)
     *mount = (struct vfs_mount)VFS_MOUNT_INIT(*mount);
 }
 
-static mutex_t mount_list_lock = MUTEX_INIT(mount_list_lock, "mount-list-lock");
+static mutex_t mount_list_lock = MUTEX_INIT(mount_list_lock);
 static list_head_t mount_list = LIST_HEAD_INIT(mount_list);
 
 static struct super_block *super_get(dev_t device, const char *filesystem)

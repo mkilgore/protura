@@ -18,7 +18,7 @@ static void seq_file_init(struct seq_file *seq, const struct seq_file_ops *ops)
 {
     *seq = (struct seq_file) {
         .ops = ops,
-        .lock = MUTEX_INIT(seq->lock, "seq-file-lock"),
+        .lock = MUTEX_INIT(seq->lock),
         .buf = KBUF_INIT(seq->buf),
     };
 }

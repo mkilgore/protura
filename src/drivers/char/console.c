@@ -112,7 +112,7 @@ static void console_init_struct(struct vt *vt, int num)
 
     console_screen_init(console_screens + num, num);
     vt->screen = console_screens + num;
-    spinlock_init(&vt->lock, "console-vt-lock");
+    spinlock_init(&vt->lock);
 }
 
 void vt_console_early_init(void)

@@ -27,7 +27,7 @@ struct screen *alloc_fake_screen(void)
 struct vt *alloc_fake_vt(void)
 {
     struct vt *vt = kzalloc(sizeof(*vt), PAL_KERNEL);
-    spinlock_init(&vt->lock, "fake-vt-lock");
+    spinlock_init(&vt->lock);
     vt->screen = alloc_fake_screen();
     vt->scroll_top = 0;
     vt->scroll_bottom = SCR_ROWS;

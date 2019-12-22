@@ -13,7 +13,7 @@
 
 #define PIC_READ_ISR 0x0b
 
-static spinlock_t irqmask_lock = SPINLOCK_INIT("pic8259-irq-mask-lock");
+static spinlock_t irqmask_lock = SPINLOCK_INIT();
 static uint16_t irqmask = 0xFFFF & ~(1<<PIC8259_IRQ_SLAVE);
 
 static void pic_master_set_mask(void)

@@ -27,8 +27,8 @@ struct semaphore_wait_entry {
 
 typedef struct semaphore semaphore_t;
 
-#define SEM_INIT(sem, name, cnt) \
-    { .lock = SPINLOCK_INIT(name), \
+#define SEM_INIT(sem, cnt) \
+    { .lock = SPINLOCK_INIT(), \
       .count = (cnt), \
       .queue = LIST_HEAD_INIT((sem).queue) }
 
@@ -36,7 +36,7 @@ static inline void sem_init(struct semaphore *sem, int value)
 {
     memset(sem, 0, sizeof(*sem));
 
-    spinlock_init(&sem->lock, "Sem lock");
+    spinlock_init(&sem->lock);
     sem->count = value;
     list_head_init(&sem->queue);
 }

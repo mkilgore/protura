@@ -24,7 +24,7 @@ static struct file_system_list {
     spinlock_t lock;
     list_head_t list;
 } file_system_list = {
-    .lock = SPINLOCK_INIT("file system list"),
+    .lock = SPINLOCK_INIT(),
     .list = LIST_HEAD_INIT(file_system_list.list),
 };
 

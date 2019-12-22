@@ -99,7 +99,7 @@ struct procfs_dir procfs_root = {
         .nlinks = 1,
         .parent = &procfs_root,
         .parent_node = LIST_NODE_INIT(procfs_root.node.parent_node),
-        .lock = MUTEX_INIT(procfs_root.node.lock, "procfs-root-node-lock"),
+        .lock = MUTEX_INIT(procfs_root.node.lock),
         .inode_hash_entry = HLIST_NODE_INIT(),
     },
     .entry_list = LIST_HEAD_INIT(procfs_root.entry_list),

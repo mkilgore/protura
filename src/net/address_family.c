@@ -22,7 +22,7 @@
 #include <protura/net/sys.h>
 #include <protura/net.h>
 
-static mutex_t af_list_lock = MUTEX_INIT(af_list_lock, "af-list-lock");
+static mutex_t af_list_lock = MUTEX_INIT(af_list_lock);
 static list_head_t af_list = LIST_HEAD_INIT(af_list);
 
 void address_family_register(struct address_family *af)

@@ -29,7 +29,7 @@ static struct address_family_ops ip_address_family_ops;
 
 struct address_family_ip ip_address_family = {
     .af = ADDRESS_FAMILY_INIT(ip_address_family.af, AF_INET, &ip_address_family_ops),
-    .lock = MUTEX_INIT(ip_address_family.lock, "ip-address-family-lock"),
+    .lock = MUTEX_INIT(ip_address_family.lock),
     .raw_sockets = LIST_HEAD_INIT(ip_address_family.raw_sockets),
     .sockets = LIST_HEAD_INIT(ip_address_family.sockets),
 };

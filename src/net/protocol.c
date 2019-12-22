@@ -23,7 +23,7 @@
 #include <protura/net/sys.h>
 #include <protura/net.h>
 
-static mutex_t proto_list_lock = MUTEX_INIT(proto_list_lock, "proto-list-lock");
+static mutex_t proto_list_lock = MUTEX_INIT(proto_list_lock);
 static list_head_t proto_list = LIST_HEAD_INIT(proto_list);
 
 struct proto_state {

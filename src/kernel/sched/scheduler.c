@@ -29,7 +29,7 @@
 #include "scheduler_internal.h"
 
 struct sched_task_list ktasks = {
-    .lock = SPINLOCK_INIT("Task list lock"),
+    .lock = SPINLOCK_INIT(),
     .list = LIST_HEAD_INIT(ktasks.list),
     .dead = LIST_HEAD_INIT(ktasks.dead),
     .next_pid = 1,

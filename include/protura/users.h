@@ -17,7 +17,7 @@ struct credentials {
 
 #define CREDENTIALS_INIT(cred) \
     { \
-        .cred_lock = MUTEX_INIT((cred).cred_lock, "cred-mutex"), \
+        .cred_lock = MUTEX_INIT((cred).cred_lock), \
         .sup_groups = { [0 ... (NGROUPS - 1)] = GID_INVALID }, \
     }
 

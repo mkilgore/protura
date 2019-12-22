@@ -41,7 +41,7 @@ struct ip_forward_table {
     struct ip_forward_zone zones[33];
 };
 
-static mutex_t forward_table_lock = MUTEX_INIT(forward_table_lock, "forward-table-lock");
+static mutex_t forward_table_lock = MUTEX_INIT(forward_table_lock);
 static struct ip_forward_table forward_table;
 
 /*
