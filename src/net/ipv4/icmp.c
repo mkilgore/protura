@@ -57,7 +57,7 @@ static void icmp_handle_packet(struct packet *packet)
 
         kp_icmp("Checksum: 0x%04X, Len: %d\n", ntohs(header->chksum), icmp_len);
 
-        int ret = socket_sendto(icmp_socket, packet->head, packet_len(packet), 0, &packet->src_addr, packet->src_len, 0);
+        int ret = socket_sendto(icmp_socket, make_kernel_buffer(packet->head), packet_len(packet), 0, &packet->src_addr, packet->src_len, 0);
         kp_icmp("Reply to "PRin_addr": %d\n", Pin_addr(src_in->sin_addr.s_addr), ret);
         break;
 

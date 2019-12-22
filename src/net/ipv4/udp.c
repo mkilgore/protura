@@ -220,7 +220,7 @@ static int udp_sendto_packet(struct protocol *protocol, struct socket *sock, str
     return 0;
 }
 
-static int udp_sendto(struct protocol *proto, struct socket *sock, const char *buf, size_t buf_len, const struct sockaddr *addr, socklen_t len)
+static int udp_sendto(struct protocol *proto, struct socket *sock, struct user_buffer buf, size_t buf_len, const struct sockaddr *addr, socklen_t len)
 {
     int err = socket_last_error(sock);
     if (err)
@@ -232,9 +232,14 @@ static int udp_sendto(struct protocol *proto, struct socket *sock, const char *b
         struct packet *packet = packet_new(PAL_KERNEL);
         size_t append_len = (buf_len > IPV4_PACKET_MSS)? IPV4_PACKET_MSS: buf_len;
 
-        packet_append_data(packet, buf, append_len);
+        int err = packet_append_user_data(packet, buf, append_len);
+        if (err) {
+            packet_free(packet);
+            return err;
+        }
+
         buf_len -= append_len;
-        buf += append_len;
+        buf = user_buffer_index(buf, append_len);
 
         int ret = 1;
 

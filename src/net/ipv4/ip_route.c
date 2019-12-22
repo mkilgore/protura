@@ -216,28 +216,27 @@ static int ip_route_readpage(void *page, size_t page_size, size_t *len)
     return 0;
 }
 
-static int ip_route_ioctl(struct file *filp, int cmd, uintptr_t ptr)
+static int ip_route_ioctl(struct file *filp, int cmd, struct user_buffer ptr)
 {
-    struct route_entry *ent = (struct route_entry *)ptr;
+    struct route_entry tmp_ent;
     struct net_interface *iface;
     struct sockaddr_in *dest, *gateway, *netmask;
     flags_t flags = 0;
     int ret = -ENOTSUP;
 
-
     switch (cmd) {
     case SIOCADDRT:
-        ret = user_check_region(ent, sizeof(*ent), F(VM_MAP_READ));
+        ret = user_copy_to_kernel(&tmp_ent, ptr);
         if (ret)
             return ret;
 
-        dest = (struct sockaddr_in *)&ent->dest;
-        gateway = (struct sockaddr_in *)&ent->gateway;
-        netmask = (struct sockaddr_in *)&ent->netmask;
-        if (ent->flags & RT_ENT_GATEWAY)
+        dest = (struct sockaddr_in *)&tmp_ent.dest;
+        gateway = (struct sockaddr_in *)&tmp_ent.gateway;
+        netmask = (struct sockaddr_in *)&tmp_ent.netmask;
+        if (tmp_ent.flags & RT_ENT_GATEWAY)
             flag_set(&flags, IP_ROUTE_GATEWAY);
 
-        iface = netdev_get(ent->netdev);
+        iface = netdev_get(tmp_ent.netdev);
         if (!iface)
             return -ENODEV;
 
@@ -247,12 +246,12 @@ static int ip_route_ioctl(struct file *filp, int cmd, uintptr_t ptr)
         return 0;
 
     case SIOCDELRT:
-        ret = user_check_region(ent, sizeof(*ent), F(VM_MAP_READ));
+        ret = user_copy_to_kernel(&tmp_ent, ptr);
         if (ret)
             return ret;
 
-        dest = (struct sockaddr_in *)&ent->dest;
-        netmask = (struct sockaddr_in *)&ent->netmask;
+        dest = (struct sockaddr_in *)&tmp_ent.dest;
+        netmask = (struct sockaddr_in *)&tmp_ent.netmask;
 
         return ip_route_del(dest->sin_addr.s_addr, netmask->sin_addr.s_addr);
     }

@@ -210,53 +210,58 @@ static int ifrequest2(int cmd, struct ifreq *ifreq)
     return ret;
 }
 
-static int netdev_ioctl(struct file *filp, int cmd, uintptr_t ptr)
+static int netdev_ioctl(struct file *filp, int cmd, struct user_buffer ptr)
 {
     int ret;
     int i;
-    struct ifreq *addr;
+    struct ifreq tmp;
     struct net_interface *iface;
     list_node_t *node;
 
     switch (cmd) {
     case SIOCGIFNAME:
-        addr = (struct ifreq *)ptr;
-        ret = user_check_region(addr, sizeof(*addr), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        ret = user_copy_to_kernel(&tmp, ptr);
         if (ret)
             return ret;
 
         using_mutex(&net_interface_list_lock) {
             node = &net_interface_list;
-            for (i = 0; i <= addr->ifr_index; i++) {
+            for (i = 0; i <= tmp.ifr_index; i++) {
                 node = __list_first(node);
                 if (list_ptr_is_head(&net_interface_list, node))
                     return -ENODEV;
             }
 
             iface = container_of(node, struct net_interface, iface_entry);
-            strcpy(addr->ifr_name, iface->netdev_name);
-            kp(KP_NORMAL, "Found iface: %s, %s, %d\n", iface->netdev_name, addr->ifr_name, addr->ifr_index);
+            strcpy(tmp.ifr_name, iface->netdev_name);
+            kp(KP_NORMAL, "Found iface: %s, %s, %d\n", iface->netdev_name, tmp.ifr_name, tmp.ifr_index);
         }
+
+        ret = user_copy_from_kernel(ptr, tmp);
         break;
 
     case SIOCGIFINDEX:
-        addr = (struct ifreq *)ptr;
-        ret = user_check_region(addr, sizeof(*addr), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        ret = user_copy_to_kernel(&tmp, ptr);
         if (ret)
             return ret;
 
         using_mutex(&net_interface_list_lock)
-            __find_netdev_name(addr->ifr_name, &addr->ifr_index);
+            __find_netdev_name(tmp.ifr_name, &tmp.ifr_index);
 
+        ret = user_copy_from_kernel(ptr, tmp);
         break;
 
     default:
-        addr = (struct ifreq *)ptr;
-        ret = user_check_region(addr, sizeof(*addr), F(VM_MAP_READ) | F(VM_MAP_WRITE));
+        ret = user_copy_to_kernel(&tmp, ptr);
         if (ret)
             return ret;
 
-        return ifrequest2(cmd, addr);
+        ret = ifrequest2(cmd, &tmp);
+        if (ret)
+            return ret;
+
+        ret = user_copy_from_kernel(ptr, tmp);
+        break;
     }
     return 0;
 }

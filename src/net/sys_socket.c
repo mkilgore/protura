@@ -58,7 +58,7 @@ int socket_open(int domain, int type, int protocol, struct socket **sock_ret)
     return ret;
 }
 
-int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen, int nonblock)
+int socket_sendto(struct socket *socket, struct user_buffer buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen, int nonblock)
 {
     kp(KP_NORMAL, "Socket: %p, socklen: %d, dest: %p\n", socket, addrlen, dest);
     kp(KP_NORMAL, "proto: %p\n", socket->proto);
@@ -71,12 +71,12 @@ int socket_sendto(struct socket *socket, const void *buf, size_t len, int flags,
         return -ENOTSUP;
 }
 
-int socket_send(struct socket *socket, const void *buf, size_t len, int flags)
+int socket_send(struct socket *socket, struct user_buffer buf, size_t len, int flags)
 {
     return socket_sendto(socket, buf, len, flags, NULL, 0, 0);
 }
 
-int socket_recvfrom(struct socket *socket, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *addrlen, int nonblock)
+int socket_recvfrom(struct socket *socket, struct user_buffer buf, size_t len, int flags, struct sockaddr *addr, socklen_t *addrlen, int nonblock)
 {
     int ret = 0;
     struct packet *packet = NULL;
@@ -97,12 +97,13 @@ int socket_recvfrom(struct socket *socket, void *buf, size_t len, int flags, str
             size_t plen = packet_len(packet);
             int drop_packet = 0;
 
+            /* FIXME.... */
             if (plen <= len) {
-                memcpy(buf, packet->head, plen);
+                memcpy(buf.ptr, packet->head, plen);
                 ret = plen;
                 drop_packet = 1;
             } else {
-                memcpy(buf, packet->head, len);
+                memcpy(buf.ptr, packet->head, len);
                 ret = len;
 
                 /* move the head past the read data */
@@ -127,7 +128,7 @@ int socket_recvfrom(struct socket *socket, void *buf, size_t len, int flags, str
     return ret;
 }
 
-int socket_recv(struct socket *socket, void *buf, size_t len, int flags)
+int socket_recv(struct socket *socket, struct user_buffer buf, size_t len, int flags)
 {
     return socket_recvfrom(socket, buf, len, flags, NULL, NULL, 0);
 }
@@ -162,12 +163,12 @@ int socket_getsockname(struct socket *socket, struct sockaddr *addr, socklen_t *
     return 0;
 }
 
-int socket_setsockopt(struct socket *socket, int level, int optname, const void *optval, socklen_t optlen)
+int socket_setsockopt(struct socket *socket, int level, int optname, struct user_buffer optval, socklen_t optlen)
 {
     return -ENOTSUP;
 }
 
-int socket_getsockopt(struct socket *socket, int level, int optname, void *optval, socklen_t *optlen)
+int socket_getsockopt(struct socket *socket, int level, int optname, struct user_buffer optval, struct user_buffer optlen)
 {
     return -ENOTSUP;
 }

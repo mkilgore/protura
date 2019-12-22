@@ -6,25 +6,25 @@
 
 int sys_socket(int domain, int type, int protocol);
 
-int sys_send(int sockfd, const void *buf, size_t len, int flags);
-int sys_recv(int sockfd, void *buf, size_t len, int flags);
+int sys_send(int sockfd, struct user_buffer buf, size_t len, int flags);
+int sys_recv(int sockfd, struct user_buffer buf, size_t len, int flags);
 
-int sys_sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen);
-int sys_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+int sys_sendto(int sockfd, struct user_buffer buf, size_t len, int flags, struct user_buffer dest, socklen_t addrlen);
+int sys_recvfrom(int sockfd, struct user_buffer buf, size_t len, int flags, struct user_buffer src_addr, struct user_buffer addrlen);
 
-int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
-int sys_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+int sys_bind(int sockfd, struct user_buffer addr, socklen_t addrlen);
+int sys_getsockname(int sockfd, struct user_buffer addr, struct user_buffer addrlen);
 
-int sys_setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
-int sys_getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen);
+int sys_setsockopt(int sockfd, int level, int optname, struct user_buffer optval, socklen_t optlen);
+int sys_getsockopt(int sockfd, int level, int optname, struct user_buffer optval, struct user_buffer optlen);
 
 int sys_shutdown(int sockfd, int how);
 
-int sys_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
-int sys_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+int sys_accept(int sockfd, struct user_buffer addr, struct user_buffer addrlen);
+int sys_connect(int sockfd, struct user_buffer addr, socklen_t addrlen);
 int sys_listen(int sockfd, int backlog);
 
-int __sys_sendto(struct file *, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen);
-int __sys_recvfrom(struct file *, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen);
+int __sys_sendto(struct file *, struct user_buffer buf, size_t len, int flags, struct user_buffer dest, socklen_t addrlen);
+int __sys_recvfrom(struct file *, struct user_buffer buf, size_t len, int flags, struct user_buffer src_addr, struct user_buffer addrlen);
 
 #endif

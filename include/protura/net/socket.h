@@ -150,17 +150,17 @@ extern struct file_ops socket_procfs_file_ops;
 
 int socket_open(int domain, int type, int protocol, struct socket **sock_ret);
 
-int socket_send(struct socket *, const void *buf, size_t len, int flags);
-int socket_recv(struct socket *, void *buf, size_t len, int flags);
+int socket_send(struct socket *, struct user_buffer buf, size_t len, int flags);
+int socket_recv(struct socket *, struct user_buffer buf, size_t len, int flags);
 
-int socket_sendto(struct socket *, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen, int nonblock);
-int socket_recvfrom(struct socket *, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen, int nonblock);
+int socket_sendto(struct socket *, struct user_buffer buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen, int nonblock);
+int socket_recvfrom(struct socket *, struct user_buffer buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen, int nonblock);
 
 int socket_bind(struct socket *, const struct sockaddr *addr, socklen_t addrlen);
 int socket_getsockname(struct socket *, struct sockaddr *addr, socklen_t *addrlen);
 
-int socket_setsockopt(struct socket *, int level, int optname, const void *optval, socklen_t optlen);
-int socket_getsockopt(struct socket *, int level, int optname, void *optval, socklen_t *optlen);
+int socket_setsockopt(struct socket *, int level, int optname, struct user_buffer optval, socklen_t optlen);
+int socket_getsockopt(struct socket *, int level, int optname, struct user_buffer optval, struct user_buffer optlen);
 
 /* FIXME: These should take a 'non-blocking' flag */
 int socket_accept(struct socket *socket, struct sockaddr *addr, socklen_t *addrlen, struct socket **new_socket);

@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
 
@@ -64,17 +65,17 @@ static int socket_file_release(struct file *filp)
     return 0;
 }
 
-static int socket_read(struct file *filp, void *vptr, size_t len)
+static int socket_read(struct file *filp, struct user_buffer vptr, size_t len)
 {
-    return __sys_recvfrom(filp, vptr, len, 0, NULL, NULL);
+    return __sys_recvfrom(filp, vptr, len, 0, make_user_buffer(NULL), make_user_buffer(NULL));
 }
 
-static int socket_write(struct file *filp, const void *vptr, size_t len)
+static int socket_write(struct file *filp, struct user_buffer vptr, size_t len)
 {
-    return __sys_sendto(filp, vptr, len, 0, NULL, 0);
+    return __sys_sendto(filp, vptr, len, 0, make_user_buffer(NULL), 0);
 }
 
-static int socket_ioctl(struct file *filp, int cmd, uintptr_t arg)
+static int socket_ioctl(struct file *filp, int cmd, struct user_buffer arg)
 {
     return -EINVAL;
 }

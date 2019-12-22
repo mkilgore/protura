@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
 
@@ -84,12 +85,48 @@ static int fd_get_socket(int sockfd, struct socket **sock)
     return 0;
 }
 
-int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+static int user_read_sockaddr(struct sockaddr *addr, struct user_buffer user, socklen_t len)
 {
+    if (len < 0 || sizeof(*addr) < len)
+        return -EINVAL;
+
+    if (len == 0)
+        return 0;
+
+    return user_memcpy_to_kernel(addr, user, len);
+
+}
+
+static int user_write_sockaddr(struct sockaddr *addr, socklen_t len, struct user_buffer user, struct user_buffer user_socklen)
+{
+    socklen_t user_len;
+
+    int ret = user_copy_to_kernel(&user_len, user_socklen);
+    if (ret)
+        return ret;
+
+    if (user_len < 0)
+        return -EINVAL;
+
+    if (user_len > len)
+        user_len = len;
+
+    if (user_len) {
+        ret = user_memcpy_from_kernel(user, &addr, user_len);
+        if (ret)
+            return ret;
+    }
+
+    return user_copy_from_kernel(user_socklen, len);
+}
+
+int sys_bind(int sockfd, struct user_buffer addr, socklen_t addrlen)
+{
+    struct sockaddr cpy;
     struct socket *socket;
     int ret;
 
-    ret = user_check_region(addr, addrlen, F(VM_MAP_READ));
+    ret = user_read_sockaddr(&cpy, addr, addrlen);
     if (ret)
         return ret;
 
@@ -97,37 +134,31 @@ int sys_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     if (ret)
         return ret;
 
-    return socket_bind(socket, addr, addrlen);
+    return socket_bind(socket, &cpy, addrlen);
 }
 
-int sys_getsockname(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+int sys_getsockname(int sockfd, struct user_buffer user_addr, struct user_buffer user_addrlen)
 {
+    struct sockaddr cpy;
+    socklen_t len = sizeof(cpy);
     struct socket *socket;
     int ret;
-
-    ret = user_check_region(addrlen, sizeof(*addrlen), F(VM_MAP_READ));
-    if (ret)
-        return ret;
-
-    ret = user_check_region(addr, *addrlen, F(VM_MAP_READ));
-    if (ret)
-        return ret;
 
     ret = fd_get_socket(sockfd, &socket);
     if (ret)
         return ret;
 
-    return socket_getsockname(socket, addr, addrlen);
+    ret = socket_getsockname(socket, &cpy, &len);
+    if (ret)
+        return ret;
+
+    return user_write_sockaddr(&cpy, len, user_addr, user_addrlen);
 }
 
-int sys_setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
+int sys_setsockopt(int sockfd, int level, int optname, struct user_buffer optval, socklen_t optlen)
 {
     struct socket *socket;
     int ret;
-
-    ret = user_check_region(optval, optlen, F(VM_MAP_READ));
-    if (ret)
-        return ret;
 
     ret = fd_get_socket(sockfd, &socket);
     if (ret)
@@ -136,18 +167,10 @@ int sys_setsockopt(int sockfd, int level, int optname, const void *optval, sockl
     return socket_setsockopt(socket, level, optname, optval, optlen);
 }
 
-int sys_getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen)
+int sys_getsockopt(int sockfd, int level, int optname, struct user_buffer optval, struct user_buffer optlen)
 {
     struct socket *socket;
     int ret;
-
-    ret = user_check_region(optlen, sizeof(*optlen), F(VM_MAP_READ) | F(VM_MAP_WRITE));
-    if (ret)
-        return ret;
-
-    ret = user_check_region(optval, *optlen, F(VM_MAP_READ) | F(VM_MAP_WRITE));
-    if (ret)
-        return ret;
 
     ret = fd_get_socket(sockfd, &socket);
     if (ret)
@@ -156,36 +179,30 @@ int sys_getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *
     return socket_getsockopt(socket, level, optname, optval, optlen);
 }
 
-int __sys_sendto(struct file *filp, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen)
+int __sys_sendto(struct file *filp, struct user_buffer buf, size_t buflen, int flags, struct user_buffer dest, socklen_t addrlen)
 {
+    struct sockaddr cpy;
     struct inode_socket *inode;
     struct socket *socket;
 
     if (!S_ISSOCK(filp->inode->mode))
         return -ENOTSOCK;
 
-    inode = container_of(filp->inode, struct inode_socket, i);
-    socket = inode->socket;
-
-    return socket_sendto(socket, buf, len, flags, dest, addrlen, flag_test(&filp->flags, FILE_NONBLOCK));
-}
-
-int sys_sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t addrlen)
-{
-    struct file *filp;
-    int ret;
-
-    kp(KP_NORMAL, "dest: %p, len: %d\n", dest, addrlen);
-
-    ret = user_check_region(buf, len, F(VM_MAP_READ) | F(VM_MAP_WRITE));
+    int ret = user_read_sockaddr(&cpy, dest, addrlen);
     if (ret)
         return ret;
 
-    if (dest) {
-        ret = user_check_region(dest, addrlen, F(VM_MAP_READ));
-        if (ret)
-            return ret;
-    }
+    inode = container_of(filp->inode, struct inode_socket, i);
+    socket = inode->socket;
+
+    /* FIXME: This should take a user_buffer */
+    return socket_sendto(socket, buf, buflen, flags, &cpy, addrlen, flag_test(&filp->flags, FILE_NONBLOCK));
+}
+
+int sys_sendto(int sockfd, struct user_buffer buf, size_t len, int flags, struct user_buffer dest, socklen_t addrlen)
+{
+    struct file *filp;
+    int ret;
 
     if (len > 1500)
         return -EMSGSIZE;
@@ -197,13 +214,15 @@ int sys_sendto(int sockfd, const void *buf, size_t len, int flags, const struct 
     return __sys_sendto(filp, buf, len, flags, dest, addrlen);
 }
 
-int sys_send(int sockfd, const void *buf, size_t len, int flags)
+int sys_send(int sockfd, struct user_buffer buf, size_t len, int flags)
 {
-    return sys_sendto(sockfd, buf, len, flags, NULL, 0);
+    return sys_sendto(sockfd, buf, len, flags, make_user_buffer(NULL), 0);
 }
 
-int __sys_recvfrom(struct file *filp, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *addrlen)
+int __sys_recvfrom(struct file *filp, struct user_buffer buf, size_t len, int flags, struct user_buffer addr, struct user_buffer addrlen)
 {
+    struct sockaddr cpy;
+    socklen_t cpylen = sizeof(cpy);
     struct inode_socket *inode;
     struct socket *socket;
 
@@ -213,32 +232,24 @@ int __sys_recvfrom(struct file *filp, void *buf, size_t len, int flags, struct s
     inode = container_of(filp->inode, struct inode_socket, i);
     socket = inode->socket;
 
-    return socket_recvfrom(socket, buf, len, flags, addr, addrlen, flag_test(&filp->flags, FILE_NONBLOCK));
+    /* FIXME: This should take a user_buffer */
+    int ret = socket_recvfrom(socket, buf, len, flags, &cpy, &cpylen, flag_test(&filp->flags, FILE_NONBLOCK));
+    if (ret < 0)
+        return ret;
+
+    if (addr.ptr && addrlen.ptr) {
+        int err = user_write_sockaddr(&cpy, cpylen, addr, addrlen);
+        if (err)
+            return err;
+    }
+
+    return ret;
 }
 
-int sys_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *addrlen)
+int sys_recvfrom(int sockfd, struct user_buffer buf, size_t len, int flags, struct user_buffer addr, struct user_buffer addrlen)
 {
     struct file *filp;
     int ret;
-
-    kp(KP_NORMAL, "sys_recvfrom: addrlen: %p, *addrlen: %d\n", addrlen, addrlen? *addrlen: 100);
-
-    ret = user_check_region(buf, len, F(VM_MAP_READ) | F(VM_MAP_WRITE));
-    if (ret)
-        return ret;
-
-    if (addr && addrlen) {
-        ret = user_check_region(addrlen, sizeof(*addrlen), F(VM_MAP_READ));
-        if (ret)
-            return ret;
-
-        ret = user_check_region(addr, *addrlen, F(VM_MAP_READ));
-        if (ret)
-            return ret;
-    } else {
-        addr = NULL;
-        addrlen = NULL;
-    }
 
     ret = fd_get_checked(sockfd, &filp);
     if (ret)
@@ -247,9 +258,9 @@ int sys_recvfrom(int sockfd, void *buf, size_t len, int flags, struct sockaddr *
     return __sys_recvfrom(filp, buf, len, flags, addr, addrlen);
 }
 
-int sys_recv(int sockfd, void *buf, size_t len, int flags)
+int sys_recv(int sockfd, struct user_buffer buf, size_t len, int flags)
 {
-    return sys_recvfrom(sockfd, buf, len, flags, NULL, NULL);
+    return sys_recvfrom(sockfd, buf, len, flags, make_user_buffer(NULL), make_user_buffer(NULL));
 }
 
 int sys_shutdown(int sockfd, int how)
@@ -264,47 +275,45 @@ int sys_shutdown(int sockfd, int how)
     return socket_shutdown(socket, how);
 }
 
-int sys_accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+int sys_accept(int sockfd, struct user_buffer addr, struct user_buffer addrlen)
 {
+    struct sockaddr cpy;
+    socklen_t cpylen = sizeof(cpy);
     struct socket *socket, *new_socket = NULL;
     int ret;
-
-    if (addr && addrlen) {
-        ret = user_check_region(addrlen, sizeof(*addrlen), F(VM_MAP_READ));
-        if (ret)
-            return ret;
-
-        ret = user_check_region(addr, *addrlen, F(VM_MAP_READ));
-        if (ret)
-            return ret;
-    } else {
-        addr = NULL;
-        addrlen = NULL;
-    }
 
     ret = fd_get_socket(sockfd, &socket);
     if (ret)
         return ret;
 
-    ret = socket_accept(socket, addr, addrlen, &new_socket);
+    ret = socket_accept(socket, &cpy, &cpylen, &new_socket);
     if (ret)
         return ret;
+
+    if (addr.ptr && addrlen.ptr) {
+        /* FIXME: Don't just leak the FD...*/
+        int err = user_write_sockaddr(&cpy, cpylen, addr, addrlen);
+        if (err)
+            return err;
+    }
 
     /* FIXME: Create a new struct file and fill it in with the created socket */
     return 0;
 }
 
-int sys_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+int sys_connect(int sockfd, struct user_buffer addr, socklen_t addrlen)
 {
+    struct sockaddr cpy;
+    struct sockaddr *ptr = &cpy;
     struct socket *socket;
     int ret;
 
-    if (addr && addrlen) {
-        ret = user_check_region(addr, addrlen, F(VM_MAP_READ));
+    if (addr.ptr && addrlen) {
+        ret = user_read_sockaddr(&cpy, addr, addrlen);
         if (ret)
             return ret;
     } else {
-        addr = NULL;
+        ptr = NULL;
         addrlen = 0;
     }
 
@@ -312,7 +321,7 @@ int sys_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     if (ret)
         return ret;
 
-    return socket_connect(socket, addr, addrlen);
+    return socket_connect(socket, ptr, addrlen);
 }
 
 int sys_listen(int sockfd, int backlog)

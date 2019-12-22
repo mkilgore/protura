@@ -4,6 +4,7 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/seq_file.h>
 #include <protura/net/sockaddr.h>
+#include <protura/mm/user_check.h>
 #include <protura/mutex.h>
 #include <protura/list.h>
 
@@ -39,7 +40,7 @@ struct protocol_ops {
 
     int (*shutdown) (struct protocol *, struct socket *, int how);
 
-    int (*sendto) (struct protocol *, struct socket *, const char *buf, size_t len, const struct sockaddr *, socklen_t);
+    int (*sendto) (struct protocol *, struct socket *, struct user_buffer buf, size_t len, const struct sockaddr *, socklen_t);
 
     int (*bind) (struct protocol *, struct socket *, const struct sockaddr *, socklen_t);
     int (*autobind) (struct protocol *, struct socket *);

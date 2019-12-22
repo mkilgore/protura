@@ -77,6 +77,7 @@ struct packet *packet_copy(struct packet *packet, int pal_flags);
 
 void packet_add_header(struct packet *, const void *header, size_t header_len);
 void packet_append_data(struct packet *, const void *data, size_t data_len);
+int packet_append_user_data(struct packet *, struct user_buffer buf, size_t data_len);
 void packet_pad_zero(struct packet *packet, size_t len);
 
 static inline size_t packet_len(struct packet *packet)

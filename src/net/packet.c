@@ -11,6 +11,7 @@
 #include <protura/string.h>
 #include <protura/spinlock.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
 
@@ -156,6 +157,16 @@ void packet_append_data(struct packet *packet, const void *data, size_t data_len
 {
     memcpy(packet->tail, data, data_len);
     packet->tail += data_len;
+}
+
+int packet_append_user_data(struct packet *packet, struct user_buffer buf, size_t data_len)
+{
+    int ret = user_memcpy_to_kernel(packet->tail, buf, data_len);
+    if (ret)
+        return ret;
+
+    packet->tail += data_len;
+    return 0;
 }
 
 void packet_pad_zero(struct packet *packet, size_t len)
