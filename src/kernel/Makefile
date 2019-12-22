@@ -8,6 +8,7 @@ objs-y += ktimer.o
 objs-y += sys_user.o
 objs-y += uname.o
 objs-$(CONFIG_KERNEL_TESTS) += ktest.o
+objs-$(CONFIG_KERNEL_TESTS) += user_fault_test.o
 objs-y += cmdline.o
 objs-y += kbuf.o
 objs-y += klog.o
