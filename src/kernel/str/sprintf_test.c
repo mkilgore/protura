@@ -34,7 +34,7 @@ static void snprintf_test_trimming(struct ktest *kt)
 }
 
 static const struct ktest_unit snprintf_test_units[] = {
-    KTEST_UNIT_INIT("snprintf-trimming", snprintf_test_trimming),
+    KTEST_UNIT("snprintf-trimming", snprintf_test_trimming),
 };
 
 static const __ktest struct ktest_module snprintf_test_module = KTEST_MODULE_INIT("snprintf", snprintf_test_units);

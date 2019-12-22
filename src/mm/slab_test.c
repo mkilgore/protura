@@ -307,14 +307,14 @@ static void slab_test_group_four_free(struct ktest *kt)
 }
 
 #define SLAB_TEST_CASES(st, func) \
-    KTEST_UNIT_INIT(st, func, KT_INT(32)), \
-    KTEST_UNIT_INIT(st, func, KT_INT(64)), \
-    KTEST_UNIT_INIT(st, func, KT_INT(128)), \
-    KTEST_UNIT_INIT(st, func, KT_INT(256)), \
-    KTEST_UNIT_INIT(st, func, KT_INT(512)), \
-    KTEST_UNIT_INIT(st, func, KT_INT(1024)), \
-    KTEST_UNIT_INIT(st, func, KT_INT(2048)), \
-    KTEST_UNIT_INIT(st, func, KT_INT(4096))
+    KTEST_UNIT(st, func, KT_INT(32)), \
+    KTEST_UNIT(st, func, KT_INT(64)), \
+    KTEST_UNIT(st, func, KT_INT(128)), \
+    KTEST_UNIT(st, func, KT_INT(256)), \
+    KTEST_UNIT(st, func, KT_INT(512)), \
+    KTEST_UNIT(st, func, KT_INT(1024)), \
+    KTEST_UNIT(st, func, KT_INT(2048)), \
+    KTEST_UNIT(st, func, KT_INT(4096))
 
 static const struct ktest_unit slab_test_units[] = {
     SLAB_TEST_CASES("free-inorder",     slab_test_inorder_free),
@@ -323,8 +323,8 @@ static const struct ktest_unit slab_test_units[] = {
     SLAB_TEST_CASES("free-every-tenth", slab_test_every_tenth_free),
     SLAB_TEST_CASES("free-group-two",   slab_test_group_two_free),
     SLAB_TEST_CASES("free-group-four",  slab_test_group_four_free),
-    KTEST_UNIT_INIT("fill-two-frames",  slab_test_two_frames),
-    KTEST_UNIT_INIT("new-frame",        slab_test_frame_new),
+    KTEST_UNIT("fill-two-frames",       slab_test_two_frames),
+    KTEST_UNIT("new-frame",             slab_test_frame_new),
 };
 
 static const __ktest struct ktest_module slab_test_module = KTEST_MODULE_INIT("slab", slab_test_units);

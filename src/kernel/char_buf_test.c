@@ -146,11 +146,11 @@ static void char_buf_empty_read_test(struct ktest *kt)
 }
 
 static const struct ktest_unit char_buf_test_units[] = {
-    KTEST_UNIT_INIT("char-buf-read-wrap-test", char_buf_read_wrap_test),
-    KTEST_UNIT_INIT("char-buf-read-user-wrap-test", char_buf_read_user_wrap_test),
-    KTEST_UNIT_INIT("char-buf-write-wrap-test", char_buf_write_wrap_test),
-    KTEST_UNIT_INIT("char-buf-write-test", char_buf_write_test),
-    KTEST_UNIT_INIT("char-buf-empty-read-test", char_buf_empty_read_test),
+    KTEST_UNIT("char-buf-read-wrap-test", char_buf_read_wrap_test),
+    KTEST_UNIT("char-buf-read-user-wrap-test", char_buf_read_user_wrap_test),
+    KTEST_UNIT("char-buf-write-wrap-test", char_buf_write_wrap_test),
+    KTEST_UNIT("char-buf-write-test", char_buf_write_test),
+    KTEST_UNIT("char-buf-empty-read-test", char_buf_empty_read_test),
 };
 
 static const __ktest struct ktest_module char_buf_test_module

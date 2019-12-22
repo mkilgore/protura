@@ -137,7 +137,7 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
             struct user_buffer: __arg->user_buf); \
     })
 
-#define KTEST_UNIT_INIT(nm, t, ...) \
+#define KTEST_UNIT(nm, t, ...) \
     { \
         .test = (t), \
         .name = (nm), \

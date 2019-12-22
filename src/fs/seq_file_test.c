@@ -106,8 +106,8 @@ static void seq_file_empty_test(struct ktest *kt)
 }
 
 static const struct ktest_unit seq_file_test_units[] = {
-    KTEST_UNIT_INIT("seq-file-empty-test", seq_file_empty_test),
-    KTEST_UNIT_INIT("seq-file-fill-test", seq_file_fill_test),
+    KTEST_UNIT("seq-file-empty-test", seq_file_empty_test),
+    KTEST_UNIT("seq-file-fill-test", seq_file_fill_test),
 };
 
 static const __ktest struct ktest_module seq_file_test_module

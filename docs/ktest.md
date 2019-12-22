@@ -42,14 +42,14 @@ static void example_one(struct ktest *kt) { }
 static void example_two(struct ktest *kt) { }
 
 static const struct ktest_unit kbuf_test_units[] = {
-    KTEST_UNIT_INIT("example-test-1", example_one),
-    KTEST_UNIT_INIT("example-test-2", example_two),
+    KTEST_UNIT("example-test-1", example_one),
+    KTEST_UNIT("example-test-2", example_two),
 };
 
 static const __ktest struct ktest_module example_test_module = KTEST_MODULE_INIT("example-test-suite", example_test_units);
 ```
 
-Note that everything is `static` and all the test information is `const` - this is required. In addition, the `__ktest` attribute must be placed on the module - this will place the module into the `.ktest` section so that it can be discovered at runtime. The `KTEST_UNIT_INIT()` macro should be used to create `struct ktest_unit` entries, and the `KTEST_MODULE_INIT()` macro should be used for creating the `struct ktest_module`.
+Note that everything is `static` and all the test information is `const` - this is required. In addition, the `__ktest` attribute must be placed on the module - this will place the module into the `.ktest` section so that it can be discovered at runtime. The `KTEST_UNIT()` macro should be used to create `struct ktest_unit` entries, and the `KTEST_MODULE_INIT()` macro should be used for creating the `struct ktest_module`.
 
 Assertions
 ----------
@@ -75,7 +75,7 @@ Arguments to a unit test can be provided to a test via the `KT_*` macros. Curren
 | `KT_UINT` | `unsigned int` |
 | `KT_STR` | `const char *` |
 
-These macros are provided as extra arguments to `KTEST_UNIT_INIT`. The arguments can then be acquired in the test via the `KT_ARG(kt, idx, type)` macro, which takes the `struct ktest *`, the index of the argument, and the type of the argument. All together it looks like this:
+These macros are provided as extra arguments to `KTEST_UNIT`. The arguments can then be acquired in the test via the `KT_ARG(kt, idx, type)` macro, which takes the `struct ktest *`, the index of the argument, and the type of the argument. All together it looks like this:
 
 ```c
 static void example_test(struct ktest *kt)
@@ -84,8 +84,8 @@ static void example_test(struct ktest *kt)
     const char *arg2 = KT_ARG(kt, 1, const char *);
 }
 
-struct ktest_unit unit1 = KTEST_UNIT_INIT("example-test1", example_test, KT_INT(100), KT_STR("foo");
-struct ktest_unit unit2 = KTEST_UNIT_INIT("example-test2", example_test, KT_INT(200), KT_STR("bar");
+struct ktest_unit unit1 = KTEST_UNIT("example-test1", example_test, KT_INT(100), KT_STR("foo");
+struct ktest_unit unit2 = KTEST_UNIT("example-test2", example_test, KT_INT(200), KT_STR("bar");
 ```
 
 That example includes two unit tests, both using the same function for running the test. They pass an integer and a string as arguments, and then inside the test `KT_ARG` is used to get the value of these arguments. Note that the types of the provided arguments are checked for consistency with the type provided to `KT_ARG`, though the checking happens at runtime and will fail your test, rather than fail to compile.
