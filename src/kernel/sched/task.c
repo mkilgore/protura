@@ -169,8 +169,6 @@ struct task *task_user_new_exec(const char *exe)
     strncpy(t->name, exe, sizeof(t->name) - 1);
     t->name[sizeof(t->name) - 1] = '\0';
 
-    flag_set(&t->flags, TASK_FLAG_USER_PTR_CHECK);
-
     arch_task_setup_stack_user_with_exec(t, exe);
 
     t->cwd = inode_dup(ino_root);
@@ -187,8 +185,6 @@ struct task *task_user_new(void)
     if (!t)
         return NULL;
 
-    flag_set(&t->flags, TASK_FLAG_USER_PTR_CHECK);
-
     arch_task_setup_stack_user(t);
 
     return t;
@@ -203,8 +199,6 @@ struct task *task_fork(struct task *parent)
     struct task *new = task_new();
     if (!new)
         return NULL;
-
-    flag_set(&new->flags, TASK_FLAG_USER_PTR_CHECK);
 
     strcpy(new->name, parent->name);
 

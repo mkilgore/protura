@@ -47,7 +47,6 @@ enum {
     TASK_FLAG_RUNNING,
     TASK_FLAG_KERNEL,
     TASK_FLAG_KILLED,
-    TASK_FLAG_USER_PTR_CHECK,
     TASK_FLAG_SESSION_LEADER,
     TASK_FLAG_RW_USER,
 };
@@ -198,21 +197,6 @@ static inline int task_fd_get_checked(struct task *t, int fd, struct file **filp
     task_fd_get_checked(cpu_get_local()->current, (fd), (filp))
 
 extern const char *task_states[];
-
-static inline void user_ptr_check_off(void)
-{
-    flag_clear(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
-}
-
-static inline void user_ptr_check_on(void)
-{
-    flag_set(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
-}
-
-static inline int user_ptr_check_is_on(void)
-{
-    return flag_test(&cpu_get_local()->current->flags, TASK_FLAG_USER_PTR_CHECK);
-}
 
 static inline int signals_pending(void)
 {

@@ -11,7 +11,6 @@
 #include <protura/string.h>
 #include <protura/dump_mem.h>
 #include <protura/mm/kmalloc.h>
-#include <protura/mm/user_ptr.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
 #include <arch/asm.h>

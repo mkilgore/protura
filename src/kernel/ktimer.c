@@ -11,7 +11,6 @@
 #include <protura/snprintf.h>
 #include <protura/atomic.h>
 #include <protura/mm/vm.h>
-#include <protura/mm/user_ptr.h>
 #include <protura/fs/procfs.h>
 #include <protura/time.h>
 #include <arch/drivers/pic8259_timer.h>

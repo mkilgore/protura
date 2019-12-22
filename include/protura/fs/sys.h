@@ -12,7 +12,6 @@
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
-#include <protura/mm/user_ptr.h>
 #include <protura/fs/sync.h>
 
 #define PATH_MAX 256

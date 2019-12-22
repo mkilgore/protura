@@ -2,7 +2,6 @@
 #define INCLUDE_PROTURA_USERS_H
 
 #include <protura/types.h>
-#include <protura/mm/user_ptr.h>
 #include <protura/mutex.h>
 
 #define NGROUPS 32
