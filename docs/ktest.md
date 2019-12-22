@@ -69,11 +69,13 @@ Unit Test Arguments
 
 Arguments to a unit test can be provided to a test via the `KT_*` macros. Current ones are:
 
-| macro | type |
-| --- | --- |
-| `KT_INT` | `int` |
-| `KT_UINT` | `unsigned int` |
-| `KT_STR` | `const char *` |
+| macro | type | Notes |
+| --- | --- | |
+| `KT_INT` | `int` | |
+| `KT_UINT` | `unsigned int` | |
+| `KT_STR` | `const char *` | |
+| `KT_USER_BUF` | `struct user_buffer` | Creates a buffer with `is_user` set to true |
+| `KT_KERNEL_BUF`' | `struct user_buffer` | Creates a buffer with `is_user` set to false |
 
 These macros are provided as extra arguments to `KTEST_UNIT`. The arguments can then be acquired in the test via the `KT_ARG(kt, idx, type)` macro, which takes the `struct ktest *`, the index of the argument, and the type of the argument. All together it looks like this:
 
