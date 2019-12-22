@@ -15,6 +15,7 @@ enum ktest_arg_type {
     KTEST_ARG_INT,
     KTEST_ARG_UINT,
     KTEST_ARG_STR,
+    KTEST_ARG_USER_BUF,
 };
 
 struct ktest_arg {
@@ -24,6 +25,7 @@ struct ktest_arg {
         int intarg;
         unsigned int uintarg;
         const char *strarg;
+        struct user_buffer user_buf;
     };
 };
 
@@ -61,6 +63,22 @@ struct ktest_arg {
         .strarg = (s), \
     }
 
+#define KT_USER_BUF(s) DEFER(__KT_USER_BUF)("user " #s, (s))
+#define __KT_USER_BUF(ss, s) \
+    { \
+        .name = (ss), \
+        .type = KTEST_ARG_USER_BUF, \
+        .user_buf = make_user_buffer(s), \
+    }
+
+#define KT_KERNEL_BUF(s) DEFER(__KT_KERNEL_BUF)("krnl " #s, (s))
+#define __KT_KERNEL_BUF(ss, s) \
+    { \
+        .name = (ss), \
+        .type = KTEST_ARG_USER_BUF, \
+        .user_buf = make_kernel_buffer(s), \
+    }
+
 struct ktest_unit {
     void (*test) (struct ktest *);
     const char *name;
@@ -76,7 +94,8 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
         _Generic(____tmp_generic, \
             int: KTEST_ARG_INT, \
             unsigned int: KTEST_ARG_UINT, \
-            const char *: KTEST_ARG_STR); \
+            const char *: KTEST_ARG_STR, \
+            struct user_buffer: KTEST_ARG_USER_BUF); \
     })
 
 #define KT_ARG_TYPE_STR(typ) \
@@ -88,6 +107,8 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
             __ret = "unsigned int"; \
         else if ((typ) == KTEST_ARG_STR) \
             __ret = "const char *"; \
+        else if ((typ) == KTEST_ARG_USER_BUF) \
+            __ret = "struct user_buffer"; \
         __ret; \
     })
 
@@ -112,7 +133,8 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
         _Generic(____tmp_generic, \
             int: __arg->intarg, \
             unsigned int: __arg->uintarg, \
-            const char *: __arg->strarg); \
+            const char *: __arg->strarg, \
+            struct user_buffer: __arg->user_buf); \
     })
 
 #define KTEST_UNIT_INIT(nm, t, ...) \
@@ -125,6 +147,12 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
 
 struct ktest_module {
     const char *name;
+
+    void *priv;
+
+    int (*setup_module) (struct ktest_module *);
+    int (*teardown_module) (struct ktest_module *);
+
     const struct ktest_unit *tests;
     size_t test_count;
 };
@@ -135,6 +163,16 @@ struct ktest_module {
         .tests = (tsts), \
         .test_count = ARRAY_SIZE((tsts)), \
     }
+
+#define KTEST_MODULE_DEFINE(nam, tst, setup, teardown) \
+    static const __ktest struct ktest_module TP(ktest_module, __COUNTER__) = \
+        { \
+            .name = (nam), \
+            .tests = (tst), \
+            .setup_module = (setup), \
+            .teardown_module = (teardown), \
+            .test_count = ARRAY_SIZE((tst)), \
+        }
 
 #define __ktest __used __section(".ktest")
 

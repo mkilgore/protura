@@ -78,6 +78,15 @@ static int run_module(struct ktest_module *module)
 
     kp(KP_NORMAL, "==== Starting tests for %s ====\n", module->name);
 
+    if (module->setup_module) {
+        int err = (module->setup_module) (module);
+        if (err) {
+            kp(KP_ERROR, "== Error durring test module setup, FAIL ==\n");
+            kp(KP_NORMAL, "==== Finished tests for %s ====\n", module->name);
+            return 1;
+        }
+    }
+
     int i;
     for (i = 0; i < module->test_count; i++) {
         char arg_str[32];
@@ -96,7 +105,7 @@ static int run_module(struct ktest_module *module)
                 arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, "%s", ktest.unit->args[k].name);
 
                 if (k + 1 != ktest.unit->arg_count)
-                    arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, ",");
+                    arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, ", ");
 
             }
             arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, ")");
@@ -114,6 +123,14 @@ static int run_module(struct ktest_module *module)
         kp(KP_NORMAL, "== Result: %s ==\n", buf);
 
         error_count += ktest.failed_tests;
+    }
+
+    if (module->teardown_module) {
+        int err = (module->teardown_module) (module);
+        if (err) {
+            kp(KP_ERROR, "== Error durring test module teardown... ==\n");
+            error_count++;
+        }
     }
 
     kp(KP_NORMAL, "==== Finished tests for %s ====\n", module->name);
