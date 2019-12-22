@@ -40,6 +40,11 @@ static int start_user_init(void *unused)
         (sys->init) ();
     }
 
+    /* Mount the current IDE drive as an ext2 filesystem */
+    int ret = mount_root(DEV_MAKE(CONFIG_ROOT_MAJOR, CONFIG_ROOT_MINOR), CONFIG_ROOT_FSTYPE);
+    if (ret)
+        panic("UNABLE TO MOUNT ROOT FILESYSTEM\n");
+
 #ifdef CONFIG_KERNEL_TESTS
     ktest_init();
 #endif
@@ -47,11 +52,6 @@ static int start_user_init(void *unused)
     kp(KP_NORMAL, "Kernel is done booting!\n");
 
     vt_console_kp_unregister();
-
-    /* Mount the current IDE drive as an ext2 filesystem */
-    int ret = mount_root(DEV_MAKE(CONFIG_ROOT_MAJOR, CONFIG_ROOT_MINOR), CONFIG_ROOT_FSTYPE);
-    if (ret)
-        panic("UNABLE TO MOUNT ROOT FILESYSTEM\n");
 
     const char *init_prog = kernel_cmdline_get_string("init", "/bin/init");
 
