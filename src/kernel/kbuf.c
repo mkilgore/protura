@@ -12,6 +12,7 @@
 #include <protura/string.h>
 #include <protura/errors.h>
 #include <protura/mm/palloc.h>
+#include <protura/mm/user_check.h>
 #include <protura/kbuf.h>
 
 int kbuf_add_page(struct kbuf *kbuf)
@@ -76,12 +77,8 @@ static struct page *kbuf_get_cur_page(struct kbuf *kbuf, size_t offset)
     return NULL;
 }
 
-int kbuf_read(struct kbuf *kbuf, size_t loc, void *vptr, size_t len)
+int kbuf_read(struct kbuf *kbuf, size_t loc, struct user_buffer buf, size_t len)
 {
-    char *ptr = vptr;
-    if (!ptr)
-        return -EINVAL;
-
     struct page *cur_page = kbuf_get_cur_page(kbuf, loc);
     if (!cur_page)
         return 0;
@@ -100,7 +97,9 @@ int kbuf_read(struct kbuf *kbuf, size_t loc, void *vptr, size_t len)
                                 PG_SIZE - page_offset:
                                 len - have_read;
 
-        memcpy(ptr + have_read, cur_page->virt + page_offset, read_count);
+        int ret = user_memcpy_from_kernel(user_buffer_index(buf, have_read), cur_page->virt + page_offset, read_count);
+        if (ret)
+            return ret;
 
         page_offset = 0;
         have_read += read_count;
@@ -115,12 +114,8 @@ int kbuf_read(struct kbuf *kbuf, size_t loc, void *vptr, size_t len)
     return have_read;
 }
 
-int kbuf_write(struct kbuf *kbuf, const void *vptr, size_t len)
+int kbuf_write(struct kbuf *kbuf, struct user_buffer buf, size_t len)
 {
-    const char *ptr = vptr;
-    if (!ptr)
-        return -EINVAL;
-
     struct page *cur_page = kbuf_get_cur_page(kbuf, kbuf->cur_pos.offset);
     if (!cur_page)
         return 0;
@@ -137,7 +132,9 @@ int kbuf_write(struct kbuf *kbuf, const void *vptr, size_t len)
                                 PG_SIZE - page_offset:
                                 len - have_written;
 
-        memcpy(cur_page->virt + page_offset, ptr + have_written, write_count);
+        int ret = user_memcpy_to_kernel(cur_page->virt + page_offset, user_buffer_index(buf, have_written), write_count);
+        if (ret)
+            return ret;
 
         page_offset = 0;
         have_written += write_count;
@@ -163,7 +160,7 @@ struct kbuf_backbone {
 static void kbuf_putchar(struct printf_backbone *b, char ch)
 {
     struct kbuf_backbone *kb = container_of(b, struct kbuf_backbone, backbone);
-    int ret = kbuf_write(kb->kbuf, &ch, 1);
+    int ret = kbuf_write(kb->kbuf, make_kernel_buffer(&ch), 1);
     kb->written += ret;
 
     if (!ret)
@@ -174,7 +171,7 @@ static void kbuf_putnstr(struct printf_backbone *b, const char *str, size_t len)
 {
     struct kbuf_backbone *kb = container_of(b, struct kbuf_backbone, backbone);
 
-    int ret = kbuf_write(kb->kbuf, str, len);
+    int ret = kbuf_write(kb->kbuf, make_kernel_buffer(str), len);
     kb->written += ret;
 
     if (ret < len)

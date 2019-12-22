@@ -27,7 +27,7 @@ static void kbuf_get_free_length_test(struct ktest *kt)
     ktest_assert_equal(kt, PG_SIZE * 2, kbuf_get_free_length(&kbuf));
 
     char buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-    kbuf_write(&kbuf, buf, 10);
+    kbuf_write(&kbuf, make_kernel_buffer(buf), 10);
     ktest_assert_equal(kt, PG_SIZE * 2 - 10, kbuf_get_free_length(&kbuf));
 
     kbuf_clear(&kbuf);
@@ -42,7 +42,7 @@ static void kbuf_printf_overflow_test(struct ktest *kt)
     /* Leave only 10 bytes left in the buffer */
     int i;
     for (i = 0; i < PG_SIZE - 10; i++)
-        kbuf_write(&kbuf, &i, 1);
+        kbuf_write(&kbuf, make_kernel_buffer(&i), 1);
 
     int ret = kbuf_printf(&kbuf, "This is longer than 10 characters!");
 
@@ -122,7 +122,7 @@ static void kbuf_multiread_test(struct ktest *kt)
     int total_reads = PG_SIZE * 4 / read_size;
 
     for (i = 0; i < total_reads; i++) {
-        int err = kbuf_read(&kbuf, i * read_size, tmp_page->virt + i * read_size, read_size);
+        int err = kbuf_read(&kbuf, i * read_size, make_kernel_buffer(tmp_page->virt + i * read_size), read_size);
         ktest_assert_equal(kt, read_size, err);
 
         size_t total_read_len = (i + 1) * read_size;
@@ -142,7 +142,7 @@ static void kbuf_multiread_test(struct ktest *kt)
     if ((PG_SIZE * 4) % read_size) {
         int left_over = (PG_SIZE * 4) % read_size;
 
-        int err = kbuf_read(&kbuf, total_reads * read_size, tmp_page->virt + total_reads * read_size, read_size);
+        int err = kbuf_read(&kbuf, total_reads * read_size, make_kernel_buffer(tmp_page->virt + total_reads * read_size), read_size);
         ktest_assert_equal(kt, left_over, err);
     }
 
@@ -173,7 +173,7 @@ static void kbuf_read_from_offset_test(struct ktest *kt)
     kbuf.cur_pos.offset = PG_SIZE;
 
     for (i = 0; i < PG_SIZE - read_len; i++) {
-        int err = kbuf_read(&kbuf, i, tmp_page->virt, read_len);
+        int err = kbuf_read(&kbuf, i, make_kernel_buffer(tmp_page->virt), read_len);
         ktest_assert_equal(kt, read_len, err);
 
         ktest_assert_equal_mem(kt, cur_page->virt + i, tmp_page->virt, read_len);
@@ -201,7 +201,7 @@ static void kbuf_read_from_start_test(struct ktest *kt)
     kbuf.cur_pos.offset = PG_SIZE;
 
     memset(tmp_page->virt, 0, PG_SIZE);
-    int err = kbuf_read(&kbuf, 0, tmp_page->virt, read_len);
+    int err = kbuf_read(&kbuf, 0, make_kernel_buffer(tmp_page->virt), read_len);
     ktest_assert_equal(kt, read_len, err);
 
     ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, read_len);
@@ -228,7 +228,7 @@ static void kbuf_read_past_the_end_test(struct ktest *kt)
     kbuf.cur_pos.offset = length;
 
     memset(tmp_page->virt, 0, PG_SIZE);
-    int err = kbuf_read(&kbuf, 0, tmp_page->virt, PG_SIZE);
+    int err = kbuf_read(&kbuf, 0, make_kernel_buffer(tmp_page->virt), PG_SIZE);
     ktest_assert_equal(kt, length, err);
 
     ktest_assert_equal_mem(kt, cur_page->virt, tmp_page->virt, length);
@@ -271,7 +271,7 @@ static void kbuf_multiwrite_test(struct ktest *kt)
     int total_writes = PG_SIZE * 4 / write_size;
 
     for (i = 0; i < total_writes; i++) {
-        int err = kbuf_write(&kbuf, tmp_page->virt + i * write_size, write_size);
+        int err = kbuf_write(&kbuf, make_kernel_buffer(tmp_page->virt + i * write_size), write_size);
         ktest_assert_equal(kt, write_size, err);
 
         size_t total_write_len = (i + 1) * write_size;
@@ -291,7 +291,7 @@ static void kbuf_multiwrite_test(struct ktest *kt)
     if ((PG_SIZE * 4) % write_size) {
         int left_over = (PG_SIZE * 4) % write_size;
 
-        int err = kbuf_write(&kbuf, tmp_page->virt + total_writes * write_size, write_size);
+        int err = kbuf_write(&kbuf, make_kernel_buffer(tmp_page->virt + total_writes * write_size), write_size);
         ktest_assert_equal(kt, left_over, err);
     }
 
@@ -316,7 +316,7 @@ static void kbuf_write_two_page_test(struct ktest *kt)
     for(i = 0; i < PG_SIZE * 2; i++)
         ((char *)tmp_page->virt)[i] = i % 256;
 
-    int err = kbuf_write(&kbuf, tmp_page->virt, length + PG_SIZE);
+    int err = kbuf_write(&kbuf, make_kernel_buffer(tmp_page->virt), length + PG_SIZE);
     ktest_assert_equal(kt, length + PG_SIZE, err);
 
     struct page *cur_page = list_first_entry(&kbuf.pages, struct page, page_list_node);
@@ -344,7 +344,7 @@ static void kbuf_write_one_page_test(struct ktest *kt)
     for(i = 0; i < PG_SIZE; i++)
         ((char *)tmp_page->virt)[i] = i % 256;
 
-    int err = kbuf_write(&kbuf, tmp_page->virt, length);
+    int err = kbuf_write(&kbuf, make_kernel_buffer(tmp_page->virt), length);
     ktest_assert_equal(kt, length, err);
 
     struct page *cur_page = list_first_entry(&kbuf.pages, struct page, page_list_node);

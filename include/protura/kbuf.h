@@ -42,8 +42,8 @@ size_t kbuf_get_length(struct kbuf *);
 struct kbuf_pos kbuf_get_pos(struct kbuf *);
 void kbuf_reset_pos(struct kbuf *, struct kbuf_pos);
 
-int kbuf_read(struct kbuf *, size_t loc, void *, size_t len);
-int kbuf_write(struct kbuf *, const void *, size_t);
+int kbuf_read(struct kbuf *, size_t loc, struct user_buffer, size_t len);
+int kbuf_write(struct kbuf *, const struct user_buffer, size_t);
 
 /*
  * NOTE: On an overflow, these return -ENOSPC
