@@ -11,28 +11,25 @@
 #include <protura/task.h>
 #include <protura/scheduler.h>
 #include <protura/signal.h>
-#include <protura/mm/user_ptr.h>
+#include <protura/mm/user_check.h>
 
-int sys_sigprocmask(int how, const sigset_t *__user set, sigset_t *__user oldset)
+int sys_sigprocmask(int how, struct user_buffer set, struct user_buffer oldset)
 {
     int ret;
     sigset_t *blocked = &cpu_get_local()->current->sig_blocked;
 
-    if (oldset) {
-        ret = user_check_region(oldset, sizeof(oldset), F(VM_MAP_WRITE));
+    if (!user_buffer_is_null(oldset)) {
+        ret = user_copy_from_kernel(oldset, *blocked);
         if (ret)
             return ret;
-
-        *oldset = *blocked;
     }
 
-    if (set) {
+    if (!user_buffer_is_null(set)) {
         sigset_t tmp;
-        ret = user_check_region(set, sizeof(*set), F(VM_MAP_READ));
+
+        ret = user_copy_to_kernel(&tmp, set);
         if (ret)
             return ret;
-
-        tmp = *set;
 
         /* Remove attempts to block unblockable signals */
         tmp &= ~SIG_UNBLOCKABLE;
@@ -60,19 +57,12 @@ int sys_sigprocmask(int how, const sigset_t *__user set, sigset_t *__user oldset
     return 0;
 }
 
-int sys_sigpending(sigset_t *__user set)
+int sys_sigpending(struct user_buffer set)
 {
-    int ret;
-    ret = user_check_region(set, sizeof(*set), F(VM_MAP_WRITE));
-    if (ret)
-        return ret;
-
-    *set = cpu_get_local()->current->sig_pending;
-
-    return 0;
+    return user_copy_from_kernel(set, cpu_get_local()->current->sig_pending);
 }
 
-int sys_sigaction(int signum, const struct sigaction *__user act, struct sigaction *__user oldact)
+int sys_sigaction(int signum, struct user_buffer act, struct user_buffer oldact)
 {
     int entry = signum - 1;
     struct sigaction *action = cpu_get_local()->current->sig_actions + entry;
@@ -81,23 +71,18 @@ int sys_sigaction(int signum, const struct sigaction *__user act, struct sigacti
     if (signum < 1 || signum > NSIG)
         return -EINVAL;
 
-    if (oldact) {
-        ret = user_check_region(oldact, sizeof(*oldact), F(VM_MAP_WRITE));
+    if (!user_buffer_is_null(oldact)) {
+        ret = user_copy_from_kernel(oldact, *action);
         if (ret)
             return ret;
-
-        *oldact = *action;
     }
 
-    if (act) {
+    if (!user_buffer_is_null(act)) {
         struct sigaction tmp;
 
-        ret = user_check_region(act, sizeof(*act), F(VM_MAP_READ));
+        ret = user_copy_to_kernel(&tmp, act);
         if (ret)
             return ret;
-
-
-        tmp = *act;
 
         tmp.sa_mask |= SIG_BIT(signum);
         tmp.sa_mask &= ~SIG_UNBLOCKABLE;
@@ -142,19 +127,13 @@ int sys_kill(pid_t pid, int sig)
     return -EINVAL;
 }
 
-int sys_sigwait(const sigset_t *__user set, int *__user sig)
+int sys_sigwait(struct user_buffer set, struct user_buffer sig)
 {
     int ret, test;
     struct task *current = cpu_get_local()->current;
     sigset_t check, signals;
 
-    ret = user_check_region(set, sizeof(*set), F(VM_MAP_READ));
-    if (ret)
-        return ret;
-
-    check = *set;
-
-    ret = user_check_region(sig, sizeof(*sig), F(VM_MAP_WRITE));
+    ret = user_copy_to_kernel(&check, set);
     if (ret)
         return ret;
 
@@ -178,7 +157,9 @@ int sys_sigwait(const sigset_t *__user set, int *__user sig)
     if ((test + 1) == SIGKILL || (test + 1) == SIGSTOP)
         return -ERESTARTSYS;
 
-    *sig = test + 1;
+    ret = user_copy_from_kernel(sig, test + 1);
+    if (ret)
+        return ret;
 
     SIGSET_UNSET(&current->sig_pending, test + 1);
 
@@ -193,20 +174,21 @@ int sys_pause(void)
     return -ERESTARTNOHAND;
 }
 
-int sys_sigsuspend(const sigset_t *__user mask)
+int sys_sigsuspend(struct user_buffer umask)
 {
     int ret;
     struct task *current = cpu_get_local()->current;
     sigset_t tempmask;
+    sigset_t mask;
 
-    ret = user_check_region(mask, sizeof(*mask), F(VM_MAP_READ));
+    ret = user_copy_to_kernel(&mask, umask);
     if (ret)
         return ret;
 
     arch_context_set_return(&current->context, -EINTR);
 
     tempmask = current->sig_blocked;
-    current->sig_blocked = *mask & ~SIG_UNBLOCKABLE;
+    current->sig_blocked = mask & ~SIG_UNBLOCKABLE;
 
   sleep_again:
     sleep_intr {

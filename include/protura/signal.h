@@ -5,16 +5,14 @@
 
 #ifdef __KERNEL__
 
-#include <protura/mm/user_ptr.h>
-
-int sys_sigprocmask(int how, const sigset_t *__user set, sigset_t *__user oldset);
-int sys_sigpending(sigset_t *__user set);
-int sys_sigaction(int signum, const struct sigaction *__user act, struct sigaction *__user oldact);
+int sys_sigprocmask(int how, struct user_buffer set, struct user_buffer oldset);
+int sys_sigpending(struct user_buffer set);
+int sys_sigaction(int signum, struct user_buffer act, struct user_buffer oldact);
 sighandler_t sys_signal(int signum, sighandler_t handler);
 int sys_kill(pid_t pid, int sig);
-int sys_sigwait(const sigset_t *__user set, int *__user sig);
+int sys_sigwait(const struct user_buffer set, struct user_buffer sig);
 int sys_pause(void);
-int sys_sigsuspend(const sigset_t *__user mask);
+int sys_sigsuspend(const struct user_buffer mask);
 
 #define has_pending_signal(task) \
     ((task)->sig_pending & ~((task)->sig_blocked))
