@@ -73,4 +73,4 @@ static const struct ktest_unit tcp_test_units[] = {
     KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(-20), KT_UINT(-4), KT_UINT(0),  KT_INT(1)),
 };
 
-static const __ktest struct ktest_module tcp_test_module = KTEST_MODULE_INIT("tcp", tcp_test_units);
+KTEST_MODULE_DEFINE("tcp", tcp_test_units);

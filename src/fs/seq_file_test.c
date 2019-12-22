@@ -110,5 +110,4 @@ static const struct ktest_unit seq_file_test_units[] = {
     KTEST_UNIT("seq-file-fill-test", seq_file_fill_test),
 };
 
-static const __ktest struct ktest_module seq_file_test_module
-    = KTEST_MODULE_INIT("seq-file", seq_file_test_units);
+KTEST_MODULE_DEFINE("seq-file", seq_file_test_units);

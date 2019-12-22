@@ -449,4 +449,4 @@ static const struct ktest_unit kbuf_test_units[] = {
     KTEST_UNIT("kbuf-get-free-length-test", kbuf_get_free_length_test),
 };
 
-static const __ktest struct ktest_module kbuf_test_module = KTEST_MODULE_INIT("kbuf", kbuf_test_units);
+KTEST_MODULE_DEFINE("kbuf", kbuf_test_units);

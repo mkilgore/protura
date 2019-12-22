@@ -46,10 +46,10 @@ static const struct ktest_unit kbuf_test_units[] = {
     KTEST_UNIT("example-test-2", example_two),
 };
 
-static const __ktest struct ktest_module example_test_module = KTEST_MODULE_INIT("example-test-suite", example_test_units);
+KTEST_MODULE_DEFINE("example-test-suite", example_test_units);
 ```
 
-Note that everything is `static` and all the test information is `const` - this is required. In addition, the `__ktest` attribute must be placed on the module - this will place the module into the `.ktest` section so that it can be discovered at runtime. The `KTEST_UNIT()` macro should be used to create `struct ktest_unit` entries, and the `KTEST_MODULE_INIT()` macro should be used for creating the `struct ktest_module`.
+Note that everything is `static` and all the test information is `const` - this is required. In addition, the `__ktest` attribute must be placed on the module - this will place the module into the `.ktest` section so that it can be discovered at runtime. The `KTEST_UNIT()` macro should be used to create `struct ktest_unit` entries, and the `KTEST_MODULE_DEFINE()` macro should be used for creating the `struct ktest_module`.
 
 Assertions
 ----------

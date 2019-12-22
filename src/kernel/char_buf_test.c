@@ -153,5 +153,4 @@ static const struct ktest_unit char_buf_test_units[] = {
     KTEST_UNIT("char-buf-empty-read-test", char_buf_empty_read_test),
 };
 
-static const __ktest struct ktest_module char_buf_test_module
-    = KTEST_MODULE_INIT("char-buf", char_buf_test_units);
+KTEST_MODULE_DEFINE("char-buf", char_buf_test_units);

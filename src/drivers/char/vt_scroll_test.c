@@ -422,5 +422,4 @@ static const struct ktest_unit vt_scroll_test_units[] = {
     KTEST_UNIT("vt-shift-right-from-cursor", vt_shift_right_from_cursor_test, KT_INT(79), KT_INT(1)),
 };
 
-static const __ktest struct ktest_module vt_scroll_test_module
-    = KTEST_MODULE_INIT("vt-scroll", vt_scroll_test_units);
+KTEST_MODULE_DEFINE("vt-scroll", vt_scroll_test_units);

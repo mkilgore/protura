@@ -86,4 +86,4 @@ static const struct ktest_unit basic_printf_test_units[] = {
     KTEST_UNIT("int-parse", test_int_parse),
 };
 
-static const __ktest struct ktest_module basic_printf_test_module = KTEST_MODULE_INIT("basic_printf", basic_printf_test_units);
+KTEST_MODULE_DEFINE("basic_printf", basic_printf_test_units);

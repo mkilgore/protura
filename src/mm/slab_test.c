@@ -327,4 +327,4 @@ static const struct ktest_unit slab_test_units[] = {
     KTEST_UNIT("new-frame",             slab_test_frame_new),
 };
 
-static const __ktest struct ktest_module slab_test_module = KTEST_MODULE_INIT("slab", slab_test_units);
+KTEST_MODULE_DEFINE("slab", slab_test_units);
