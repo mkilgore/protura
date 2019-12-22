@@ -168,7 +168,7 @@ int signal_handle(struct task *current, struct irq_frame *iframe)
 
         if (action->sa_handler == SIG_IGN) {
             if (signum == SIGCHLD) {
-                while (sys_waitpid(-1, NULL, WNOHANG) > 0)
+                while (sys_waitpid(-1, make_kernel_buffer(NULL), WNOHANG) > 0)
                     /* Reap chlidren */;
             }
             continue;

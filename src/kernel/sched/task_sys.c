@@ -13,6 +13,7 @@
 #include <protura/snprintf.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/memlayout.h>
+#include <protura/mm/user_check.h>
 #include <protura/dump_mem.h>
 #include <protura/scheduler.h>
 #include <protura/task.h>
@@ -120,12 +121,12 @@ void sys_exit(int code)
     panic("scheduler_task_yield() returned after sys_exit()!!!\n");
 }
 
-pid_t sys_wait(int *ret)
+pid_t sys_wait(struct user_buffer ret)
 {
     return sys_waitpid(-1, ret, 0);
 }
 
-pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
+pid_t sys_waitpid(pid_t childpid, struct user_buffer wstatus, int options)
 {
     int have_child = 0, have_no_children = 0;
     int kill_child = 0;
@@ -214,11 +215,14 @@ pid_t sys_waitpid(pid_t childpid, int *wstatus, int options)
     if (!have_child)
         return -ECHILD;
 
-    if (wstatus)
-        *wstatus = ret_status;
-
     if (kill_child)
         scheduler_task_mark_dead(child);
+
+    if (!user_buffer_is_null(wstatus)) {
+        int ret = user_copy_from_kernel(wstatus, ret_status);
+        if (ret)
+            return ret;
+    }
 
     return child->pid;
 }
@@ -296,13 +300,11 @@ int sys_setpgid(pid_t pid, pid_t pgid)
     return 0;
 }
 
-int sys_getpgrp(pid_t *pgrp)
+int sys_getpgrp(struct user_buffer pgrp)
 {
     struct task *current = cpu_get_local()->current;
 
-    *pgrp = current->pgid;
-
-    return 0;
+    return user_copy_from_kernel(pgrp, current->pgid);
 }
 
 pid_t sys_setsid(void)

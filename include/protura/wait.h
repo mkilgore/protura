@@ -54,9 +54,9 @@ void wait_queue_unregister(struct wait_queue_node *);
  * are waiting for. */
 int wait_queue_wake(struct wait_queue *);
 
-pid_t sys_waitpid(pid_t pid, int *wstatus, int options);
+pid_t sys_waitpid(pid_t pid, struct user_buffer wstatus, int options);
 
-pid_t sys_wait(int *ret);
+pid_t sys_wait(struct user_buffer ret);
 
 #define WNOHANG      __kWNOHANG
 #define WUNTRACED    __kWUNTRACED

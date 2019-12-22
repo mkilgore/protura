@@ -136,7 +136,7 @@ void sys_exit(int code) __noreturn;
 int sys_dup(int oldfd);
 int sys_dup2(int olfd, int newfd);
 int sys_setpgid(pid_t pid, pid_t pgid);
-int sys_getpgrp(pid_t *pgrp);
+int sys_getpgrp(struct user_buffer pgrp);
 
 /* Used when a task is already killed and dead */
 void task_free(struct task *);
