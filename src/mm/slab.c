@@ -107,6 +107,8 @@ static void __slab_frame_free(struct slab_alloc *slab, struct slab_page_frame *f
 static void *__slab_frame_object_alloc(struct slab_alloc *slab, struct slab_page_frame *frame)
 {
     struct page_frame_obj_empty *obj, *next;
+
+  try_again:
     if (!frame->freelist)
         return NULL;
 
@@ -119,8 +121,17 @@ static void *__slab_frame_object_alloc(struct slab_alloc *slab, struct slab_page
     for (; k < poison_count; k++) {
         if (poison[k] != SLAB_POISON) {
             kp(KP_ERROR, "SLAB %s: %p: POISON IS INVALID, offset: %zd!!!!\n", slab->slab_name, obj, k * 4 + sizeof(*obj));
-            dump_stack();
-            break;
+            dump_stack(KP_ERROR);
+
+            /* Skip the invalid entry (It is effectively lost forever. Though
+             * in a double-free situation, the "second" free may insert it back
+             * into kfree()
+             *
+             * FIXME: Perhaps we should mark these bad forever, even if freed again? */
+
+            frame->freelist = frame->freelist->next;
+            kp(KP_ERROR, "SLAB %s: skipping invalid to next: %p\n", slab->slab_name, frame->freelist);
+            goto try_again;
         }
     }
 
@@ -138,6 +149,12 @@ static void __slab_frame_object_free(struct slab_alloc *slab, struct slab_page_f
     struct page_frame_obj_empty *new = obj, **current;
 
     for (current = &frame->freelist; current; current = &(*current)->next) {
+        if (obj >= (void *)(*current) && obj < (void *)(*current) + slab->object_size) {
+            kp(KP_ERROR, "slab %s: Double free detected, pointer %p was freed but already in free list, current: %p!\n", slab->slab_name, obj, *current);
+            dump_stack(KP_ERROR);
+            return;
+        }
+
         if (obj <= (void *)(*current) || !*current) {
             uint32_t *poison = (uint32_t *)new;
             int k = 0;
@@ -162,7 +179,7 @@ void *__slab_malloc(struct slab_alloc *slab, unsigned int flags)
     for (frame = &slab->first_frame; *frame; frame = &((*frame)->next)) {
         if ((*frame)->free_object_count && !(*frame)->freelist) {
             kp(KP_ERROR, "free_object_count and freelist do not agree! %s, %d, %p\n", slab->slab_name, (*frame)->free_object_count, (*frame)->freelist);
-            break;
+            continue;
         }
 
         if ((*frame)->free_object_count)
@@ -189,7 +206,6 @@ int __slab_has_addr(struct slab_alloc *slab, void *addr)
 
 void __slab_free(struct slab_alloc *slab, void *obj)
 {
-    kp_slab(slab, "free %p\n", obj);
     struct slab_page_frame *frame;
     for (frame = slab->first_frame; frame; frame = frame->next)
         if (obj >= frame->first_addr && obj < frame->last_addr)
