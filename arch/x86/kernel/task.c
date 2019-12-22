@@ -13,6 +13,7 @@
 #include <protura/snprintf.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/memlayout.h>
+#include <protura/mm/user_check.h>
 #include <protura/mm/vm.h>
 #include <protura/dump_mem.h>
 #include <protura/scheduler.h>
@@ -74,22 +75,22 @@ void arch_task_setup_stack_user_with_exec(struct task *t, const char *exe)
 
     if (exe) {
         /* Note that this code depends on the code at arch_task_user_entry.
-         * Notably, we push the arguments for sys_exec onto the stack here, and
+         * Notably, we push the arguments for sys_execve onto the stack here, and
          * arch_task_user_entry pops them off. */
         ksp -= sizeof(struct irq_frame *);
         *(struct irq_frame **)ksp = t->context.frame;
 
         /* envp */
-        ksp -= sizeof(char *);
-        *(const void **)ksp = NULL;
+        ksp -= sizeof(struct user_buffer);
+        *(struct user_buffer *)ksp = make_user_buffer(NULL);
 
         /* argv */
-        ksp -= sizeof(char *);
-        *(const void **)ksp = NULL;
+        ksp -= sizeof(struct user_buffer);
+        *(struct user_buffer *)ksp = make_user_buffer(NULL);
 
         /* exe */
-        ksp -= sizeof(exe);
-        *(const char **)ksp = exe;
+        ksp -= sizeof(struct user_buffer);
+        *(struct user_buffer *)ksp = make_kernel_buffer(exe);
 
         ksp -= sizeof(uintptr_t);
         *(uintptr_t *)ksp = arch_task_user_entry_addr;
