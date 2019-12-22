@@ -20,7 +20,7 @@ struct utsname {
 
 #ifdef __KERNEL__
 
-int sys_uname(struct utsname *);
+int sys_uname(struct user_buffer utsname);
 extern struct procfs_entry_ops proc_version_ops;
 
 #endif

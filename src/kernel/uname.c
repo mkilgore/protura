@@ -10,7 +10,7 @@
 #include <protura/debug.h>
 #include <protura/snprintf.h>
 #include <protura/fs/procfs.h>
-#include <protura/mm/user_ptr.h>
+#include <protura/mm/user_check.h>
 #include <protura/utsname.h>
 
 static struct utsname os_name = {
@@ -21,14 +21,9 @@ static struct utsname os_name = {
     .version = __DATE__ " " __TIME__,
 };
 
-int sys_uname(struct utsname *utsname)
+int sys_uname(struct user_buffer utsname)
 {
-    int ret = user_check_region(utsname, sizeof(*utsname), VM_MAP_READ | VM_MAP_WRITE);
-    if (ret)
-        return ret;
-
-    memcpy(utsname, &os_name, sizeof(*utsname));
-    return 0;
+    return user_copy_from_kernel(utsname, os_name);
 }
 
 static int proc_version_readpage(void *page, size_t page_size, size_t *len)
