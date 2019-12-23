@@ -54,6 +54,15 @@
 #define EMPTY()
 #define DEFER(x) x EMPTY()
 
+/* Takes in a list of arguments, and returns either the first argument only, or
+ * the "rest" of the arguments excluding the first */
+#define CAR(x, ...) x
+#define CDR(x, ...) __VA_ARGS__
+
+/* Can be used to remove the parenthesis around an argument, by doing "ESCAPE
+ * arg" */
+#define ESCAPE(...) __VA_ARGS__
+
 # define SUCCESS 0
 
 # define TP2(x, y) x ## y
