@@ -22,8 +22,7 @@ struct ktest;
 struct ktest_unit {
     void (*test) (struct ktest *);
     const char *name;
-    struct ktest_arg args[6];
-    int arg_count;
+    struct ktest_arg args[7];
 };
 
 struct ktest_module {
@@ -49,7 +48,7 @@ static const struct ktest_unit kbuf_test_units[] = {
 KTEST_MODULE_DEFINE("example-test-suite", example_test_units);
 ```
 
-Note that everything is `static` and all the test information is `const` - this is required. In addition, the `__ktest` attribute must be placed on the module - this will place the module into the `.ktest` section so that it can be discovered at runtime. The `KTEST_UNIT()` macro should be used to create `struct ktest_unit` entries, and the `KTEST_MODULE_DEFINE()` macro should be used for creating the `struct ktest_module`.
+Note that everything is `static` and all the test information is `const` - this is required. The `KTEST_UNIT()` macro should be used to create `struct ktest_unit` entries, and the `KTEST_MODULE_DEFINE()` macro should be used for creating the `struct ktest_module`.
 
 Assertions
 ----------
@@ -64,6 +63,26 @@ A few different assertion types are included. But with that, instead of having m
 | `ktest_assert_equal_mem(kt, expected, actual, len)` | Compares two byte arrays of `len` length and passes if they are the same. Both buffers should be at least `len` bytes in size |
 | `ktest_assert_fail(kt, fmt, ..)` | Always fails. Display a `printf`-style formatted message |
 
+
+Unit Test Cases
+---------------
+
+The `KTEST_UNIT` macro allows defining multiple test cases for a single test function. This works by providing sets of arguments (described in the next section) to the `KTEST_UNIT` macro, one for each test case you want to run. The argument sets are wrapped in parenthesis, thus it looks like this:
+
+```c
+static const struct ktest_unit kbuf_test_units[] = {
+    KTEST_UNIT("example-test-1", example_one
+        (KT_INT(0)),
+        (KT_INT(1)),
+        (KT_INT(2))),
+
+    KTEST_UNIT("example-test-2", example_two
+        (KT_INT(0), KT_STR("arg2"),
+        (KT_INT(1), KT_STR("arg2-2"),
+        (KT_INT(200), KT_STR("arg2-3")),
+};
+```
+
 Unit Test Arguments
 -------------------
 
@@ -77,7 +96,7 @@ Arguments to a unit test can be provided to a test via the `KT_*` macros. Curren
 | `KT_USER_BUF` | `struct user_buffer` | Creates a buffer with `is_user` set to true |
 | `KT_KERNEL_BUF`' | `struct user_buffer` | Creates a buffer with `is_user` set to false |
 
-These macros are provided as extra arguments to `KTEST_UNIT`. The arguments can then be acquired in the test via the `KT_ARG(kt, idx, type)` macro, which takes the `struct ktest *`, the index of the argument, and the type of the argument. All together it looks like this:
+These macros are provided as part of test cases provided to `KTEST_UNIT`. The arguments can then be acquired in the test via the `KT_ARG(kt, idx, type)` macro, which takes the `struct ktest *`, the index of the argument, and the type of the argument. All together it looks like this:
 
 ```c
 static void example_test(struct ktest *kt)
@@ -86,10 +105,11 @@ static void example_test(struct ktest *kt)
     const char *arg2 = KT_ARG(kt, 1, const char *);
 }
 
-struct ktest_unit unit1 = KTEST_UNIT("example-test1", example_test, KT_INT(100), KT_STR("foo");
-struct ktest_unit unit2 = KTEST_UNIT("example-test2", example_test, KT_INT(200), KT_STR("bar");
+static const struct ktest_unit kbuf_test_units[] = {
+    KTEST_UNIT("example-test1", example_test,
+        (KT_INT(100), KT_STR("foo")),
+        (KT_INT(200), KT_STR("bar"))),
+};
 ```
 
-That example includes two unit tests, both using the same function for running the test. They pass an integer and a string as arguments, and then inside the test `KT_ARG` is used to get the value of these arguments. Note that the types of the provided arguments are checked for consistency with the type provided to `KT_ARG`, though the checking happens at runtime and will fail your test, rather than fail to compile.
-
-
+That example defines two test cases for the provided function. They pass an integer and a string as arguments, and then inside the test `KT_ARG` is used to get the value of these arguments. Note that the types of the provided arguments are checked for consistency with the type provided to `KT_ARG`, though the checking happens at runtime and will fail your test, rather than fail to compile.

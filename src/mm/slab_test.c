@@ -307,14 +307,15 @@ static void slab_test_group_four_free(struct ktest *kt)
 }
 
 #define SLAB_TEST_CASES(st, func) \
-    KTEST_UNIT(st, func, KT_INT(32)), \
-    KTEST_UNIT(st, func, KT_INT(64)), \
-    KTEST_UNIT(st, func, KT_INT(128)), \
-    KTEST_UNIT(st, func, KT_INT(256)), \
-    KTEST_UNIT(st, func, KT_INT(512)), \
-    KTEST_UNIT(st, func, KT_INT(1024)), \
-    KTEST_UNIT(st, func, KT_INT(2048)), \
-    KTEST_UNIT(st, func, KT_INT(4096))
+    KTEST_UNIT(st, func, \
+        (KT_INT(32)), \
+        (KT_INT(64)), \
+        (KT_INT(128)), \
+        (KT_INT(256)), \
+        (KT_INT(512)), \
+        (KT_INT(1024)), \
+        (KT_INT(2048)), \
+        (KT_INT(4096)))
 
 static const struct ktest_unit slab_test_units[] = {
     SLAB_TEST_CASES("free-inorder",     slab_test_inorder_free),

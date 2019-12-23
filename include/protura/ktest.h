@@ -29,17 +29,7 @@ struct ktest_arg {
     };
 };
 
-/*
- * This is pretty nasty, but the DEFER()'s are necessary to make `COUNT_ARGS`
- * work correctly down below.
- *
- * If the expansion is not deferred, the expansion happens before `COUNT_ARGS`
- * is evaluated and the commas that are part of the initializers end-up being
- * treated as separate arguments to `COUNT_ARGS`. By deferring the expansion,
- * `COUNT_ARGS` sees the `__KT_INT(#i, i)` which it will correctly count as one
- * argument.
- */
-#define KT_INT(i) DEFER(__KT_INT)(#i, (i))
+#define KT_INT(i) __KT_INT(#i, i)
 #define __KT_INT(si, i) \
     { \
         .name = (si), \
@@ -47,7 +37,7 @@ struct ktest_arg {
         .intarg = (i), \
     }
 
-#define KT_UINT(i) DEFER(__KT_UINT)(#i, (i))
+#define KT_UINT(i) __KT_UINT(#i, (i))
 #define __KT_UINT(si, i) \
     { \
         .name = (si), \
@@ -55,7 +45,7 @@ struct ktest_arg {
         .uintarg = (i), \
     }
 
-#define KT_STR(s) DEFER(__KT_STR)(#s, (s))
+#define KT_STR(s) __KT_STR(#s, (s))
 #define __KT_STR(ss, s) \
     { \
         .name = (ss), \
@@ -63,7 +53,7 @@ struct ktest_arg {
         .strarg = (s), \
     }
 
-#define KT_USER_BUF(s) DEFER(__KT_USER_BUF)("user " #s, (s))
+#define KT_USER_BUF(s) __KT_USER_BUF("user " #s, (s))
 #define __KT_USER_BUF(ss, s) \
     { \
         .name = (ss), \
@@ -71,7 +61,7 @@ struct ktest_arg {
         .user_buf = make_user_buffer(s), \
     }
 
-#define KT_KERNEL_BUF(s) DEFER(__KT_KERNEL_BUF)("krnl " #s, (s))
+#define KT_KERNEL_BUF(s) __KT_KERNEL_BUF("krnl " #s, (s))
 #define __KT_KERNEL_BUF(ss, s) \
     { \
         .name = (ss), \
@@ -141,12 +131,87 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
             struct user_buffer: __arg->user_buf); \
     })
 
-#define KTEST_UNIT(nm, t, ...) \
+#define CREATE_KTEST_UNIT(nm, t, ...) \
     { \
         .test = (t), \
         .name = (nm), \
         .args = { __VA_ARGS__ __VA_OPT__(,) KT_END() }, \
     }
+
+/* The below macros allow us to support up to 20 test cases in a single test
+ * definition. This could be expanded by adding more macros. */
+
+#define KTEST_UNIT_CASE0(nm, t) \
+    CREATE_KTEST_UNIT(nm, t)
+
+#define KTEST_UNIT_CASE1(nm, t, args) \
+    CREATE_KTEST_UNIT(nm, t, ESCAPE args)
+
+#define KTEST_UNIT_CASE2(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE1(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE3(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE2(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE4(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE3(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE5(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE4(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE6(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE5(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE7(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE6(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE8(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE7(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE9(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE8(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE10(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE9(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE11(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE10(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE12(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE11(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE13(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE12(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE14(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE13(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE15(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE14(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE16(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE15(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE17(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE16(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE18(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE17(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE19(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE18(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_CASE20(nm, t, ...) \
+    KTEST_UNIT_CASE1(nm, t, CAR(__VA_ARGS__)), KTEST_UNIT_CASE19(nm, t, CDR(__VA_ARGS__))
+
+#define KTEST_UNIT_INNER2(cnt) \
+    KTEST_UNIT_CASE ## cnt
+
+#define KTEST_UNIT_INNER(cnt) \
+    KTEST_UNIT_INNER2(cnt)
+
+#define KTEST_UNIT(nm, t, ...) \
+    KTEST_UNIT_INNER(COUNT_ARGS(__VA_ARGS__)) (nm, t, ## __VA_ARGS__)
 
 struct ktest_module {
     const char *name;

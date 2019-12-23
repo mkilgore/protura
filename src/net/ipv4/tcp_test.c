@@ -51,26 +51,29 @@ static void tcp_seq_between_test(struct ktest *kt)
 }
 
 static const struct ktest_unit tcp_test_units[] = {
-    KTEST_UNIT("tcp-after", tcp_seq_after_test, KT_UINT(0), KT_UINT(0), KT_INT(0)),
-    KTEST_UNIT("tcp-after", tcp_seq_after_test, KT_UINT(1), KT_UINT(0), KT_INT(1)),
-    KTEST_UNIT("tcp-after", tcp_seq_after_test, KT_UINT(0), KT_UINT(1), KT_INT(0)),
-    KTEST_UNIT("tcp-after", tcp_seq_after_test, KT_UINT(-1), KT_UINT(0), KT_INT(0)),
-    KTEST_UNIT("tcp-after", tcp_seq_after_test, KT_UINT(0), KT_UINT(-1), KT_INT(1)),
+    KTEST_UNIT("tcp-after", tcp_seq_after_test,
+            (KT_UINT(0), KT_UINT(0), KT_INT(0)),
+            (KT_UINT(1), KT_UINT(0), KT_INT(1)),
+            (KT_UINT(0), KT_UINT(1), KT_INT(0)),
+            (KT_UINT(-1), KT_UINT(0), KT_INT(0)),
+            (KT_UINT(0), KT_UINT(-1), KT_INT(1))),
 
-    KTEST_UNIT("tcp-before", tcp_seq_before_test, KT_UINT(0), KT_UINT(0), KT_INT(0)),
-    KTEST_UNIT("tcp-before", tcp_seq_before_test, KT_UINT(1), KT_UINT(0), KT_INT(0)),
-    KTEST_UNIT("tcp-before", tcp_seq_before_test, KT_UINT(0), KT_UINT(1), KT_INT(1)),
-    KTEST_UNIT("tcp-before", tcp_seq_before_test, KT_UINT(-1), KT_UINT(0), KT_INT(1)),
-    KTEST_UNIT("tcp-before", tcp_seq_before_test, KT_UINT(0), KT_UINT(-1), KT_INT(0)),
+    KTEST_UNIT("tcp-before", tcp_seq_before_test,
+            (KT_UINT(0), KT_UINT(0), KT_INT(0)),
+            (KT_UINT(1), KT_UINT(0), KT_INT(0)),
+            (KT_UINT(0), KT_UINT(1), KT_INT(1)),
+            (KT_UINT(-1), KT_UINT(0), KT_INT(1)),
+            (KT_UINT(0), KT_UINT(-1), KT_INT(0))),
 
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(0),   KT_UINT(0),  KT_UINT(0),  KT_INT(0)),
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(0),   KT_UINT(0),  KT_UINT(1),  KT_INT(0)),
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(0),   KT_UINT(1),  KT_UINT(0),  KT_INT(0)),
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(1),   KT_UINT(0),  KT_UINT(0),  KT_INT(0)),
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(0),   KT_UINT(1),  KT_UINT(2),  KT_INT(1)),
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(-1),  KT_UINT(1),  KT_UINT(2),  KT_INT(1)),
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(-2),  KT_UINT(20), KT_UINT(22), KT_INT(1)),
-    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test, KT_UINT(-20), KT_UINT(-4), KT_UINT(0),  KT_INT(1)),
+    KTEST_UNIT("tcp-seq-between", tcp_seq_between_test,
+            (KT_UINT(0),   KT_UINT(0),  KT_UINT(0),  KT_INT(0)),
+            (KT_UINT(0),   KT_UINT(0),  KT_UINT(1),  KT_INT(0)),
+            (KT_UINT(0),   KT_UINT(1),  KT_UINT(0),  KT_INT(0)),
+            (KT_UINT(1),   KT_UINT(0),  KT_UINT(0),  KT_INT(0)),
+            (KT_UINT(0),   KT_UINT(1),  KT_UINT(2),  KT_INT(1)),
+            (KT_UINT(-1),  KT_UINT(1),  KT_UINT(2),  KT_INT(1)),
+            (KT_UINT(-2),  KT_UINT(20), KT_UINT(22), KT_INT(1)),
+            (KT_UINT(-20), KT_UINT(-4), KT_UINT(0),  KT_INT(1))),
 };
 
 KTEST_MODULE_DEFINE("tcp", tcp_test_units);
