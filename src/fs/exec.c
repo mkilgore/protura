@@ -114,16 +114,19 @@ static int execve(struct inode *inode, const char *file, struct user_buffer argv
     struct task *current = cpu_get_local()->current;
     char new_name[128];
 
+    const char *def_argv[] = { file, NULL };
+    const char *def_envp[] = { NULL };
+
     exe_params_init(&params);
 
     strncpy(params.filename, file, sizeof(params.filename));
     params.filename[sizeof(params.filename) - 1] = '\0';
 
     if (user_buffer_is_null(argv_buf))
-        argv_buf = make_kernel_buffer(((const char *[]) { file, NULL }));
+        argv_buf = make_kernel_buffer(def_argv);
 
     if (user_buffer_is_null(envp_buf))
-        envp_buf = make_kernel_buffer(((const char *[]) { file, NULL }));
+        envp_buf = make_kernel_buffer(def_envp);
 
     generate_task_name(new_name, sizeof(new_name), file, argv_buf);
 
