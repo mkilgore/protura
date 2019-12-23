@@ -31,7 +31,7 @@ int block_dev_pread_generic(struct file *filp, struct user_buffer buf, size_t le
     kp(KP_TRACE, "Block-dev inode size: %ld\n", filp->inode->size);
 
     size_t total_len = block_dev_get_device_size(dev);
-    if (off + len > total_len);
+    if (off + len > total_len)
         len = total_len - off;
 
     kp(KP_TRACE, "len: %d\n", len);
