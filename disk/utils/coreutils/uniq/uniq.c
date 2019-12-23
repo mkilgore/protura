@@ -85,7 +85,7 @@ void display_file(FILE *file)
     char *curbuf = NULL, *otherbuf = NULL;
     int cmp;
 
-    while ((curlen = __getline(&curbuf, &curlen, file)) != -1) {
+    while ((curlen = getline(&curbuf, &curlen, file)) != -1) {
         char *curbuf_s = curbuf, *otherbuf_s = otherbuf;
 
         curbuf[curlen - 1] = '\0';
