@@ -45,8 +45,8 @@ extern struct ktest_module __ktest_end;
 
 const struct ktest_arg *ktest_get_arg(struct ktest *kt, int index)
 {
-    if (index >= kt->unit->arg_count)
-        ktest_assert_fail(kt, "Arg index %d does not exist, total args: %d\n", index, kt->unit->arg_count);
+    if (!kt->unit->args[index].name)
+        ktest_assert_fail(kt, "Arg index %d does not exist.\n", index);
 
     return kt->unit->args + index;
 }
@@ -89,7 +89,7 @@ static int run_module(struct ktest_module *module)
 
     int i;
     for (i = 0; i < module->test_count; i++) {
-        char arg_str[32];
+        char arg_str[128];
 
         ktest.cur_test = 0;
         ktest.cur_unit_test++;
@@ -97,14 +97,15 @@ static int run_module(struct ktest_module *module)
         ktest.unit = tests + i;
 
         arg_str[0] = '\0';
-        if (ktest.unit->arg_count) {
+        if (ktest.unit->args[0].name) {
             strcat(arg_str, "(");
             size_t arg_str_off = 1;
-            int k;
-            for (k = 0; k < ktest.unit->arg_count; k++) {
-                arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, "%s", ktest.unit->args[k].name);
 
-                if (k + 1 != ktest.unit->arg_count)
+            const struct ktest_arg *arg = ktest.unit->args;
+            for (; arg->name; arg++) {
+                arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, "%s", arg->name);
+
+                if ((arg + 1)->name)
                     arg_str_off += snprintf(arg_str + arg_str_off, sizeof(arg_str) - arg_str_off, ", ");
 
             }

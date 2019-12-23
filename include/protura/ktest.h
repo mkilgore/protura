@@ -79,11 +79,15 @@ struct ktest_arg {
         .user_buf = make_kernel_buffer(s), \
     }
 
+#define KT_END() \
+    { \
+        .name = NULL, \
+    }
+
 struct ktest_unit {
     void (*test) (struct ktest *);
     const char *name;
-    struct ktest_arg args[6];
-    int arg_count;
+    struct ktest_arg args[7];
 };
 
 const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
@@ -141,8 +145,7 @@ const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
     { \
         .test = (t), \
         .name = (nm), \
-        .args = { __VA_ARGS__ }, \
-        .arg_count = COUNT_ARGS(__VA_ARGS__), \
+        .args = { __VA_ARGS__ __VA_OPT__(,) KT_END() }, \
     }
 
 struct ktest_module {
