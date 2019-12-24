@@ -3,8 +3,9 @@ DISK_AFLAGS := -std=gnu99 -Wall -O2 -DASM
 DISK_CFLAGS := -std=gnu99 -Wall -O2
 DISK_LDFLAGS :=
 
-DISK_BINDIR := ./disk/root/bin
-DISK_DIRDEPEND := ./disk/root ./disk/root/bin ./disk/root/usr
+DISK_BINDIR := $(DISK_ROOT)/bin
+DISK_USRDIR := $(DISK_ROOT)/usr
+DISK_DIRDEPEND := $(DISK_ROOT) $(DISK_BINDIR) $(DISK_USRDIR)
 
 DISK_UTIL_SRCS := \
 	./disk/utils/echo.c \
@@ -28,7 +29,10 @@ DISK_UTIL_SRCS := \
 DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
 DISK_UTIL_EXTRA_OBJS :=
 
-include ./disk/utils/coreutils/Makefile
+include ./disk/coreutils/Makefile
+include ./disk/utils/Makefile
+include ./disk/extras/Makefile
+include ./disk/test_runner/Makefile
 
 DISK_UTIL_PROGS := $(foreach file,$(DISK_UTIL_OBJS),$(notdir $(file)))
 DISK_UTIL_PROGS := $(patsubst %.o,$(DISK_BINDIR)/%,$(DISK_UTIL_PROGS))

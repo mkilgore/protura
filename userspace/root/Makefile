@@ -33,18 +33,18 @@ clean-disk:
 PHONY += toolchain clean-toolchain
 toolchain: | ./disk/root ./disk/root/usr
 	$(Q)git submodule update --init --depth 1 --recursive
-	$(Q)cd ./disk/toolchain; ./build_toolchain.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
+	$(Q)cd ./toolchain; ./build_toolchain.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
 
 clean-toolchain:
 	@echo " RM      ./disk/root"
 	$(Q)rm -fr ./disk/root
-	@echo " RM      ./toolchain/*"
-	$(Q)rm -fr ./toolchain/*
+	@echo " RM      ./bin/*"
+	$(Q)rm -fr ./bin/*
 
 PHONY += rebuild-newlib
 rebuild-newlib:
 	$(Q)git submodule update --init --depth 1 --recursive
-	$(Q)cd ./disk/toolchain; ./build_newlib.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
+	$(Q)cd ./toolchain; ./build_newlib.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
 
 .SECONDARY: $(DISK_UTIL_OBJS)
 

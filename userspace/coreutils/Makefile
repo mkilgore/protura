@@ -1,5 +1,5 @@
 
-COREUTILS_CFLAGS := -Wall -std=gnu99 -I./disk/utils/coreutils/include -D_GNU_SOURCE
+COREUTILS_CFLAGS := -Wall -std=gnu99 -I./disk/coreutils/include -D_GNU_SOURCE
 
 COREUTILS_PROGS = \
 	cat \
@@ -70,25 +70,25 @@ endef
 define def_util_dep_rule
 $(1)/.%.d: $(1)/%.c
 	@echo " CCDEP   $$@"
-	$$(Q)$$(CC) -MM -MP -MF $$@ $$(COREUTILS_CFLAGS) $$< -MT disk/utils/coreutils/$$*.o -MT $$@
+	$$(Q)$$(CC) -MM -MP -MF $$@ $$(COREUTILS_CFLAGS) $$< -MT disk/coreutils/$$*.o -MT $$@
 endef
 
-$(eval $(call def_util_dep_rule,./disk/utils/coreutils/common))
+$(eval $(call def_util_dep_rule,./disk/coreutils/common))
 
 define def_unil
-dir := ./disk/utils/coreutils/$(1)
+dir := ./disk/coreutils/$(1)
 
 objs-y :=
 common-objs-y :=
 
 include $$(dir)/Makefile
 
-common-obj-list := $$(patsubst %,./disk/utils/coreutils/common/%,$$(common-objs-y))
+common-obj-list := $$(patsubst %,./disk/coreutils/common/%,$$(common-objs-y))
 obj-list := $$(patsubst %,$$(dir)/%,$$(objs-y))
 
 $$(eval $$(call def_util_build_rule,$$(DISK_BINDIR)/$(1),$$(obj-list) $$(common-obj-list), ))
 
-$$(eval $$(call def_util_dep_rule,./disk/utils/coreutils/$(1)))
+$$(eval $$(call def_util_dep_rule,./disk/coreutils/$(1)))
 
 UTIL_DISK_DEP := $$(obj-list:.o=.d) $$(common-obj-list:.o=.d)
 
@@ -97,11 +97,11 @@ DISK_DEP += $$(foreach file,$$(UTIL_DISK_DEP),$$(dir $$(file)).$$(notdir $$(file
 DISK_CLEAN_EXTRA += $$(obj-list) $$(common-obj-list)
 endef
 
-disk/utils/coreutils/.%.d: disk/utils/coreutils/%.c
+disk/coreutils/.%.d: disk/coreutils/%.c
 	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(COREUTILS_CFLAGS) $< -MT disk/utils/coreutils/$*.o -MT $@
+	$(Q)$(CC) -MM -MP -MF $@ $(COREUTILS_CFLAGS) $< -MT disk/coreutils/$*.o -MT $@
 
-disk/utils/coreutils/%.o: disk/utils/coreutils/%.c
+disk/coreutils/%.o: disk/coreutils/%.c
 	@echo " CC      $@"
 	$(Q)$(CC) $(COREUTILS_CFLAGS) -c $< -o $@
 

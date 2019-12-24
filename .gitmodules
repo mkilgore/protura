@@ -1,35 +1,35 @@
 [submodule "disk/toolchain"]
-	path = disk/toolchain
+	path = toolchain
 	url = https://github.com/mkilgore/protura-toolchain
 [submodule "disk/extras/vim"]
-	path = disk/extras/vim
+	path = userspace/extras/vim
 	url = https://github.com/mkilgore/protura-vim
 	branch = protura
 [submodule "disk/extras/ncurses"]
-	path = disk/extras/ncurses
+	path = userspace/extras/ncurses
 	url = https://github.com/mkilgore/protura-ncurses
 	branch = protura
 	ignore = dirty
 [submodule "disk/extras/ed"]
-	path = disk/extras/ed
+	path = userspace/extras/ed
 	url = https://github.com/mkilgore/protura-ed
 	branch = master
 [submodule "disk/extras/mpc"]
-	path = disk/extras/mpc
+	path = userspace/extras/mpc
 	url = https://github.com/mkilgore/protura-mpc
 [submodule "disk/extras/mpfr"]
-	path = disk/extras/mpfr
+	path = userspace/extras/mpfr
 	url = https://github.com/mkilgore/protura-mpfr
 [submodule "disk/extras/gmp"]
-	path = disk/extras/gmp
+	path = userspace/extras/gmp
 	url = https://github.com/mkilgore/protura-gmp
 [submodule "disk/extras/gcc"]
-	path = disk/extras/gcc
+	path = userspace/extras/gcc
 	url = https://github.com/mkilgore/protura-gcc
 [submodule "disk/extras/binutils"]
-	path = disk/extras/binutils
+	path = userspace/extras/binutils
 	url = https://github.com/mkilgore/protura-binutils
 [submodule "disk/extras/less"]
-	path = disk/extras/less
+	path = userspace/extras/less
 	url = https://github.com/mkilgore/protura-less.git
 	branch = protura
