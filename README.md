@@ -1,7 +1,11 @@
 Protura
 =======
 
-Protura is an OS Kernel and utilities, combining together to make a complete operating system. It is heavily inspired by the design of the Linux kernel and other various open source kernels and os development information. Most of the existing parts of Protura are heavily simplified versions of what is aproximately found in the Linux kernel, largely as a learning excercise.
+Protura is an OS Kernel and utilities, combining together to make a complete
+operating system. It is heavily inspired by the design of the Linux kernel and
+other various open source kernels and os development information. Most of the
+existing parts of Protura are heavily simplified versions of what is
+aproximately found in the Linux kernel, largely as a learning excercise.
 
 Current existing components/subsystems:
 
@@ -86,7 +90,7 @@ External OS components:
     - Automatically mounts `proc` at `/proc`.
   - Sets up a few environment variables like the `PATH`.
 - Coreutils
-  - See `disk/utils/coreutils` folder.
+  - See `userspace/coreutils` folder.
 - klogd
   - A daemon that reads from /dev/kmsg and writes the contents to a persistent log on the disk at /var/log/klog
 
@@ -107,12 +111,10 @@ Build
 
 To build the full OS disk excluding extras, run the following commands:
 
-    PATH="$PATH:`pwd`/toolchain/bin"
     make full
 
 An expanded version not using `full` looks like this:
 
-    PATH="$PATH:`pwd`/toolchain/bin"
     make configure
     make install-kernel-headers
     make toolchain
@@ -134,21 +136,17 @@ First, you have to generate config.mk and autoconf.h from protura.conf, both of 
 
     make configure
 
-Then, install the protura kernel headers into the new system root, located at `./disk/root` - the headers are
+Then, install the protura kernel headers into the new system root, located at `./obj/disk_root` - the headers are
 used in the compilation of the toolchain in the next step.
 
     make install-kernel-headers
 
 Build i686-protura toolchain (Necessary to build kernel, libc, and utils)
 
-The toolchain will be built into the ./toolchain directory - This location is
+The toolchain will be built into the ./bin/toolchain directory - This location is
 configurable in ./Makefile.
 
     make toolchain
-
-Place the toolchain's bin directory in your PATH:
-
-    PATH="$PATH:`pwd`/toolchain/bin"
 
 Build the Protura kernel
 
@@ -163,13 +161,11 @@ If necessary, generate VDI and VHD images from the disk image
     make disk-other
 
 Note that the build is setup to be very convient for those with nothing already
-setup, however for development it may be nicer to install the i686-protura
-system-wide, and add it to your default PATH, so it is always usable for
-cross-compiling. When making changes that have ramifications on newlib:
+setup, however for development it may be nicer to avoid building the whole
+toolchain again when making changes that require changing libc. To that end,
+you can rebuild only newlib by running the following command:
 
     make rebuild-newlib
-
-can be used to avoid building gcc again.
 
 cleaning
 ========
@@ -187,7 +183,7 @@ You can clean everything at once with the follow command:
 
     make clean-full
 
-Note that cleaning the toolchain removes the './disk/root' directory, so it
+Note that cleaning the toolchain removes the './obj/disk_root' directory, so it
 deletes anything else inside that folder. If you're rebuilding the toolchain,
 you should rebuild everything else as well - Unless you're just rebuilding
 newlib.
@@ -197,7 +193,7 @@ Testing
 
 The kernel currently has two different testing frameworks, the internal kernel
 testing framework, `ktest`, and also external test scripts located inside of
-the `./disk/tests` folder. The big difference bewteen the two is that the
+the `./userspace/root/tests` folder. The big difference bewteen the two is that the
 `ktest` framework supports tests that can run completely internally in the
 kernel (mainly, but not always, unit tests). The test scripts are designed for
 more end-to-end tests that run commands against the full kernel, and then
@@ -209,18 +205,17 @@ To run tests on a built kernel, simply run the `check` target:
 
     make check
 
-The tests are run via `qemu`. You can also use teh `ktest_debug.sh` script to
-start a debug environment that will run all of the ktest tests automatically,
-and break on any test failures.
+The tests are run via QEMU. You can also use `make debug-ktest` to start a
+debug environment that will run all of the ktest tests automatically, and break
+on any test failures.
 
 Running the OS
 ==============
 
-The easiest way to run the OS is via the simulator QEMU. tmux_debug.sh in the
-scripts directory includes a 'default' usage, which will write out to various
-logs, connecting up COM and IDE devices using the default disk.img. It also
-conviently sets up TMUX with all the various commands already running. The QEMU
-invocation in the script can be customized to your needs.
+The easiest way to run the OS is via the emulator QEMU. `make debug` can be
+used to startup a preconfigured debug environment in QEMU. It conviently sets
+up TMUX with all the various commands already running, writes out to various
+logs, connecting up COM and IDE devices using the default compiled disk images.
 
 In addition to QEMU, there is also VDI and VHD images which can be used to
 run Protura in VirtualBox or Hyper-V. For VirtualBox wire the VDI image up as

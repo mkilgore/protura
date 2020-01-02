@@ -1,22 +1,12 @@
 #!/bin/bash
 
-make extra-gcc -j5 >./extra-gcc.log 2>&1 &
-PID=$!
-
-while [ -d /proc/$PID ]
-do
-    echo "Building GCC..."
-    sleep 10s
-done
-
-wait $PID
+make extra-gcc -j5
 CODE=$?
 
 echo "GCC extra build status code: $CODE"
 
 if [ $CODE -ne 0 ]; then
-    echo "GCC EXTRA BUILD ERROR:"
-    cat ./extra-gcc.log
+    echo "GCC EXTRA BUILD ERROR!"
 fi
 
 exit $CODE

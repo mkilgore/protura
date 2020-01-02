@@ -1,14 +1,21 @@
 #!/bin/bash
 #
 # Runs the kernel and execute a ext2 test, and then parses the output
+#
+# Argument 1: Kernel image
+# Argument 2: First disk image
+# Argument 3: Second disk image
+# Argument 4: logs directory
+# Argument 5: test results directory
 
-mkdir -p ./test_results
+KERNEL=$1
+DISK_ONE=$2
+DISK_TWO=$3
+TEST_PREFIX=$4
 
-TEST_PREFIX=./test_results/
 QEMU_PID=
 RET=
-DISK_CPY=/tmp/protura_disk2_cpy.img
-SINGLE_TEST=$1
+DISK_CPY=./obj/disk_cpy.img
 
 function test_prepare {
     rm -fr $TEST_LOG
@@ -20,11 +27,11 @@ function run_ext2_test {
     timeout 120 qemu-system-i386 \
         -serial file:$3 \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
         -drive format=raw,file=$DISK_CPY,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "init=$1 reboot_on_panic=1" \
         2> /dev/null &
 
@@ -44,20 +51,16 @@ function test_verify {
 
 TOTAL_RESULT=0
 
-if [ -z "$SINGLE_TEST" ]; then
-    TESTS=$(find ./disk/tests/ext2/ -name "test_*.sh" | xargs basename -a)
-else
-    TESTS=$(basename "$SINGLE_TEST")
-fi
+TESTS=$(find ./userspace/root/tests/ext2/ -name "test_*.sh" | xargs basename -a)
 
 for test in $TESTS; do
-    TEST_LOG=${TEST_PREFIX}$(basename -s .sh $test).qemu.log
-    TEST_E2FSCK_LOG=${TEST_PREFIX}$(basename -s .sh $test).e2fsck.log
+    TEST_LOG=${TEST_PREFIX}/$(basename -s .sh $test).qemu.log
+    TEST_E2FSCK_LOG=${TEST_PREFIX}/$(basename -s .sh $test).e2fsck.log
 
     echo "LOG: $TEST_LOG, e2fsck: $TEST_E2FSCK_LOG"
 
     rm -fr $DISK_CPY
-    cp ./disk2.img $DISK_CPY
+    cp $DISK_TWO $DISK_CPY
 
     test_prepare
     run_ext2_test "/tests/ext2/$test" "$DISK_CPY" "$TEST_LOG"

@@ -1,84 +1,89 @@
 
+EXTRA_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+EXTRA_DIR := $(EXTRA_DIR:/=)
+
 EXTRAS_PREFIX := /usr
 
 .PHONY: extra-ncurses
-DISK_CLEAN_EXTRA += ./disk/extras/ncurses.built
-extra-ncurses: disk/extras/ncurses.built
-disk/extras/ncurses.built:
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/ncurses.built
+extra-ncurses: $(EXTRA_DIR)/ncurses.built
+$(EXTRA_DIR)/ncurses.built:
 	@echo " BUILD   ncurses"
-	$(Q)cd disk/extras/; ./build_ncurses.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	$(Q)cd $(EXTRA_DIR); ./build_ncurses.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
-	$(Q)touch ./disk/extras/ncurses.built
+	$(Q)touch $(EXTRA_DIR)/ncurses.built
 
 .PHONY: extra-vim
-DISK_CLEAN_EXTRA += ./disk/extras/vim.built
-extra-vim: disk/extras/vim.built
-disk/extras/vim.built: disk/extras/ncurses.built
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/vim.built
+extra-vim: $(EXTRA_DIR)/vim.built
+$(EXTRA_DIR)/vim.built: $(EXTRA_DIR)/ncurses.built
 	@echo " BUILD   vim"
-	$(Q)cd disk/extras/; ./build_vim.sh $(TARGET) "$(DISK_ROOT)" "/usr"
+	$(Q)cd $(EXTRA_DIR); ./build_vim.sh $(TARGET) "$(DISK_ROOT)" "/usr"
 	@echo " TOUCH   $@"
-	$(Q)touch ./disk/extras/vim.built
+	$(Q)touch $(EXTRA_DIR)/vim.built
 
 .PHONY: extra-less
 DISK_CLEAN_EXTRA += ./disk/extra/less.built
-extra-less: disk/extras/less.built
-disk/extras/less.built: disk/extras/ncurses.built
+extra-less: $(EXTRA_DIR)/less.built
+$(EXTRA_DIR)/less.built: $(EXTRA_DIR)/ncurses.built
 	@echo " BUILD   less"
-	$(Q)cd disk/extras/; ./build_less.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	$(Q)cd $(EXTRA_DIR); ./build_less.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
 .PHONY: extra-ed
-DISK_CLEAN_EXTRA += ./disk/extras/ed.built
-extra-ed: disk/extras/ed.built
-disk/extras/ed.built:
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/ed.built
+extra-ed: $(EXTRA_DIR)/ed.built
+$(EXTRA_DIR)/ed.built:
 	@echo " BUILD   ed"
-	$(Q)cd disk/extras/; ./build_ed.sh $(TARGET) "$(DISK_ROOT)" "/usr"
+	$(Q)cd $(EXTRA_DIR); ./build_ed.sh $(TARGET) "$(DISK_ROOT)" "/usr"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
 .PHONY: extra-gmp
-DISK_CLEAN_EXTRA += ./disk/extras/gmp.built
-extra-gmp: disk/extras/gmp.built
-disk/extras/gmp.built:
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/gmp.built
+extra-gmp: $(EXTRA_DIR)/gmp.built
+$(EXTRA_DIR)/gmp.built:
 	@echo " BUILD   gmp"
-	$(Q)cd disk/extras/; ./build_gmp.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	$(Q)cd $(EXTRA_DIR); ./build_gmp.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
 .PHONY: extra-mpfr
-DISK_CLEAN_EXTRA += ./disk/extras/mpfr.built
-extra-mpfr: disk/extras/mpfr.built
-disk/extras/mpfr.built:
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/mpfr.built
+extra-mpfr: $(EXTRA_DIR)/mpfr.built
+$(EXTRA_DIR)/mpfr.built:
 	@echo " BUILD   mpfr"
-	$(Q)cd disk/extras/; ./build_mpfr.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	$(Q)cd $(EXTRA_DIR); ./build_mpfr.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
 .PHONY: extra-mpc
-DISK_CLEAN_EXTRA += ./disk/extras/mpc.built
-extra-mpc: disk/extras/mpc.built
-disk/extras/mpc.built: disk/extras/gmp.built disk/extras/mpfr.built
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/mpc.built
+extra-mpc: $(EXTRA_DIR)/mpc.built
+$(EXTRA_DIR)/mpc.built: $(EXTRA_DIR)/gmp.built $(EXTRA_DIR)/mpfr.built
 	@echo " BUILD   mpc"
-	$(Q)cd disk/extras/; ./build_mpc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	$(Q)cd $(EXTRA_DIR); ./build_mpc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
 .PHONY: extra-binutils
-DISK_CLEAN_EXTRA += ./disk/extras/binutils.built
-extra-binutils: disk/extras/binutils.built
-disk/extras/binutils.built:
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/binutils.built
+extra-binutils: $(EXTRA_DIR)/binutils.built
+$(EXTRA_DIR)/binutils.built:
 	@echo " BUILD   binutils"
-	$(Q)cd disk/extras/; ./build_binutils.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	$(Q)cd $(EXTRA_DIR); ./build_binutils.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
 .PHONY: extra-gcc
-DISK_CLEAN_EXTRA += ./disk/extras/gcc.built
-extra-gcc: disk/extras/gcc.built
-disk/extras/gcc.built: disk/extras/gmp.built disk/extras/mpfr.built disk/extras/mpc.built
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/gcc.built
+extra-gcc: $(EXTRA_DIR)/gcc.built
+$(EXTRA_DIR)/gcc.built: $(EXTRA_DIR)/gmp.built $(EXTRA_DIR)/mpfr.built $(EXTRA_DIR)/mpc.built
 	@echo " BUILD   gcc"
-	$(Q)cd disk/extras/; ./build_gcc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	$(Q)cd $(EXTRA_DIR); ./build_gcc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
+DISK_EXTRA_PROGS := $(wildcard $(EXTRA_DIR)/*.built)
+DISK_CLEAN += $(DISK_CLEAN_EXTRA)

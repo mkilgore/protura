@@ -1,8 +1,18 @@
 #!/bin/bash
 #
 # Runs the kernel with tests on, and then parses the output
+#
+# Argument 1: Kernel image
+# Argument 2: First disk image
+# Argument 3: Second disk image
+# Argument 4: logs directory
 
-TEST_LOG=./tests.log
+KERNEL=$1
+DISK_ONE=$2
+DISK_TWO=$3
+LOGS_DIR=$4
+
+TEST_LOG=$LOGS_DIR/tests.log
 QEMU_PID=
 RET=
 
@@ -16,11 +26,11 @@ function test_two_disks {
     qemu-system-i386 \
         -serial file:$TEST_LOG \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "ktest.run=true ktests.reboot_after_run=true" \
         2> /dev/null &
 
@@ -32,11 +42,11 @@ function test_one_disk {
     qemu-system-i386 \
         -serial file:$TEST_LOG  \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "ktest.run=true ktests.reboot_after_run=true" \
         2> /dev/null &
 
@@ -49,11 +59,11 @@ function test_two_serial {
         -serial file:$TEST_LOG  \
         -serial file:./test2.log \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "ktest.run=true ktests.reboot_after_run=true" \
         2> /dev/null &
 
@@ -65,13 +75,13 @@ function test_two_network_cards {
     qemu-system-i386 \
         -serial file:$TEST_LOG  \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
         -display none \
         -no-reboot \
         -net nic,model=rtl8139 \
         -net nic,model=e1000 \
         -net tap,ifname=tap0,script=no,downscript=no \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "ktest.run=true ktests.reboot_after_run=true" \
         2> /dev/null &
 
@@ -84,11 +94,11 @@ function test_mem_64m {
         -m 64M \
         -serial file:$TEST_LOG  \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "ktest.run=true ktests.reboot_after_run=true" \
         2> /dev/null &
 
@@ -101,11 +111,11 @@ function test_mem_256m {
         -m 256M \
         -serial file:$TEST_LOG  \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "ktest.run=true ktests.reboot_after_run=true" \
         2> /dev/null &
 
@@ -118,11 +128,11 @@ function test_mem_1g {
         -m 1G \
         -serial file:$TEST_LOG  \
         -d cpu_reset \
-        -drive format=raw,file=./disk.img,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=./disk2.img,cache=none,media=disk,index=1,if=ide \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
-        -kernel ./imgs/protura_x86_multiboot \
+        -kernel $KERNEL \
         -append "ktest.run=true ktests.reboot_after_run=true" \
         2> /dev/null &
 
@@ -136,7 +146,7 @@ function test_verify {
 
     wait $QEMU_PID
 
-    ./scripts/ci/parse_test_output.pl < ./tests.log
+    ./scripts/ci/parse_test_output.pl < $TEST_LOG
     RET=$?
 }
 

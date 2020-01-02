@@ -28,11 +28,8 @@ jobs:
     - uses: actions/cache@v1
       id: cache
       with:
-        path: toolchain
-        key: protura-host-toolchain
-
-    - name: Add Cross Compiler to PATH
-      run: echo "::add-path::$GITHUB_WORKSPACE/toolchain/bin"
+        path: bin/toolchain
+        key: protura-host-toolchain-3
 
     - name: Build GCC Cross Compiler
       run: ./scripts/ci/travis_gcc.sh

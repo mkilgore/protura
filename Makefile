@@ -8,10 +8,21 @@ ARCH   := x86
 BITS   := 32
 
 PROTURA_DIR := $(PWD)
+OBJ_DIR := $(PROTURA_DIR)/obj
+BIN_DIR := $(PROTURA_DIR)/bin
 
-# TARGET := i686-elf-
+KERNEL_DIR := $(BIN_DIR)/kernel
+IMGS_DIR := $(BIN_DIR)/imgs
+LOGS_DIR := $(BIN_DIR)/logs
+TEST_RESULTS_DIR := $(BIN_DIR)/test_results
+
 TARGET := i686-protura
-TOOLCHAIN_DIR := $(PROTURA_DIR)/toolchain
+TOOLCHAIN_DIR := $(BIN_DIR)/toolchain
+DISK_ROOT := $(OBJ_DIR)/disk_root
+DISK_MOUNT := $(OBJ_DIR)/disk_mount
+
+SHELL := /bin/bash
+export PATH := $(PATH):$(TOOLCHAIN_DIR)/bin
 
 # Compiler settings
 CC      := $(TARGET)-gcc
@@ -46,12 +57,6 @@ CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
 LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc -static-libgcc
 ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
 
-# Configuration -- Uncomment lines to enable option
-# Or specify on the commandline
-
-# Enable debugging
-PROTURA_DEBUG := y
-
 # Show all commands executed by the Makefile
 # V := y
 
@@ -68,7 +73,7 @@ else
 	conf := $(CONFIG_FILE)
 endif
 
-EXE_OBJ := $(tree)/$(EXE).o
+EXE_OBJ := $(OBJ_DIR)/$(EXE).o
 
 # This is our default target - The default is the first target in the file so
 # we need to define this fairly high-up.
@@ -92,13 +97,6 @@ else
 	Q := @
 endif
 
-ifdef PROTURA_DEBUG
-	CPPFLAGS += -DPROTURA_DEBUG
-	CFLAGS +=  -ggdb -gdwarf-2
-	ASFLAGS += -ggdb -gdwarf-2
-	LDFLAGS +=
-endif
-
 ifneq ($(MAKECMDGOALS),clean)
 ifneq ($(MAKECMDGOALS),clean-configure)
 ifneq ($(wildcard $(CONFIG_FILE)),$(CONFIG_FILE))
@@ -118,6 +116,13 @@ _tmp := $(shell mkdir -p $(tree)/include/protura/config)
 endif
 endif
 
+ifeq ($(CONFIG_KERNEL_DEBUG_SYMBOLS),y)
+CPPFLAGS += -DPROTURA_DEBUG
+CFLAGS +=  -ggdb -gdwarf-2
+ASFLAGS += -ggdb -gdwarf-2
+LDFLAGS +=
+endif
+
 ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS += -fno-omit-frame-pointer
 endif
@@ -127,6 +132,31 @@ endif
 CPPFLAGS += -I'$(tree)/include/'
 
 make_name = $(subst /,_,$(basename $(tree)/$1))
+
+define dir_rule
+$(1): | $(2)
+	@echo " MKDIR   $$@"
+	$$(Q)$$(MKDIR) $$@
+endef
+
+# Define rules for all the basic directories, and all the directories in the
+# resulting disk structure
+$(eval $(call dir_rule,$(OBJ_DIR),))
+$(eval $(call dir_rule,$(BIN_DIR),))
+
+$(eval $(call dir_rule,$(KERNEL_DIR),$(BIN_DIR)))
+$(eval $(call dir_rule,$(IMGS_DIR),$(BIN_DIR)))
+$(eval $(call dir_rule,$(LOGS_DIR),$(BIN_DIR)))
+$(eval $(call dir_rule,$(TEST_RESULTS_DIR),$(BIN_DIR)))
+$(eval $(call dir_rule,$(BIN_DIR)/toolchain,$(BIN_DIR)))
+
+$(eval $(call dir_rule,$(DISK_MOUNT),$(OBJ_DIR)))
+$(eval $(call dir_rule,$(DISK_ROOT),$(OBJ_DIR)))
+$(eval $(call dir_rule,$(DISK_ROOT)/bin,$(DISK_ROOT)))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr,$(DISK_ROOT)))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET),$(DISK_ROOT)/usr))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET)/include,$(DISK_ROOT)/usr/$(TARGET)))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET)/lib,$(DISK_ROOT)/usr/$(TARGET)))
 
 define add_dep
 $(1): $(2)
@@ -169,11 +199,9 @@ $(eval $(call subdir_inc,arch/$(ARCH)))
 # Ex. For x86, there is a multiboot compliant image
 BOOT_TARGETS :=
 
-imgs_pfix := $(tree)/imgs/$(EXE)_$(ARCH)_
+imgs_pfix := $(IMGS_DIR)/$(EXE)_$(ARCH)_
 
 $(eval $(call subdir_inc,arch/$(ARCH)/boot))
-
-_tmp := $(shell mkdir -p $(tree)/imgs)
 
 define compile_file
 
@@ -195,13 +223,13 @@ DEP_LIST :=
 
 define create_boot_target
 
-_expand := $$(tree)/imgs/$$(EXE)_$$(ARCH)_$(1)
+_expand := $$(KERNEL_DIR)/$$(EXE)_$$(ARCH)_$(1)
 REAL_BOOT_TARGETS += $$(_expand)
 
-CLEAN_LIST += $$(OBJS_$(1))
+CLEAN_LIST += $$(OBJS_$(1)) $$(_expand) $$(_expand).full $$(_expand).sym
 DEP_LIST += $$(EXTRAS_$(1))
 
-$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(EXTRAS_$(1))
+$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(EXTRAS_$(1)) | $$(KERNEL_DIR)
 	@echo " CCLD    $$@"
 	$$(Q)$$(CC) $$(CPPFLAGS) -o $$@ $$(OBJS_$(1)) $$(EXE_OBJ) $$(LDFLAGS) $$(LDFLAGS_$(1)) 
 	@echo " COPY    $$@.full"
@@ -264,7 +292,7 @@ dist: clean-kernel clean-toolchain clean-configure clean-disk
 
 PHONY += clean-kernel
 clean-kernel:
-	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ) $(tree)/imgs; do \
+	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ) $(IMGS_DIR); do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
@@ -308,32 +336,37 @@ $(tree)/.%.d: $(tree)/%.S
 	@echo " CCDEP   $@"
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(tree)/$*.o -MT $@
 
-install-kernel-headers: | ./disk/root/usr/$(TARGET)/include
+install-kernel-headers: | $(DISK_ROOT)/usr/$(TARGET)/include $(DISK_ROOT)/usr/$(TARGET)/lib
 	@echo " CP      include"
-	$(Q)cp -r ./include/* ./disk/root/usr/$(TARGET)/include/
+	$(Q)cp -r ./include/* $(DISK_ROOT)/usr/$(TARGET)/include/
 	@echo " CP      arch/$(ARCH)/include"
-	$(Q)cp -r ./arch/$(ARCH)/include/* ./disk/root/usr/$(TARGET)/include/
+	$(Q)cp -r ./arch/$(ARCH)/include/* $(DISK_ROOT)/usr/$(TARGET)/include/
 	@echo " LN      include"
-	$(Q)ln -fs ./$(TARGET)/include ./disk/root/usr/include
+	$(Q)ln -fs ./$(TARGET)/include $(DISK_ROOT)/usr/include
 	@echo " LN      lib"
-	$(Q)ln -fs ./$(TARGET)/lib ./disk/root/usr/lib
+	$(Q)ln -fs ./$(TARGET)/lib $(DISK_ROOT)/usr/lib
 
 clean-kernel-headers:
 	@echo " RMDIR   include/protura"
-	$(Q)rm -fr ./disk/root/usr/$(TARGET)/include/protura
+	$(Q)rm -fr $(DISK_ROOT)/usr/include/protura
 
-PHONY += cscope
-cscope:
-	@echo " Generating cscope for arch $(ARCH)" 
-	$(Q)find ./ \
-		-path "./arch/*" ! -path "./arch/$(ARCH)/*" -prune -o \
-		-path "./scripts/*" -prune -o \
-		-path "./disk/*" -prune -o \
-		-name "*.[chsS]" -print \
-		> ./cscope.files
-	$(Q)cscope -b -q -k
+PHONY += toolchain clean-toolchain
+toolchain: | $(DISK_ROOT)/usr $(TOOLCHAIN_DIR)
+	$(Q)git submodule update --init --depth 1 --recursive
+	$(Q)cd ./toolchain; ./build_toolchain.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
 
-include ./disk/Makefile
+clean-toolchain:
+	@echo " RM      $(DISK_ROOT)"
+	$(Q)rm -fr $(DISK_ROOT)
+	@echo " RM      $(TOOLCHAIN_DIR)"
+	$(Q)rm -fr $(TOOLCHAIN_DIR)
+
+PHONY += rebuild-newlib
+rebuild-newlib: | $(DISK_ROOT)/usr $(TOOLCHAIN_DIR)
+	$(Q)git submodule update --init --depth 1 --recursive
+	$(Q)cd ./toolchain; ./build_newlib.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
+
+include ./userspace/Makefile
 
 .PHONY: $(PHONY)
 

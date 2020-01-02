@@ -1,15 +1,17 @@
 #!/bin/bash
 
 # Generates and mounts a disk with a raw EXT2 filesystem inside.
+#
+# Argument 1: Location of disk image to create
+# Argument 2: Location to temporarally mount the disk image
 
-rm -f ./disk2.img
+IMG=$1
+MOUNT_POINT=$2
 
-mkdir ./disk2_ext2
+mkfs.ext2 -b 4096 -O ^large_file,^dir_index,^sparse_super,^resize_inode,filetype $IMG 128M
+mount $IMG $MOUNT_POINT
 
-mkfs.ext2 -b 4096 -O ^large_file,^dir_index,^sparse_super,^resize_inode,filetype ./disk2.img 128M
-mount ./disk2.img ./disk2_ext2
-
-newdir=./disk2_ext2
+newdir=$MOUNT_POINT
 for f in $(seq 1 10); do
     newdir=$newdir/newdir
     mkdir $newdir
@@ -19,9 +21,7 @@ for f in $(seq 1 10); do
     done
 done
 
-umount ./disk2_ext2
+umount $MOUNT_POINT
 
-rm -r ./disk2_ext2
-
-chmod 666 ./disk2.img
+chmod 666 $IMG
 

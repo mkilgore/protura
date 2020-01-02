@@ -1,66 +1,77 @@
 
-DISK_AFLAGS := -std=gnu99 -Wall -O2 -DASM
-DISK_CFLAGS := -std=gnu99 -Wall -O2
-DISK_LDFLAGS :=
+USERSPACE_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+USERSPACE_DIR := $(USERSPACE_DIR:/=)
 
 DISK_BINDIR := $(DISK_ROOT)/bin
 DISK_USRDIR := $(DISK_ROOT)/usr
-DISK_DIRDEPEND := $(DISK_ROOT) $(DISK_BINDIR) $(DISK_USRDIR)
 
-DISK_UTIL_SRCS := \
-	./disk/utils/echo.c \
-	./disk/utils/seg_fault.c \
-	./disk/utils/brk_test.c \
-	./disk/utils/arg_test.c \
-	./disk/utils/pipe_test.c \
-	./disk/utils/dsh.c \
-	./disk/utils/signal_test.c \
-	./disk/utils/orphan.c \
-	./disk/utils/edit.c \
-	./disk/utils/time.c \
-	./disk/utils/poll_test.c \
-	./disk/utils/fifo_test.c \
-	./disk/utils/waitpid_test.c \
-	./disk/utils/socket_test.c \
-	./disk/utils/color_test.c \
-	./disk/utils/tcp_test.c \
-	./disk/utils/test_runner/run_test.c \
+DISK_PROGS :=
+DISK_CLEAN :=
 
-DISK_UTIL_OBJS := $(DISK_UTIL_SRCS:.c=.o)
-DISK_UTIL_EXTRA_OBJS :=
+include $(USERSPACE_DIR)/utils/Makefile
+include $(USERSPACE_DIR)/coreutils/Makefile
+include $(USERSPACE_DIR)/root/Makefile
+include $(USERSPACE_DIR)/extras/Makefile
 
-include ./disk/coreutils/Makefile
-include ./disk/utils/Makefile
-include ./disk/extras/Makefile
-include ./disk/test_runner/Makefile
+PHONY += disk clean-disk
+disk: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img
 
-DISK_UTIL_PROGS := $(foreach file,$(DISK_UTIL_OBJS),$(notdir $(file)))
-DISK_UTIL_PROGS := $(patsubst %.o,$(DISK_BINDIR)/%,$(DISK_UTIL_PROGS))
+clean-disk:
+	$(Q)for file in $(DISK_CLEAN); do \
+		if [ -e $$file ]; then \
+		    echo " RM      $$file"; \
+			rm -rf $$file; \
+		fi \
+	done
 
-UTIL_DISK_DEP := $(DISK_UTIL_OBJS:.o=.d) $(DISK_UTIL_EXTRA_OBJS:.o=.d)
-DISK_DEP += $(foreach file,$(UTIL_DISK_DEP),$(dir $(file)).$(notdir $(file)))
+$(IMGS_DIR)/disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gen_partdisk.sh $(DISK_ROOT_FILES) $(DISK_EXTRA_PROGS) | $(IMGS_DIR) $(DISK_MOUNT)
+	@echo " GENDISK $@"
+	$(Q)rm -fr $@
+	$(Q)sudo ./scripts/gen_partdisk.sh $@ $(DISK_MOUNT) $(DISK_ROOT) $(ROOT_DIR) $(KERNEL_DIR)
 
-disk/%.o: disk/%.S
-	@echo " CCAS    $@"
-	$(Q)$(CC) $(DISK_AFLAGS) -c -o ./$@ ./$<
+$(IMGS_DIR)/disk2.img: ./scripts/gendisk2.sh | $(IMGS_DIR) $(DISK_MOUNT)
+	@echo " GENDISK $@"
+	$(Q)rm -fr $@
+	$(Q)sudo ./scripts/gendisk2.sh $@ $(DISK_MOUNT)
 
-disk/%.o: disk/%.c
-	@echo " CC      $@"
-	$(Q)$(CC) $(DISK_CFLAGS) -c -o ./$@ ./$<
+$(IMGS_DIR)/disk.vdi: $(IMGS_DIR)/disk.img | $(IMGS_DIR)
+	@echo " QEMUIMG $@"
+	$(Q)qemu-img convert -f raw -O vdi $< $@
 
-disk/.%.d: disk/%.c
-	@echo " CCDEP   $@"
-	$(Q)$(CC) -MM -MP -MF $@ $(DISK_CFLAGS) $< -MT disk/$*.o -MT $@
+$(IMGS_DIR)/disk.vhd: $(IMGS_DIR)/disk.img | $(IMGS_DIR)
+	@echo " QEMUIMG $@"
+	$(Q)qemu-img convert -f raw -O vpc $< $@
 
-disk/root/bin/%: disk/utils/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./disk/root/usr
-	@echo " CCLD    $@"
-	$(Q)$(CC) -o ./$@ ./$< $(DISK_LDFLAGS)
-	@echo " OBJCOPY $@"
-	$(Q)$(OBJCOPY) --strip-unneeded $@
+PHONY += disk-other
+disk-other: $(IMGS_DIR)/disk.vdi $(IMGS_DIR)/disk.vhd
 
-disk/root/bin/%: disk/utils/test_runner/%.o $(LIBC_DEPEND) | ./disk/root ./disk/root/bin ./disk/root/usr
-	@echo " CCLD    $@"
-	$(Q)$(CC) -o ./$@ ./$< $(DISK_LDFLAGS)
-	@echo " OBJCOPY $@"
-	$(Q)$(OBJCOPY) --strip-unneeded $@
+PHONY += gendisk gendisk2
+gendisk: disk.img
+gendisk2: disk2.img
 
+PHONY += check
+check: check-kernel check-ext2
+
+PHONY += check-kernel
+check-kernel: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(REAL_BOOT_TARGETS) | $(LOGS_DIR)
+	$(Q)./scripts/ci/run_tests.sh $(lastword $(REAL_BOOT_TARGETS)) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(LOGS_DIR)
+
+PHONY += check-ext2
+check-ext2: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(REAL_BOOT_TARGETS) | $(TEST_RESULTS_DIR)
+	$(Q)./scripts/ci/run_ext2_tests.sh  $(lastword $(REAL_BOOT_TARGETS)) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)
+
+PHONY += debug
+debug: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img | $(LOGS_DIR)
+	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(lastword $(REAL_BOOT_TARGETS)) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img
+
+PHONY += debug-ktest
+debug-ktest: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img | $(LOGS_DIR)
+	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(lastword $(REAL_BOOT_TARGETS)) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img "ktest.run=true"
+
+PHONY += debug-net
+debug-net: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img | $(LOGS_DIR)
+	$(Q)./scripts/start_net_debug_session.sh $(LOGS_DIR) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img
+
+ifeq ($(MAKECMDGOALS),disk)
+-include $(DISK_DEP)
+endif

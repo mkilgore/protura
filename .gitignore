@@ -1,14 +1,5 @@
 *.o
 *.d
-imgs/*
+bin/*
+obj/*
 config.mk
-debug_start.sh
-cscope*
-disk.img
-disk.vdi
-disk.vhd
-
-disk_mount/
-test_results/
-logs/
-
