@@ -276,7 +276,7 @@ void list_items(DIR *directory, const char *base)
             render_user(cur_line, st.st_uid);
             render_group(cur_line, st.st_gid);
 
-            if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode) || S_ISLNK(st.st_mode))
+            if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode) || S_ISLNK(st.st_mode) || S_ISFIFO(st.st_mode))
                 render_size(cur_line, st.st_size);
 
             if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))
