@@ -299,7 +299,7 @@ void ktest_init(void)
     if (!run_tests)
         return;
 
-    int reboot_after_tests = kernel_cmdline_get_bool("ktests.reboot_after_run", 0);
+    int reboot_after_tests = kernel_cmdline_get_bool("ktest.reboot_after_run", 0);
     if (reboot_after_tests)
         reboot_on_panic = 1;
 

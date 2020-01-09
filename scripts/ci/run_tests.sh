@@ -31,7 +31,7 @@ function test_two_disks {
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "ktest.run=true ktests.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true" \
         2> /dev/null &
 
     QEMU_PID=$!
@@ -47,7 +47,7 @@ function test_one_disk {
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "ktest.run=true ktests.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true" \
         2> /dev/null &
 
     QEMU_PID=$!
@@ -64,7 +64,7 @@ function test_two_serial {
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "ktest.run=true ktests.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true" \
         2> /dev/null &
 
     QEMU_PID=$!
@@ -82,7 +82,7 @@ function test_two_network_cards {
         -net nic,model=e1000 \
         -net tap,ifname=tap0,script=no,downscript=no \
         -kernel $KERNEL \
-        -append "ktest.run=true ktests.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true" \
         2> /dev/null &
 
     QEMU_PID=$!
@@ -99,7 +99,7 @@ function test_mem_64m {
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "ktest.run=true ktests.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true" \
         2> /dev/null &
 
     QEMU_PID=$!
@@ -116,7 +116,7 @@ function test_mem_256m {
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "ktest.run=true ktests.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true" \
         2> /dev/null &
 
     QEMU_PID=$!
@@ -133,7 +133,7 @@ function test_mem_1g {
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "ktest.run=true ktests.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true" \
         2> /dev/null &
 
     QEMU_PID=$!
