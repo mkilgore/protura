@@ -199,7 +199,6 @@ int __sys_sendto(struct file *filp, struct user_buffer buf, size_t buflen, int f
     if (!addrlen)
         sockbuf = NULL;
 
-    /* FIXME: This should take a user_buffer */
     return socket_sendto(socket, buf, buflen, flags, sockbuf, addrlen, flag_test(&filp->flags, FILE_NONBLOCK));
 }
 
@@ -236,7 +235,6 @@ int __sys_recvfrom(struct file *filp, struct user_buffer buf, size_t len, int fl
     inode = container_of(filp->inode, struct inode_socket, i);
     socket = inode->socket;
 
-    /* FIXME: This should take a user_buffer */
     int ret = socket_recvfrom(socket, buf, len, flags, &cpy, &cpylen, flag_test(&filp->flags, FILE_NONBLOCK));
     if (ret < 0)
         return ret;
