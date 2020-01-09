@@ -196,6 +196,44 @@ static void render_group(struct util_line *line, gid_t gid)
         util_line_printf(line, "%d", (int)gid);
 }
 
+static void item_name_set_color(struct util_column *column, mode_t mode)
+{
+    int is_exeutable = 0;
+
+    if ((mode & S_IXUSR) || (mode & S_IXGRP) || (mode & S_IXOTH))
+        is_exeutable = 1;
+
+    switch (mode_to_file_type(mode)) {
+    case TYPE_UNKNOWN:
+    case TYPE_REG:
+        if (is_exeutable)
+            column->fg_color = COL_FG_BOLD_GREEN;
+
+        break;
+
+    case TYPE_DIR:
+        column->fg_color = COL_FG_BOLD_BLUE;
+        break;
+
+    case TYPE_FIFO:
+        column->fg_color = COL_FG_YELLOW;
+        break;
+
+    case TYPE_BLK:
+    case TYPE_CHR:
+        column->fg_color = COL_FG_BOLD_YELLOW;
+        break;
+
+    case TYPE_LNK:
+        column->fg_color = COL_FG_BOLD_CYAN;
+        break;
+
+    case TYPE_SOK:
+        column->fg_color = COL_FG_BOLD_MAGENTA;
+        break;
+    }
+}
+
 void list_items(DIR *directory, const char *base)
 {
     struct dirent *item;
@@ -249,13 +287,17 @@ void list_items(DIR *directory, const char *base)
             strftime(col->buf, 100, "%b %e %H:%M", gmtime(&st.st_mtime));
         }
 
+        struct util_column *name_column = util_line_next_column(cur_line);
+
+        item_name_set_color(name_column, st.st_mode);
+
         if (!S_ISLNK(st.st_mode)) {
-            util_line_strdup(cur_line, item->d_name);
+            util_column_strdup(name_column, item->d_name);
         } else {
             char buf[255];
             readlink(item->d_name, buf, sizeof(buf));
 
-            util_line_printf(cur_line, "%s -> %s", item->d_name, buf);
+            util_column_printf(name_column, "%s -> %s", item->d_name, buf);
         }
     }
 
