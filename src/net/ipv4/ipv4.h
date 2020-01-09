@@ -71,7 +71,6 @@ struct ip_lookup {
 struct address_family_ip {
     struct address_family af;
 
-    /* FIXME: Replace this with a hash-table of the proto at least */
     mutex_t lock;
     list_head_t raw_sockets;
     list_head_t sockets;
