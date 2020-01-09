@@ -97,13 +97,18 @@ int socket_recvfrom(struct socket *socket, struct user_buffer buf, size_t len, i
             size_t plen = packet_len(packet);
             int drop_packet = 0;
 
-            /* FIXME.... */
             if (plen <= len) {
-                memcpy(buf.ptr, packet->head, plen);
+                ret = user_memcpy_from_kernel(buf, packet->head, plen);
+                if (ret)
+                    return ret;
+
                 ret = plen;
                 drop_packet = 1;
             } else {
-                memcpy(buf.ptr, packet->head, len);
+                ret = user_memcpy_from_kernel(buf, packet->head, len);
+                if (ret)
+                    return ret;
+
                 ret = len;
 
                 /* move the head past the read data */
