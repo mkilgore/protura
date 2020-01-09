@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <unistd.h>
 
 #include "columns.h"
 
@@ -87,12 +88,39 @@ struct util_line *util_display_next_line(struct util_display *display)
     return line;
 }
 
+static const char *util_column_color_fg_str[] = {
+    [COL_FG_NORMAL]       = TERM_COLOR_NORMAL,
+    [COL_FG_RED]          = TERM_COLOR_RED,
+    [COL_FG_GREEN]        = TERM_COLOR_GREEN,
+    [COL_FG_YELLOW]       = TERM_COLOR_YELLOW,
+    [COL_FG_BLUE]         = TERM_COLOR_BLUE,
+    [COL_FG_MAGENTA]      = TERM_COLOR_MAGENTA,
+    [COL_FG_CYAN]         = TERM_COLOR_CYAN,
+    [COL_FG_BOLD_RED]     = TERM_COLOR_BOLD_RED,
+    [COL_FG_BOLD_GREEN]   = TERM_COLOR_BOLD_GREEN,
+    [COL_FG_BOLD_YELLOW]  = TERM_COLOR_BOLD_YELLOW,
+    [COL_FG_BOLD_BLUE]    = TERM_COLOR_BOLD_BLUE,
+    [COL_FG_BOLD_MAGENTA] = TERM_COLOR_BOLD_MAGENTA,
+    [COL_FG_BOLD_CYAN]    = TERM_COLOR_BOLD_CYAN,
+};
+
+static const char *util_column_color_bg_str[] = {
+    [COL_BG_NORMAL]  = TERM_COLOR_NORMAL,
+    [COL_BG_RED]     = TERM_COLOR_BG_RED,
+    [COL_BG_GREEN]   = TERM_COLOR_BG_GREEN,
+    [COL_BG_YELLOW]  = TERM_COLOR_BG_YELLOW,
+    [COL_BG_BLUE]    = TERM_COLOR_BG_BLUE,
+    [COL_BG_MAGENTA] = TERM_COLOR_BG_MAGENTA,
+    [COL_BG_CYAN]    = TERM_COLOR_BG_CYAN,
+};
+
 void util_display_render(struct util_display *display)
 {
     struct util_line *line;
     struct util_column *column;
     size_t i;
     size_t max_columns = 0;
+    int show_colors = isatty(STDOUT_FILENO);
 
     list_foreach_entry(&display->line_list, line, entry)
         if (line->column_count > max_columns)
@@ -118,10 +146,18 @@ void util_display_render(struct util_display *display)
     list_foreach_entry(&display->line_list, line, entry) {
         i = 0;
         list_foreach_entry(&line->column_list, column, entry) {
+            if (show_colors) {
+                fputs(util_column_color_fg_str[column->fg_color], stdout);
+                fputs(util_column_color_bg_str[column->bg_color], stdout);
+            }
+
             if (column->alignment == UTIL_ALIGN_RIGHT)
                 printf("%*s", (int)column_lengths[i], column->buf);
             else
                 printf("%-*s", (int)column_lengths[i], column->buf);
+
+            if (show_colors)
+                fputs(TERM_COLOR_RESET, stdout);
 
             if (i < max_columns - 1)
                 putchar(' ');

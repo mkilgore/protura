@@ -2,6 +2,33 @@
 #define _COLUMNS_H
 
 #include "list.h"
+#include "termcols.h"
+
+enum util_column_color_fg {
+    COL_FG_NORMAL,
+    COL_FG_RED,
+    COL_FG_GREEN,
+    COL_FG_YELLOW,
+    COL_FG_BLUE,
+    COL_FG_MAGENTA,
+    COL_FG_CYAN,
+    COL_FG_BOLD_RED,
+    COL_FG_BOLD_GREEN,
+    COL_FG_BOLD_YELLOW,
+    COL_FG_BOLD_BLUE,
+    COL_FG_BOLD_MAGENTA,
+    COL_FG_BOLD_CYAN,
+};
+
+enum util_column_color_bg {
+    COL_BG_NORMAL,
+    COL_BG_RED,
+    COL_BG_GREEN,
+    COL_BG_YELLOW,
+    COL_BG_BLUE,
+    COL_BG_MAGENTA,
+    COL_BG_CYAN,
+};
 
 enum util_column_align {
     UTIL_ALIGN_LEFT,
@@ -12,6 +39,8 @@ struct util_column {
     list_node_t entry;
     char *buf;
     enum util_column_align alignment;
+    enum util_column_color_fg fg_color;
+    enum util_column_color_bg bg_color;
 };
 
 struct util_line {
@@ -55,7 +84,7 @@ static inline void util_display_init(struct util_display *display)
     *display = (struct util_display)UTIL_DISPLAY_INIT(*display);
 }
 
-void util_column_printfv(struct util_column *column, const char *fmt, va_list lst);
+void util_column_printfv(struct util_column *, const char *fmt, va_list lst);
 void util_column_printf(struct util_column *, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 void util_column_strdup(struct util_column *, const char *);
 
