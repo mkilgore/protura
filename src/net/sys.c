@@ -112,7 +112,7 @@ static int user_write_sockaddr(struct sockaddr *addr, socklen_t len, struct user
         user_len = len;
 
     if (user_len) {
-        ret = user_memcpy_from_kernel(user, &addr, user_len);
+        ret = user_memcpy_from_kernel(user, addr, user_len);
         if (ret)
             return ret;
     }
