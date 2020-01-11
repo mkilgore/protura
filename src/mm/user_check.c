@@ -108,3 +108,7 @@ int user_alloc_string(struct user_buffer buf, char **result)
 
     return user_strncpy_to_kernel(*result, buf, PG_SIZE);
 }
+
+#ifdef CONFIG_KERNEL_TESTS
+# include "user_check_test.c"
+#endif
