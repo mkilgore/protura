@@ -318,18 +318,6 @@ static void vt_esc_set_mode(struct vt *vt, char cmd)
     case 4:
         vt->insert_mode = mode_on;
         break;
-
-    case 25:
-        vt->cursor_is_on = mode_on;
-
-        if (mode_on) {
-            if (vt->screen->cursor_on)
-                (vt->screen->cursor_on) ();
-        } else {
-            if (vt->screen->cursor_off)
-                (vt->screen->cursor_off) ();
-        }
-        break;
     }
 }
 
@@ -441,6 +429,14 @@ static void vt_set_dec_setting(struct vt *vt, char cmd)
         __vt_clear(vt);
         __vt_set_cursor_origin_relative(vt, 0, 0);
         break;
+
+    case 25:
+        vt->cursor_is_on = 1;
+
+        if (vt->screen->cursor_on)
+            (vt->screen->cursor_on) ();
+
+        break;
     }
 }
 
@@ -459,6 +455,14 @@ static void vt_unset_dec_setting(struct vt *vt, char cmd)
     case 3: /* switch to 80 columns */
         __vt_clear(vt);
         __vt_set_cursor_origin_relative(vt, 0, 0);
+        break;
+
+    case 25:
+        vt->cursor_is_on = 0;
+
+        if (vt->screen->cursor_off)
+            (vt->screen->cursor_off) ();
+
         break;
     }
 }
