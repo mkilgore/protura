@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "readline_lite.h"
 #include "shell.h"
 
 #define INPUT_MAX 100
@@ -24,25 +25,41 @@ static FILE *inp_file;
 
 struct job *current_job;
 
-static ssize_t get_input(char **line, size_t *buf_len)
+/* Gets the next line of input, either from the console or from the input file.
+ * On EOF it returns NULL */
+static char *get_next_line(void)
 {
-    ssize_t len;
+    size_t buf_len = 0;
+    char *line = NULL;
 
-    if (interactive)
-        printf("%s $ ", cwd);
+    char prompt_buf[1024];
+    snprintf(prompt_buf, sizeof(prompt_buf), "%s $ ", cwd);
 
-    len = getline(line, buf_len, inp_file);
+    if (interactive) {
+        line = readline_lite(prompt_buf);
 
-    (*line)[len - 1] = '\0';
-    len--;
+        if (*line)
+            history_add(line);
+    } else {
+        printf("%s", prompt_buf);
+        ssize_t len = getline(&line, &buf_len, inp_file);
 
-    return len;
+        if (len == 0) {
+            free(line);
+            return NULL;
+        }
+
+        /* Remove the newline at the end */
+        line[len - 1] = '\0';
+        len--;
+    }
+
+    return line;
 }
 
 static void input_loop(void)
 {
     char *line = NULL;
-    size_t buf_len = 0;
     struct job *job;
 
     while (!feof(inp_file)) {
@@ -54,7 +71,12 @@ static void input_loop(void)
             continue;
         }
 
-        get_input(&line, &buf_len);
+        free(line);
+        line = get_next_line();
+
+        /* EOF */
+        if (!line)
+            break;
 
         if (strcmp(line, "exit") == 0)
             break;
