@@ -80,6 +80,7 @@ $(1)/.%.d: $(1)/%.c
 endef
 
 $(eval $(call def_util_dep_rule,$(COREUTILS_BASE_DIR)/common))
+$(eval $(call def_util_dep_rule,$(COREUTILS_BASE_DIR)/common/readline))
 
 define def_unil
 dir := $(COREUTILS_BASE_DIR)/$(1)
@@ -102,13 +103,21 @@ endef
 
 $(foreach util,$(COREUTILS_PROG_LIST),$(eval $(call def_unil,$(util))))
 
-COREUTILS_DEP += $(foreach file,$(COREUTILS_DEP),$(dir $(file)).$(notdir $(file)))
-
 .SECONDARY: $(COREUTILS_OBJS)
+
+READLINE_SRCS := $(wildcard $(COREUTILS_BASE_DIR)/common/readline/*.c)
+READLINE_OBJS := $(READLINE_SRCS:.c=.o)
+COREUTILS_DEP += $(READLINE_SRCS:.c=.d)
+
+COREUTILS_DEP += $(foreach file,$(COREUTILS_DEP),$(dir $(file)).$(notdir $(file)))
 
 DISK_PROGS += $(COREUTILS_PROGS)
 DISK_DEP += $(COREUTILS_DEP)
-DISK_CLEAN += $(COREUTILS_OBJS) $(COREUTILS_PROGS) $(COREUTILS_DEP)
+DISK_CLEAN += $(COREUTILS_OBJS) $(READLINE_OBJS) $(COREUTILS_PROGS) $(COREUTILS_DEP)
+
+$(COREUTILS_BASE_DIR)/common/readline.o: $(READLINE_OBJS)
+	@echo " CCLD    $@"
+	$(Q)$(LD) -r -o $@ $^
 
 $(COREUTILS_BASE_DIR)/.%.d: $(COREUTILS_BASE_DIR)/%.c
 	@echo " CCDEP   $@"

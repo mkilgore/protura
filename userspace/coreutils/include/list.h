@@ -111,6 +111,11 @@ static inline int list_is_last(const list_head_t *head, const list_node_t *entry
     return entry->next == head;
 }
 
+static inline int list_is_first(const list_head_t *head, const list_node_t *entry)
+{
+    return entry->prev == head;
+}
+
 static inline int list_empty(const list_head_t *head)
 {
     return head == head->next;
