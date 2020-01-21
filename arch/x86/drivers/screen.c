@@ -24,7 +24,7 @@
 static void scr_enable_cursor(void)
 {
     /* Enable cursor from scanlines 13 to 15 */
-    outb(0x3D4, 0x2A);
+    outb(0x3D4, 0x0A);
     outb(0x3D5, 0x0D);
 
     outb(0x3D4, 0x0B);
@@ -33,12 +33,8 @@ static void scr_enable_cursor(void)
 
 static void scr_disable_cursor(void)
 {
-    /* Enable cursor from scanlines 13 to 15 */
-    outb(0x3D4, 0x2A);
+    outb(0x3D4, 0x0A);
     outb(0x3D5, 0x0D | 0x20);
-
-    outb(0x3D4, 0x0B);
-    outb(0x3D5, 0x0F);
 }
 
 static void scr_updatecur(int row, int col)
