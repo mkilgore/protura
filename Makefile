@@ -51,10 +51,10 @@ CPPFLAGS  = -DPROTURA_VERSION=$(VERSION)              \
 			-D__KERNEL__                              \
             -I'./include' -I'./arch/$(ARCH)/include'
 
-CFLAGS  := -Wall -O2 -std=gnu99 -ffreestanding \
+CFLAGS  := -Wall -std=gnu99 -ffreestanding \
            -fno-strict-aliasing -nostdlib -fno-builtin -nostdinc
 
-LDFLAGS := -nostdlib -O2 -ffreestanding -lgcc -static-libgcc
+LDFLAGS := -nostdlib -ffreestanding -lgcc -static-libgcc
 ASFLAGS := -DASM -Wall -ffreestanding -nostdlib
 
 # Show all commands executed by the Makefile
@@ -121,6 +121,16 @@ CPPFLAGS += -DPROTURA_DEBUG
 CFLAGS +=  -ggdb -gdwarf-2
 ASFLAGS += -ggdb -gdwarf-2
 LDFLAGS +=
+endif
+
+ifeq ($(CONFIG_KERNEL_OPTIMIZE_DEBUG),y)
+CFLAGS += -Og
+ASFLAGS += -Og
+LDFLAGS += -Og
+else
+CFLAGS += -O2
+ASFLAGS += -O2
+LDFLAGS += -O2
 endif
 
 ifeq ($(CONFIG_FRAME_POINTER),y)
