@@ -97,7 +97,7 @@ static int cpu_idle_loop(void *cpuid)
     kp(KP_DEBUG, "kidle: %d\n", (int)cpuid);
 
     while (1)
-        hlt();
+        asm volatile("hlt"::: "memory");
 
     return 0;
 }
