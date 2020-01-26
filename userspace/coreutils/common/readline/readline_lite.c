@@ -79,7 +79,7 @@ char *readline_lite(const char *prompt)
         if (c == EOF || c == 4)
             break;
 
-        if (c == '\n')
+        if (c == '\n' || c == '\r')
             break;
 
         /* FIXME: Add proper support for tab characters in the input */
