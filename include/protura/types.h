@@ -8,53 +8,15 @@
 #ifndef INCLUDE_PROTURA_TYPES_H
 #define INCLUDE_PROTURA_TYPES_H
 
+#include <uapi/protura/types.h>
 #include <protura/config/autoconf.h>
-#include <arch/types.h>
 #include <protura/stddef.h>
-
-#if 0
-typedef __kuint8_t u8;
-typedef __kuint16_t u16;
-typedef __kuint32_t u32;
-typedef __kuint64_t u64;
-
-typedef __kint8_t s8;
-typedef __kint16_t __ks16;
-typedef __kint32_t __ks32;
-typedef __kint64_t __ks64;
-#endif
-
-typedef long __koff_t;
-typedef __kint32_t __kpid_t;
-
-typedef __kuint32_t __kmode_t;
-
-typedef __kuint32_t __kdev_t;
-typedef __kuint16_t __kudev_t; /* Userspace dev_t */
-typedef __kuint32_t __ksector_t;
-
-typedef __kuint32_t __kino_t;
-typedef __kuint16_t __kumode_t;
-
-typedef long __ktime_t;
-typedef __kint32_t __kuseconds_t;
-typedef long     __ksuseconds_t;
-
-typedef __kint32_t __kuid_t;
-typedef __kint32_t __kgid_t;
-
-typedef char * __kcaddr_t;
-typedef __kuintptr_t __kdaddr_t;
-
-typedef long __kptrdiff_t;
-
-#ifdef __KERNEL__
 
 #include <protura/compiler.h>
 
-# define SECTOR_INVALID ((sector_t)-1)
-# define UID_INVALID ((uid_t)-1)
-# define GID_INVALID ((gid_t)-1)
+#define SECTOR_INVALID ((sector_t)-1)
+#define UID_INVALID ((uid_t)-1)
+#define GID_INVALID ((gid_t)-1)
 
 typedef __koff_t off_t;
 typedef __kpid_t pid_t;
@@ -102,7 +64,5 @@ struct user_buffer {
 
 #define user_buffer_offset(b, offset) \
     (struct user_buffer) { .ptr = (b).ptr + (offset), .is_user = (b).is_user }
-
-#endif
 
 #endif
