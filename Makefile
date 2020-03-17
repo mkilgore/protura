@@ -347,10 +347,10 @@ $(tree)/.%.d: $(tree)/%.S
 	$(Q)$(CC) -MM -MP -MF $@ $(CPPFLAGS) $< -MT $(tree)/$*.o -MT $@
 
 install-kernel-headers: | $(DISK_ROOT)/usr/$(TARGET)/include $(DISK_ROOT)/usr/$(TARGET)/lib
-	@echo " CP      include"
-	$(Q)cp -r ./include/* $(DISK_ROOT)/usr/$(TARGET)/include/
-	@echo " CP      arch/$(ARCH)/include"
-	$(Q)cp -r ./arch/$(ARCH)/include/* $(DISK_ROOT)/usr/$(TARGET)/include/
+	@echo " CP      include/uapi"
+	$(Q)cp -r ./include/uapi/* $(DISK_ROOT)/usr/$(TARGET)/include/
+	@echo " CP      arch/$(ARCH)/include/uapi"
+	$(Q)cp -r ./arch/$(ARCH)/include/uapi/* $(DISK_ROOT)/usr/$(TARGET)/include/
 	@echo " LN      include"
 	$(Q)ln -fs ./$(TARGET)/include $(DISK_ROOT)/usr/include
 	@echo " LN      lib"
@@ -359,6 +359,8 @@ install-kernel-headers: | $(DISK_ROOT)/usr/$(TARGET)/include $(DISK_ROOT)/usr/$(
 clean-kernel-headers:
 	@echo " RMDIR   include/protura"
 	$(Q)rm -fr $(DISK_ROOT)/usr/include/protura
+	@echo " RMDIR   include/arch"
+	$(Q)rm -fr $(DISK_ROOT)/usr/include/arch
 
 PHONY += toolchain clean-toolchain
 toolchain: | $(DISK_ROOT)/usr $(TOOLCHAIN_DIR)
