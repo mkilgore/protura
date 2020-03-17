@@ -8,34 +8,10 @@
 #ifndef INCLUDE_FS_FCNTL_H
 #define INCLUDE_FS_FCNTL_H
 
-#define O_RDONLY 0x01
-#define O_WRONLY 0x02
-#define O_RDWR   0x03
-#define O_APPEND 0x08
-#define O_CREAT  0x0200
-#define O_TRUNC  0x0400
-#define O_EXCL   0x0800
-#define O_NOCTTY 0x1000
-#define O_NONBLOCK 0x4000
-#define O_NDELAY   O_NONBLOCK
-#define O_CLOEXEC 0x40000
-
-#define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
-
-#define F_DUPFD 0
-#define F_GETFD 1
-#define F_SETFD 2
-#define F_GETFL 3
-#define F_SETFL 4
-
-#define FD_CLOEXEC 1
-
-#ifdef __KERNEL__
+#include <uapi/protura/fs/fcntl.h>
 
 #define IS_RDWR(mode) (((mode) & O_RDWR) == O_RDWR)
 #define IS_RDONLY(mode) (((mode) & O_RDONLY) == O_RDONLY)
 #define IS_WRONLY(mode) (((mode) & O_WRONLY) == O_WRONLY)
-
-#endif
 
 #endif
