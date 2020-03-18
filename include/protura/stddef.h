@@ -8,27 +8,24 @@
 #ifndef INCLUDE_PROTURA_STDDEF_H
 #define INCLUDE_PROTURA_STDDEF_H
 
-#define __kNULL ((void *)0)
-
-#ifdef __KERNEL__
-
+#include <uapi/protura/stddef.h>
 #include <protura/container_of.h>
 #include <protura/compiler.h>
 
 #define NULL __kNULL
 
-# define offsetof(s, m) ((size_t)&(((s *)0)->m))
+#define offsetof(s, m) __koffsetof(s, m)
 
-# define alignof(t) __alignof__(t)
+#define alignof(t) __alignof__(t)
 
-# define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof(*(a)))
 
-# define STATIC_ASSERT(cond) _Static_assert(cond, #cond)
+#define STATIC_ASSERT(cond) _Static_assert(cond, #cond)
 
 /* Returns the number of arguments passed, via putting __VA_ARGS__ in the
  * arguments to __COUNT_ARGS and then seeing how many of the numbers are
  * "displaced" */
-# define __COUNT_ARGS(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, \
+#define __COUNT_ARGS(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, \
         a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, \
         a21, a22, a23, a24, a25, a26, a27, a28, a29, a30, \
         a31, a32, a33, a34, a35, a36, a37, a38, a39, a40, \
@@ -39,7 +36,7 @@
         a81, a82, a83, a84, a85, a86, a87, a88, a89, a90, \
         a91, a92, a93, a94, a95, a96, a97, a98, a99, a100, a101, ...) a101
 
-# define COUNT_ARGS(...) __COUNT_ARGS(dummy, ## __VA_ARGS__, \
+#define COUNT_ARGS(...) __COUNT_ARGS(dummy, ## __VA_ARGS__, \
         99, 98, 97, 74, 95, 94, 93, 92, 91, 90, \
         89, 88, 87, 75, 85, 84, 83, 82, 81, 80, \
         79, 78, 77, 76, 75, 74, 73, 72, 71, 70, \
@@ -63,13 +60,13 @@
  * arg" */
 #define ESCAPE(...) __VA_ARGS__
 
-# define SUCCESS 0
+#define SUCCESS 0
 
-# define TP2(x, y) x ## y
-# define TP(x, y) TP2(x, y)
+#define TP2(x, y) x ## y
+#define TP(x, y) TP2(x, y)
 
-# define _Q(x) #x
-# define Q(x) _Q(x)
+#define _Q(x) #x
+#define Q(x) _Q(x)
 
 /* Macro black-magic
  *
@@ -105,7 +102,7 @@
  * with or without a block, and it doesn't require any 'using_end' macro after
  * its usage.
  */
-# define using_cond_ctr(cond, cmd1, cmd2, ctr)                     \
+#define using_cond_ctr(cond, cmd1, cmd2, ctr)                     \
     while (1)                                                      \
     if (0)                                                         \
         TP(__using_finished, ctr):                                 \
@@ -130,7 +127,7 @@
                             TP(__using_body, ctr):                 \
                             if (__using_cond)
 
-# define using_cond(cond, cmd1, cmd2) \
+#define using_cond(cond, cmd1, cmd2) \
     using_cond_ctr(cond, cmd1, cmd2, __COUNTER__)
 
 /*
@@ -144,7 +141,7 @@
  * works).
  *
  */
-# define scoped_using_cond_ctr(cond, cmd1, cmd2, arg, ctr) \
+#define scoped_using_cond_ctr(cond, cmd1, cmd2, arg, ctr) \
     if (0) { \
         TP(__using_finished, ctr):; \
     } else \
@@ -167,7 +164,7 @@
                             } else \
                                 TP(__using_body, ctr):
 
-# define scoped_using_cond(cond, cmd1, cmd2, arg) \
+#define scoped_using_cond(cond, cmd1, cmd2, arg) \
     scoped_using_cond_ctr(cond, cmd1, cmd2, arg, __COUNTER__)
 
 /* The 'nocheck' version doesn't take a condition, just two commands to run.
@@ -175,19 +172,17 @@
  * As a note, gcc is smart enough to turn this usage into two direct calls to
  * 'cmd1' and 'cmd2' at the beginning and end of the block, without any extra
  * code or variables. */
-# define using_nocheck(cmd1, cmd2) using_cond(1, cmd1, cmd2)
+#define using_nocheck(cmd1, cmd2) using_cond(1, cmd1, cmd2)
 
 /* The normal 'using' one uses the result of 'cmd1' to decide whether or not to
  * run the code. Used in the event the command you would use as 'cmd1' returns
  * an error code you want to check before you keep going. */
-# define using(cmd1, cmd2) using_cond(cmd1, do { ; } while (0), cmd2)
+#define using(cmd1, cmd2) using_cond(cmd1, do { ; } while (0), cmd2)
 
 /* This is defined by the Makefile, but it's useful to have it defined anyway,
  * so syntax checkers don't barf saying 'PROTURA_BITS' doesn't exist */
-# ifndef PROTURA_BITS
-#  define PROTURA_BITS 32
-# endif
-
+#ifndef PROTURA_BITS
+# define PROTURA_BITS 32
 #endif
 
 #endif
