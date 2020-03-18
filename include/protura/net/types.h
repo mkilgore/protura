@@ -8,7 +8,22 @@
 #ifndef INCLUDE_PROTURA_NET_TYPES_H
 #define INCLUDE_PROTURA_NET_TYPES_H
 
-#include <protura/types.h>
+#include <uapi/protura/net/types.h>
+
+/* Get rid of the userspace definitions, as we have special matching kernel
+ * definitions instead */
+
+#undef __kn32
+#undef __kn32_make
+#undef __kn32_to_uint32
+#undef __khtonl
+#undef __kntohl
+
+#undef __kn16
+#undef __kn16_make
+#undef __kn16_to_uint16
+#undef __khtons
+#undef __kntohs
 
 /* 
  * We define "network-order" types as structures, which forces type errors if
@@ -19,8 +34,6 @@
  * regular integers and provide separate implementations of this interface,
  * allowing it to remain compatibile.
  */
-
-#ifdef __KERNEL__
 
 typedef struct n16_struct {
     uint16_t v;
@@ -92,46 +105,5 @@ static inline uint16_t __kntohs(n16 netl)
 
 #define n32_nonzero(n) ((n).v != 0)
 #define n16_nonzero(n) ((n).v != 0)
-
-#else
-
-typedef __kuint16_t __kn16;
-typedef __kuint32_t __kn32;
-
-static inline __kn32 __khtonl(uint32_t hostl)
-{
-    return ((hostl & 0xFF000000) >> 24)
-         | ((hostl & 0x00FF0000) >> 8)
-         | ((hostl & 0x0000FF00) << 8)
-         | ((hostl & 0x000000FF) << 24);
-}
-
-static inline __kn16 __khtons(uint16_t hosts)
-{
-    return ((hosts & 0xFF00) >> 8)
-         | ((hosts & 0x00FF) << 8);
-}
-
-static inline uint32_t __kntohl(__kn32 netl)
-{
-    return ((netl & 0xFF000000) >> 24)
-         | ((netl & 0x00FF0000) >> 8)
-         | ((netl & 0x0000FF00) << 8)
-         | ((netl & 0x000000FF) << 24);
-}
-
-static inline uint16_t __kntohs(__kn16 netl)
-{
-    return ((netl & 0xFF00) >> 8)
-         | ((netl & 0x00FF) << 8);
-}
-
-#define __kn32_make(n) (n)
-#define __kn16_make(n) (n)
-
-#define __kn32_to_uint32(n) (n)
-#define __kn16_to_uint16(n) (n)
-
-#endif
 
 #endif
