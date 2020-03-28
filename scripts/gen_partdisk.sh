@@ -28,6 +28,8 @@ sfdisk $DISK_IMG < $DIR/partition_table \
     || exit 1
 
 LOOP_DEVICE=$(losetup -f --show -P $DISK_IMG)
+[ $? -eq 0 ] || exit 1
+
 LOOP_DEVICE_PART1=${LOOP_DEVICE}p1
 echo "Loop device: $LOOP_DEVICE"
 echo "Loop partition: $LOOP_DEVICE_PART1"
