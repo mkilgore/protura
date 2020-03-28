@@ -1,5 +1,5 @@
-// userdel - Delete a user from the system
-#define UTILITY_NAME "userdel"
+// login - Starts a session as an authenticated user
+#define UTILITY_NAME "login"
 
 #include "common.h"
 
@@ -16,9 +16,9 @@
 #include "db_group.h"
 #include "file.h"
 
-static const char *arg_str = "[Flags] [User]";
-static const char *usage_str = "Delete a user from the system.\n";
-static const char *arg_desc_str  = "User: A user that exists on the system\n";
+static const char *arg_str = "";
+static const char *usage_str = "Authenticates and starts a session as a user.\n";
+static const char *arg_desc_str  = "";
 
 #define XARGS \
     X(help, "help", 'h', 0, NULL, "Display help") \
