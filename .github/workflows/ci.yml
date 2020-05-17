@@ -36,6 +36,12 @@ jobs:
     - name: Bulid Kernel
       run: make kernel -j5
 
+    - name: Archive kernel
+      uses: actions/upload-artifact@v2
+      with:
+        name: Kernel
+        path: ./bin/kernel/
+
     - name: Build ed
       if: startsWith(github.ref, 'refs/tags/v')
       run: make extra-ed -j5
@@ -63,6 +69,12 @@ jobs:
       run: |
         ./scripts/ci/setup_tuntap.sh
         make check
+
+    - name: Archive test results
+      uses: actions/upload-artifact@v2
+      with:
+        name: Test-Results
+        path: ./bin/test_results/
 
     - name: Build extra disk images
       if: startsWith(github.ref, 'refs/tags/v')
