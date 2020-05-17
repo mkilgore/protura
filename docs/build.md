@@ -24,7 +24,6 @@ sudo apt-get install texinfo
 sudo apt-get install libmpc-dev libgmp-dev libmpfr-dev
 sudo apt-get install grub-pc
 sudo apt-get install qemu-system-i386
-sudo apt-get install qemu-utils
 ```
 
 Build the OS
