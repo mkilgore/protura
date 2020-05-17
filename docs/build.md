@@ -1,6 +1,35 @@
 Build
 =====
 
+This page describes all the necessary steps to setup your system and build Protura.
+
+Buildtime Dependencies
+----------------------
+
+Due to the variety of external projects that have to be built to ultimately build the OS, there are a few things you need installed on the host system to be able to run the full build process. A list of them is below, organized by the part of the build that requires it. There are also helpful instructions for some distros listing the exact packages you need. Note that for the listed libraries, typically the headers for those libraries (IE. The "dev" packages) need to be installed as well, since the component is typically being built.
+
+Component | Dependencies
+--------- | ------------
+gcc cross-compiler and cross-binutils | gcc suite, libmpc, libgmp, libmpfr, flex, bison, texinfo
+kernel | perl
+disk image creation | grub2, mkfs.ext2, sfdisk, losetup
+testing | qemu-system-i386, e2fsck, perl
+debugging | qemu-system-i386, tmux, socat, gdb, gdb-dashboard (optional)
+
+### Ubuntu
+
+```sh
+sudo apt-get install build-essential flex bison
+sudo apt-get install texinfo
+sudo apt-get install libmpc-dev libgmp-dev libmpfr-dev
+sudo apt-get install grub-pc
+sudo apt-get install qemu-system-i386
+sudo apt-get install qemu-utils
+```
+
+Build the OS
+------------
+
 To build the full OS disk excluding extras, run the following commands:
 
     make full
@@ -24,7 +53,7 @@ The extra utilities can be built like this:
 After building those utilities, `make disk` should be run again to regenerate the disk image.
 
 Individual build steps
-======================
+----------------------
 
 First, you have to generate `./config.mk` and `./include/protura/config/autoconf.h` from protura.conf, both of which are used in all of the rest of the compilation steps:
 
@@ -62,7 +91,7 @@ you can rebuild only newlib by running the following command:
     make rebuild-newlib
 
 Cleaning
-========
+--------
 
 All of the above commands have corresponding cleaning commands, which remove any
 files generated from that command:
