@@ -12,7 +12,7 @@ Component | Dependencies
 --------- | ------------
 gcc cross-compiler and cross-binutils | gcc suite, libmpc, libgmp, libmpfr, flex, bison, texinfo
 kernel | perl
-disk image creation | grub2, mkfs.ext2, sfdisk, losetup
+disk image creation | grub2, mkfs.ext2, sfdisk, losetup, qemu-img (for VDI and VHD images)
 testing | qemu-system-i386, e2fsck, perl
 debugging | qemu-system-i386, tmux, socat, gdb, gdb-dashboard (optional)
 
