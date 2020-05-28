@@ -56,8 +56,8 @@ umount $DISK_MOUNT \
 
 echo "Unmounting loop: $LOOP_DEVICE"
 losetup -d $LOOP_DEVICE \
-    || exti 1
+    || exit 1
 
 chmod 666 $DISK_IMG \
-    || exti 1
+    || exit 1
 
