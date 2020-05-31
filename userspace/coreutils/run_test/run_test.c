@@ -51,6 +51,7 @@ int main(int argc, char **argv)
     __unused int serr = open("/dev/null", O_RDWR);
 
     setenv("PATH", "/bin:/usr/bin", 1);
+    mount(NULL, "/proc", "proc", 0, NULL);
     mount("/dev/hdb", "/mnt/slave", "ext2", 0, NULL);
 
     printf("TEST: %s\n", test);
