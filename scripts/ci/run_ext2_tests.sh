@@ -53,8 +53,8 @@ TOTAL_RESULT=0
 TESTS=$(find ./userspace/root/tests/ext2/ -name "test_*.sh" | xargs basename -a)
 
 for test in $TESTS; do
-    TEST_LOG=${TEST_PREFIX}/$(basename -s .sh $test).qemu.log
-    TEST_E2FSCK_LOG=${TEST_PREFIX}/$(basename -s .sh $test).e2fsck.log
+    TEST_LOG=${TEST_PREFIX}/ext2.$(basename -s .sh $test).qemu.log
+    TEST_E2FSCK_LOG=${TEST_PREFIX}/ext2.$(basename -s .sh $test).e2fsck.log
 
     echo "LOG: $TEST_LOG, e2fsck: $TEST_E2FSCK_LOG"
 
