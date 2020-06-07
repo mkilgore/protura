@@ -58,7 +58,7 @@ check-kernel: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(REAL_BOOT_TARGETS) | 
 
 PHONY += check-ext2
 check-ext2: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(REAL_BOOT_TARGETS) | $(TEST_RESULTS_DIR)
-	$(Q)./scripts/ci/run_ext2_tests.sh  $(lastword $(REAL_BOOT_TARGETS)) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)
+	$(Q)./scripts/ci/run_ext2_tests.sh $(lastword $(REAL_BOOT_TARGETS)) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)
 
 PHONY += check-uapi
 check-uapi:
