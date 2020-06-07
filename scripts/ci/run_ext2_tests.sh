@@ -5,8 +5,7 @@
 # Argument 1: Kernel image
 # Argument 2: First disk image
 # Argument 3: Second disk image
-# Argument 4: logs directory
-# Argument 5: test results directory
+# Argument 4: test results directory
 
 KERNEL=$1
 DISK_ONE=$2
