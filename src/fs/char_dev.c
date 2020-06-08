@@ -18,6 +18,7 @@
 #include <protura/drivers/com.h>
 #include <protura/drivers/tty.h>
 #include <protura/drivers/mem.h>
+#include <protura/drivers/qemudbg.h>
 #include <protura/fs/file.h>
 #include <protura/fs/fs.h>
 #include <protura/fs/char.h>
@@ -45,6 +46,13 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_MEM,
         .fops = &mem_file_ops,
     },
+#ifdef CONFIG_DRIVER_QEMU_DBG
+    [CHAR_DEV_QEMU_DBG] = {
+        .name = "qemudbg",
+        .major = CHAR_DEV_QEMU_DBG,
+        .fops = &qemu_dbg_file_ops,
+    },
+#endif
 };
 
 struct char_device *char_dev_get(dev_t device)

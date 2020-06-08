@@ -9,6 +9,8 @@
 /dev/ttyS0 c 7 0
 /dev/ttyS1 c 7 1
 
+/dev/qemudbg c 8 0
+
 /dev/hda b 1 0
 /dev/hda1 b 1 1
 /dev/hdb b 2 0
