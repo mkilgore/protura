@@ -5,6 +5,7 @@ TESTS_DIR := $(TESTS_DIR:/=)
 $(eval $(call dir_rule,$(TEST_RESULTS_DIR)/ktest))
 $(eval $(call dir_rule,$(TEST_RESULTS_DIR)/ext2))
 $(eval $(call dir_rule,$(TEST_RESULTS_DIR)/pci))
+$(eval $(call dir_rule,$(TEST_RESULTS_DIR)/uapi))
 
 PHONY += check
 check: check-uapi check-kernel check-ext2 check-pci
@@ -18,8 +19,8 @@ check-ext2: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(REAL_BOOT_TARGETS) | $(
 	$(Q)./tests/scripts/run_ext2_tests.sh $(lastword $(REAL_BOOT_TARGETS)) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)/ext2
 
 PHONY += check-uapi
-check-uapi:
-	$(Q)./tests/scripts/verify_uapi.sh "$(CC)" "./include/uapi" "./arch/$(ARCH)/include/uapi"
+check-uapi: | $(TEST_RESULTS_DIR)/uapi
+	$(Q)./tests/scripts/verify_uapi.sh "$(CC)" "$(TEST_RESULTS_DIR)/uapi" "./include/uapi" "./arch/$(ARCH)/include/uapi"
 
 PHONY += check-pci
 check-pci: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(REAL_BOOT_TARGETS) | $(TEST_RESULTS_DIR)/pci

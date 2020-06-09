@@ -3,6 +3,7 @@
 # Verifies the correctness of the uapi set of headers by verifying all of their dependencies exist in the uapi.
 #
 # Argument 1: gcc binary to use
+# Argument 2: test results directory
 # Argument n: Header directory
 
 # IE. If a uapi header pulls in <protura/types.h>, then there must be a
@@ -15,7 +16,13 @@
 # passing the correct flags forces it to check if all the dependency header
 # files exist.
 
+. ./tests/scripts/colors.sh
+
 GCC=$1
+TEST_PREFIX=$2
+TOTAL_RESULT=0
+
+shift
 shift
 
 header_files=()
@@ -35,9 +42,28 @@ done
 # Run each header through gcc, and verify it reports success
 for f in "${header_files[@]}"
 do
-    if ! gcc $gcc_args $f > /dev/null; then
-        echo "UAPI check FAILURE on header $f! Review gcc error above!"
-        exit 1
+    name=${f#./}
+    name=$(echo "$name" | sed "s/\//_/g")
+    GCC_LOG=$TEST_PREFIX/$name.log
+    GCC_ERR_LOG=$TEST_PREFIX/$name.err.log
+
+    printf "Checking $f ..."
+
+    if ! gcc $gcc_args $f > $GCC_LOG 2> $GCC_ERR_LOG; then
+        echo "$RED FAILURE!$RESET Review gcc error below:"
+
+        cat $GCC_ERR_LOG
+
+        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
+    else
+        echo "$GREEN PASS!$RESET"
     fi
 done
 
+if [ "$TOTAL_RESULT" == "0" ]; then
+    echo "${GREEN}ALL TESTS PASSED!$RESET"
+else
+    echo "${RED}TESTS FAILURE!$RESET"
+fi
+
+exit $TOTAL_RESULT
