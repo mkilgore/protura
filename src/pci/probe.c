@@ -203,22 +203,32 @@ static void pci_get_device_vendor(struct pci_dev *dev, uint16_t *vendor, uint16_
 
 static uint32_t pci_get_class(struct pci_dev *dev)
 {
-    return (pci_config_read_uint32(dev, 8) >> 24) & 0xFF;
+    return pci_config_read_uint8(dev, PCI_REG_CLASS);
 }
 
 static uint32_t pci_get_subclass(struct pci_dev *dev)
 {
-    return (pci_config_read_uint32(dev, 8) >> 16) & 0xFF;
+    return pci_config_read_uint8(dev, PCI_REG_SUBCLASS);
 }
 
 static uint32_t pci_get_procif(struct pci_dev *dev)
 {
-    return (pci_config_read_uint32(dev, 8) >> 8) & 0xFF;
+    return pci_config_read_uint8(dev, PCI_REG_PROG_IF);
 }
 
 static uint32_t pci_get_revision(struct pci_dev *dev)
 {
-    return pci_config_read_uint32(dev, 8) & 0xFF;
+    return pci_config_read_uint8(dev, PCI_REG_REVISION_ID);
+}
+
+static uint32_t pci_get_header_type(struct pci_dev *dev)
+{
+    return pci_config_read_uint8(dev, PCI_REG_HEADER_TYPE);
+}
+
+static uint32_t pci_get_secondary_bus(struct pci_dev *dev)
+{
+    return pci_config_read_uint8(dev, PCI_REG_SECONDARY_BUS);
 }
 
 void pci_get_class_name(uint8_t class, uint8_t subclass, const char **class_name, const char **subclass_name)

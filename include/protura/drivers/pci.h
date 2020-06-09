@@ -40,6 +40,8 @@ void pci_config_write_uint8(struct pci_dev *dev, uint8_t regno, uint8_t value);
 #define PCI_REG_CLASS       0x0B
 #define PCI_REG_HEADER_TYPE 0x0E
 
+#define PCI_REG_PRIMARY_BUS 0x18
+#define PCI_REG_SECONDARY_BUS 0x19
 
 /*
  * Bits for the PCI_COMMAND config register
@@ -55,6 +57,9 @@ void pci_config_write_uint8(struct pci_dev *dev, uint8_t regno, uint8_t value);
 #define PCI_COMMAND_SERR_ENABLE     (1 << 8) /* SERR Driver Enable */
 #define PCI_COMMAND_FAST_B2B_ENABLE (1 << 9) /* Fast Back-to-Back Enable */
 #define PCI_COMMAND_INT_DISABLE     (1 << 10 /* Interrupt Disable */
+
+#define PCI_HEADER_IS_MULTIFUNCTION 0x80
+#define PCI_HEADER_IS_BRIDGE        0x01
 
 #define PCI_BAR_IO 0x00000001
 
