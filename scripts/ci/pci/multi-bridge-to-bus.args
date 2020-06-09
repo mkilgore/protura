@@ -1,0 +1,6 @@
+# Two bridges
+args="\
+    -nodefaults \
+    -device pci-bridge,id=bridge0,chassis_nr=1 \
+    -device pci-bridge,id=bridge1,chassis_nr=1 \
+"

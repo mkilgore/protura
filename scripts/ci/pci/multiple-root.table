@@ -1,0 +1,13 @@
+00:00.0: 0x8086:0x1237: PCI Bridge Device
+00:01.0: 0x8086:0x7000: PCI Bridge Device
+00:01.1: 0x8086:0x7010: Mass Storage Device, IDE Interface
+00:01.3: 0x8086:0x7113: PCI Bridge Device
+00:02.0: 0x1b36:0x0009: PCI Bridge Device
+00:03.0: 0x1b36:0x0009: PCI Bridge Device
+02:00.0: 0x1b36:0x0001: PCI Bridge Device
+03:00.0: 0x1b36:0x0001: PCI Bridge Device
+03:01.0: 0x1b36:0x0001: PCI Bridge Device
+03:02.0: 0x1b36:0x0001: PCI Bridge Device
+04:05.0: 0x8086:0x100e: Network Controller
+05:16.0: 0x8086:0x100e: Network Controller
+06:31.0: 0x8086:0x100e: Network Controller

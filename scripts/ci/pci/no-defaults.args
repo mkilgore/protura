@@ -1,0 +1,2 @@
+# Regular PCI bus with PIIX3 chipset, but no display or network card
+args="-nodefaults"

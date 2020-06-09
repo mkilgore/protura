@@ -1,0 +1,4 @@
+00:00.0: 0x8086:0x1237: PCI Bridge Device
+00:01.0: 0x8086:0x7000: PCI Bridge Device
+00:01.1: 0x8086:0x7010: Mass Storage Device, IDE Interface
+00:01.3: 0x8086:0x7113: PCI Bridge Device

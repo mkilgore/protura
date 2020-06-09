@@ -1,0 +1,12 @@
+# Using the 'PCI Expander Bridge' to have multiple host bridges and chain PCI bridges
+# QEMU doesn't allow the regular pci-bridge to chain to other pci-bridge's
+args="\
+    -nodefaults \
+    -device pxb,id=bridge1,bus=pci.0,bus_nr=2 \
+    -device pxb,id=bridge2,bus=pci.0,bus_nr=3 \
+    -device pci-bridge,id=bridge3,chassis_nr=2 \
+    -device pci-bridge,id=bridge4,chassis_nr=2 \
+    -device e1000,bus=bridge2,addr=5 \
+    -device e1000,bus=bridge3,addr=10 \
+    -device e1000,bus=bridge4,addr=1f \
+"

@@ -1,0 +1,5 @@
+# A single PCI bridge with nothing attached
+args="\
+    -nodefaults \
+    -device pci-bridge,id=bridge0,chassis_nr=1 \
+"

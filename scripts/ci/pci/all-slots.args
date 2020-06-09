@@ -1,0 +1,37 @@
+# A single PCI-bridge with every slot filled with an E1000
+args="\
+    -nodefaults \
+    -device pci-bridge,id=bridge1,chassis_nr=1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge1 \
+"

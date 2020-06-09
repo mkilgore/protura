@@ -1,0 +1,20 @@
+# Tests the max number of pci-bridges we can add, and places a E1000 on each one
+args="\
+    -nodefaults \
+    -device pci-bridge,id=bridge1,chassis_nr=1 \
+    -device pci-bridge,id=bridge2,chassis_nr=2 \
+    -device pci-bridge,id=bridge3,chassis_nr=3 \
+    -device pci-bridge,id=bridge4,chassis_nr=4 \
+    -device pci-bridge,id=bridge5,chassis_nr=5 \
+    -device pci-bridge,id=bridge6,chassis_nr=6 \
+    -device pci-bridge,id=bridge7,chassis_nr=7 \
+    -device pci-bridge,id=bridge8,chassis_nr=8 \
+    -device e1000,bus=bridge1 \
+    -device e1000,bus=bridge2 \
+    -device e1000,bus=bridge3 \
+    -device e1000,bus=bridge4 \
+    -device e1000,bus=bridge5 \
+    -device e1000,bus=bridge6 \
+    -device e1000,bus=bridge7 \
+    -device e1000,bus=bridge8 \
+"

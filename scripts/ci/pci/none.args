@@ -1,0 +1,8 @@
+# Tests a system with no PCI entries
+
+# isapc only has an ISA bus, no PCI.
+# We use qemu32 because the isapc is i486 by default
+args="\
+    -machine isapc \
+    -cpu qemu32 \
+"

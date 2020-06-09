@@ -1,0 +1,13 @@
+# A PCI-bridge with a few E1000 in a multi-function device
+args="\
+    -nodefaults \
+    -device pci-bridge,id=bridge1,chassis_nr=1 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.1 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.2 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.3 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.4 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.5 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.6 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.7 \
+    -device e1000,bus=bridge1,multifunction=true,addr=1.0 \
+"

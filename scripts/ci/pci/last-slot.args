@@ -1,0 +1,10 @@
+# A few PCI-bridges with only the last slot filled with an E1000
+args="\
+    -nodefaults \
+    -device pci-bridge,id=bridge1,chassis_nr=1 \
+    -device pci-bridge,id=bridge2,chassis_nr=2 \
+    -device pci-bridge,id=bridge3,chassis_nr=3 \
+    -device e1000,bus=bridge1,addr=1f \
+    -device e1000,bus=bridge2,addr=1f \
+    -device e1000,bus=bridge3,addr=1f \
+"
