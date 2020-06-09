@@ -12,10 +12,14 @@
 #include <protura/mutex.h>
 #include <protura/drivers/pci.h>
 
-struct pci_dev_entry {
+struct pci_dev_info {
     struct pci_dev id;
-    uint8_t class, subclass, procif, revision;
+    uint8_t class, subclass, procif, revision, header_type;
     uint16_t vendor, device;
+};
+
+struct pci_dev_entry {
+    struct pci_dev_info info;
 
     list_node_t pci_dev_node;
 };

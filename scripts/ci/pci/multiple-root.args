@@ -1,3 +1,6 @@
+# This test is currently ignored because Protura cannot detect multiple host bridges
+IGNORED=1
+
 # Using the 'PCI Expander Bridge' to have multiple host bridges and chain PCI bridges
 # QEMU doesn't allow the regular pci-bridge to chain to other pci-bridge's
 args="\

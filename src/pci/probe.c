@@ -119,6 +119,8 @@ static const char **pci_class_device_names[PCI_CLASS_UNKNOWN] = {
     [PCI_CLASS_MASS_STORAGE] = pci_class_storage_names,
 };
 
+#define PCI_SUBCLASS_BRIDGE_PCI 0x04
+
 struct pci_addr {
     union {
         uint32_t addr;
@@ -247,47 +249,107 @@ void pci_get_class_name(uint8_t class, uint8_t subclass, const char **class_name
     }
 }
 
-static void pci_create_dev(struct pci_dev *dev)
+static void pci_enumerate_bus(int bus);
+
+/* Add's a device to the main list of devices.
+ *
+ * Note that we keep this list sorted by bus, slot, and func number.
+ */
+static void pci_add_dev_entry(struct pci_dev_entry *new_entry)
+{
+    struct pci_dev_entry *ent;
+
+    list_foreach_entry(&pci_dev_list, ent, pci_dev_node) {
+        if (new_entry->info.id.bus < ent->info.id.bus
+            || (new_entry->info.id.bus == ent->info.id.bus && new_entry->info.id.slot < ent->info.id.slot)
+            || (new_entry->info.id.bus == ent->info.id.bus && new_entry->info.id.slot == ent->info.id.slot && new_entry->info.id.func < ent->info.id.func)) {
+            list_add_tail(&ent->pci_dev_node, &new_entry->pci_dev_node);
+            return;
+        }
+    }
+
+    list_add_tail(&pci_dev_list, &new_entry->pci_dev_node);
+}
+
+static void pci_dev_info_populate(struct pci_dev_info *info)
+{
+    pci_get_device_vendor(&info->id, &info->vendor, &info->device);
+
+    if (info->vendor == 0xFFFF)
+        return;
+
+    info->header_type = pci_get_header_type(&info->id);
+    info->class = pci_get_class(&info->id);
+    info->subclass = pci_get_subclass(&info->id);
+    info->procif = pci_get_procif(&info->id);
+    info->revision = pci_get_revision(&info->id);
+}
+
+static void pci_check_dev(struct pci_dev_info *dev)
 {
     struct pci_dev_entry *entry = kzalloc(sizeof(*entry), PAL_KERNEL);
     const char *cla = NULL, *sub = NULL;
 
     list_node_init(&entry->pci_dev_node);
-    entry->id = *dev;
+    entry->info = *dev;
 
-    entry->class = pci_get_class(dev);
-    entry->subclass = pci_get_subclass(dev);
-    entry->procif = pci_get_procif(dev);
-    entry->revision = pci_get_revision(dev);
-    pci_get_device_vendor(dev, &entry->vendor, &entry->device);
+    kp(KP_NORMAL, "PCI %d:%d:%d - 0x%04x:0x%04x\n", dev->id.bus, dev->id.slot, dev->id.func, entry->info.vendor, entry->info.device);
 
-    kp(KP_NORMAL, "PCI %d:%d:%d - 0x%04x:0x%04x\n", dev->bus, dev->slot, dev->func, entry->vendor, entry->device);
-
-    pci_get_class_name(entry->class, entry->subclass, &cla, &sub);
+    pci_get_class_name(entry->info.class, entry->info.subclass, &cla, &sub);
 
     if (cla && sub)
         kp(KP_NORMAL, "  - %s, %s\n", cla, sub);
     else if (cla)
         kp(KP_NORMAL, "  - %s\n", cla);
 
-    list_add_tail(&pci_dev_list, &entry->pci_dev_node);
+    pci_add_dev_entry(entry);
+
+    kp(KP_NORMAL, " header is bridge: %d, class: %d, subclass: %d, secondary bus: %d, primary bus: %d\n", dev->header_type, dev->class, dev->subclass, pci_get_secondary_bus(&dev->id), pci_config_read_uint8(&dev->id, PCI_REG_PRIMARY_BUS));
+
+    if (dev->header_type & PCI_HEADER_IS_BRIDGE) {
+        int new_bus = pci_get_secondary_bus(&dev->id);
+
+        pci_enumerate_bus(new_bus);
+    }
+}
+
+static void pci_check_slot(int bus, int slot)
+{
+    struct pci_dev_info info = {
+        .id.bus = bus,
+        .id.slot = slot,
+    };
+
+    pci_dev_info_populate(&info);
+
+    if (info.vendor == 0xFFFF)
+        return;
+
+    pci_check_dev(&info);
+
+    if (info.header_type & PCI_HEADER_IS_MULTIFUNCTION) {
+        for (info.id.func = 1; info.id.func < 8; info.id.func++) {
+            pci_dev_info_populate(&info);
+
+            if (info.vendor == 0xFFFF)
+                continue;
+
+            pci_check_dev(&info);
+        }
+    }
+}
+
+static void pci_enumerate_bus(int bus)
+{
+    int slot;
+
+    for (slot = 0; slot < 32; slot++)
+        pci_check_slot(bus, slot);
 }
 
 static void enum_pci(void)
 {
-    int bus, slot, func;
-
-    for (bus = 0; bus < 256; bus++) {
-        for (slot = 0; slot < 32; slot++) {
-            for (func = 0; func < 8; func++) {
-                struct pci_dev addr = { .bus = bus, .slot = slot, .func = func };
-                uint16_t ven, dev;
-                pci_get_device_vendor(&addr, &ven, &dev);
-                if (ven != 0xFFFF)
-                    pci_create_dev(&addr);
-            }
-        }
-    }
+    pci_enumerate_bus(0);
 }
 
 static void pci_load_device(struct pci_dev *dev, uint16_t vendor, uint16_t device)
@@ -303,7 +365,7 @@ static void load_pci_devices(void)
     struct pci_dev_entry *entry;
 
     list_foreach_entry(&pci_dev_list, entry, pci_dev_node)
-        pci_load_device(&entry->id, entry->vendor, entry->device);
+        pci_load_device(&entry->info.id, entry->info.vendor, entry->info.device);
 }
 
 void pci_init(void)

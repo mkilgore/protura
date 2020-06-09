@@ -27,12 +27,25 @@ static int proc_seq_render(struct seq_file *seq)
     struct pci_dev_entry *entry = seq_list_get_entry(seq, struct pci_dev_entry, pci_dev_node);
     const char *cla = NULL, *sub = NULL;
 
-    pci_get_class_name(entry->class, entry->subclass, &cla , &sub);
+    pci_get_class_name(entry->info.class, entry->info.subclass, &cla , &sub);
 
     if (sub)
-        return seq_printf(seq, "%02d:%02d.%d: 0x%04x:0x%04x: %s, %s\n", entry->id.bus, entry->id.slot, entry->id.func, entry->vendor, entry->device, cla, sub);
+        return seq_printf(seq, "%02d:%02d.%d: 0x%04x:0x%04x: %s, %s\n",
+                               entry->info.id.bus,
+                               entry->info.id.slot,
+                               entry->info.id.func,
+                               entry->info.vendor,
+                               entry->info.device,
+                               cla,
+                               sub);
     else
-        return seq_printf(seq, "%02d:%02d.%d: 0x%04x:0x%04x: %s\n", entry->id.bus, entry->id.slot, entry->id.func, entry->vendor, entry->device, cla);
+        return seq_printf(seq, "%02d:%02d.%d: 0x%04x:0x%04x: %s\n",
+                               entry->info.id.bus,
+                               entry->info.id.slot,
+                               entry->info.id.func,
+                               entry->info.vendor,
+                               entry->info.device,
+                               cla);
 }
 
 static int proc_seq_next(struct seq_file *seq)
