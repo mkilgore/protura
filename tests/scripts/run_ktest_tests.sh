@@ -39,16 +39,16 @@ function test_verify {
 
     wait $QEMU_PID
 
-    ./scripts/ci/parse_test_output.pl < $1
+    ./tests/scripts/parse_ktest_output.pl < $1
     RET=$?
 }
 
 TOTAL_RESULT=0
 
-TESTS=$(find ./scripts/ci/ktest/ -name "*.args" | xargs basename -a -s .args)
+TESTS=$(find ./tests/testcases/ktest/ -name "*.args" | xargs basename -a -s .args)
 
 for test in $TESTS; do
-    TEST_ARGS=./scripts/ci/ktest/$test.args
+    TEST_ARGS=./tests/testcases/ktest/$test.args
     TEST_QEMU_LOG=$TEST_RESULTS_DIR/$test.qemu.log
     TEST_QEMU_ERR_LOG=$TEST_RESULTS_DIR/$test.qemu.err.log
 

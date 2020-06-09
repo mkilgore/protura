@@ -385,6 +385,7 @@ rebuild-newlib: | $(DISK_ROOT)/usr $(TOOLCHAIN_DIR)
 	$(Q)cd ./toolchain; ./build_newlib.sh $(TARGET) $(DISK_ROOT) /usr $(TOOLCHAIN_DIR) "$(MAKEFLAGS)"
 
 include ./userspace/Makefile
+include ./tests/Makefile
 
 .PHONY: $(PHONY)
 

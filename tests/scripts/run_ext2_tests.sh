@@ -16,11 +16,6 @@ QEMU_PID=
 RET=
 DISK_CPY=./obj/disk_cpy.img
 
-function test_prepare {
-    rm -fr $TEST_LOG
-    touch $TEST_LOG
-}
-
 function run_ext2_test {
     echo "QEMU: Test: $1"
     timeout 120 qemu-system-i386 \
@@ -38,13 +33,10 @@ function run_ext2_test {
 }
 
 function test_verify {
-    unset GREP_COLORS
-
-    tail --pid $QEMU_PID -n+1 -f $TEST_LOG | GREP_COLOR="1;32" grep --line-buffered --color=always -E "PASS|$" | GREP_COLOR="1;31" grep --line-buffered --color=always -E "FAIL|PANIC|$"
+    tail --pid $QEMU_PID -n+1 -f $TEST_LOG
 
     wait $QEMU_PID
 
-    # ./scripts/ci/parse_test_output.pl < ./tests.log
     RET=$?
 }
 
@@ -61,7 +53,12 @@ for test in $TESTS; do
     rm -fr $DISK_CPY
     cp $DISK_TWO $DISK_CPY
 
-    test_prepare
+    rm -fr $TEST_LOG
+    touch $TEST_LOG
+
+    rm -fr $TEST_E2FSCK_LOG
+    touch $TEST_E2FSCK_LOG
+
     run_ext2_test "/tests/ext2/$test" "$DISK_CPY" "$TEST_LOG"
     test_verify
 

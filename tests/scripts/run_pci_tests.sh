@@ -52,11 +52,11 @@ function dump_kernel_log {
 
 TOTAL_RESULT=0
 
-TESTS=$(find ./scripts/ci/pci/ -name "*.args" | xargs basename -a -s .args)
+TESTS=$(find ./tests/testcases/pci/ -name "*.args" | xargs basename -a -s .args)
 
 for test in $TESTS; do
-    TEST_ARGS=./scripts/ci/pci/$test.args
-    TEST_EXPECTED=./scripts/ci/pci/$test.table
+    TEST_ARGS=./tests/testcases/pci/$test.args
+    TEST_EXPECTED=./tests/testcases/pci/$test.table
 
     TEST_QEMU_LOG=${TEST_PREFIX}/$test.qemu.log
     TEST_QEMU_ERR_LOG=${TEST_PREFIX}/$test.qemu.err.log
