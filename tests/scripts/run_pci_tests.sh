@@ -16,6 +16,8 @@ QEMU_PID=
 RET=
 IGNORED=
 
+. ./tests/scripts/colors.sh
+
 # Arg 1: Argument file
 # Arg 2: Qemu debug log
 # Arg 3: Test output
@@ -81,7 +83,7 @@ for test in $TESTS; do
 
         if [ "$RET" -ne "0" ]; then
             echo "QEMU TIMEOUT" >> "$TEST_QEMU_LOG"
-            echo "[1;31m QEMU TIMEOUT, FAILURE!![m"
+            echo "$RED QEMU TIMEOUT, FAILURE!!$RESET"
 
             echo "Kernel log:"
             dump_kernel_log "$TEST_QEMU_LOG"
@@ -91,7 +93,7 @@ for test in $TESTS; do
         fi
 
         if ! cmp -s -- $TEST_EXPECTED $TEST_OUTPUT_LOG; then
-            echo "[1;31m Incorrect table![m"
+            echo "$RED Incorrect table!$RESET"
 
             echo "Expected:"
             cat $TEST_EXPECTED | sed -e 's/^/    /'
@@ -104,17 +106,17 @@ for test in $TESTS; do
         fi
 
         if [ "$fail" -eq "0" ]; then
-            printf "[1;32m PASS![m\n"
+            echo "$GREEN PASS!$RESET"
         fi
     else
-        echo "[1;33m Ignored.[m"
+        echo "$YELLOW Ignored.$RESET"
     fi
 done
 
 if [ "$TOTAL_RESULT" == "0" ]; then
-    echo "ALL TESTS PASSED!"
+    echo "${GREEN}ALL TESTS PASSED!$RESET"
 else
-    echo "TESTS FAILURE!"
+    echo "${RED}TESTS FAILURE!$RESET"
 fi
 
 exit $TOTAL_RESULT
