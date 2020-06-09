@@ -72,6 +72,7 @@ jobs:
         make check
 
     - name: Archive test results
+      if: always()
       uses: actions/upload-artifact@v2
       with:
         name: Test-Results
