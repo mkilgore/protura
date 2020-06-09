@@ -5,140 +5,33 @@
 # Argument 1: Kernel image
 # Argument 2: First disk image
 # Argument 3: Second disk image
-# Argument 4: logs directory
+# Argument 4: test results directory
 
 KERNEL=$1
 DISK_ONE=$2
 DISK_TWO=$3
-LOGS_DIR=$4
+TEST_RESULTS_DIR=$4
 
-TEST_LOG=$LOGS_DIR/tests.log
 QEMU_PID=
 RET=
 
-function test_prepare {
-    rm $TEST_LOG
-    touch $TEST_LOG
-}
+function test_run {
+    TEST_LOG=$2
+    args=""
 
-function test_two_disks {
-    echo "QEMU: Two IDE disks, one serial"
+    . $1
+
     qemu-system-i386 \
-        -serial file:$TEST_LOG \
+        $args \
         -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
         -display none \
         -no-reboot \
         -kernel $KERNEL \
         -append "ktest.run=true ktest.reboot_after_run=true" \
-        2> /dev/null &
+        2> "$3" &
 
     QEMU_PID=$!
 }
-
-function test_one_disk {
-    echo "QEMU: One IDE disk, one serial"
-    qemu-system-i386 \
-        -serial file:$TEST_LOG  \
-        -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
-        -display none \
-        -no-reboot \
-        -kernel $KERNEL \
-        -append "ktest.run=true ktest.reboot_after_run=true" \
-        2> /dev/null &
-
-    QEMU_PID=$!
-}
-
-function test_two_serial {
-    echo "QEMU: One IDE disk, two serial"
-    qemu-system-i386 \
-        -serial file:$TEST_LOG  \
-        -serial file:./test2.log \
-        -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
-        -display none \
-        -no-reboot \
-        -kernel $KERNEL \
-        -append "ktest.run=true ktest.reboot_after_run=true" \
-        2> /dev/null &
-
-    QEMU_PID=$!
-}
-
-function test_two_network_cards {
-    echo "QEMU: One IDE disk, one serial, two network cards"
-    qemu-system-i386 \
-        -serial file:$TEST_LOG  \
-        -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -display none \
-        -no-reboot \
-        -net nic,model=rtl8139 \
-        -net nic,model=e1000 \
-        -net tap,ifname=tap0,script=no,downscript=no \
-        -kernel $KERNEL \
-        -append "ktest.run=true ktest.reboot_after_run=true" \
-        2> /dev/null &
-
-    QEMU_PID=$!
-}
-
-function test_mem_64m {
-    echo "QEMU: One IDE disk, 64MB of memory"
-    qemu-system-i386 \
-        -m 64M \
-        -serial file:$TEST_LOG  \
-        -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
-        -display none \
-        -no-reboot \
-        -kernel $KERNEL \
-        -append "ktest.run=true ktest.reboot_after_run=true" \
-        2> /dev/null &
-
-    QEMU_PID=$!
-}
-
-function test_mem_256m {
-    echo "QEMU: One IDE disk, 256MB of memory"
-    qemu-system-i386 \
-        -m 256M \
-        -serial file:$TEST_LOG  \
-        -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
-        -display none \
-        -no-reboot \
-        -kernel $KERNEL \
-        -append "ktest.run=true ktest.reboot_after_run=true" \
-        2> /dev/null &
-
-    QEMU_PID=$!
-}
-
-function test_mem_1g {
-    echo "QEMU: One IDE disk, 1GB of memory"
-    qemu-system-i386 \
-        -m 1G \
-        -serial file:$TEST_LOG  \
-        -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
-        -display none \
-        -no-reboot \
-        -kernel $KERNEL \
-        -append "ktest.run=true ktest.reboot_after_run=true" \
-        2> /dev/null &
-
-    QEMU_PID=$!
-}
-
 
 function test_verify {
     unset GREP_COLORS
@@ -146,46 +39,32 @@ function test_verify {
 
     wait $QEMU_PID
 
-    ./scripts/ci/parse_test_output.pl < $TEST_LOG
+    ./scripts/ci/parse_test_output.pl < $1
     RET=$?
 }
 
 TOTAL_RESULT=0
 
-test_prepare
-test_two_disks
-test_verify
-TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+TESTS=$(find ./scripts/ci/ktest/ -name "*.args" | xargs basename -a -s .args)
 
-test_prepare
-test_one_disk
-test_verify
-TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+for test in $TESTS; do
+    TEST_ARGS=./scripts/ci/ktest/$test.args
+    TEST_QEMU_LOG=$TEST_RESULTS_DIR/ktest.$test.qemu.log
+    TEST_QEMU_ERR_LOG=$TEST_RESULTS_DIR/ktest.$test.qemu.err.log
 
-test_prepare
-test_two_serial
-test_verify
-TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+    echo "Running test environment: $test"
 
-test_prepare
-test_two_network_cards
-test_verify
-TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+    rm -fr $TEST_QEMU_LOG
+    touch $TEST_QEMU_LOG
 
-test_prepare
-test_mem_64m
-test_verify
-TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+    rm -fr $TEST_QEMU_ERR_LOG
+    touch $TEST_QEMU_ERR_LOG
 
-test_prepare
-test_mem_256m
-test_verify
-TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+    test_run "$TEST_ARGS" "$TEST_QEMU_LOG" "$TEST_QEMU_ERR_LOG"
+    test_verify "$TEST_QEMU_LOG"
 
-test_prepare
-test_mem_1g
-test_verify
-TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+    TOTAL_RESULT=$(($TOTAL_RESULT + $RET))
+done
 
 if [ "$TOTAL_RESULT" == "0" ]; then
     echo "ALL TESTS PASSED!"

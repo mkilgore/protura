@@ -1,0 +1,5 @@
+args="\
+    -m 256M \
+    -serial file:$TEST_LOG  \
+    -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+"

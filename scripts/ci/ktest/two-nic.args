@@ -1,0 +1,7 @@
+args="\
+    -serial file:$TEST_LOG  \
+    -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+    -net nic,model=rtl8139 \
+    -net nic,model=e1000 \
+    -net tap,ifname=tap0,script=no,downscript=no \
+"

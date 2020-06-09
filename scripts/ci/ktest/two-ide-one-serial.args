@@ -1,0 +1,5 @@
+args="\
+    -serial file:$TEST_LOG \
+    -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+    -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
+"
