@@ -49,8 +49,8 @@ TESTS=$(find ./scripts/ci/ktest/ -name "*.args" | xargs basename -a -s .args)
 
 for test in $TESTS; do
     TEST_ARGS=./scripts/ci/ktest/$test.args
-    TEST_QEMU_LOG=$TEST_RESULTS_DIR/ktest.$test.qemu.log
-    TEST_QEMU_ERR_LOG=$TEST_RESULTS_DIR/ktest.$test.qemu.err.log
+    TEST_QEMU_LOG=$TEST_RESULTS_DIR/$test.qemu.log
+    TEST_QEMU_ERR_LOG=$TEST_RESULTS_DIR/$test.qemu.err.log
 
     echo "Running test environment: $test"
 

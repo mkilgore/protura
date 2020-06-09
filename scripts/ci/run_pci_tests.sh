@@ -58,9 +58,9 @@ for test in $TESTS; do
     TEST_ARGS=./scripts/ci/pci/$test.args
     TEST_EXPECTED=./scripts/ci/pci/$test.table
 
-    TEST_QEMU_LOG=${TEST_PREFIX}/pci.$test.qemu.log
-    TEST_QEMU_ERR_LOG=${TEST_PREFIX}/pci.$test.qemu.err.log
-    TEST_OUTPUT_LOG=${TEST_PREFIX}/pci.$test.output.log
+    TEST_QEMU_LOG=${TEST_PREFIX}/$test.qemu.log
+    TEST_QEMU_ERR_LOG=${TEST_PREFIX}/$test.qemu.err.log
+    TEST_OUTPUT_LOG=${TEST_PREFIX}/$test.output.log
 
     printf "Running PCI test: $test ..."
 
