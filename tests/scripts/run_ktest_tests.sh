@@ -15,6 +15,8 @@ TEST_RESULTS_DIR=$4
 QEMU_PID=
 RET=
 
+. ./tests/scripts/colors.sh
+
 function test_run {
     TEST_LOG=$2
     args=""
@@ -67,9 +69,9 @@ for test in $TESTS; do
 done
 
 if [ "$TOTAL_RESULT" == "0" ]; then
-    echo "ALL TESTS PASSED!"
+    echo "${GREEN}ALL TESTS PASSED!$RESET"
 else
-    echo "TESTS FAILURE!"
+    echo "${RED}TESTS FAILURE!$RESET"
 fi
 
 exit $TOTAL_RESULT
