@@ -18,39 +18,14 @@ DISK_CPY=./obj/disk_cpy.img
 
 . ./tests/scripts/colors.sh
 
-function run_ext2_test {
-    echo "QEMU: Test: $1"
-    timeout 120 qemu-system-i386 \
-        -serial file:$3 \
-        -d cpu_reset \
-        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-        -drive format=raw,file=$DISK_CPY,media=disk,index=1,if=ide \
-        -display none \
-        -no-reboot \
-        -kernel $KERNEL \
-        -append "init=$1 reboot_on_panic=1" \
-        2> /dev/null &
-
-    QEMU_PID=$!
-}
-
-function test_verify {
-    tail --pid $QEMU_PID -n+1 -f $TEST_LOG
-
-    wait $QEMU_PID
-
-    RET=$?
-}
-
 TOTAL_RESULT=0
 
 TESTS=$(find ./userspace/root/tests/ext2/ -name "test_*.sh" | xargs basename -a)
 
 for test in $TESTS; do
     TEST_LOG=${TEST_PREFIX}/$(basename -s .sh $test).qemu.log
+    TEST_ERR_LOG=${TEST_PREFIX}/$(basename -s .sh $test).qemu.err.log
     TEST_E2FSCK_LOG=${TEST_PREFIX}/$(basename -s .sh $test).e2fsck.log
-
-    echo "LOG: $TEST_LOG, e2fsck: $TEST_E2FSCK_LOG"
 
     rm -fr $DISK_CPY
     cp $DISK_TWO $DISK_CPY
@@ -61,8 +36,21 @@ for test in $TESTS; do
     rm -fr $TEST_E2FSCK_LOG
     touch $TEST_E2FSCK_LOG
 
-    run_ext2_test "/tests/ext2/$test" "$DISK_CPY" "$TEST_LOG"
-    test_verify
+    printf "EXT2 test: $test ..."
+
+    timeout 120 qemu-system-i386 \
+        -serial file:$TEST_LOG \
+        -d cpu_reset \
+        -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
+        -drive format=raw,file=$DISK_CPY,media=disk,index=1,if=ide \
+        -display none \
+        -no-reboot \
+        -kernel $KERNEL \
+        -append "init=/tests/ext2/$test reboot_on_panic=1" \
+        2> $TEST_ERR_LOG &
+
+    wait $QEMU_PID
+    RET=$?
 
     if [ "$RET" -ne "0" ]; then
         echo "QEMU TIMEOUT" >> "$TEST_LOG"
@@ -72,7 +60,7 @@ for test in $TESTS; do
         TOTAL_RESULT=$(($TOTAL_RESULT + 1))
     fi
 
-    sudo e2fsck -nfv $DISK_CPY | tee $TEST_E2FSCK_LOG
+    e2fsck -nfv $DISK_CPY > $TEST_E2FSCK_LOG 2>&1
 
     if [ "${PIPESTATUS[0]}" -ne "0" ]; then
         echo "EXT2 FAILURE" >> "$TEST_E2FSCK_LOG"
