@@ -72,7 +72,8 @@ static int __seq_file_fill(struct seq_file *seq)
                 break;
         }
 
-        (seq->ops->end) (seq);
+        if (seq->ops->end)
+            (seq->ops->end) (seq);
 
         /* On -ENOSPC, we simply loop again, which will trigger allocating
          * another page */

@@ -2,6 +2,7 @@
 #define INCLUDE_PROTURA_DRIVERS_PCI_PCI_H
 
 #include <protura/types.h>
+#include <protura/fs/file.h>
 
 struct pci_dev {
     uint8_t bus, slot, func;
@@ -54,5 +55,7 @@ void pci_config_write_uint8(struct pci_dev *dev, uint8_t regno, uint8_t value);
 #define PCI_BAR_IO 0x00000001
 
 size_t pci_bar_size(struct pci_dev *dev, uint8_t bar_reg);
+
+extern const struct file_ops pci_file_ops;
 
 #endif

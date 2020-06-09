@@ -21,6 +21,8 @@
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
 
+#include "internal.h"
+
 static const struct pci_driver pci_drivers[] = {
 #ifdef CONFIG_IDE_DMA_SUPPORT
     {
@@ -53,15 +55,7 @@ static const struct pci_driver pci_drivers[] = {
     }
 };
 
-static list_head_t pci_dev_list = LIST_HEAD_INIT(pci_dev_list);
-
-struct pci_dev_entry {
-    struct pci_dev id;
-    uint8_t class, subclass, procif, revision;
-    uint16_t vendor, device;
-
-    list_node_t pci_dev_node;
-};
+list_head_t pci_dev_list = LIST_HEAD_INIT(pci_dev_list);
 
 #define PCI_CLASS_X \
     X(NONE, "No PCI Class"), \
@@ -227,32 +221,26 @@ static uint32_t pci_get_revision(struct pci_dev *dev)
     return pci_config_read_uint32(dev, 8) & 0xFF;
 }
 
-static void pci_output_name(uint8_t class, uint8_t subclass)
+void pci_get_class_name(uint8_t class, uint8_t subclass, const char **class_name, const char **subclass_name)
 {
-    const char *cla = NULL, *sub = NULL;
+    *class_name = NULL;
+    *subclass_name = NULL;
 
     if (class < ARRAY_SIZE(pci_class_names) && class > 0) {
         if (pci_class_names[class]) {
-            cla = pci_class_names[class];
+            *class_name = pci_class_names[class];
 
             if (pci_class_device_names[class])
                 if (pci_class_device_names[class][subclass])
-                    sub = pci_class_device_names[class][subclass];
+                    *subclass_name = pci_class_device_names[class][subclass];
         }
     }
-
-    if (cla && sub) {
-        kp(KP_NORMAL, "  - %s, %s\n", cla, sub);
-    } else if (cla) {
-        kp(KP_NORMAL, "  - %s\n", cla);
-    }
-
-    return ;
 }
 
 static void pci_create_dev(struct pci_dev *dev)
 {
     struct pci_dev_entry *entry = kzalloc(sizeof(*entry), PAL_KERNEL);
+    const char *cla = NULL, *sub = NULL;
 
     list_node_init(&entry->pci_dev_node);
     entry->id = *dev;
@@ -264,7 +252,13 @@ static void pci_create_dev(struct pci_dev *dev)
     pci_get_device_vendor(dev, &entry->vendor, &entry->device);
 
     kp(KP_NORMAL, "PCI %d:%d:%d - 0x%04x:0x%04x\n", dev->bus, dev->slot, dev->func, entry->vendor, entry->device);
-    pci_output_name(entry->class, entry->subclass);
+
+    pci_get_class_name(entry->class, entry->subclass, &cla, &sub);
+
+    if (cla && sub)
+        kp(KP_NORMAL, "  - %s, %s\n", cla, sub);
+    else if (cla)
+        kp(KP_NORMAL, "  - %s\n", cla);
 
     list_add_tail(&pci_dev_list, &entry->pci_dev_node);
 }

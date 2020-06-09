@@ -21,6 +21,7 @@
 #include <protura/net.h>
 #include <protura/utsname.h>
 #include <protura/klog.h>
+#include <protura/drivers/pci.h>
 
 #include <arch/spinlock.h>
 #include <protura/fs/block.h>
@@ -144,6 +145,7 @@ void procfs_init(void)
     procfs_register_entry(&procfs_root, "mounts", &mount_file_ops);
     procfs_register_entry(&procfs_root, "binfmts", &binfmt_file_ops);
     procfs_register_entry(&procfs_root, "klog", &klog_file_ops);
+    procfs_register_entry(&procfs_root, "pci_devices", &pci_file_ops);
 
     procfs_register_entry_ops(&procfs_root, "uptime", &uptime_ops);
     procfs_register_entry_ops(&procfs_root, "boottime", &boot_time_ops);
