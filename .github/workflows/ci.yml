@@ -64,12 +64,28 @@ jobs:
         ./scripts/ci/travis_extra_gcc.sh
 
     - name: Build raw disk image
+      id: build-os
       run: make disk
 
+    - name: Setup tuntap device
+      if: always() && steps.build-os.outcome == 'success'
+      run: ./scripts/ci/setup_tuntap.sh
+
     - name: Run Kernel Tests
-      run: |
-        ./scripts/ci/setup_tuntap.sh
-        make check
+      if: always() && steps.build-os.outcome == 'success'
+      run: make check-kernel
+
+    - name: Run UAPI Tests
+      if: always() && steps.build-os.outcome == 'success'
+      run: make check-uapi
+
+    - name: Run PCI Tests
+      if: always() && steps.build-os.outcome == 'success'
+      run: make check-pci
+
+    - name: Run EXT2 Tests
+      if: always() && steps.build-os.outcome == 'success'
+      run: make check-ext2
 
     - name: Archive test results
       if: always()
