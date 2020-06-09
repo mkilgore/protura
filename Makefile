@@ -144,29 +144,35 @@ CPPFLAGS += -I'$(tree)/include/'
 make_name = $(subst /,_,$(basename $(tree)/$1))
 
 define dir_rule
-$(1): | $(2)
+$(1): | $$(abspath $(1)/..)
+	@echo " MKDIR   $$@"
+	$$(Q)$$(MKDIR) $$@
+endef
+
+define dir_rule_root
+$(1):
 	@echo " MKDIR   $$@"
 	$$(Q)$$(MKDIR) $$@
 endef
 
 # Define rules for all the basic directories, and all the directories in the
 # resulting disk structure
-$(eval $(call dir_rule,$(OBJ_DIR),))
-$(eval $(call dir_rule,$(BIN_DIR),))
+$(eval $(call dir_rule_root,$(OBJ_DIR)))
+$(eval $(call dir_rule_root,$(BIN_DIR)))
 
-$(eval $(call dir_rule,$(KERNEL_DIR),$(BIN_DIR)))
-$(eval $(call dir_rule,$(IMGS_DIR),$(BIN_DIR)))
-$(eval $(call dir_rule,$(LOGS_DIR),$(BIN_DIR)))
-$(eval $(call dir_rule,$(TEST_RESULTS_DIR),$(BIN_DIR)))
-$(eval $(call dir_rule,$(BIN_DIR)/toolchain,$(BIN_DIR)))
+$(eval $(call dir_rule,$(KERNEL_DIR)))
+$(eval $(call dir_rule,$(IMGS_DIR)))
+$(eval $(call dir_rule,$(LOGS_DIR)))
+$(eval $(call dir_rule,$(TEST_RESULTS_DIR)))
+$(eval $(call dir_rule,$(BIN_DIR)/toolchain))
 
-$(eval $(call dir_rule,$(DISK_MOUNT),$(OBJ_DIR)))
-$(eval $(call dir_rule,$(DISK_ROOT),$(OBJ_DIR)))
-$(eval $(call dir_rule,$(DISK_ROOT)/bin,$(DISK_ROOT)))
-$(eval $(call dir_rule,$(DISK_ROOT)/usr,$(DISK_ROOT)))
-$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET),$(DISK_ROOT)/usr))
-$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET)/include,$(DISK_ROOT)/usr/$(TARGET)))
-$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET)/lib,$(DISK_ROOT)/usr/$(TARGET)))
+$(eval $(call dir_rule,$(DISK_MOUNT)))
+$(eval $(call dir_rule,$(DISK_ROOT)))
+$(eval $(call dir_rule,$(DISK_ROOT)/bin))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET)))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET)/include))
+$(eval $(call dir_rule,$(DISK_ROOT)/usr/$(TARGET)/lib))
 
 define add_dep
 $(1): $(2)
