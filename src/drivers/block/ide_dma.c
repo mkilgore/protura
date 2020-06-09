@@ -102,7 +102,7 @@ void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev)
 
     kp(KP_NORMAL, "Found Intel PIIX3 IDE DMA PCI device: "PRpci_dev"\n", Ppci_dev(dev));
 
-    command_reg = pci_config_read_uint16(dev, PCI_COMMAND);
+    command_reg = pci_config_read_uint16(dev, PCI_REG_COMMAND);
 
     kp(KP_NORMAL, "  PCI CMD: 0x%04x\n", command_reg);
 
@@ -113,7 +113,7 @@ void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev)
     kp(KP_NORMAL, "  BAR4: 0x%04x\n", info->dma_io_base);
     kp(KP_NORMAL, "  Timing: 0x%08x\n", pci_config_read_uint32(dev, 0x40));
 
-    pci_config_write_uint16(dev, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_IO_SPACE);
+    pci_config_write_uint16(dev, PCI_REG_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_IO_SPACE);
     kp(KP_NORMAL, "  PCI BUS MASTERING ENABLED\n");
 
     outb(info->dma_io_base + IDE_DMA_IO_STAT1, inb(info->dma_io_base + IDE_DMA_IO_STAT1) | (0x30));

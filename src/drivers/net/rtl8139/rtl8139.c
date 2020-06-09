@@ -165,8 +165,8 @@ void rtl_device_init(struct pci_dev *dev)
     rtl->net.name = "eth";
     rtl->dev = *dev;
 
-    command_reg = pci_config_read_uint16(dev, PCI_COMMAND);
-    pci_config_write_uint16(dev, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_IO_SPACE);
+    command_reg = pci_config_read_uint16(dev, PCI_REG_COMMAND);
+    pci_config_write_uint16(dev, PCI_REG_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_IO_SPACE);
 
     int_line = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
     kp(KP_NORMAL, "  Interrupt: %d\n", int_line);

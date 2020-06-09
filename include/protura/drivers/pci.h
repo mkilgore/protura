@@ -30,11 +30,15 @@ void pci_config_write_uint8(struct pci_dev *dev, uint8_t regno, uint8_t value);
 #define PCI_REG_BAR(x) (0x10 + ((x) * 4))
 #define PCI_REG_INTERRUPT_LINE (0x3C)
 
-#define PCI_VENDOR_ID   0x00
-#define PCI_DEVICE_ID   0x02
-#define PCI_COMMAND     0x04
-#define PCI_STATUS      0x06
-#define PCI_REVISION_ID 0x08
+#define PCI_REG_VENDOR_ID   0x00
+#define PCI_REG_DEVICE_ID   0x02
+#define PCI_REG_COMMAND     0x04
+#define PCI_REG_STATUS      0x06
+#define PCI_REG_REVISION_ID 0x08
+#define PCI_REG_PROG_IF     0x09
+#define PCI_REG_SUBCLASS    0x0A
+#define PCI_REG_CLASS       0x0B
+#define PCI_REG_HEADER_TYPE 0x0E
 
 
 /*

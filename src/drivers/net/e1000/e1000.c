@@ -293,8 +293,8 @@ void e1000_device_init(struct pci_dev *dev)
     e1000->dev = *dev;
 
     /* Enable BUS Mastering and I/O Space*/
-    command_reg = pci_config_read_uint16(dev, PCI_COMMAND);
-    pci_config_write_uint16(dev, PCI_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_MEM_SPACE);
+    command_reg = pci_config_read_uint16(dev, PCI_REG_COMMAND);
+    pci_config_write_uint16(dev, PCI_REG_COMMAND, command_reg | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_MEM_SPACE);
 
     if (pci_config_read_uint32(dev, PCI_REG_BAR(0)) & PCI_BAR_IO) {
         e1000->io_base = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFF8;
