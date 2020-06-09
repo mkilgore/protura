@@ -16,6 +16,8 @@ QEMU_PID=
 RET=
 DISK_CPY=./obj/disk_cpy.img
 
+. ./tests/scripts/colors.sh
+
 function run_ext2_test {
     echo "QEMU: Test: $1"
     timeout 120 qemu-system-i386 \
@@ -64,7 +66,9 @@ for test in $TESTS; do
 
     if [ "$RET" -ne "0" ]; then
         echo "QEMU TIMEOUT" >> "$TEST_LOG"
-        echo "[1;31mQEMU TIMEOUT, DISK LIKELY NOT SYNCED, FAILURE!![m"
+
+        printf "$RED QEMU TIMEOUT, DISK LIKELY NOT SYNCED, FAILURE!!$RESET ..."
+
         TOTAL_RESULT=$(($TOTAL_RESULT + 1))
     fi
 
@@ -72,19 +76,24 @@ for test in $TESTS; do
 
     if [ "${PIPESTATUS[0]}" -ne "0" ]; then
         echo "EXT2 FAILURE" >> "$TEST_E2FSCK_LOG"
-        echo "[1;31mEXT2 FILE SYSTEM ERRORS![m"
+
+        echo "$RED EXT2 FILE SYSTEM ERRORS!$RESET"
+        echo "e2fsck results:"
+        cat $TEST_E2FSCK_LOG
+
         TOTAL_RESULT=$(($TOTAL_RESULT + 1))
     else
         echo "EXT2 PASS" >> "$TEST_E2FSCK_LOG"
+        echo "$GREEN PASS!$RESET"
     fi
 done
 
 rm $DISK_CPY
 
 if [ "$TOTAL_RESULT" == "0" ]; then
-    echo "ALL TESTS PASSED!"
+    echo "${GREEN}ALL TESTS PASSED!$RESET"
 else
-    echo "TESTS FAILURE!"
+    echo "${RED}TESTS FAILURE!$RESET"
 fi
 
 exit $TOTAL_RESULT
