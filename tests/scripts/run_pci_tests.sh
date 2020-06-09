@@ -49,7 +49,7 @@ function run_ext2_test {
 function dump_kernel_log {
     unset GREP_COLORS
 
-    cat "$1" | GREP_COLOR="1;32" grep --line-buffered --color=always -E "PASS|$" | GREP_COLOR="1;31" grep --line-buffered --color=always -E "FAIL|PANIC|$"
+    cat "$1" | GREP_COLOR="1;31" grep --line-buffered --color=always -E "^.*\[E\].*$|$"
 }
 
 TOTAL_RESULT=0
