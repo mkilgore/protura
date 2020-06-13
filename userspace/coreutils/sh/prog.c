@@ -92,7 +92,6 @@ int prog_run(struct prog_desc *prog)
 
     prog->pid = fork_pgrp(prog->pgid);
 
-
     if (prog->pid == -1)
         return 1; /* fork() returned an error - abort */
 

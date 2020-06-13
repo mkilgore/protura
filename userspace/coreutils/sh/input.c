@@ -29,29 +29,31 @@ struct job *current_job;
  * On EOF it returns NULL */
 static char *get_next_line(void)
 {
-    size_t buf_len = 0;
     char *line = NULL;
 
-    char prompt_buf[1024];
-    snprintf(prompt_buf, sizeof(prompt_buf), "%s $ ", cwd);
-
     if (interactive) {
+        char prompt_buf[1024];
+        snprintf(prompt_buf, sizeof(prompt_buf), "%s $ ", cwd);
+
         line = readline_lite(prompt_buf);
 
         if (*line)
             history_add(line);
     } else {
-        printf("%s", prompt_buf);
+        size_t buf_len = 0;
         ssize_t len = getline(&line, &buf_len, inp_file);
 
-        if (len == 0) {
+        /* EOF */
+        if (len == -1) {
             free(line);
             return NULL;
         }
 
-        /* Remove the newline at the end */
-        line[len - 1] = '\0';
-        len--;
+        if (len > 0) {
+            /* Remove the newline at the end */
+            line[len - 1] = '\0';
+            len--;
+        }
     }
 
     return line;
