@@ -84,6 +84,19 @@ static inline int block_waiting(struct block *b)
 struct block *bread(dev_t, sector_t);
 void brelease(struct block *);
 
+struct block *bread2(dev_t, sector_t);
+void brelease2(struct block *);
+void block_wait_for_sync(struct block *);
+
+static inline struct block *block_dup(struct block *b)
+{
+    atomic_inc(&b->refs);
+    return b;
+}
+
+#define using_block2(dev, sector, block) \
+    using_nocheck(((block) = bread2(dev, sector)), (brelease2(block)))
+
 #define using_block(dev, sector, block) \
     using_nocheck(((block) = bread(dev, sector)), (brelease(block)))
 
@@ -105,6 +118,7 @@ static inline void partition_init(struct partition *part)
 
 struct block_device_ops {
     void (*sync_block) (struct block_device *, struct block *b);
+    void (*sync_block_async) (struct block_device *, struct block *b);
 };
 
 enum block_device_flags{
@@ -128,7 +142,6 @@ struct block_device {
     struct file_ops *fops;
 };
 
-
 extern struct file_ops block_dev_file_ops_generic;
 
 int block_dev_file_open_generic(struct inode *dev, struct file *filp);
@@ -151,6 +164,9 @@ size_t block_dev_get_device_size(dev_t device);
 
 void block_dev_clear(dev_t dev);
 void block_dev_sync(struct block_device *, dev_t, int wait);
+void block_dev2_clear(dev_t dev);
+void block_dev2_sync(struct block_device *, dev_t, int wait);
+
 
 #define BLOCK_CRC_POLY CRC_ANSI_POLY
 
@@ -181,6 +197,19 @@ static inline void block_dev_sync_block(struct block_device *dev, struct block *
         (dev->ops->sync_block) (dev, b);
         block_set_crc(b);
     }
+}
+
+static inline void block_dev_sync_block_async(struct block_device *dev, struct block *b)
+{
+    kassert(mutex_is_locked(&b->block_mutex), "!!!block_dev_sync_block_async called with an unlocked block!!!");
+
+    if (!flag_test(&b->flags, BLOCK_VALID) || flag_test(&b->flags, BLOCK_DIRTY))
+        (dev->ops->sync_block_async) (dev, b);
+}
+
+static inline void block_submit(struct block *b)
+{
+    block_dev_sync_block_async(b->bdev, b);
 }
 
 static inline void block_lock(struct block *b)

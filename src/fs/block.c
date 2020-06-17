@@ -53,11 +53,6 @@ static void __block_uncache(struct block *b)
     list_del(&b->block_lru_node);
     list_del(&b->bdev_blocks_entry);
 
-    if (list_node_is_in_list(&b->block_sync_node)) {
-        list_del(&b->block_sync_node);
-        atomic_dec(&b->refs);
-    }
-
     block_cache.cache_count--;
 }
 
@@ -117,17 +112,22 @@ void __block_cache_shrink(void)
         if (atomic_get(&b->refs) != 0)
             continue;
 
-        /* Because we're holding the block_cache.lock, it's impossible for
-         * anybody to acquire a new reference to this block Sync it if
-         * necessary, and drop it */
-
-        (b->bdev->ops->sync_block) (b->bdev, b);
+        if (!flag_test(&b->flags, BLOCK_DIRTY)) {
+            block_unlock(b);
+            continue;
+        }
 
         /* Remove this block from the cache */
         __block_uncache(b);
 
         block_delete(b);
     }
+}
+
+void block_wait_for_sync(struct block *b)
+{
+    block_lock(b);
+    block_unlock(b);
 }
 
 static struct block *__bread(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
@@ -187,19 +187,46 @@ struct block *bread(dev_t device, sector_t sector)
         list_add(&block_cache.lru, &b->block_lru_node);
     }
 
-    /* We can't attempt to lock the block while we have block_cache.lock, or
-     * else we might sleep with the block_cache still locked, which will bring
-     * any block-IO to a halt until we're woke-up.
-     *
-     * Note that even if we sleep, this block will always be valid when we're
-     * woke-up because a block won't be removed from the cache unless it has an
-     * empty wait_queue. */
     block_lock(b);
 
     if (!flag_test(&b->flags, BLOCK_VALID))
         block_dev_sync_block(b->bdev, b);
 
     return b;
+}
+
+struct block *bread2(dev_t device, sector_t sector)
+{
+    struct block *b;
+    struct block_device *dev = block_dev_get(device);
+
+    if (!dev)
+        return NULL;
+
+    using_mutex(&block_cache.lock) {
+        b = __bread(device, dev, block_dev_get_block_size(device), sector);
+
+        if (list_node_is_in_list(&b->block_lru_node))
+            list_del(&b->block_lru_node);
+        list_add(&block_cache.lru, &b->block_lru_node);
+    }
+
+    /* We can check this without the lock because BLOCK_VALID is never removed
+     * once set */
+    if (!flag_test(&b->flags, BLOCK_VALID)) {
+        block_lock(b);
+        block_dev_sync_block_async(b->bdev, b);
+
+        /* Wait for syncing */
+        block_wait_for_sync(b);
+    }
+
+    return b;
+}
+
+void brelease2(struct block *b)
+{
+    atomic_dec(&b->refs);
 }
 
 void brelease(struct block *b)
@@ -228,13 +255,137 @@ void block_dev_clear(dev_t dev)
     }
 }
 
+/* Protects the 'b->block_sync_node' entries.
+ * Ordering:
+ *   sync_lock
+ *     block_cache.lock
+ */
+static mutex_t sync_lock = MUTEX_INIT(sync_lock);
+
+void block_dev2_clear(dev_t dev)
+{
+    struct block_device *bdev = block_dev_get(dev);
+    struct block *b;
+
+    block_dev_sync2(bdev, dev, 1);
+
+    using_mutex(&block_cache.lock) {
+        list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
+            if (dev != DEV_NONE && b->dev != dev)
+                continue;
+
+            if (block_try_lock(b) != SUCCESS || atomic_get(&b->refs) != 0 || flag_test(&b->flags, BLOCK_DIRTY)) {
+                BUG("BLOCK: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
+                continue;
+            }
+
+            __block_uncache(b);
+            block_delete(b);
+        }
+    }
+}
+
+void block_dev2_sync(struct block_device *bdev, dev_t dev, int wait)
+{
+    list_head_t sync_list = LIST_HEAD_INIT(sync_list);
+    struct block *b;
+
+    using_mutex(&sync_lock) {
+        using_mutex(&block_cache.lock) {
+            /* Note that this looping is safe because we always ensure we have a
+             * reference to a block before dropping the `block_cache.lock`, which
+             * means the current node will always be present when we're done */
+            list_foreach_entry(&bdev->blocks, b, bdev_blocks_entry) {
+                if (dev != DEV_NONE && b->dev != dev)
+                    continue;
+
+                atomic_inc(&b->refs);
+                not_using_mutex(&block_cache.lock) {
+                    block_lock(b);
+
+                    if (flag_test(&b->flags, BLOCK_VALID) && flag_test(&b->flags, BLOCK_DIRTY)) {
+                        block_dev_sync_block_async(b->bdev, b);
+                        if (wait) {
+                            atomic_inc(&b->refs);
+                            list_add_tail(&sync_list, &b->block_sync_node);
+                        }
+                    } else {
+                        block_unlock(b);
+                    }
+                }
+                atomic_dec(&b->refs);
+            }
+        }
+
+        if (!wait)
+            return;
+
+        while (!list_empty(&sync_list)) {
+            b = list_take_first(&sync_list, struct block, block_sync_node);
+
+            /* Wait for block to be synced, and then drop reference */
+            block_wait_for_sync(b);
+            atomic_dec(&b->refs);
+        }
+    }
+}
+
+void block_sync_all(int wait)
+{
+    list_head_t sync_list = LIST_HEAD_INIT(sync_list);
+    struct block *b;
+
+    using_mutex(&sync_lock) {
+        using_mutex(&block_cache.lock) {
+            int hash;
+
+            /* Note that this looping is safe because we always ensure we have a
+             * reference to a block before dropping the `block_cache.lock`, which
+             * means the current node will always be present when we're done */
+            for (hash = 0; hash < BLOCK_HASH_TABLE_SIZE; hash++) {
+                hlist_foreach_entry(block_cache.cache + hash, b, cache) {
+
+                    atomic_inc(&b->refs);
+                    not_using_mutex(&block_cache.lock) {
+                        block_lock(b);
+
+                        if (flag_test(&b->flags, BLOCK_VALID) && flag_test(&b->flags, BLOCK_DIRTY)) {
+                            block_dev_sync_block_async(b->bdev, b);
+                            if (wait) {
+                                atomic_inc(&b->refs);
+                                list_add_tail(&sync_list, &b->block_sync_node);
+                            }
+                        } else {
+                            block_unlock(b);
+                        }
+                    }
+                    atomic_dec(&b->refs);
+                }
+            }
+        }
+
+        if (!wait)
+            return;
+
+        while (!list_empty(&sync_list)) {
+            b = list_take_first(&sync_list, struct block, block_sync_node);
+
+            /* Wait for block to be synced, and then drop reference */
+            block_wait_for_sync(b);
+            atomic_dec(&b->refs);
+        }
+    }
+}
+
 void block_dev_sync(struct block_device *bdev, dev_t dev, int wait)
 {
-    /* we cannot wait on a block while holding the lock block_cache.lock, so to avoid this issue */
     list_head_t sync_list = LIST_HEAD_INIT(sync_list);
     struct block *b;
 
     using_mutex(&block_cache.lock) {
+        /* Note that this looping is safe because we always ensure we have a
+         * reference to a block before dropping the `block_cache.lock`, which
+         * means the current node will always be present when we're done */
         list_foreach_entry(&bdev->blocks, b, bdev_blocks_entry) {
             if (dev != DEV_NONE && b->dev != dev)
                 continue;
