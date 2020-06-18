@@ -58,13 +58,13 @@ static void exec_user(struct passwd_entry *user)
     setenv("HOME", user->home_dir, 1);
     setenv("USER", user->username, 1);
 
-    setgroups(group_count, gids);
-
-    setgid(user->gid);
-    setuid(user->uid);
+    /* Prepend a '-' to the first argument to tell the shell this is a login shell */
+    size_t new_len = strlen(user->shell) + 2;
+    char *dash_shell = malloc(new_len);
+    snprintf(dash_shell, new_len, "-%s", user->shell);
 
     /* setuid and then execute the shell */
-    char **args = (char *[]) { user->shell, NULL };
+    char **args = (char *[]) { dash_shell, NULL };
     execv(user->shell, args);
     exit(1);
 }
