@@ -56,6 +56,7 @@ COREUTILS_PROG_LIST = \
 	grep \
 	reboot \
 	run_test \
+	chmod \
 
 COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROG_LIST))
 
