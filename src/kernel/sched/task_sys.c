@@ -133,6 +133,7 @@ pid_t sys_waitpid(pid_t childpid, struct user_buffer wstatus, int options)
     struct task *child = NULL;
     struct task *t = cpu_get_local()->current;
     int ret_status = 0;
+    pid_t child_pid = -1;
 
     /* We enter a 'sleep loop' here. We sleep until we're woke-up directly,
      * which is fine because we're waiting for any children to call sys_exit(),
@@ -170,6 +171,7 @@ pid_t sys_waitpid(pid_t childpid, struct user_buffer wstatus, int options)
 
                     kill_child = 1;
                     have_child = 1;
+                    child_pid = child->pid;
                     break;
                 }
 
@@ -183,6 +185,7 @@ pid_t sys_waitpid(pid_t childpid, struct user_buffer wstatus, int options)
 
                     child->ret_signal = 0;
                     have_child = 1;
+                    child_pid = child->pid;
                     break;
                 }
 
@@ -195,6 +198,7 @@ pid_t sys_waitpid(pid_t childpid, struct user_buffer wstatus, int options)
 
                     child->ret_signal = 0;
                     have_child = 1;
+                    child_pid = child->pid;
                     break;
                 }
             }
@@ -224,7 +228,7 @@ pid_t sys_waitpid(pid_t childpid, struct user_buffer wstatus, int options)
             return ret;
     }
 
-    return child->pid;
+    return child_pid;
 }
 
 int sys_dup(int oldfd)
