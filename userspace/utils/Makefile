@@ -23,6 +23,7 @@ UTILS_SRCS := \
 	$(UTILS_BASE_DIR)/socket_test.c \
 	$(UTILS_BASE_DIR)/color_test.c \
 	$(UTILS_BASE_DIR)/tcp_test.c \
+	$(UTILS_BASE_DIR)/sync_test.c \
 
 UTILS_OBJS := $(UTILS_SRCS:.c=.o)
 UTILS_EXTRA_OBJS :=
