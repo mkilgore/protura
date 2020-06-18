@@ -155,10 +155,17 @@ int vfs_write(struct file *filp, struct user_buffer buf, size_t len)
     if (S_ISDIR(filp->inode->mode))
         return -EISDIR;
 
-    if (file_has_write(filp))
+    if (file_has_write(filp)) {
+        if (S_ISREG(filp->inode->mode)) {
+            int ret = vfs_apply_attributes(filp->inode, F(INODE_ATTR_RM_SGID, INODE_ATTR_RM_SUID, INODE_ATTR_FORCE), NULL);
+            if (ret)
+                return ret;
+        }
+
         return filp->ops->write(filp, buf, len);
-    else
+    } else {
         return -ENOTSUP;
+    }
 }
 
 off_t vfs_lseek(struct file *filp, off_t off, int whence)
@@ -196,10 +203,17 @@ int vfs_truncate(struct inode *inode, off_t length)
     if (ret)
         return ret;
 
-    if (inode_has_truncate(inode))
+    if (inode_has_truncate(inode)) {
+        if (S_ISREG(inode->mode)) {
+            int ret = vfs_apply_attributes(inode, F(INODE_ATTR_RM_SGID, INODE_ATTR_RM_SUID, INODE_ATTR_FORCE), NULL);
+            if (ret)
+                return ret;
+        }
+
         return inode->ops->truncate(inode, length);
-    else
+    } else {
         return -ENOTSUP;
+    }
 }
 
 sector_t vfs_bmap(struct inode *inode, sector_t s)
