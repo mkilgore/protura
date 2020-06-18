@@ -17,6 +17,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <errno.h>
 
 #include "shell.h"
@@ -182,6 +183,29 @@ static int export(struct prog_desc *prog)
     return 0;
 }
 
+static int set_umask(struct prog_desc *prog)
+{
+    if (prog->argc <= 1) {
+        mode_t mask = umask(0);
+        umask(mask);
+
+        dprintf(prog->stdout_fd, "%04o\n", mask);
+        return 0;
+    }
+
+    char *endp;
+    mode_t new_mask = strtol(prog->argv[1], &endp, 8);
+
+    if (*endp) {
+        dprintf(prog->stderr_fd, "umask: not a valid mask \"%s\"\n", prog->argv[1]);
+        return 1;
+    }
+
+    umask(new_mask);
+
+    return 0;
+}
+
 static struct builtin_cmd cmds[] = {
     { .id = "cd", .cmd = cd },
     { .id = "echo", .cmd = echo },
@@ -190,6 +214,7 @@ static struct builtin_cmd cmds[] = {
     { .id = "fg", .cmd = job_fg },
     { .id = "bg", .cmd = job_bg },
     { .id = "export", .cmd = export },
+    { .id = "umask", .cmd = set_umask },
     { .id = NULL, .cmd = NULL }
 };
 
