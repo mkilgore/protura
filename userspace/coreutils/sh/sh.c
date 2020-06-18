@@ -49,6 +49,8 @@ static const struct arg args[] = {
 #undef X
 };
 
+int is_login_shell = 0;
+
 char *cwd;
 char **sh_args;
 int sh_argc;
@@ -87,6 +89,9 @@ int main(int argc, char **argv)
         }
     }
 
+    if (argv[0] && argv[0][0] == '-')
+        is_login_shell = 1;
+
     sigemptyset(&blocked);
     sigaddset(&blocked, SIGCHLD);
 
@@ -107,6 +112,9 @@ int main(int argc, char **argv)
         cwd_len *= 2;
         cwd = realloc(cwd, cwd_len);
     }
+
+    if (is_login_shell)
+        load_script("/etc/profile");
 
     if (is_script)
         script_input_loop(fd);
