@@ -534,7 +534,7 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
         symlink->blocks = 1;
         s = ext2_bmap_alloc(symlink, 0);
 
-        using_block(symlink->sb->dev, s, b) {
+        using_block_locked(symlink->sb->dev, s, b) {
             strcpy(b->data, symlink_target);
             block_mark_dirty(b);
         }

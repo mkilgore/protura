@@ -67,7 +67,7 @@ int fs_file_generic_pread(struct file *filp, struct user_buffer buf, size_t size
              * every position to save space. */
             if (on_dev != SECTOR_INVALID) {
                 int err;
-                using_block(dev, on_dev, b)
+                using_block_locked(dev, on_dev, b)
                     err = user_memcpy_from_kernel(user_buffer_index(buf, have_read), b->data + sec_off, left);
 
                 if (err)
@@ -148,13 +148,15 @@ int fs_file_generic_write(struct file *filp, struct user_buffer buf, size_t size
                             len - have_written;
 
 
-            using_block(dev, on_dev, b) {
-                int err = user_memcpy_to_kernel(b->data + sec_off, user_buffer_index(buf, have_written), left);
-                block_mark_dirty(b);
+            int err;
 
-                if (err)
-                    return err;
+            using_block_locked(dev, on_dev, b) {
+                err = user_memcpy_to_kernel(b->data + sec_off, user_buffer_index(buf, have_written), left);
+                block_mark_dirty(b);
             }
+
+            if (err)
+                return err;
 
             have_written += left;
 

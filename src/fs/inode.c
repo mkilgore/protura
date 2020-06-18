@@ -71,7 +71,7 @@ int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct
 
             s = vfs_bmap(dir, i);
 
-            using_block(dev, s, b)
+            using_block_locked(dev, s, b)
                 found_entry = check_ents_in_block(b, ents_to_check, name, len, &found);
         }
     }

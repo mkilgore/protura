@@ -76,8 +76,6 @@ static struct block *block_new(void)
     list_node_init(&b->bdev_blocks_entry);
     list_node_init(&b->block_sync_node);
 
-    wait_queue_init(&b->queue);
-
     atomic_init(&b->refs, 0);
 
     return b;
@@ -267,7 +265,7 @@ void block_dev2_clear(dev_t dev)
     struct block_device *bdev = block_dev_get(dev);
     struct block *b;
 
-    block_dev_sync2(bdev, dev, 1);
+    block_dev2_sync(bdev, dev, 1);
 
     using_mutex(&block_cache.lock) {
         list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
@@ -275,7 +273,7 @@ void block_dev2_clear(dev_t dev)
                 continue;
 
             if (block_try_lock(b) != SUCCESS || atomic_get(&b->refs) != 0 || flag_test(&b->flags, BLOCK_DIRTY)) {
-                BUG("BLOCK: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
+                kp(KP_WARNING, "BLOCK: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
                 continue;
             }
 

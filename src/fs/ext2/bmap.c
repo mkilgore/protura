@@ -37,7 +37,7 @@ static sector_t __ext2_mark_block(struct ext2_super_block *sb)
 
         kp_ext2(sb, "Group: %d, block bitmap: %d\n", i, sb->groups[i].block_nr_block_bitmap);
 
-        using_block(sb->sb.dev, sb->groups[i].block_nr_block_bitmap, b) {
+        using_block_locked(sb->sb.dev, sb->groups[i].block_nr_block_bitmap, b) {
             int location = bit_find_first_zero(b->data, sb->block_size);
 
             kp_ext2(sb, "First zero: %d\n", location);
@@ -80,7 +80,7 @@ void ext2_block_release(struct ext2_super_block *sb, struct ext2_inode *inode, s
     struct block *b;
 
     using_super_block(&sb->sb) {
-        using_block(sb->sb.dev, sb->groups[group].block_nr_block_bitmap, b) {
+        using_block_locked(sb->sb.dev, sb->groups[group].block_nr_block_bitmap, b) {
             bit_clear(b->data, index);
             sb->groups[group].block_unused_total++;
 
@@ -102,7 +102,7 @@ static sector_t ext2_alloc_block_zero(struct ext2_super_block *sb, struct ext2_i
     struct block *b;
     sector_t iblock = ext2_block_alloc(sb);
 
-    using_block(sb->sb.dev, iblock, b) {
+    using_block_locked(sb->sb.dev, iblock, b) {
         memset(b->data, 0, b->block_size);
         block_mark_dirty(b);
     }
@@ -125,7 +125,7 @@ static void ext2_map_indirect(struct ext2_super_block *sb, struct ext2_inode *in
     }
 
     kp_ext2(sb, "Mapping to indirect block(idx %d) ptr idx %d -> %d\n", single_blk, direct_blk, alloc_sector);
-    using_block(sb->sb.dev, inode->blk_ptrs_single[single_blk], b) {
+    using_block_locked(sb->sb.dev, inode->blk_ptrs_single[single_blk], b) {
         ((uint32_t *)b->data)[direct_blk] = alloc_sector;
         block_mark_dirty(b);
     }
@@ -145,21 +145,21 @@ static void ext2_map_dindirect(struct ext2_super_block *sb, struct ext2_inode *i
         kp_ext2(sb, "Mapping double-indirect ptr: %d\n", inode->blk_ptrs_double[double_blk]);
     }
 
-    using_block(sb->sb.dev, inode->blk_ptrs_double[double_blk], b)
+    using_block_locked(sb->sb.dev, inode->blk_ptrs_double[double_blk], b)
         indirect_block = ((uint32_t *)b->data)[single_blk];
 
     if (!indirect_block) {
         indirect_block = ext2_alloc_block_zero(sb, inode);
         kp_ext2(sb, "Mapping d-indirect ptr: %d\n", indirect_block);
 
-        using_block(sb->sb.dev, inode->blk_ptrs_double[double_blk], b) {
+        using_block_locked(sb->sb.dev, inode->blk_ptrs_double[double_blk], b) {
             ((uint32_t *)b->data)[single_blk] = indirect_block;
             block_mark_dirty(b);
         }
     }
 
     kp_ext2(sb, "Mapping to dindirect idx %d -> indirect idx %d -> direct idx %d\n", double_blk, single_blk, direct_blk);
-    using_block(sb->sb.dev, indirect_block, b) {
+    using_block_locked(sb->sb.dev, indirect_block, b) {
         ((uint32_t *)b->data)[direct_blk] = alloc_sector;
         block_mark_dirty(b);
     }
@@ -178,31 +178,31 @@ static void ext2_map_tindirect(struct ext2_super_block *sb, struct ext2_inode *i
     if (!inode->blk_ptrs_triple[triple_blk])
         inode->blk_ptrs_triple[triple_blk] = ext2_alloc_block_zero(sb, inode);
 
-    using_block(sb->sb.dev, inode->blk_ptrs_triple[triple_blk], b)
+    using_block_locked(sb->sb.dev, inode->blk_ptrs_triple[triple_blk], b)
         dindrect_block = ((uint32_t *)b->data)[double_blk];
 
     if (!dindrect_block) {
         dindrect_block = ext2_alloc_block_zero(sb, inode);
 
-        using_block(sb->sb.dev, inode->blk_ptrs_triple[triple_blk], b) {
+        using_block_locked(sb->sb.dev, inode->blk_ptrs_triple[triple_blk], b) {
             ((uint32_t *)b->data)[double_blk] = dindrect_block;
             block_mark_dirty(b);
         }
     }
 
-    using_block(sb->sb.dev, dindrect_block, b)
+    using_block_locked(sb->sb.dev, dindrect_block, b)
         indirect_block = ((uint32_t *)b->data)[single_blk];
 
     if (!indirect_block) {
         indirect_block = ext2_alloc_block_zero(sb, inode);
 
-        using_block(sb->sb.dev, dindrect_block, b) {
+        using_block_locked(sb->sb.dev, dindrect_block, b) {
             ((uint32_t *)b->data)[single_blk] = indirect_block;
             block_mark_dirty(b);
         }
     }
 
-    using_block(sb->sb.dev, indirect_block, b) {
+    using_block_locked(sb->sb.dev, indirect_block, b) {
         ((uint32_t *)b->data)[direct_blk] = alloc_sector;
         block_mark_dirty(b);
     }
@@ -234,7 +234,7 @@ sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
         if (!inode->blk_ptrs_single[single_blk])
             goto return_sector;
 
-        using_block(dev, inode->blk_ptrs_single[single_blk], b)
+        using_block_locked(dev, inode->blk_ptrs_single[single_blk], b)
             ret = ((uint32_t *)b->data)[direct_blk];
 
         goto return_sector;
@@ -251,13 +251,13 @@ sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
         if (!inode->blk_ptrs_double[double_blk])
             goto return_sector;
 
-        using_block(dev, inode->blk_ptrs_double[double_blk], b)
+        using_block_locked(dev, inode->blk_ptrs_double[double_blk], b)
             ret = ((uint32_t *)b->data)[single_blk];
 
         if (!ret)
             goto return_sector;
 
-        using_block(dev, ret, b)
+        using_block_locked(dev, ret, b)
             ret = ((uint32_t *)b->data)[direct_blk];
 
         goto return_sector;
@@ -275,19 +275,19 @@ sector_t ext2_bmap(struct inode *i, sector_t inode_sector)
         if (!inode->blk_ptrs_triple[triple_blk])
             goto return_sector;
 
-        using_block(dev, inode->blk_ptrs_triple[triple_blk], b)
+        using_block_locked(dev, inode->blk_ptrs_triple[triple_blk], b)
             ret = ((uint32_t *)b->data)[double_blk];
 
         if (!ret)
             goto return_sector;
 
-        using_block(dev, ret, b)
+        using_block_locked(dev, ret, b)
             ret = ((uint32_t *)b->data)[single_blk];
 
         if (!ret)
             goto return_sector;
 
-        using_block(dev, ret, b)
+        using_block_locked(dev, ret, b)
             ret = ((uint32_t *)b->data)[direct_blk];
 
         goto return_sector;

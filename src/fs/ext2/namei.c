@@ -84,7 +84,7 @@ __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *na
         if (sec == SECTOR_INVALID)
             break;
 
-        b = bread(dir->sb->dev, sec);
+        b = breadlock(dir->sb->dev, sec);
 
         for (offset = 0; offset < block_size && cur_off + offset < dir->size; offset += entry->rec_len) {
             entry = (struct ext2_disk_directory_entry *)(b->data + offset);
@@ -96,7 +96,7 @@ __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *na
             }
         }
 
-        brelease(b);
+        bunlockrelease(b);
     }
 
     return NULL;
@@ -122,7 +122,7 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
         if (sec == SECTOR_INVALID)
             break;
 
-        b = bread(dir->sb->dev, sec);
+        b = breadlock(dir->sb->dev, sec);
 
         for (offset = 0; offset < block_size && cur_off + offset < dir->size; offset += entry->rec_len) {
             size_t entry_minimum_rec_len;
@@ -148,7 +148,7 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
             }
         }
 
-        brelease(b);
+        bunlockrelease(b);
     }
 
     kp_ext2(dir->sb, "Truncating directory: %ld\n", dir->size + block_size);
@@ -165,7 +165,7 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
         return NULL;
     }
 
-    b = bread(dir->sb->dev, sec);
+    b = breadlock(dir->sb->dev, sec);
     entry = (struct ext2_disk_directory_entry *)b->data;
     entry->ino = 0;
     entry->rec_len = block_size;
@@ -194,7 +194,7 @@ int __ext2_dir_lookup_ino(struct inode *dir, const char *name, size_t len, ino_t
 
     kp_ext2(dir->sb, "DIR Ent, ino: %d, name: %s\n", entry->ino, entry->name);
 
-    brelease(b);
+    bunlockrelease(b);
 
     return 0;
 }
@@ -228,7 +228,7 @@ int __ext2_dir_entry_exists(struct inode *dir, const char *name, size_t len)
     if (!b)
         return 0;
 
-    brelease(b);
+    bunlockrelease(b);
 
     return 1;
 }
@@ -249,7 +249,7 @@ int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, m
     entry->ino = ino;
     entry->name_len_and_type[EXT2_DENT_TYPE] = ext2_dir_type(mode);
 
-    brelease(b);
+    bunlockrelease(b);
 
     return 0;
 }
@@ -308,7 +308,7 @@ int __ext2_dir_empty(struct inode *dir)
         if (sec == SECTOR_INVALID)
             return -ENOTEMPTY;
 
-        using_block(dir->sb->dev, sec, b) {
+        using_block_locked(dir->sb->dev, sec, b) {
             int offset;
             struct ext2_disk_directory_entry *new;
 
@@ -364,7 +364,7 @@ int __ext2_dir_change_dotdot(struct inode *dir, ino_t ino)
     entry->ino = ino;
 
     block_mark_dirty(b);
-    brelease(b);
+    bunlockrelease(b);
 
     return 0;
 }
@@ -384,7 +384,7 @@ int __ext2_dir_remove(struct inode *dir, const char *name, size_t len)
 
     ret = __ext2_dir_remove_entry(dir, b, entry);
 
-    brelease(b);
+    bunlockrelease(b);
 
     return ret;
 }
@@ -404,7 +404,7 @@ int __ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler)
         if (sec == SECTOR_INVALID)
             break;
 
-        using_block(dir->sb->dev, sec, b) {
+        using_block_locked(dir->sb->dev, sec, b) {
             int offset = 0;
             struct ext2_disk_directory_entry *entry;
 
@@ -444,7 +444,7 @@ int __ext2_dir_read_dent(struct file *filp, struct user_buffer dent, size_t size
         return -EINVAL;
     }
 
-    using_block(dir->sb->dev, sec, b) {
+    using_block_locked(dir->sb->dev, sec, b) {
         struct ext2_disk_directory_entry *entry;
 
         entry = (struct ext2_disk_directory_entry *)(b->data + block_off);

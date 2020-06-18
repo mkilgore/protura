@@ -63,7 +63,7 @@ int mbr_add_partitions(struct block_device *device)
 
     block_dup = palloc(0, PAL_KERNEL);
 
-    using_block(raw, 0, b)
+    using_block_locked(raw, 0, b)
         memcpy(block_dup->virt, b->data, b->block_size);
 
     for (i = 0; i < ARRAY_SIZE(mbr_part_offsets); i++) {

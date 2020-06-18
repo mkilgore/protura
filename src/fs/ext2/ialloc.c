@@ -42,7 +42,7 @@ static ino_t __ext2_check_block_group(struct ext2_super_block *sb, int group_no)
     if (group_no == 0)
         inode_start = sb->disksb.first_inode;
 
-    using_block(sb->sb.dev, group->block_nr_inode_bitmap, b) {
+    using_block_locked(sb->sb.dev, group->block_nr_inode_bitmap, b) {
         loc = bit_find_next_zero(b->data, sb->block_size, inode_start);
 
         ino = loc + group_no * sb->block_size * CHAR_BIT + 1;

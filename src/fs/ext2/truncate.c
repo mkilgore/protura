@@ -69,7 +69,7 @@ static int __ext2_inode_truncate_indirect_page(struct truncate_state *state, sec
     struct block *b;
     int i;
 
-    using_block(state->sb->sb.dev, addr, b) {
+    using_block_locked(state->sb->sb.dev, addr, b) {
         uint32_t *ptrs = (uint32_t *)b->data;
 
         for (i = starting_block; i < PTRS_PER_BLOCK(state->block_size); i++) {
@@ -89,7 +89,7 @@ static int __ext2_inode_truncate_dindirect_page(struct truncate_state *state, se
     struct block *b;
     int i;
 
-    using_block(state->sb->sb.dev, addr, b) {
+    using_block_locked(state->sb->sb.dev, addr, b) {
         uint32_t *ptrs = (uint32_t *)b->data;
 
         for (i = starting_block; i < PTRS_PER_BLOCK(state->block_size); i++) {
@@ -115,7 +115,7 @@ static int __ext2_inode_truncate_tindirect_page(struct truncate_state *state, se
     struct block *b;
     int i;
 
-    using_block(state->sb->sb.dev, addr, b) {
+    using_block_locked(state->sb->sb.dev, addr, b) {
         uint32_t *ptrs = (uint32_t *)b->data;
 
         for (i = starting_block; i < PTRS_PER_BLOCK(state->block_size); i++) {
@@ -235,7 +235,7 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     /* If size does not end on a block boundary, then it is required to clear
      * the last block till the end with zeros. */
     if ((size % block_size) != 0) {
-        using_block(sb->sb.dev, vfs_bmap(&inode->i, ALIGN_2_DOWN(size, block_size)), b) {
+        using_block_locked(sb->sb.dev, vfs_bmap(&inode->i, ALIGN_2_DOWN(size, block_size)), b) {
             memset(b->data + (size % block_size), 0, block_size - (size % block_size));
             block_mark_dirty(b);
         }
