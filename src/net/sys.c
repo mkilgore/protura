@@ -360,7 +360,6 @@ int sys_socket(int afamily, int type, int protocol)
 
     filp = kzalloc(sizeof(*filp), PAL_KERNEL);
 
-    filp->mode = inode->i.mode;
     filp->inode = &inode->i;
     filp->flags = F(FILE_READABLE) | F(FILE_WRITABLE);
     filp->ops = &socket_file_ops;

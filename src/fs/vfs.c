@@ -39,7 +39,6 @@ int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *
 
     kp_vfs("Allocated filp: %p\n", filp);
 
-    filp->mode = inode->mode;
     filp->inode = inode_dup(inode);
     filp->offset = 0;
     filp->flags = file_flags;

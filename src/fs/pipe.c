@@ -486,14 +486,12 @@ int sys_pipe(struct user_buffer fds)
     filps[0] = kzalloc(sizeof(struct file), PAL_KERNEL);
     filps[1] = kzalloc(sizeof(struct file), PAL_KERNEL);
 
-    filps[P_READ]->mode = inode->mode;
     filps[P_READ]->inode = inode_dup(inode);
     filps[P_READ]->flags = F(FILE_READABLE);
     filps[P_READ]->ops = &pipe_read_file_ops;
     atomic_inc(&filps[P_READ]->ref);
     inode->pipe_info.readers++;
 
-    filps[P_WRITE]->mode = inode->mode;
     filps[P_WRITE]->inode = inode_dup(inode);
     filps[P_WRITE]->flags = F(FILE_WRITABLE);
     filps[P_WRITE]->ops = &pipe_write_file_ops;

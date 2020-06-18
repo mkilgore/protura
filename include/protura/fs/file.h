@@ -26,7 +26,6 @@ struct file_readdir_handler {
 
 struct file {
     struct inode *inode;
-    mode_t mode;
     atomic_t ref;
     mutex_t lock;
     unsigned int flags;
