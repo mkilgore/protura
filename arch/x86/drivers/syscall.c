@@ -449,6 +449,31 @@ static void sys_handler_reboot(struct irq_frame *frame)
     frame->eax = sys_reboot(frame->ebx, frame->ecx, frame->edx);
 }
 
+static void sys_handler_chown(struct irq_frame *frame)
+{
+    frame->eax = sys_chown(make_user_buffer(frame->ebx), frame->ecx, frame->edx);
+}
+
+static void sys_handler_fchown(struct irq_frame *frame)
+{
+    frame->eax = sys_fchown(frame->ebx, frame->ecx, frame->edx);
+}
+
+static void sys_handler_lchown(struct irq_frame *frame)
+{
+    frame->eax = sys_lchown(make_user_buffer(frame->ebx), frame->ecx, frame->edx);
+}
+
+static void sys_handler_chmod(struct irq_frame *frame)
+{
+    frame->eax = sys_chmod(make_user_buffer(frame->ebx), frame->ecx);
+}
+
+static void sys_handler_fchmod(struct irq_frame *frame)
+{
+    frame->eax = sys_fchmod(frame->ebx, frame->ecx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -540,6 +565,11 @@ static struct syscall_handler {
     SYSCALL(CONNECT, sys_handler_connect),
     SYSCALL(LISTEN, sys_handler_listen),
     SYSCALL(REBOOT, sys_handler_reboot),
+    SYSCALL(CHOWN, sys_handler_chown),
+    SYSCALL(FCHOWN, sys_handler_fchown),
+    SYSCALL(LCHOWN, sys_handler_lchown),
+    SYSCALL(CHMOD, sys_handler_chmod),
+    SYSCALL(FCHMOD, sys_handler_fchmod),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

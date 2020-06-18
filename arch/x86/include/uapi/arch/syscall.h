@@ -97,5 +97,10 @@
 #define SYSCALL_CONNECT      0x55
 #define SYSCALL_LISTEN       0x56
 #define SYSCALL_REBOOT       0x57
+#define SYSCALL_CHOWN        0x58
+#define SYSCALL_FCHOWN       0x59
+#define SYSCALL_LCHOWN       0x5A
+#define SYSCALL_CHMOD        0x5B
+#define SYSCALL_FCHMOD       0x5C
 
 #endif
