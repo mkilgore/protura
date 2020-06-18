@@ -77,10 +77,6 @@ struct inode {
     struct pipe_info pipe_info;
 };
 
-enum inode_attributes_flags {
-    INO_ATTR_SIZE,
-};
-
 struct inode_ops {
     /* Look-up the string 'name' of length 'len' in the provided directory
      * inode. If found, then the coresponding inode is returned in 'result' */
