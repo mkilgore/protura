@@ -15,6 +15,7 @@
 #include "db_passwd.h"
 #include "db_group.h"
 #include "file.h"
+#include "login_common.h"
 
 static const char *arg_str = "";
 static const char *usage_str = "Authenticates and starts a session as a user.\n";
@@ -46,22 +47,7 @@ const char *prog_name;
 
 static void exec_user(struct passwd_entry *user)
 {
-    gid_t *gids = NULL;
-    size_t group_count = 0;
-    struct group *group;
-    struct group_member *member;
-
-    /* Setup groups first */
-    list_foreach_entry(&group_db.group_list, group, entry) {
-        list_foreach_entry(&group->member_list, member, entry) {
-            if (strcmp(member->username, user->username) == 0) {
-                group_count++;
-                gids = realloc(gids, group_count * sizeof(*gids));
-                gids[group_count - 1] = group->gid;
-                break;
-            }
-        }
-    }
+    swap_user(user, &group_db);
 
     int ret = chdir(user->home_dir);
     if (ret)
@@ -83,28 +69,6 @@ static void exec_user(struct passwd_entry *user)
     exit(1);
 }
 
-static char *read_password(const char *prompt)
-{
-    char *ret = NULL;
-    size_t len = 0;
-    struct termios old_termios, termios;
-
-    tcgetattr(STDIN_FILENO, &old_termios);
-    termios = old_termios;
-
-    termios.c_lflag &= ~ECHO;
-    tcsetattr(STDIN_FILENO, TCSANOW, &termios);
-
-    printf("%s", prompt);
-    fflush(stdout);
-
-    ssize_t s = getline(&ret, &len, stdin);
-    ret[s - 1] = '\0';
-
-    tcsetattr(STDIN_FILENO, TCSANOW, &old_termios);
-    return ret;
-}
-
 static void login(void)
 {
     char *username = NULL;
@@ -121,7 +85,6 @@ static void login(void)
         username[s - 1] = '\0';
 
         char *password = read_password("Password: ");
-        putchar('\n');
 
         if (username && password) {
             struct passwd_entry *ent = passwd_db_get_user(&db, username);
