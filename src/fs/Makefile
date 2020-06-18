@@ -13,6 +13,7 @@ objs-y += dir.o
 objs-y += fs.o
 objs-y += namei.o
 objs-y += vfs.o
+objs-$(CONFIG_KERNEL_TESTS) += vfs_test.o
 objs-y += sys.o
 objs-y += pipe.o
 objs-y += poll.o
