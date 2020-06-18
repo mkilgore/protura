@@ -102,5 +102,7 @@
 #define SYSCALL_LCHOWN       0x5A
 #define SYSCALL_CHMOD        0x5B
 #define SYSCALL_FCHMOD       0x5C
+#define SYSCALL_UMASK        0x5D
+#define SYSCALL_ACCESS       0x5E
 
 #endif

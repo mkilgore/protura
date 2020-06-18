@@ -539,6 +539,46 @@ int sys_chdir(struct user_buffer path)
     return ret;
 }
 
+int sys_access(struct user_buffer path_buf, int mode)
+{
+    struct task *current = cpu_get_local()->current;
+    struct nameidata name;
+
+    __cleanup_user_string char *tmp_path = NULL;
+    int ret = user_alloc_string(path_buf, &tmp_path);
+    if (ret)
+        return ret;
+
+    memset(&name, 0, sizeof(name));
+    name.path = tmp_path;
+    name.cwd = current->cwd;
+
+    ret = namei_full(&name, F(NAMEI_GET_INODE) | F(NAMEI_ALLOW_TRAILING_SLASH));
+    if (!name.found)
+        return ret;
+
+    struct credentials tmp_creds;
+    credentials_init(&tmp_creds);
+
+    using_creds(&current->creds) {
+        struct credentials *creds = &current->creds;
+
+        tmp_creds.uid = creds->uid;
+        tmp_creds.gid = creds->gid;
+
+        /* access() uses the uid and gid in place of the effective ones */
+        tmp_creds.euid = creds->uid;
+        tmp_creds.egid = creds->gid;
+
+        memcpy(tmp_creds.sup_groups, creds->sup_groups, sizeof(tmp_creds.sup_groups));
+    }
+
+    ret = __check_permission(&tmp_creds, name.found, mode);
+
+    inode_put(name.found);
+    return ret;
+}
+
 int sys_stat(struct user_buffer path_buf, struct user_buffer stat_buf)
 {
     struct task *current = cpu_get_local()->current;
