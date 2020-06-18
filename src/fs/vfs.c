@@ -69,6 +69,18 @@ int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_re
 
     kp_vfs("Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
 
+    int access = 0;
+
+    if (flag_test(&file_flags, FILE_READABLE))
+        access |= R_OK;
+
+    if (flag_test(&file_flags, FILE_WRITABLE))
+        access |= W_OK;
+
+    ret = check_permission(inode, access);
+    if (ret)
+        return ret;
+
     *filp_ret = NULL;
 
     filp = kzalloc(sizeof(*filp), PAL_KERNEL);
@@ -165,6 +177,10 @@ int vfs_lookup(struct inode *inode, const char *name, size_t len, struct inode *
     if (!S_ISDIR(inode->mode))
         return -ENOTDIR;
 
+    int ret = check_permission(inode, X_OK);
+    if (ret)
+        return ret;
+
     if (inode_has_lookup(inode))
         return inode->ops->lookup(inode, name, len, result);
     else
@@ -175,6 +191,10 @@ int vfs_truncate(struct inode *inode, off_t length)
 {
     if (S_ISDIR(inode->mode))
         return -EISDIR;
+
+    int ret = check_permission(inode, W_OK);
+    if (ret)
+        return ret;
 
     if (inode_has_truncate(inode))
         return inode->ops->truncate(inode, length);
@@ -203,6 +223,10 @@ int vfs_link(struct inode *dir, struct inode *old, const char *name, size_t len)
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
 
+    int ret = check_permission(dir, W_OK | X_OK);
+    if (ret)
+        return ret;
+
     if (inode_has_link(dir))
         return dir->ops->link(dir, old, name, len);
     else
@@ -214,6 +238,10 @@ int vfs_mknod(struct inode *dir, const char *name, size_t len, mode_t mode, dev_
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
 
+    int ret = check_permission(dir, W_OK | X_OK);
+    if (ret)
+        return ret;
+
     if (inode_has_mknod(dir))
         return dir->ops->mknod(dir, name, len, mode, dev);
     else
@@ -224,6 +252,10 @@ int vfs_unlink(struct inode *dir, struct inode *entity, const char *name, size_t
 {
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
+
+    int ret = check_permission(dir, W_OK | X_OK);
+    if (ret)
+        return ret;
 
     if (inode_has_unlink(dir))
         return dir->ops->unlink(dir, entity, name, len);
@@ -397,6 +429,10 @@ int vfs_create(struct inode *dir, const char *name, size_t len, mode_t mode, str
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
 
+    int ret = check_permission(dir, W_OK | X_OK);
+    if (ret)
+        return ret;
+
     if (inode_has_create(dir))
         return dir->ops->create(dir, name, len, mode, result);
     else
@@ -407,6 +443,10 @@ int vfs_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode)
 {
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
+
+    int ret = check_permission(dir, W_OK | X_OK);
+    if (ret)
+        return ret;
 
     if (inode_has_mkdir(dir))
         return dir->ops->mkdir(dir, name, len, mode);
@@ -419,6 +459,10 @@ int vfs_rmdir(struct inode *dir, struct inode *deldir, const char *name, size_t 
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
 
+    int ret = check_permission(dir, W_OK | X_OK);
+    if (ret)
+        return ret;
+
     if (inode_has_rmdir(dir))
         return dir->ops->rmdir(dir, deldir, name, len);
     else
@@ -429,6 +473,14 @@ int vfs_rename(struct inode *old_dir, const char *name, size_t len, struct inode
 {
     if (!S_ISDIR(old_dir->mode))
         return -ENOTDIR;
+
+    int ret = check_permission(old_dir, W_OK | X_OK);
+    if (ret)
+        return ret;
+
+    ret = check_permission(new_dir, W_OK | X_OK);
+    if (ret)
+        return ret;
 
     if (inode_has_rename(old_dir))
         return old_dir->ops->rename(old_dir, name, len, new_dir, new_name, new_len);
@@ -456,6 +508,10 @@ int vfs_symlink(struct inode *dir, const char *name, size_t len, const char *sym
 {
     if (!S_ISDIR(dir->mode))
         return -ENOTDIR;
+
+    int ret = check_permission(dir, W_OK | X_OK);
+    if (ret)
+        return ret;
 
     if (inode_has_symlink(dir))
         return dir->ops->symlink(dir, name, len, symlink_target);
