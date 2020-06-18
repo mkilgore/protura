@@ -151,6 +151,8 @@ static void load_tab(const char *tab)
         ent->next = tab_list;
         tab_list = ent;
     }
+
+    fclose(file);
 }
 
 /* Reap children */
