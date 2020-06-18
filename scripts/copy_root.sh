@@ -25,13 +25,23 @@ mkdir $NEW_ROOT/mnt/slave
 cp -R $EXTRA_ROOT_DIR/home $NEW_ROOT/home
 
 mkdir $NEW_ROOT/root
+touch $NEW_ROOT/root/root_file
 
+# Only root can view /root
+chown -R 0:0 $NEW_ROOT/root
+chmod 760 -R $NEW_ROOT/root
+
+# su needs to be suid to work correctly
+chmod +s $NEW_ROOT/bin/su
+
+# apply proper ownership to home directories
 chown -R 1000:1000 $NEW_ROOT/home/mkilgore/
 chown -R 1001:1001 $NEW_ROOT/home/exuser/
 
 mkdir $NEW_ROOT/etc
 cp -R $EXTRA_ROOT_DIR/etc/* $NEW_ROOT/etc/
 
+# Apply http ownership to 'server' directory
 mkdir $NEW_ROOT/srv
 mkdir $NEW_ROOT/srv/http
 chown -R 33:33 $NEW_ROOT/srv
@@ -52,8 +62,10 @@ mkdir $NEW_ROOT/boot/grub
 cp -R $KERNEL_BINS/* $NEW_ROOT/boot
 cp -R $DIR/grub.cfg $NEW_ROOT/boot/grub
 
-chmod 777 $NEW_ROOT/tmp
+# Apply global permissions and sticky bit to /tmp
+chmod 1777 $NEW_ROOT/tmp
 
+# Create /dev nodes based on device_table.txt file
 while read device; do
     if [ ! -z "$device" ]; then
         mknod $NEW_ROOT/$device
