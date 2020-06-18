@@ -257,6 +257,36 @@ static void syscall_connect_test(struct ktest *kt)
     ktest_assert_equal(kt, -EFAULT, ret);
 }
 
+static void syscall_chown_test(struct ktest *kt)
+{
+    int ret = sys_chown(KT_ARG(kt, 0, struct user_buffer), -1, -1);
+    ktest_assert_equal(kt, -EFAULT, ret);
+}
+
+static void syscall_lchown_test(struct ktest *kt)
+{
+    int ret = sys_lchown(KT_ARG(kt, 0, struct user_buffer), -1, -1);
+    ktest_assert_equal(kt, -EFAULT, ret);
+}
+
+static void syscall_chmod_test(struct ktest *kt)
+{
+    int ret = sys_chmod(KT_ARG(kt, 0, struct user_buffer), -1);
+    ktest_assert_equal(kt, -EFAULT, ret);
+}
+
+static void syscall_access_test(struct ktest *kt)
+{
+    int ret = sys_access(KT_ARG(kt, 0, struct user_buffer), -1);
+    ktest_assert_equal(kt, -EFAULT, ret);
+}
+
+static void syscall_utimes_test(struct ktest *kt)
+{
+    int ret = sys_utimes(KT_ARG(kt, 0, struct user_buffer), KT_ARG(kt, 1, struct user_buffer));
+    ktest_assert_equal(kt, -EFAULT, ret);
+}
+
 struct syscall_module_priv {
     int fd0, fd1, fd2;
     struct page *top_page;
@@ -565,6 +595,34 @@ static const struct ktest_unit syscall_test_units[] = {
             (KT_USER_BUF(NULL)),
             (KT_USER_BUF(0xBFFFFFFE)),
             (KT_USER_BUF(0xC0200000))),
+
+    KTEST_UNIT("syscall-chown-test", syscall_chown_test,
+            (KT_USER_BUF(NULL)),
+            (KT_USER_BUF(0xBFFFFFFE)),
+            (KT_USER_BUF(0xC0200000))),
+
+    KTEST_UNIT("syscall-lchown-test", syscall_lchown_test,
+            (KT_USER_BUF(NULL)),
+            (KT_USER_BUF(0xBFFFFFFE)),
+            (KT_USER_BUF(0xC0200000))),
+
+    KTEST_UNIT("syscall-chmod-test", syscall_chmod_test,
+            (KT_USER_BUF(NULL)),
+            (KT_USER_BUF(0xBFFFFFFE)),
+            (KT_USER_BUF(0xC0200000))),
+
+    KTEST_UNIT("syscall-access-test", syscall_access_test,
+            (KT_USER_BUF(NULL)),
+            (KT_USER_BUF(0xBFFFFFFE)),
+            (KT_USER_BUF(0xC0200000))),
+
+    KTEST_UNIT("syscall-utimes-test", syscall_utimes_test,
+            (KT_KERNEL_BUF(0xBFFFFF00), KT_USER_BUF(NULL)),
+            (KT_KERNEL_BUF(0xBFFFFF00), KT_USER_BUF(0xBFFFFFFF)),
+            (KT_KERNEL_BUF(0xBFFFFF00), KT_USER_BUF(0xC0200000)),
+            (KT_USER_BUF(NULL),       KT_KERNEL_BUF(0xBFFFFF00)),
+            (KT_USER_BUF(0xBFFFFFFF), KT_KERNEL_BUF(0xBFFFFF00)),
+            (KT_USER_BUF(0xC0200000), KT_KERNEL_BUF(0xBFFFFF00))),
 };
 
 KTEST_MODULE_DEFINE("syscall", syscall_test_units, syscall_tests_setup, syscall_tests_teardown);
