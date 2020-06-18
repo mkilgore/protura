@@ -27,6 +27,7 @@
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/ioctl.h>
+#include <protura/fs/access.h>
 #include <protura/fs/sys.h>
 
 /* These functions connect the 'vfs_*' functions to the syscall verisons. Note
@@ -890,3 +891,92 @@ int sys_ioctl(int fd, int cmd, struct user_buffer arg)
     return -EINVAL;
 }
 
+static int sys_chown_global(struct user_buffer path_buf, uid_t uid, gid_t gid, flags_t namei_flags)
+{
+    struct nameidata path_name;
+    struct task *current = cpu_get_local()->current;
+
+    __cleanup_user_string char *tmp_path = NULL;
+    int ret = user_alloc_string(path_buf, &tmp_path);
+    if (ret)
+        return ret;
+
+    memset(&path_name, 0, sizeof(path_name));
+    path_name.path = tmp_path;
+    path_name.cwd = current->cwd;
+
+    ret = namei_full(&path_name, F(NAMEI_GET_INODE) | namei_flags);
+    if (!path_name.found)
+        return ret;
+
+    ret = vfs_chown(path_name.found, uid, gid);
+
+    inode_put(path_name.found);
+
+    return ret;
+}
+
+int sys_chown(struct user_buffer path_buf, uid_t uid, gid_t gid)
+{
+    return sys_chown_global(path_buf, uid, gid, 0);
+}
+
+int sys_fchown(int fd, uid_t uid, gid_t gid)
+{
+    struct file *filp;
+    int ret;
+
+    ret = fd_get_checked(fd, &filp);
+    if (ret)
+        return ret;
+
+    if (!filp->inode)
+        return -EINVAL;
+
+    return vfs_chown(filp->inode, uid, gid);
+}
+
+int sys_lchown(struct user_buffer path, uid_t uid, gid_t gid)
+{
+    return sys_chown_global(path, uid, gid, F(NAMEI_DONT_FOLLOW_LINK));
+}
+
+int sys_chmod(struct user_buffer path_buf, mode_t mode)
+{
+    struct nameidata path_name;
+    struct task *current = cpu_get_local()->current;
+
+    __cleanup_user_string char *tmp_path = NULL;
+    int ret = user_alloc_string(path_buf, &tmp_path);
+    if (ret)
+        return ret;
+
+    memset(&path_name, 0, sizeof(path_name));
+    path_name.path = tmp_path;
+    path_name.cwd = current->cwd;
+
+    ret = namei_full(&path_name, F(NAMEI_GET_INODE));
+    if (!path_name.found)
+        return ret;
+
+    ret = vfs_chmod(path_name.found, mode);
+
+    inode_put(path_name.found);
+
+    return ret;
+}
+
+int sys_fchmod(int fd, mode_t mode)
+{
+    struct file *filp;
+    int ret;
+
+    ret = fd_get_checked(fd, &filp);
+    if (ret)
+        return ret;
+
+    if (!filp->inode)
+        return -EINVAL;
+
+    return vfs_chmod(filp->inode, mode);
+}

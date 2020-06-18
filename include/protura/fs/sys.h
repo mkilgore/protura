@@ -53,4 +53,11 @@ int sys_fcntl(int fd, int cmd, uintptr_t arg);
 
 int sys_ioctl(int fd, int cmd, struct user_buffer arg);
 
+int sys_chown(struct user_buffer path, uid_t uid, gid_t gid);
+int sys_fchown(int fd, uid_t uid, gid_t gid);
+int sys_lchown(struct user_buffer path, uid_t uid, gid_t gid);
+
+int sys_chmod(struct user_buffer path, mode_t mode);
+int sys_fchmod(int fd, mode_t mode);
+
 #endif
