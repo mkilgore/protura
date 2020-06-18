@@ -304,8 +304,6 @@ static void pci_check_dev(struct pci_dev_info *dev)
 
     pci_add_dev_entry(entry);
 
-    kp(KP_NORMAL, " header is bridge: %d, class: %d, subclass: %d, secondary bus: %d, primary bus: %d\n", dev->header_type, dev->class, dev->subclass, pci_get_secondary_bus(&dev->id), pci_config_read_uint8(&dev->id, PCI_REG_PRIMARY_BUS));
-
     if (dev->header_type & PCI_HEADER_IS_BRIDGE) {
         int new_bus = pci_get_secondary_bus(&dev->id);
 
