@@ -56,8 +56,36 @@ int vfs_follow_link(struct inode *dir, struct inode *symlink, struct inode **res
 int vfs_readlink(struct inode *symlink, char *buf, size_t buf_len);
 int vfs_symlink(struct inode *dir, const char *name, size_t len, const char *symlink_target);
 
-/* devname is for user convience when display mount points and can be left NULL */
+/* devname is for user convenience when display mount points and can be left NULL */
 int vfs_mount(struct inode *mount_point, dev_t block_dev, const char *filesystem, const char *devname, const char *mountname);
 int vfs_umount(struct super_block *sb);
+
+struct inode_attributes {
+    mode_t mode;
+    time_t atime, mtime, ctime;
+
+    uid_t uid;
+    gid_t gid;
+};
+
+enum {
+    INODE_ATTR_MODE,
+    INODE_ATTR_ATIME,
+    INODE_ATTR_MTIME,
+    INODE_ATTR_CTIME,
+    INODE_ATTR_UID,
+    INODE_ATTR_GID,
+
+    /* Convenience flags for removing the SUID and SGID bits */
+    INODE_ATTR_RM_SUID,
+    INODE_ATTR_RM_SGID,
+
+    /* Allows bypassing the permissions checks on setting the above values */
+    INODE_ATTR_FORCE,
+};
+
+int vfs_apply_attributes(struct inode *, flags_t flags, struct inode_attributes *attrs);
+int vfs_chown(struct inode *, uid_t, gid_t);
+int vfs_chmod(struct inode *, mode_t);
 
 #endif

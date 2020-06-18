@@ -24,6 +24,8 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/inode_table.h>
 #include <protura/fs/namei.h>
+#include <protura/fs/sys.h>
+#include <protura/fs/access.h>
 #include <protura/fs/vfs.h>
 
 #ifdef CONFIG_KERNEL_LOG_VFS
@@ -278,6 +280,118 @@ int vfs_stat(struct inode *inode, struct stat *buf)
     return 0;
 }
 
+static int verify_apply_attribute_permissions(struct inode *inode, flags_t flags, struct inode_attributes *attrs)
+{
+    struct task *current = cpu_get_local()->current;
+
+    if (flag_test(&flags, INODE_ATTR_FORCE))
+        return 0;
+
+    using_creds(&current->creds) {
+        struct credentials *creds = &current->creds;
+
+        if (flag_test(&flags, INODE_ATTR_UID)) {
+            /* changing UID is only allowed if you're root, or if the change is a NO-OP */
+            int is_valid = creds->euid == 0 || (creds->euid == inode->uid && inode->uid == attrs->uid);
+
+            if (!is_valid)
+                return -EPERM;
+        }
+
+        if (flag_test(&flags, INODE_ATTR_GID)) {
+            /* changing GID is only allowed if you're root or if you own the file and belong to the destination group */
+            int is_valid = creds->euid == 0
+                           || (creds->euid == inode->uid
+                                   && (__credentials_belong_to_gid(creds, attrs->gid) || attrs->gid == inode->gid));
+
+            if (!is_valid)
+                return -EPERM;
+        }
+
+        if (flag_test(&flags, INODE_ATTR_MODE)) {
+            /* UID must match or root for chmod to be allowed */
+            if (creds->euid != 0 && creds->euid != inode->uid)
+                return -EPERM;
+
+            /* Clear SGID bit if you do not belong to the target GID */
+            gid_t target = flag_test(&flags, INODE_ATTR_GID)? attrs->gid: inode->gid;
+
+            if (creds->euid != 0 && !__credentials_belong_to_gid(creds, target))
+                attrs->mode &= ~S_ISGID;
+        }
+
+        /* You must own the file to manually change the time */
+        if (flag_test(&flags, INODE_ATTR_ATIME) || flag_test(&flags, INODE_ATTR_MTIME) || flag_test(&flags, INODE_ATTR_CTIME))
+            if (creds->euid != 0 || creds->euid != inode->uid)
+                return -EPERM;
+    }
+
+    return 0;
+}
+
+int vfs_apply_attributes(struct inode *inode, flags_t flags, struct inode_attributes *attrs)
+{
+    struct inode_attributes tmp_attrs;
+
+    if (!attrs) {
+        memset(&tmp_attrs, 0, sizeof(tmp_attrs));
+        attrs = &tmp_attrs;
+    }
+
+    using_inode_lock_write(inode) {
+        if ((flag_test(&flags, INODE_ATTR_RM_SGID) && flag_test(&flags, INODE_ATTR_MODE))
+            || (flag_test(&flags, INODE_ATTR_RM_SUID) && flag_test(&flags, INODE_ATTR_MODE)))
+            return -EINVAL;
+
+        if (flag_test(&flags, INODE_ATTR_RM_SUID) || flag_test(&flags, INODE_ATTR_RM_SGID)) {
+            attrs->mode = inode->mode;
+
+            if (flag_test(&flags, INODE_ATTR_RM_SUID))
+                attrs->mode = attrs->mode & ~S_ISUID;
+
+            if (flag_test(&flags, INODE_ATTR_RM_SGID))
+                attrs->mode = attrs->mode & ~S_ISGID;
+
+            flag_set(&flags, INODE_ATTR_MODE);
+        }
+
+        if (verify_apply_attribute_permissions(inode, flags, attrs))
+            return -EPERM;
+
+        if (flag_test(&flags, INODE_ATTR_MODE)) {
+            /* Make sure to clear the non-relevant bits of the mode, just in case */
+            inode->mode = (inode->mode & S_IFMT) | (attrs->mode & 07777);
+        }
+
+        if (flag_test(&flags, INODE_ATTR_UID))
+            inode->uid = attrs->uid;
+
+        if (flag_test(&flags, INODE_ATTR_GID))
+            inode->gid = attrs->gid;
+
+        time_t cur_time = protura_current_time_get();
+
+        if (flag_test(&flags, INODE_ATTR_ATIME))
+            inode->atime = attrs->atime;
+        else
+            inode->atime = cur_time;
+
+        if (flag_test(&flags, INODE_ATTR_CTIME))
+            inode->ctime = attrs->ctime;
+        else
+            inode->ctime = cur_time;
+
+        if (flag_test(&flags, INODE_ATTR_MTIME))
+            inode->mtime = attrs->mtime;
+        else
+            inode->mtime = cur_time;
+
+        inode_set_dirty(inode);
+    }
+
+    return 0;
+}
+
 int vfs_create(struct inode *dir, const char *name, size_t len, mode_t mode, struct inode **result)
 {
     if (!S_ISDIR(dir->mode))
@@ -349,3 +463,37 @@ int vfs_symlink(struct inode *dir, const char *name, size_t len, const char *sym
         return -ENOTSUP;
 }
 
+int vfs_chown(struct inode *inode, uid_t uid, gid_t gid)
+{
+    struct inode_attributes attrs;
+    memset(&attrs, 0, sizeof(attrs));
+
+    flags_t flags = 0;
+
+    if (uid != (uid_t)-1) {
+        attrs.uid = uid;
+        flag_set(&flags, INODE_ATTR_UID);
+    }
+
+    if (gid != (gid_t)-1) {
+        attrs.gid = gid;
+        flag_set(&flags, INODE_ATTR_GID);
+    }
+
+    if (!S_ISDIR(inode->mode)) {
+        flag_set(&flags, INODE_ATTR_RM_SUID);
+        flag_set(&flags, INODE_ATTR_RM_SGID);
+    }
+
+    return vfs_apply_attributes(inode, flags, &attrs);
+}
+
+int vfs_chmod(struct inode *inode, mode_t mode)
+{
+    struct inode_attributes attrs;
+    memset(&attrs, 0, sizeof(attrs));
+
+    attrs.mode = mode;
+
+    return vfs_apply_attributes(inode, F(INODE_ATTR_MODE), &attrs);
+}
