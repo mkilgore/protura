@@ -81,6 +81,7 @@ struct ktest_unit {
 };
 
 const struct ktest_arg *ktest_get_arg(struct ktest *, int index);
+void *ktest_get_mod_priv(struct ktest *);
 
 #define KT_ARG_TYPE(typ) \
     ({ \

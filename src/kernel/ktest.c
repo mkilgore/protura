@@ -23,6 +23,7 @@ struct ktest {
     int cur_test;
 
     const struct ktest_unit *unit;
+    struct ktest_module *mod;
     int failed_tests;
 
     /* 
@@ -51,6 +52,11 @@ const struct ktest_arg *ktest_get_arg(struct ktest *kt, int index)
     return kt->unit->args + index;
 }
 
+void *ktest_get_mod_priv(struct ktest *kt)
+{
+    return kt->mod->priv;
+}
+
 /*
  * noinline is necessary to ensure the code calling ksetjmp isn't inlined incorrectly
  */
@@ -75,6 +81,8 @@ static int run_module(struct ktest_module *module)
     struct ktest ktest;
     memset(&ktest, 0, sizeof(ktest));
     int error_count = 0;
+
+    ktest.mod = module;
 
     kp(KP_NORMAL, "==== Starting tests for %s ====\n", module->name);
 
