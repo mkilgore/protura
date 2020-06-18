@@ -24,7 +24,7 @@ clean-disk:
 		fi \
 	done
 
-$(IMGS_DIR)/disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gen_partdisk.sh $(DISK_ROOT_FILES) $(DISK_EXTRA_PROGS) | $(IMGS_DIR) $(DISK_MOUNT)
+$(IMGS_DIR)/disk.img: $(REAL_BOOT_TARGETS) $(DISK_PROGS) ./scripts/gen_partdisk.sh ./scripts/copy_root.sh $(DISK_ROOT_FILES) $(DISK_EXTRA_PROGS) | $(IMGS_DIR) $(DISK_MOUNT)
 	@echo " GENDISK $@"
 	$(Q)rm -fr $@
 	$(Q)sudo ./scripts/gen_partdisk.sh $@ $(DISK_MOUNT) $(DISK_ROOT) $(ROOT_DIR) $(KERNEL_DIR)
