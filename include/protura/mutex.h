@@ -40,6 +40,11 @@ static inline int mutex_waiting(mutex_t *mut)
     return sem_waiting(mut);
 }
 
+static inline int mutex_is_locked(mutex_t *mut)
+{
+    return mut->count == 0;
+}
+
 static inline void mutex_lock_cleanup(mutex_t **mut)
 {
     mutex_lock(*mut);
