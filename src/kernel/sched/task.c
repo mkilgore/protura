@@ -216,6 +216,7 @@ struct task *task_fork(struct task *parent)
     new->session_id = parent->session_id;
     new->close_on_exec = parent->close_on_exec;
     new->sig_blocked = parent->sig_blocked;
+    new->umask = parent->umask;
 
     using_creds(&parent->creds) {
         new->creds.uid = parent->creds.uid;

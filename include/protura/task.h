@@ -92,6 +92,8 @@ struct task {
 
     fd_set close_on_exec;
 
+    mode_t umask;
+
     /* When modifying the sets, this lock must be taken */
     sigset_t sig_pending, sig_blocked;
 

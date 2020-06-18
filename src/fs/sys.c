@@ -76,6 +76,8 @@ int sys_open(struct user_buffer path, int flags, mode_t mode)
     struct task *current = cpu_get_local()->current;
     struct nameidata name;
 
+    mode = (mode & 0777) & ~current->umask;
+
     __cleanup_user_string char *tmp_path = NULL;
     ret = user_alloc_string(path, &tmp_path);
     if (ret)
@@ -261,6 +263,8 @@ int sys_mkdir(struct user_buffer name, mode_t mode)
     struct nameidata dirname;
     int ret;
 
+    mode = (mode & 0777) & ~current->umask;
+
     __cleanup_user_string char *tmp_path = NULL;
     ret = user_alloc_string(name, &tmp_path);
     if (ret)
@@ -400,6 +404,8 @@ int sys_mknod(struct user_buffer node, mode_t mode, dev_t dev)
     struct task *current = cpu_get_local()->current;
     struct nameidata name;
     int ret;
+
+    mode = (mode & 0777) & ~current->umask;
 
     __cleanup_user_string char *tmp_file = NULL;
     ret = user_alloc_string(node, &tmp_file);
@@ -1019,6 +1025,16 @@ int sys_fchmod(int fd, mode_t mode)
         return -EINVAL;
 
     return vfs_chmod(filp->inode, mode);
+}
+
+mode_t sys_umask(mode_t mode)
+{
+    struct task *current = cpu_get_local()->current;
+    mode_t old = current->umask;
+
+    current->umask = mode & 0777;
+
+    return old;
 }
 
 int sys_utimes(struct user_buffer path_buf, struct user_buffer timeval_buf)
