@@ -11,7 +11,7 @@ objs-y += tcp_input.o
 objs-y += tcp_output.o
 objs-y += tcp_timer.o
 objs-y += tcp_procfs.o
-objs-y += tcp_test.o
+objs-$(CONFIG_KERNEL_TESTS) += tcp_test.o
 
 objs-y += ip_raw.o
 objs-y += ip_socket_lookup.o
