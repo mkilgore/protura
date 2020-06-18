@@ -173,8 +173,6 @@ static int export(struct prog_desc *prog)
     char *value = c + 1;
     *c = '\0';
 
-    printf("export: name: %s, value: %s\n", name, value);
-
     int ret = setenv(name, value, 1);
     if (ret) {
         perror("export");
