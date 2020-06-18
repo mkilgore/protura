@@ -131,14 +131,28 @@ char mode_flag(mode_t mode, mode_t flag, char c)
     return '-';
 }
 
+char double_mode_flag(mode_t mode, mode_t primary, mode_t secondary, char primary_c, char secondary_c, char combined)
+{
+    if ((mode & (primary | secondary)) == (primary | secondary))
+        return combined;
+
+    if (mode & primary)
+        return primary_c;
+
+    if (mode & secondary)
+        return secondary_c;
+
+    return '-';
+}
+
 static void render_mode_flags(struct util_line *line, mode_t mode)
 {
     util_line_printf(line,
             "%c" "%c%c%c" "%c%c%c" "%c%c%c",
             type_ids[mode_to_file_type(mode)],
-            mode_flag(mode, S_IRUSR, 'r'), mode_flag(mode, S_IWUSR, 'w'), mode_flag(mode, S_IXUSR, 'x'),
-            mode_flag(mode, S_IRGRP, 'r'), mode_flag(mode, S_IWGRP, 'w'), mode_flag(mode, S_IXGRP, 'x'),
-            mode_flag(mode, S_IROTH, 'r'), mode_flag(mode, S_IWOTH, 'w'), mode_flag(mode, S_IXOTH, 'x')
+            mode_flag(mode, S_IRUSR, 'r'), mode_flag(mode, S_IWUSR, 'w'), double_mode_flag(mode, S_IXUSR, S_ISUID, 'x', 'S', 's'),
+            mode_flag(mode, S_IRGRP, 'r'), mode_flag(mode, S_IWGRP, 'w'), double_mode_flag(mode, S_IXGRP, S_ISGID, 'x', 'S', 's'),
+            mode_flag(mode, S_IROTH, 'r'), mode_flag(mode, S_IWOTH, 'w'), double_mode_flag(mode, S_IXOTH, S_ISVTX, 'x', 'T', 't')
             );
 }
 
