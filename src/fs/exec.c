@@ -26,27 +26,10 @@
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/namei.h>
+#include <protura/fs/access.h>
 #include <protura/fs/sys.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/binfmt.h>
-
-static int check_credentials(struct inode *inode, struct task *current)
-{
-    using_creds(&current->creds) {
-        if (inode->mode & S_IXOTH)
-            return 0;
-
-        if (inode->mode & S_IXGRP && __credentials_belong_to_gid(&current->creds, inode->gid))
-            return 0;
-
-        if (inode->mode & S_IXUSR && inode->uid == current->creds.euid)
-            return 0;
-
-        /* FIXME: We can't do this because we don't offer a chmod to set the X bit */
-        // return -EACCES;
-        return 0;
-    }
-}
 
 static void set_credentials(struct inode *inode, struct task *current)
 {
@@ -201,7 +184,7 @@ int sys_execve(struct user_buffer file_buf, struct user_buffer argv_buf, struct 
         return 0;
     }
 
-    ret = check_credentials(exe, current);
+    ret = check_permission(exe, X_OK);
     if (ret) {
         inode_put(exe);
         irq_frame_set_syscall_ret(frame, ret);
