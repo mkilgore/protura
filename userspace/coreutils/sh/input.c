@@ -120,3 +120,13 @@ void script_input_loop(int scriptfile)
     input_loop();
 }
 
+int load_script(const char *scriptfile)
+{
+    inp_file = fopen(scriptfile, "r");
+    if (!inp_file)
+        return 1;
+
+    input_loop();
+
+    return 0;
+}
