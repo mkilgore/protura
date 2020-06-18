@@ -99,8 +99,8 @@ static inline void block_unlock(struct block *b)
     kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
 }
 
-struct block *bread2(dev_t, sector_t);
-void brelease2(struct block *);
+struct block *bread(dev_t, sector_t);
+void brelease(struct block *);
 void block_wait_for_sync(struct block *);
 
 static inline struct block *block_dup(struct block *b)
@@ -111,7 +111,7 @@ static inline struct block *block_dup(struct block *b)
 
 static inline struct block *breadlock(dev_t dev, sector_t sec)
 {
-    struct block *b = bread2(dev, sec);
+    struct block *b = bread(dev, sec);
     block_lock(b);
     return b;
 }
@@ -119,11 +119,11 @@ static inline struct block *breadlock(dev_t dev, sector_t sec)
 static inline void bunlockrelease(struct block *b)
 {
     block_unlock(b);
-    brelease2(b);
+    brelease(b);
 }
 
-#define using_block2(dev, sector, block) \
-    using_nocheck(((block) = bread2(dev, sector)), (brelease2(block)))
+#define using_block(dev, sector, block) \
+    using_nocheck(((block) = bread(dev, sector)), (brelease(block)))
 
 #define using_block_locked(dev, sector, block) \
     using_nocheck(((block) = breadlock(dev, sector)), (bunlockrelease(block)))
@@ -145,7 +145,6 @@ static inline void partition_init(struct partition *part)
 }
 
 struct block_device_ops {
-    void (*sync_block) (struct block_device *, struct block *b);
     void (*sync_block_async) (struct block_device *, struct block *b);
 };
 
@@ -190,8 +189,8 @@ int block_dev_set_block_size(dev_t device, size_t size);
 size_t block_dev_get_block_size(dev_t device);
 size_t block_dev_get_device_size(dev_t device);
 
-void block_dev2_clear(dev_t dev);
-void block_dev2_sync(struct block_device *, dev_t, int wait);
+void block_dev_clear(dev_t dev);
+void block_dev_sync(struct block_device *, dev_t, int wait);
 void block_sync_all(int wait);
 
 static inline void block_dev_sync_block_async(struct block_device *dev, struct block *b)

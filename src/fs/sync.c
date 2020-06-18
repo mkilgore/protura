@@ -88,7 +88,7 @@ void __super_sync(struct super_block *sb)
     struct inode *inode;
 
     if (sb->bdev)
-        block_dev2_sync(sb->bdev, sb->dev, 0);
+        block_dev_sync(sb->bdev, sb->dev, 0);
 
     if (sb->ops->inode_write)
         list_foreach_take_entry(&sb->dirty_inodes, inode, sb_dirty_entry)
@@ -98,7 +98,7 @@ void __super_sync(struct super_block *sb)
         sb->ops->sb_write(sb);
 
     if (sb->bdev)
-        block_dev2_sync(sb->bdev, sb->dev, 1);
+        block_dev_sync(sb->bdev, sb->dev, 1);
 }
 
 static int super_put(struct super_block *super)

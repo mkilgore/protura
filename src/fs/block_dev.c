@@ -176,7 +176,7 @@ int block_dev_set_block_size(dev_t device, size_t size)
     int minor = DEV_MINOR(device);
 
     if (minor == 0) {
-        block_dev2_clear(device);
+        block_dev_clear(device);
         kp(KP_NORMAL, "Block Device %d:%d, block size: %d\n", DEV_MAJOR(device), minor, size);
         bdev->block_size = size;
         return 0;
@@ -187,7 +187,7 @@ int block_dev_set_block_size(dev_t device, size_t size)
 
     int partition_no = minor - 1;
 
-    block_dev2_clear(device);
+    block_dev_clear(device);
     kp(KP_NORMAL, "Block Device %d:%d, partition %d, block size: %d\n", DEV_MAJOR(device), minor, partition_no, size);
 
     bdev->partitions[partition_no].block_size = size;

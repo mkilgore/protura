@@ -169,7 +169,7 @@ static struct block *__bread(dev_t device, struct block_device *bdev, size_t blo
     return b;
 }
 
-struct block *bread2(dev_t device, sector_t sector)
+struct block *bread(dev_t device, sector_t sector)
 {
     struct block *b;
     struct block_device *dev = block_dev_get(device);
@@ -198,14 +198,8 @@ struct block *bread2(dev_t device, sector_t sector)
     return b;
 }
 
-void brelease2(struct block *b)
-{
-    atomic_dec(&b->refs);
-}
-
 void brelease(struct block *b)
 {
-    block_unlock(b);
     atomic_dec(&b->refs);
 }
 
@@ -216,12 +210,12 @@ void brelease(struct block *b)
  */
 static mutex_t sync_lock = MUTEX_INIT(sync_lock);
 
-void block_dev2_clear(dev_t dev)
+void block_dev_clear(dev_t dev)
 {
     struct block_device *bdev = block_dev_get(dev);
     struct block *b;
 
-    block_dev2_sync(bdev, dev, 1);
+    block_dev_sync(bdev, dev, 1);
 
     using_mutex(&block_cache.lock) {
         list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
@@ -239,7 +233,7 @@ void block_dev2_clear(dev_t dev)
     }
 }
 
-void block_dev2_sync(struct block_device *bdev, dev_t dev, int wait)
+void block_dev_sync(struct block_device *bdev, dev_t dev, int wait)
 {
     list_head_t sync_list = LIST_HEAD_INIT(sync_list);
     struct block *b;

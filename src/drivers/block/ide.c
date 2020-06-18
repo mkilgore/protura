@@ -326,8 +326,7 @@ static void __ide_handle_intr(struct irq_frame *frame)
     flag_set(&b->flags, BLOCK_VALID);
     flag_clear(&b->flags, BLOCK_DIRTY);
 
-    block_unlock(b);
-    brelease2(b);
+    bunlockrelease(b);
 
     if (!ide_queue_empty(&ide_state))
         __ide_start_queue();
@@ -463,40 +462,6 @@ static void ide_sync_block_async(struct block *b, int master_or_slave)
     }
 }
 
-static void ide_sync_block(struct block *b, int master_or_slave)
-{
-    /* If the block is valid and not dirty, then there is no syncing needed */
-    using_spinlock(&ide_state.lock) {
-        if (flag_test(&b->flags, BLOCK_VALID) && !flag_test(&b->flags, BLOCK_DIRTY))
-            return ;
-
-        b = block_dup(b);
-
-        int start = ide_queue_empty(&ide_state);
-
-        list_head_t *list = (master_or_slave)
-                            ? &ide_state.block_queue_slave
-                            : &ide_state.block_queue_master;
-
-        list_add_tail(list, &b->block_list_node);
-
-        if (start)
-            __ide_start_queue();
-    }
-
-    block_lock(b);
-}
-
-void ide_sync_block_master(struct block_device *__unused dev, struct block *b)
-{
-    return ide_sync_block(b, 0);
-}
-
-void ide_sync_block_slave(struct block_device *__unused dev, struct block *b)
-{
-    return ide_sync_block(b, 1);
-}
-
 void ide_sync_block_async_master(struct block_device *__unused dev, struct block *b)
 {
     return ide_sync_block_async(b, 0);
@@ -508,12 +473,10 @@ void ide_sync_block_async_slave(struct block_device *__unused dev, struct block 
 }
 
 struct block_device_ops ide_master_block_device_ops = {
-    .sync_block = ide_sync_block_master,
     .sync_block_async = ide_sync_block_async_master,
 };
 
 struct block_device_ops ide_slave_block_device_ops = {
-    .sync_block = ide_sync_block_slave,
     .sync_block_async = ide_sync_block_async_slave,
 };
 
