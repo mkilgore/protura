@@ -81,7 +81,7 @@ static int run_module(struct ktest_module *module)
     if (module->setup_module) {
         int err = (module->setup_module) (module);
         if (err) {
-            kp(KP_ERROR, "== Error durring test module setup, FAIL ==\n");
+            kp(KP_ERROR, "== Error during test module setup, FAIL ==\n");
             kp(KP_NORMAL, "==== Finished tests for %s ====\n", module->name);
             return 1;
         }
