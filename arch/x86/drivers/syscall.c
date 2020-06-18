@@ -479,6 +479,11 @@ static void sys_handler_access(struct irq_frame *frame)
     frame->eax = sys_access(make_user_buffer(frame->ebx), frame->ecx);
 }
 
+static void sys_handler_utimes(struct irq_frame *frame)
+{
+    frame->eax = sys_utimes(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -576,6 +581,7 @@ static struct syscall_handler {
     SYSCALL(CHMOD, sys_handler_chmod),
     SYSCALL(FCHMOD, sys_handler_fchmod),
     SYSCALL(ACCESS, sys_handler_access),
+    SYSCALL(UTIMES, sys_handler_utimes),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

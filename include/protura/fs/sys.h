@@ -61,5 +61,6 @@ int sys_chmod(struct user_buffer path, mode_t mode);
 int sys_fchmod(int fd, mode_t mode);
 
 int sys_access(struct user_buffer path_buf, int mode);
+int sys_utimes(struct user_buffer path_buf, struct user_buffer timeval_buf);
 
 #endif

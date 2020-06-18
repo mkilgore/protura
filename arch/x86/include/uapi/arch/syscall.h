@@ -104,5 +104,6 @@
 #define SYSCALL_FCHMOD       0x5C
 #define SYSCALL_UMASK        0x5D
 #define SYSCALL_ACCESS       0x5E
+#define SYSCALL_UTIMES       0x5F
 
 #endif

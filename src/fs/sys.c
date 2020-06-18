@@ -1020,3 +1020,48 @@ int sys_fchmod(int fd, mode_t mode)
 
     return vfs_chmod(filp->inode, mode);
 }
+
+int sys_utimes(struct user_buffer path_buf, struct user_buffer timeval_buf)
+{
+    struct nameidata path_name;
+    struct task *current = cpu_get_local()->current;
+
+    __cleanup_user_string char *tmp_path = NULL;
+    int ret = user_alloc_string(path_buf, &tmp_path);
+    if (ret)
+        return ret;
+
+    memset(&path_name, 0, sizeof(path_name));
+    path_name.path = tmp_path;
+    path_name.cwd = current->cwd;
+
+    ret = namei_full(&path_name, F(NAMEI_GET_INODE));
+    if (!path_name.found)
+        return ret;
+
+    if (!user_buffer_is_null(timeval_buf)) {
+        struct timeval times[2];
+
+        ret = user_copy_to_kernel(&times, timeval_buf);
+        if (ret)
+            goto release_inode;
+
+        struct inode_attributes attrs;
+        memset(&attrs, 0, sizeof(attrs));
+        attrs.atime = times[0].tv_sec;
+        attrs.mtime = times[1].tv_sec;
+
+        ret = vfs_apply_attributes(path_name.found, F(INODE_ATTR_ATIME, INODE_ATTR_MODE), &attrs);
+    } else {
+        ret = check_permission(path_name.found, W_OK);
+        if (ret)
+            goto release_inode;
+
+        /* Providing no flags updates all the inode times to the current time */
+        ret = vfs_apply_attributes(path_name.found, 0, NULL);
+    }
+
+  release_inode:
+    inode_put(path_name.found);
+    return ret;
+}
