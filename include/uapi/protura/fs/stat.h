@@ -84,4 +84,9 @@ struct stat {
 #define DT_LNK     MODE_TO_DT(_IFLNK)
 #define DT_FIFO    MODE_TO_DT(_IFIFO)
 
+#define	F_OK	0
+#define	R_OK	4
+#define	W_OK	2
+#define	X_OK	1
+
 #endif
