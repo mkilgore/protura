@@ -52,13 +52,6 @@ struct block {
     /* To be able to modify this block, you have to acquire this lock */
     mutex_t block_mutex;
 
-#ifdef CONFIG_BLOCK_CHANGE_CRC_CHECK
-    /* Used to catch b->dirty not set errors */
-    uint16_t crc;
-#endif
-
-    struct wait_queue queue;
-
     list_node_t block_sync_node;
 
     list_node_t block_list_node;
@@ -81,8 +74,30 @@ static inline int block_waiting(struct block *b)
     return mutex_waiting(&b->block_mutex);
 }
 
-struct block *bread(dev_t, sector_t);
-void brelease(struct block *);
+static inline void block_lock(struct block *b)
+{
+    kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
+    mutex_lock(&b->block_mutex);
+    kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
+}
+
+static inline int block_try_lock(struct block *b)
+{
+    kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
+    if (mutex_try_lock(&b->block_mutex)) {
+        kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
+        return SUCCESS;
+    }
+
+    return 1;
+}
+
+static inline void block_unlock(struct block *b)
+{
+    kp(KP_LOCK, "block %d:%d: Unlocking\n", b->dev, b->sector);
+    mutex_unlock(&b->block_mutex);
+    kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
+}
 
 struct block *bread2(dev_t, sector_t);
 void brelease2(struct block *);
@@ -94,11 +109,24 @@ static inline struct block *block_dup(struct block *b)
     return b;
 }
 
+static inline struct block *breadlock(dev_t dev, sector_t sec)
+{
+    struct block *b = bread2(dev, sec);
+    block_lock(b);
+    return b;
+}
+
+static inline void bunlockrelease(struct block *b)
+{
+    block_unlock(b);
+    brelease2(b);
+}
+
 #define using_block2(dev, sector, block) \
     using_nocheck(((block) = bread2(dev, sector)), (brelease2(block)))
 
-#define using_block(dev, sector, block) \
-    using_nocheck(((block) = bread(dev, sector)), (brelease(block)))
+#define using_block_locked(dev, sector, block) \
+    using_nocheck(((block) = breadlock(dev, sector)), (bunlockrelease(block)))
 
 void block_cache_init(void);
 
@@ -162,42 +190,9 @@ int block_dev_set_block_size(dev_t device, size_t size);
 size_t block_dev_get_block_size(dev_t device);
 size_t block_dev_get_device_size(dev_t device);
 
-void block_dev_clear(dev_t dev);
-void block_dev_sync(struct block_device *, dev_t, int wait);
 void block_dev2_clear(dev_t dev);
 void block_dev2_sync(struct block_device *, dev_t, int wait);
-
-
-#define BLOCK_CRC_POLY CRC_ANSI_POLY
-
-#ifdef CONFIG_BLOCK_CHANGE_CRC_CHECK
-static inline void block_set_crc(struct block *b)
-{
-    b->crc = crc16(b->data, b->block_size, BLOCK_CRC_POLY);
-}
-
-static inline void block_check_crc(struct block *b)
-{
-    if (crc16(b->data, b->block_size, BLOCK_CRC_POLY) != b->crc) {
-        kp(KP_ERROR, "Block %d:%d: CRC check failed, b->dirty should be set! b->dirty=%d\n", b->dev, b->sector, flag_test(&b->flags, BLOCK_DIRTY));
-        flag_set(&b->flags, BLOCK_DIRTY);
-    }
-}
-#else
-static inline void block_set_crc(struct block *b) { }
-static inline void block_check_crc(struct block *b) { }
-#endif
-
-static inline void block_dev_sync_block(struct block_device *dev, struct block *b)
-{
-    if (!flag_test(&b->flags, BLOCK_DIRTY) && flag_test(&b->flags, BLOCK_VALID))
-        block_check_crc(b);
-
-    if (!flag_test(&b->flags, BLOCK_VALID) || flag_test(&b->flags, BLOCK_DIRTY)) {
-        (dev->ops->sync_block) (dev, b);
-        block_set_crc(b);
-    }
-}
+void block_sync_all(int wait);
 
 static inline void block_dev_sync_block_async(struct block_device *dev, struct block *b)
 {
@@ -210,31 +205,6 @@ static inline void block_dev_sync_block_async(struct block_device *dev, struct b
 static inline void block_submit(struct block *b)
 {
     block_dev_sync_block_async(b->bdev, b);
-}
-
-static inline void block_lock(struct block *b)
-{
-    kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
-    mutex_lock(&b->block_mutex);
-    kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
-}
-
-static inline int block_try_lock(struct block *b)
-{
-    kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
-    if (mutex_try_lock(&b->block_mutex)) {
-        kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
-        return SUCCESS;
-    }
-
-    return 1;
-}
-
-static inline void block_unlock(struct block *b)
-{
-    kp(KP_LOCK, "block %d:%d: Unlocking\n", b->dev, b->sector);
-    mutex_unlock(&b->block_mutex);
-    kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
 }
 
 dev_t block_dev_anon_get(void);
