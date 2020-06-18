@@ -184,10 +184,33 @@ static void handle_children(int sig)
     }
 }
 
+static void start_child(const char *prog, char *const argv[], char *const envp[])
+{
+    sigset_t set;
+    char stdout_file[256];
+    char stderr_file[256];
+
+    pid_t pid = getpid();
+
+    snprintf(stdout_file, sizeof(stdout_file), "%s.%d.out", LOGFILE, pid);
+    snprintf(stderr_file, sizeof(stderr_file), "%s.%d.err", LOGFILE, pid);
+
+    int logfd = fileno(ilog);
+    close(logfd);
+
+    int std_in = open("/dev/null", O_RDONLY);
+    int std_out = open(stdout_file, O_RDWR | O_CREAT, 0666);
+    int std_err = open(stderr_file, O_RDWR | O_CREAT, 0666);
+
+    sigemptyset(&set);
+    sigprocmask(SIG_SETMASK, &set, NULL);
+    execve(prog, argv, envp);
+    exit(0);
+}
+
 static pid_t start_prog(const char *prog, char *const argv[], char *const envp[])
 {
     pid_t child_pid;
-    sigset_t set;
 
     switch ((child_pid = fork())) {
     case -1:
@@ -196,10 +219,7 @@ static pid_t start_prog(const char *prog, char *const argv[], char *const envp[]
 
     case 0:
         /* In child */
-        sigemptyset(&set);
-        sigprocmask(SIG_SETMASK, &set, NULL);
-        execve(prog, argv, envp);
-        exit(0);
+        start_child(prog, argv, envp);
 
     default:
         /* In parent */
