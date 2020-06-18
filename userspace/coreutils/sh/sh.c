@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 #include <limits.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -95,6 +96,14 @@ int main(int argc, char **argv)
     cwd = malloc(cwd_len);
 
     while ((getcwd(cwd, cwd_len)) == NULL) {
+        if (errno != ERANGE) {
+            free(cwd);
+            cwd = strdup("/");
+            chdir(cwd);
+
+            printf("%s: Error detecting cwd: %s\n", sh_args[0], strerror(errno));
+            break;
+        }
         cwd_len *= 2;
         cwd = realloc(cwd, cwd_len);
     }
