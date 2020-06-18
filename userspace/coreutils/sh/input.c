@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "readline_lite.h"
 #include "shell.h"
@@ -22,6 +23,7 @@
 
 static int interactive = 0;
 static FILE *inp_file;
+static uid_t effective_uid;
 
 struct job *current_job;
 
@@ -33,7 +35,7 @@ static char *get_next_line(void)
 
     if (interactive) {
         char prompt_buf[1024];
-        snprintf(prompt_buf, sizeof(prompt_buf), "%s $ ", cwd);
+        snprintf(prompt_buf, sizeof(prompt_buf), "%s %c ", cwd, effective_uid == 0? '#': '$');
 
         line = readline_lite(prompt_buf);
 
@@ -63,6 +65,8 @@ static void input_loop(void)
 {
     char *line = NULL;
     struct job *job;
+
+    effective_uid = geteuid();
 
     while (!feof(inp_file)) {
         job_update_background();
@@ -101,8 +105,6 @@ static void input_loop(void)
     }
 
     free(line);
-
-    return ;
 }
 
 void keyboard_input_loop(void)
