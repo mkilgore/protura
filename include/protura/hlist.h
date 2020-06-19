@@ -47,9 +47,11 @@ static inline int hlist_hashed(hlist_node_t *n)
 
 static inline void hlist_del(hlist_node_t *n)
 {
-    __hlist_del(n);
-    n->next = NULL;
-    n->pprev = NULL;
+    if (hlist_hashed(n)) {
+        __hlist_del(n);
+        n->next = NULL;
+        n->pprev = NULL;
+    }
 }
 
 static inline void hlist_add(hlist_head_t *head, hlist_node_t *n)
