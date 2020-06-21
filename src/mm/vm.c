@@ -66,6 +66,9 @@ void address_space_clear(struct address_space *addrspc)
 
         page_table_free_range(addrspc->page_dir, map->addr.start, page_count);
 
+        if (map->filp)
+            vfs_close(map->filp);
+
         kfree(map);
     }
 
