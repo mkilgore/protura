@@ -45,7 +45,7 @@ macro define task20 container_of(ktasks.list.next->next->next->next->next->next-
 define list_tasks
     set $list = ktasks.list.next
     set $cur = 1
-    while $list != ktasks.list.prev
+    while $list != (list_node_t *)&ktasks.list
         set $list = container_of($list, struct task, task_list_node)
         printf "task %d: %d, %s\n", $cur, $list->pid, $list->name
         set $list = $list->task_list_node.next
