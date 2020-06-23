@@ -264,7 +264,7 @@ DEP_LIST := $(foreach file,$(DEP_LIST),$(dir $(file)).$(notdir $(file)))
 DEP_LIST := $(DEP_LIST:.o=.d)
 DEP_LIST := $(DEP_LIST:.ld=.d)
 
-ifneq (,$(filter $(MAKECMDGOALS),kernel disk check))
+ifeq (,$(filter $(MAKECMDGOALS),clean-full clean-configure clean-kernel clean-kernel-headers clean-toolchain clean-disk))
 -include $(DEP_LIST)
 endif
 
@@ -274,7 +274,7 @@ $(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
 
 # Actual default entry
 real-all:
-	@echo "Please run make with one of 'configure', 'kernel', 'toolchain', or 'disk'"
+	@echo "Please run make with one of 'configure', 'kernel', 'toolchain', 'check', or 'disk'"
 	@echo "See README.md for more information"
 
 PHONY += kernel
