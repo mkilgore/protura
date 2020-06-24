@@ -94,11 +94,8 @@ enum inode_flags {
 struct inode {
     ino_t ino;
 
-    /* sb_dev is the block-device attached to the super-block.
-     *
-     * dev_no is the device-number this inode refers to, if it is a block or
+    /* dev_no is the device-number this inode refers to, if it is a block or
      * char device. */
-    dev_t sb_dev;
     dev_t dev_no;
     off_t size;
     mode_t mode;
@@ -178,7 +175,7 @@ struct inode_ops {
     int (*follow_link) (struct inode *dir, struct inode *symlink, struct inode **result);
 };
 
-#define Pinode(i) (i)->sb_dev, (i)->ino
+#define Pinode(i) (i)->sb->dev, (i)->ino
 #define PRinode "%d:%d"
 
 #define inode_has_truncate(inode) ((inode)->ops && (inode)->ops->truncate)
@@ -218,40 +215,27 @@ int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct
 
 static inline void inode_lock_read(struct inode *i)
 {
-    kp(KP_LOCK_INODE, "inode "PRinode": Locking read\n", Pinode(i));
     mutex_lock(&i->lock);
-    kp(KP_LOCK_INODE, "inode "PRinode": Locked read\n", Pinode(i));
 }
 
 static inline void inode_unlock_read(struct inode *i)
 {
-    kp(KP_LOCK_INODE, "inode "PRinode": Unlocking read\n", Pinode(i));
     mutex_unlock(&i->lock);
-    kp(KP_LOCK_INODE, "inode "PRinode": Unlocked read\n", Pinode(i));
 }
 
 static inline void inode_lock_write(struct inode *i)
 {
-    kp(KP_LOCK_INODE, "inode "PRinode": Locking write\n", Pinode(i));
     mutex_lock(&i->lock);
-    kp(KP_LOCK_INODE, "inode "PRinode": Locked write\n", Pinode(i));
 }
 
 static inline void inode_unlock_write(struct inode *i)
 {
-    kp(KP_LOCK_INODE, "inode "PRinode": Unlocking write\n", Pinode(i));
     mutex_unlock(&i->lock);
-    kp(KP_LOCK_INODE, "inode "PRinode": Unlocked write\n", Pinode(i));
 }
 
 static inline int inode_try_lock_write(struct inode *i)
 {
-    kp(KP_LOCK_INODE, "inode "PRinode": Attempting Locking write\n", Pinode(i));
-    if (mutex_try_lock(&i->lock)) {
-        kp(KP_LOCK_INODE, "inode "PRinode": Locked write\n", Pinode(i));
-        return 1;
-    }
-    return 0;
+    return mutex_try_lock(&i->lock);
 }
 
 #define using_inode_lock_read(inode) \

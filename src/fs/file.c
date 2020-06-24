@@ -29,7 +29,7 @@ int fs_file_generic_pread(struct file *filp, struct user_buffer buf, size_t size
 {
     off_t len;
     off_t have_read = 0;
-    dev_t dev = filp->inode->sb_dev;
+    dev_t dev = filp->inode->sb->dev;
 
     if (!file_is_readable(filp))
         return -EBADF;
@@ -106,7 +106,7 @@ int fs_file_generic_write(struct file *filp, struct user_buffer buf, size_t size
     int ret = 0;
     off_t len;
     off_t have_written = 0;
-    dev_t dev = filp->inode->sb_dev;
+    dev_t dev = filp->inode->sb->dev;
 
     if (!file_is_writable(filp))
         return -EBADF;

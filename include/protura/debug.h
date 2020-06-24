@@ -44,12 +44,6 @@
 # define KP_SPINLOCK 99
 #endif
 
-#ifdef CONFIG_KERNEL_LOG_INODE_LOCK
-# define KP_LOCK_INODE KP_DEBUG
-#else
-# define KP_LOCK_INODE 99
-#endif
-
 struct kp_output {
     list_node_t node;
     void (*print) (struct kp_output *, const char *fmt, va_list lst);

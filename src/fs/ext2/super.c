@@ -84,7 +84,6 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
         kp_ext2(sb, "Inode group block offset: %d\n", inode_offset);
 
         inode->i.sb = super;
-        inode->i.sb_dev = super->dev;
         inode->i.block_size = sb->block_size;
         inode->inode_group_blk_nr = inode_group_blk_nr;
         inode->inode_group_blk_offset = inode_offset;
@@ -147,7 +146,7 @@ static void verify_ext2_inode(struct super_block *super, struct ext2_inode *inod
         struct ext2_disk_inode *dinode = (struct ext2_disk_inode *)b->data + inode->inode_group_blk_offset;
 
 #define inode_assert(inode, cond) \
-    kassert(cond, "inode %d:%d not set dirty!\n", (inode)->i.sb_dev, (inode)->i.ino);
+    kassert(cond, "inode %d:%d not set dirty!\n", (inode)->i.sb->dev, (inode)->i.ino);
 
         inode_assert(inode, dinode->mode == inode->i.mode);
         inode_assert(inode, (off_t)dinode->size == inode->i.size);

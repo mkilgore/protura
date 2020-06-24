@@ -71,7 +71,6 @@ struct inode *inode_create(struct super_block *sb)
 {
     struct inode *new = sb->ops->inode_alloc(sb);
     new->sb = sb;
-    new->sb_dev = sb->dev;
 
     atomic_inc(&new->ref);
     return new;

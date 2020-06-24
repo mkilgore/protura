@@ -60,7 +60,6 @@ static int procfs_inode_read(struct super_block *sb, struct inode *inode)
     if (!node)
         return -ENOENT;
 
-    pinode->i.sb_dev = sb->dev;
     pinode->i.dev_no = 0;
     pinode->i.mode = node->mode;
     atomic32_set(&pinode->i.nlinks, node->nlinks);

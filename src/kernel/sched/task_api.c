@@ -193,7 +193,7 @@ static int task_api_fill_file_info(struct task_api_file_info *info)
             info->files[i].is_append = 1;
 
         info->files[i].inode = filp->inode->ino;
-        info->files[i].dev = DEV_TO_USERSPACE(filp->inode->sb_dev);
+        info->files[i].dev = DEV_TO_USERSPACE(filp->inode->sb->dev);
         info->files[i].mode = filp->inode->mode;
         info->files[i].offset = filp->offset;
         info->files[i].size = filp->inode->size;

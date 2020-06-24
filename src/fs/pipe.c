@@ -93,7 +93,6 @@ static struct inode *new_pipe_inode(void)
     struct inode *inode = pipe_fake_super_block.ops->inode_alloc(&pipe_fake_super_block);
 
     inode->ino = next_pipe_ino++;
-    inode->sb_dev = pipe_fake_super_block.dev;
     inode->sb = &pipe_fake_super_block;
 
     return inode;
@@ -101,7 +100,7 @@ static struct inode *new_pipe_inode(void)
 
 int inode_is_pipe(struct inode *inode)
 {
-    return inode->sb_dev == pipe_fake_super_block.dev;
+    return inode->sb == &pipe_fake_super_block;
 }
 
 /*
