@@ -198,14 +198,18 @@ int __ext2_dir_lookup_ino(struct inode *dir, const char *name, size_t len, ino_t
     return 0;
 }
 
-int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result)
+int ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result)
 {
     ino_t entry = 0;
     int ret;
 
-    ret = __ext2_dir_lookup_ino(dir, name, len, &entry);
-    if (ret)
-        return ret;
+    kp_ext2(dir->sb, "Lookup: "PRinode" name: %s, len: %d\n", Pinode(dir), name, len);
+
+    using_inode_lock_read(dir) {
+        ret = __ext2_dir_lookup_ino(dir, name, len, &entry);
+        if (ret)
+            return ret;
+    }
 
     kp_ext2(dir->sb, "Lookup inode: %d\n", entry);
     *result = inode_get(dir->sb, entry);

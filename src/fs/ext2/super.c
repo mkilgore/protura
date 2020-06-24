@@ -137,8 +137,6 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
         }
     }
 
-    inode_set_valid(&inode->i);
-
     return 0;
 }
 
@@ -189,7 +187,11 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
 
     kp_ext2(sb, "writing inode: %d\n", i->ino);
 
-    if (!inode_is_dirty(i)) {
+    int dirty = 0;
+    using_spinlock(&i->flags_lock)
+        dirty = flag_test(&i->flags, INO_DIRTY);
+
+    if (!dirty) {
         kp_ext2(sb, "inode was not dirty\n");
         ext2_inode_check(super, inode);
         return 0;
@@ -227,8 +229,6 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
         block_mark_dirty(b);
     }
 
-    inode_clear_dirty(i);
-
     return 0;
 }
 
@@ -251,11 +251,10 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
 
     ext2i->dtime = protura_current_time_get();
 
+    inode_set_dirty(i);
+    ext2_inode_write(super, i);
+
     using_super_block(super) {
-        if (inode_is_dirty(i)) {
-            ext2_inode_write(super, i);
-            list_del(&i->sb_dirty_entry);
-        }
 
         inode_group = (i->ino - 1) / sb->disksb.inodes_per_block_group;
         inode_entry = (i->ino - 1) % sb->disksb.inodes_per_block_group;

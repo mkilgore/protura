@@ -24,19 +24,6 @@
 #include <protura/fs/ext2.h>
 #include "ext2_internal.h"
 
-
-static int ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result)
-{
-    int ret = 0;
-
-    kp_ext2(dir->sb, "Lookup: "PRinode" name: %s, len: %d\n", Pinode(dir), name, len);
-
-    using_inode_lock_read(dir)
-        ret = __ext2_dir_lookup(dir, name, len, result);
-
-    return ret;
-}
-
 static int ext2_dir_truncate(struct inode *dir, off_t size)
 {
     return -EISDIR;
@@ -222,17 +209,17 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
 
     newdir->ctime = newdir->mtime = protura_current_time_get();
     atomic_set(&newdir->nlinks, 2);
-    inode_set_valid(newdir);
+    inode_mark_valid(newdir);
+
     inode_set_dirty(newdir);
 
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_inc_nlinks(dir);
 
-    using_super_block(newdir->sb)
-        sb->sb.ops->inode_write(&sb->sb, newdir);
+    inode_write_to_disk(newdir, 0);
 
   cleanup_newdir:
-    inode_put(newdir);
+    inode_mark_bad(newdir);
     return ret;
 }
 
@@ -266,26 +253,26 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
         ret = __ext2_dir_entry_exists(dir, name, len);
         if (!ret)
             ret = __ext2_dir_add(dir, name, len, ino->ino, mode);
+
+        ino->ctime = ino->mtime = protura_current_time_get();
+
     }
 
     if (ret) {
-        inode_put(ino);
+        inode_mark_bad(ino);
         return ret;
     }
 
-    /* We wait to do this until we're sure the entry succeeded */
-    ino->ctime = ino->mtime = protura_current_time_get();
-    inode_set_valid(ino);
-    inode_set_dirty(ino);
     inode_inc_nlinks(ino);
+    inode_mark_valid(ino);
 
+    /* We wait to do this until we're sure the entry succeeded */
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
 
     kp_ext2(sb, "Inode links: %d\n", atomic32_get(&ino->ref));
 
-    using_super_block(ino->sb)
-        ino->sb->ops->inode_write(ino->sb, ino);
+    inode_write_to_disk(ino, 0);
 
     if (result)
         *result = ino;
@@ -319,20 +306,18 @@ static int ext2_dir_mknod(struct inode *dir, const char *name, size_t len, mode_
         ret = __ext2_dir_add(dir, name, len, inode->ino, mode);
 
     if (ret) {
-        inode_put(inode);
+        inode_mark_bad(inode);
         return ret;
     }
 
     inode->ctime = inode->mtime = protura_current_time_get();
-    inode_set_valid(inode);
-    inode_set_dirty(inode);
     inode_inc_nlinks(inode);
+    inode_mark_valid(inode);
 
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
 
-    using_super_block(inode->sb)
-        inode->sb->ops->inode_write(inode->sb, inode);
+    inode_write_to_disk(inode, 0);
 
     return 0;
 }
@@ -424,8 +409,7 @@ static int ext2_dir_rename(struct inode *old_dir, const char *name, size_t len, 
 
     kp_ext2(old_dir->sb, "Renaming %s in "PRinode" to %s in "PRinode"\n", name, Pinode(old_dir), new_name, Pinode(new_dir));
 
-    using_inode_lock_read(old_dir)
-        ret = __ext2_dir_lookup(old_dir, name, len, &entry);
+    ret = ext2_dir_lookup(old_dir, name, len, &entry);
 
     if (ret)
         return ret;
@@ -517,7 +501,7 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
         ret = __ext2_dir_add(dir, name, len, symlink->ino, S_IFLNK);
 
     if (ret) {
-        inode_put(symlink);
+        inode_mark_bad(symlink);
         return ret;
     }
 
@@ -541,17 +525,15 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
 
     /* We wait to do this until we're sure the entry succeeded */
     symlink->ctime = symlink->mtime = protura_current_time_get();
-    inode_set_valid(symlink);
-    inode_set_dirty(symlink);
     inode_inc_nlinks(symlink);
+    inode_mark_valid(symlink);
 
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
 
     kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&symlink->ref));
 
-    using_super_block(symlink->sb)
-        symlink->sb->ops->inode_write(symlink->sb, symlink);
+    inode_write_to_disk(symlink, 0);
 
     inode_put(symlink);
 

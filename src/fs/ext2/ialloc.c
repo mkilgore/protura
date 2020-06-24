@@ -58,6 +58,24 @@ static ino_t __ext2_check_block_group(struct ext2_super_block *sb, int group_no)
     return ino;
 }
 
+static void __ext2_unset_inode_number(struct ext2_super_block *sb, ino_t ino)
+{
+    struct block *b;
+    int inode_group = (ino - 1) / sb->disksb.inodes_per_block_group;
+    int inode_entry = (ino - 1) % sb->disksb.inodes_per_block_group;
+
+    using_block_locked(sb->sb.dev, sb->groups[inode_group].block_nr_inode_bitmap, b) {
+        if (bit_test(b->data, inode_entry) == 0)
+            kp_ext2(sb, "EXT2 (%p): Error, attempted to unset inode with ino(%d) not currently used!\n", sb, ino);
+
+        bit_clear(b->data, inode_entry);
+        block_mark_dirty(b);
+    }
+
+    sb->groups[inode_group].inode_unused_total++;
+    sb->disksb.inode_unused_total++;
+}
+
 int ext2_inode_new(struct super_block *sb, struct inode **result)
 {
     struct ext2_super_block *ext2sb = container_of(sb, struct ext2_super_block, sb);
@@ -67,14 +85,6 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
     struct inode *inode;
     sector_t inode_group_blk = 0;
     int inode_group_blk_offset = 0;
-
-    inode = (sb->ops->inode_alloc) (sb);
-    kp_ext2(sb, "ialloc: inode_alloc: %p\n", inode);
-
-    if (!inode)
-        return -ENOSPC;
-
-    ext2_inode = container_of(inode, struct ext2_inode, i);
 
     using_super_block(sb) {
         for (i = 0; i < ext2sb->block_group_count && !ino; i++)
@@ -107,23 +117,24 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
     }
 
     if (ret)
-        goto cleanup_inode;
+        return ret;
 
-    ext2_inode->i.sb = sb;
-    ext2_inode->i.sb_dev = sb->dev;
-    ext2_inode->i.ino = ino;
+    inode = inode_get_invalid(sb, ino);
+    kp_ext2(sb, "ialloc: inode_alloc: %p\n", inode);
+
+    if (!inode) {
+        using_super_block(sb)
+            __ext2_unset_inode_number(ext2sb, ino);
+
+        return -ENOMEM;
+    }
+
+    ext2_inode = container_of(inode, struct ext2_inode, i);
+
     ext2_inode->inode_group_blk_nr = inode_group_blk;
     ext2_inode->inode_group_blk_offset = inode_group_blk_offset;
 
-    atomic_inc(&ext2_inode->i.ref);
-
-    inode_add(&ext2_inode->i);
-
     *result = &ext2_inode->i;
     return 0;
-
-  cleanup_inode:
-    (sb->ops->inode_dealloc) (sb, inode);
-    return ret;
 }
 

@@ -50,7 +50,7 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
 int __ext2_dir_remove_entry(struct inode *dir, struct block *b, struct ext2_disk_directory_entry *entry);
 
 int __ext2_dir_lookup_ino(struct inode *dir, const char *name, size_t len, ino_t *ino);
-int __ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result);
+int ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inode **result);
 int __ext2_dir_entry_exists(struct inode *dir, const char *name, size_t len);
 int __ext2_dir_add(struct inode *dir, const char *name, size_t len, ino_t ino, mode_t mode);
 int __ext2_dir_remove(struct inode *dir, const char *name, size_t len);
@@ -58,6 +58,12 @@ int __ext2_dir_readdir(struct file *filp, struct file_readdir_handler *handler);
 int __ext2_dir_read_dent(struct file *filp, struct user_buffer dent, size_t size);
 int __ext2_dir_empty(struct inode *dir);
 int __ext2_dir_change_dotdot(struct inode *dir, ino_t ino);
+
+/* Creates a new inode and returns it to the caller to finish setting it up.
+ *
+ * NOTE: Caller needs to call inode_mark_valid() on the returned inode to
+ *       finish registering it in the inode table.
+ */
 int ext2_inode_new(struct super_block *sb, struct inode **result);
 
 #endif
