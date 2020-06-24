@@ -222,6 +222,9 @@ struct ktest_module {
     int (*setup_module) (struct ktest_module *);
     int (*teardown_module) (struct ktest_module *);
 
+    int (*setup_test) (struct ktest *);
+    int (*teardown_test) (struct ktest *);
+
     const struct ktest_unit *tests;
     size_t test_count;
 };
@@ -233,10 +236,22 @@ struct ktest_module {
         .test_count = ARRAY_SIZE((tsts)), \
     }
 
-/* This is a little macro magic to select between the two macros below
+/* This is a little macro magic to select between the three macros below
  * depending on how many arguments are given to `KTEST_MODULE_DEFINE`. The
  * extra levels of indirection are necessary to ensure the COUNT_ARGS() is
  * fully expanded */
+#define KTEST_MODULE_DEFINE_6(nam, tst, setup, teardown, test_setup, test_teardown) \
+    static const __ktest struct ktest_module TP(ktest_module, __COUNTER__) = \
+        { \
+            .name = (nam), \
+            .tests = (tst), \
+            .setup_module = (setup), \
+            .teardown_module = (teardown), \
+            .setup_test = (test_setup), \
+            .teardown_test = (test_teardown), \
+            .test_count = ARRAY_SIZE((tst)), \
+        }
+
 #define KTEST_MODULE_DEFINE_4(nam, tst, setup, teardown) \
     static const __ktest struct ktest_module TP(ktest_module, __COUNTER__) = \
         { \

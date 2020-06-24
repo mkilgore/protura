@@ -12,6 +12,7 @@
 #include <protura/dump_mem.h>
 #include <protura/snprintf.h>
 #include <protura/string.h>
+#include <protura/errors.h>
 #include <protura/cmdline.h>
 #include <protura/ksetjmp.h>
 #include <protura/ktest.h>
@@ -122,12 +123,30 @@ static int run_module(struct ktest_module *module)
 
         kp(KP_NORMAL, "== #%d: %s%s ==\n", i, tests[i].name, arg_str);
 
-        run_test(&ktest);
+        int err = 0;
+        if (module->setup_test) {
+            err = (module->setup_test) (&ktest);
+            if (err) {
+                snprintf(buf, sizeof(buf), "FAIL -> Test Setup returned %s(%d)!", strerror(err), err);
+                ktest.failed_tests++;
+            }
+        }
 
-        if (ktest.failed_tests != 0)
-            snprintf(buf, sizeof(buf), "FAIL -> %d", ktest.failed_tests);
-        else
-            snprintf(buf, sizeof(buf), "PASS");
+        if (!err) {
+            run_test(&ktest);
+
+            if (module->teardown_test) {
+                err = (module->teardown_test) (&ktest);
+                ktest.failed_tests++;
+            }
+
+            if (err)
+                snprintf(buf, sizeof(buf), "FAIL -> Test Teardown returned %s(%d)!", strerror(err), err);
+            else if (ktest.failed_tests != 0)
+                snprintf(buf, sizeof(buf), "FAIL -> %d", ktest.failed_tests);
+            else
+                snprintf(buf, sizeof(buf), "PASS");
+        }
 
         kp(KP_NORMAL, "== Result: %s ==\n", buf);
 
