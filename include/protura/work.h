@@ -43,7 +43,7 @@ struct workqueue {
  *
  *     WORK_CALLBACK: Call the callback specified by the `callback` field.
  *                    The `struct work` instance is passed to this callback,
- *                    with the assumption being it is embeeded in some larger
+ *                    with the assumption being it is embedded in some larger
  *                    structure that will be accessed via `container_of`.
  *
  *     WORK_KWORK: Schedules this work to run on the `kwork` workqueue.
@@ -182,6 +182,11 @@ static inline void work_init_workqueue(struct work *work, void (*callback) (stru
     *work = (struct work)WORK_INIT_WORKQUEUE(*work, callback, queue);
 }
 
+static inline void delay_work_init(struct delay_work *work)
+{
+    *work = (struct delay_work)DELAY_WORK_INIT(*work);
+}
+
 static inline void delay_work_init_kwork(struct delay_work *work, void (*callback) (struct work *))
 {
     *work = (struct delay_work)DELAY_WORK_INIT_KWORK(*work, callback);
@@ -214,6 +219,7 @@ static inline void kwork_schedule_callback(struct work *work, void (*callback) (
 static inline void kwork_delay_schedule_callback(struct delay_work *work, int delay_ms, void (*callback) (struct work *))
 {
     work->work.callback = callback;
+    work->work.type = WORK_KWORK;
     kwork_delay_schedule(work, delay_ms);
 }
 
