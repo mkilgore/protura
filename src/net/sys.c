@@ -18,6 +18,7 @@
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/vfs.h>
+#include <protura/fs/super.h>
 #include <protura/net/ipv4/ip_route.h>
 #include <protura/net/ipv4/ipv4.h>
 #include <protura/net/linklayer.h>
@@ -55,11 +56,9 @@ static ino_t next_socket_ino = 1;
 
 static struct inode_socket *new_socket_inode(void)
 {
-    struct inode *inode = socket_fake_super_block.ops->inode_alloc(&socket_fake_super_block);
+    struct inode *inode = inode_create(&socket_fake_super_block);
 
     inode->ino = next_socket_ino++;
-    inode->sb_dev = socket_fake_super_block.dev;
-    inode->sb = &socket_fake_super_block;
     inode->mode = S_IFSOCK;
 
     return container_of(inode, struct inode_socket, i);
@@ -349,8 +348,6 @@ int sys_socket(int afamily, int type, int protocol)
 
     if (!inode)
         return -ENFILE;
-
-    inode_dup(&inode->i);
 
     /* We initalize the socket first */
     ret = socket_open(afamily, type & SOCK_MASK, protocol, &inode->socket);
