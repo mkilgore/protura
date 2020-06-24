@@ -89,12 +89,12 @@ void __super_sync(struct super_block *sb)
     if (sb->bdev)
         block_dev_sync(sb->bdev, sb->dev, 0);
 
-    if (sb->ops->inode_write)
-        list_foreach_take_entry(&sb->dirty_inodes, inode, sb_dirty_entry)
-            sb->ops->inode_write(sb, inode);
+    inode_sync(sb, 1);
 
-    if (sb->ops->sb_write)
-        sb->ops->sb_write(sb);
+    using_super_block(sb) {
+        if (sb->ops->sb_write)
+            sb->ops->sb_write(sb);
+    }
 
     if (sb->bdev)
         block_dev_sync(sb->bdev, sb->dev, 1);
@@ -115,8 +115,7 @@ static int super_put(struct super_block *super)
 
 void super_sync(struct super_block *sb)
 {
-    using_super_block(sb)
-        __super_sync(sb);
+    __super_sync(sb);
 }
 
 void sys_sync(void)
@@ -234,6 +233,8 @@ static int super_umount(struct super_block *super)
 {
     int ret;
     dev_t dev = super->dev;
+
+    super_sync(super);
 
     ret = inode_clear_super(super);
     if (ret)
