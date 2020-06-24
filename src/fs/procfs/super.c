@@ -87,8 +87,6 @@ static int procfs_inode_read(struct super_block *sb, struct inode *inode)
             pinode->i.default_fops = &procfs_file_file_ops;
     }
 
-    inode_set_valid(&pinode->i);
-
     return 0;
 }
 
