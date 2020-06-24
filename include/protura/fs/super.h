@@ -8,8 +8,6 @@
 #ifndef INCLUDE_FS_SUPER_H
 #define INCLUDE_FS_SUPER_H
 
-#ifdef __KERNEL__
-
 #include <protura/types.h>
 #include <protura/errors.h>
 #include <protura/fs/block.h>
@@ -139,7 +137,5 @@ static inline int sb_put(struct super_block *sb)
     else
         return -ENOTSUP;
 }
-
-#endif
 
 #endif
