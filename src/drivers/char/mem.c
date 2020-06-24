@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
+#include <protura/dev.h>
 
 #include <protura/fs/char.h>
 #include <protura/drivers/mem.h>

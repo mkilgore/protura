@@ -24,7 +24,6 @@
 #include <protura/fs/seq_file.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
-#include <protura/fs/inode_table.h>
 #include <protura/fs/procfs.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/fs.h>

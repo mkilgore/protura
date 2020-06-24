@@ -13,6 +13,8 @@
 #include <protura/wait.h>
 #include <protura/mutex.h>
 
+struct inode;
+
 /* pipe_info is embedded as part of an inode, so there is no locking
  * information directly in this structure - Locking is done via the inode. */
 struct pipe_info {

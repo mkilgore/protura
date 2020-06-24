@@ -23,7 +23,6 @@
 #include <protura/fs/stat.h>
 #include <protura/fs/fcntl.h>
 #include <protura/fs/inode.h>
-#include <protura/fs/inode_table.h>
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
 #include <protura/fs/ioctl.h>

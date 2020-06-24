@@ -21,7 +21,6 @@
 #include <protura/fs/file.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
-#include <protura/fs/inode_table.h>
 #include <protura/fs/vfs.h>
 
 static int check_ents_in_block(struct block *b, int ents, const char *name, size_t len, struct dirent *result)

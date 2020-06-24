@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Matt Kilgore
+ * Copyright (C) 2020 Matt Kilgore
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License v2 as published by the
@@ -23,7 +23,6 @@
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/sync.h>
-#include <protura/fs/inode_table.h>
 #include <protura/fs/vfs.h>
 
 #ifdef CONFIG_KERNEL_LOG_INODE
@@ -32,247 +31,498 @@
 # define kp_inode(str, ...) do { } while (0)
 #endif
 
-#define INODE_HASH_SIZE 128
+#define INODE_HASH_SIZE 512
 
-static struct {
-    mutex_t lock;
-
-    hlist_head_t inode_hashes[INODE_HASH_SIZE];
-
-    /* Entries in this list have already been flushed to the disk and have no
-     * references. */
-    list_head_t unused;
-
-    atomic_t inode_count;
-} inode_list = {
-    .lock = MUTEX_INIT(inode_list.lock),
-    .inode_hashes = { { .first = NULL } },
-    .unused = LIST_HEAD_INIT(inode_list.unused),
-    .inode_count = ATOMIC_INIT(0),
-};
-
-static inline int inode_hash_get(dev_t dev, ino_t ino)
-{
-    return (ino ^ (DEV_MAJOR(dev) + DEV_MINOR(dev))) % INODE_HASH_SIZE;
-}
-
-/* Completely removes an inode
+/* Protects inode_hashes, inode->hash_entry, inode_freeing_queue
  *
- * Be sure the inode is not dirty and has no references first
+ * inode->flags_lock nests inside of this lock
  */
-static void __inode_flush(struct inode *i)
-{
-    struct super_block *sb = i->sb;
+static spinlock_t inode_hashes_lock;
+static hlist_head_t inode_hashes[INODE_HASH_SIZE];
 
-    if (hlist_hashed(&i->hash_entry))
-        hlist_del(&i->hash_entry);
-    sb->ops->inode_dealloc(sb, i);
+/* This queue is used when an inode is in INO_FREEING.
+ *
+ * We cannot wait on the inode's queue because the inode will be free'd out
+ * from under us. This single queue is for every inode, hopefully there's not
+ * too many in INO_FREEING at any given time that are also be requested. */
+static struct wait_queue inode_freeing_queue = WAIT_QUEUE_INIT(inode_freeing_queue);
+
+static atomic_t inode_count;
+
+/* Use the pointer and inode number for the hash. */
+static inline int inode_hash_get(struct super_block *sb, ino_t ino)
+{
+    /* XOR the top and bottom of the pointer so that there's a bit more mixing
+     * before we do the mod */
+    uintptr_t sb_ptr = (uintptr_t)sb;
+    sb_ptr = sb_ptr ^ ((sb_ptr >> 16) | (sb_ptr << 16));
+    return (ino ^ sb_ptr) % INODE_HASH_SIZE;
 }
 
-void inode_oom(void)
+static void __inode_hash_add(struct inode *new)
 {
-    struct inode *inode;
-
-    /* Entries are already flushed to the disk beforehand. This just removes
-     * them from the hash and frees their memory. */
-    using_mutex(&inode_list.lock) {
-        list_foreach_take_entry(&inode_list.unused, inode, list_entry) {
-            __inode_flush(inode);
-        }
-    }
+    int hash = inode_hash_get(new->sb, new->ino);
+    hlist_add(inode_hashes + hash, &new->hash_entry);
+    atomic_inc(&inode_count);
 }
 
-void inode_put(struct inode *inode)
+/* Allocates a completely empty inode */
+struct inode *inode_create(struct super_block *sb)
 {
-    int release = 0;
-    struct super_block *sb = inode->sb;
+    struct inode *new = sb->ops->inode_alloc(sb);
+    new->sb = sb;
+    new->sb_dev = sb->dev;
 
-    using_mutex(&inode_list.lock) {
-        if (atomic_get(&inode->ref) == 1) {
-            /* We hold the only reference to this inode, so a try_lock should
-             * always work. If it doesn't then someone used inode_put() on the
-             * only reference left while holding a read/write lock on it, which
-             * is illegal */
-            if (inode_try_lock_write(inode))
-                release = 1;
-            else
-                panic("Inode lock error! inode_put with ref=1 while holding the lock. Inode: "PRinode"\n", Pinode(inode));
-        } else {
-            atomic_dec(&inode->ref);
-        }
-    }
-
-    if (release) {
-        kp_inode("Releasing inode "PRinode", nlinks: %d\n", Pinode(inode), atomic32_get(&inode->nlinks));
-        /* If this inode has no hard-links to it, then we can just discard it. */
-        if (atomic32_get(&inode->nlinks) == 0) {
-            kp_inode("inode "PRinode" has no hark links, deleting...\n", Pinode(inode));
-            if (sb->ops->inode_delete)
-                sb->ops->inode_delete(sb, inode);
-
-            kp_inode("Flushing inode...\n");
-            __inode_flush(inode);
-            return ;
-        }
-
-        using_super_block(inode->sb) {
-            kp_inode("inode "PRinode" dirty flag: %d \n", Pinode(inode), flag_test(&inode->flags, INO_DIRTY));
-            if (flag_test(&inode->flags, INO_DIRTY)) {
-                kp_inode("inode "PRinode" being written...\n", Pinode(inode));
-                sb->ops->inode_write(sb, inode);
-                list_del(&inode->sb_dirty_entry);
-            }
-        }
-
-        using_mutex(&inode_list.lock) {
-
-            /* Check the reference count again. Since inode_write can sleep
-             * it's possible there are more references. Note that checking the
-             * inode for valid and dirty is not necessary.
-             */
-            if (atomic_dec_and_test(&inode->ref))
-                list_add_tail(&inode_list.unused, &inode->list_entry);
-
-            inode_unlock_write(inode);
-        }
-    }
-
-    return ;
+    atomic_inc(&new->ref);
+    return new;
 }
 
-struct inode *inode_dup(struct inode *i)
+static void inode_deallocate(struct inode *i)
 {
-    using_mutex(&inode_list.lock)
-        atomic_inc(&i->ref);
-
-    return i;
+    i->sb->ops->inode_dealloc(i->sb, i);
 }
 
-struct inode *inode_get(struct super_block *sb, ino_t ino)
+static void __inode_kill(struct inode *i)
 {
-    int hash = inode_hash_get(sb->dev, ino);
-    struct inode *inode = NULL;
+    hlist_del(&i->hash_entry);
+    list_del(&i->sb_entry);
+    list_del(&i->sb_dirty_entry);
 
-    using_mutex(&inode_list.lock) {
-        hlist_foreach_entry(&inode_list.inode_hashes[hash], inode, hash_entry) {
-            if (inode->ino == ino && inode->sb_dev == sb->dev) {
-                list_del(&inode->list_entry);
-                atomic_inc(&inode->ref);
-
-                break;
-            }
-        }
-
-        if (!inode) {
-            int ret;
-
-            /* FIXME: It's necessary to call sb_inode_read while holding the
-             * inode_list.lock to avoid a race, however the race could be
-             * avoided without doing that as long as a way of handle multipel
-             * inode_get() calls for the same inode number is handled */
-            inode = sb->ops->inode_alloc(sb);
-            inode->ino = ino;
-
-            ret = sb->ops->inode_read(sb, inode);
-            kp_inode("Read inode: %p - "PRinode" ret: %d\n", inode, Pinode(inode), ret);
-
-            if (ret) {
-                sb->ops->inode_dealloc(sb, inode);
-                inode = NULL;
-            } else {
-                hlist_add(inode_list.inode_hashes + hash, &inode->hash_entry);
-                atomic_inc(&inode_list.inode_count);
-                atomic_inc(&inode->ref);
-            }
-        }
-    }
-
-    return inode;
+    inode_deallocate(i);
 }
 
-void inode_add(struct inode *i)
+static void __inode_wait_for_write(struct inode *inode)
 {
-    int hash = inode_hash_get(i->sb_dev, i->ino);
-    struct inode *inode;
-
-    using_mutex(&inode_list.lock) {
-        hlist_foreach_entry(&inode_list.inode_hashes[hash], inode, hash_entry)
-            if (inode->ino == i->ino && inode->sb_dev == i->sb_dev)
-                panic("Attempting to inode_add() an inode already in the table!\n");
-
-        hlist_add(inode_list.inode_hashes + hash, &i->hash_entry);
-        atomic_inc(&inode_list.inode_count);
-    }
+    wait_queue_event_spinlock(&inode->flags_queue, !flag_test(&inode->flags, INO_SYNC), &inode->flags_lock);
 }
 
-/* Removes all the inodes associated with a super_block */
-int inode_clear_super(struct super_block *sb)
+void inode_wait_for_write(struct inode *inode)
 {
-    int hash;
-    dev_t dev = sb->dev;
-    struct inode *inode;
-    struct inode *mount_root = NULL;
-    int ret = 0;
+    using_spinlock(&inode->flags_lock)
+        __inode_wait_for_write(inode);
+}
 
-    using_mutex(&inode_list.lock) {
-        using_super_block(sb)
-            __super_sync(sb);
+int inode_write_to_disk(struct inode *inode, int wait)
+{
+    using_spinlock(&inode->flags_lock) {
+        if (!flag_test(&inode->flags, INO_DIRTY))
+            return 0;
 
-        /* FIXME: This is pretty inefficent, even if it is only really used on
-         * a umount. Better would be keeping a list of all the inodes a
-         * super_block owns in the super_block itself, and iterating over that.
-         */
-        for (hash = 0; hash < INODE_HASH_SIZE && !ret; hash++) {
-            struct hlist_node *next;
+        if (flag_test(&inode->flags, INO_SYNC)) {
+            /* Currently syncing, wait for sync to complete if passed `wait`,
+             * otherwise just exit */
+            if (wait)
+                __inode_wait_for_write(inode);
 
-            next = inode_list.inode_hashes[hash].first;
-            while (next) {
-                inode = hlist_entry(next, struct inode, hash_entry);
-                next = next->next;
-
-                if (inode->sb_dev != dev)
-                    continue;
-
-                if (inode == sb->root && atomic32_get(&inode->ref) == ((sb->covered)? 2: 1))
-                    continue;
-
-                if (atomic32_get(&inode->ref) == 0) {
-                    __inode_flush(inode);
-                    continue;
-                }
-
-                ret = -EBUSY;
-                break;
-            }
+            return 0;
         }
 
-        if (ret)
-            break;
+        flag_set(&inode->flags, INO_SYNC);
+    }
 
-        /* All things seem to be go - remove 'mounted' entry in the covered inode */
-        using_inode_mount(sb->covered) {
-            mount_root = sb->covered->mount; /* We have to inode_put this later */
-            sb->covered->mount = NULL;
-            flag_clear(&sb->covered->flags, INO_MOUNT);
+    int ret;
+
+    using_inode_lock_read(inode)
+        ret = inode->sb->ops->inode_write(inode->sb, inode);
+
+    using_spinlock(&inode_hashes_lock) {
+        using_spinlock(&inode->flags_lock) {
+            flag_clear(&inode->flags, INO_SYNC);
+            flag_clear(&inode->flags, INO_DIRTY);
+            list_del(&inode->sb_dirty_entry);
         }
     }
 
-    if (ret)
-        return ret;
-
-    inode_put(mount_root);
-    inode_put(sb->covered);
-    inode_put(sb->root);
-
-    using_mutex(&inode_list.lock) {
-        if (atomic32_get(&sb->root->ref) == 0) {
-            __inode_flush(sb->root);
-            sb->root = NULL;
-        } else {
-            panic("inode_clear_super: There are still references to sb->root, that should be impossible!\n");
-        }
-    }
+    wait_queue_wake(&inode->flags_queue);
 
     return ret;
 }
 
+static void inode_evict(struct inode *inode)
+{
+    if (inode->sb->ops->inode_delete) {
+        int err = inode->sb->ops->inode_delete(inode->sb, inode);
+        if (err)
+            kp(KP_WARNING, "Error when deleting inode "PRinode"! Error: %d\n", Pinode(inode), err);
+    }
+
+    /* All done here, get rid of it */
+    using_spinlock(&inode_hashes_lock)
+        __inode_kill(inode);
+
+    /* Notify anybody waiting for this inode to be free'd */
+    wait_queue_wake(&inode_freeing_queue);
+}
+
+static void inode_finish(struct inode *inode)
+{
+    int err = inode_write_to_disk(inode, 1);
+    if (err)
+        kp(KP_WARNING, "Error when flushing inode "PRinode"! Error: %d\n", Pinode(inode), err);
+
+    /* We're good here because nobody will take a reference while INO_FREEING
+     * is set, so holding inode_hashes_lock means nobody else has access to the current inode */
+    using_spinlock(&inode_hashes_lock)
+        __inode_kill(inode);
+
+    /* If someone was looking to use this inode for some reason, they'll be
+     * waiting on inode_freeing_queue - wake them up so they can recreate the
+     * inode */
+    wait_queue_wake(&inode_freeing_queue);
+}
+
+void inode_put(struct inode *inode)
+{
+    spinlock_acquire(&inode_hashes_lock);
+    spinlock_acquire(&inode->flags_lock);
+
+    /* Check if the inode is completely gone, and remove it if so. If we're
+     * already INO_FREEING then we don't do this - this could happen if a
+     * INO_SYNC is currently happening */
+    if (atomic_dec_and_test(&inode->ref) && !atomic_get(&inode->nlinks) && !flag_test(&inode->flags, INO_FREEING)) {
+        kassert(!flag_test(&inode->flags, INO_SYNC), "INO_SYNC should not be set if inode->ref == 0!!!");
+
+        flag_set(&inode->flags, INO_FREEING);
+
+        spinlock_release(&inode->flags_lock);
+        spinlock_release(&inode_hashes_lock);
+        inode_evict(inode);
+        return;
+    }
+
+    /* Add to proper dirty list if it's dirty */
+    if (flag_test(&inode->flags, INO_DIRTY) && !list_node_is_in_list(&inode->sb_dirty_entry))
+        list_add_tail(&inode->sb->dirty_inodes, &inode->sb_dirty_entry);
+
+    spinlock_release(&inode->flags_lock);
+    spinlock_release(&inode_hashes_lock);
+}
+
+struct inode *inode_dup(struct inode *i)
+{
+    atomic_inc(&i->ref);
+    return i;
+}
+
+/* NOTE: Requires inode_hashes_lock and inode to be locked. Returns with only inode_hashes_lock locked */
+static void wait_for_freeing(struct inode *inode)
+{
+    struct task *current = cpu_get_local()->current;
+
+    scheduler_set_sleeping();
+    wait_queue_register(&inode_freeing_queue, &current->wait);
+
+    /* Note the release order is actually important, after inode_hashes_lock is
+     * released `inode` may no longer be valid, and flags_lock cannot be held when
+     * the inode is deallocated*/
+    spinlock_release(&inode->flags_lock);
+    spinlock_release(&inode_hashes_lock);
+
+    scheduler_task_yield();
+
+    /* Don't grab inode->flags_lock - we're not checking the flags here, and
+     * the inode was presumably free'd while we were waiting */
+    spinlock_acquire(&inode_hashes_lock);
+    wait_queue_unregister(&current->wait);
+    scheduler_set_running();
+}
+
+void inode_mark_valid(struct inode *new)
+{
+    using_spinlock(&new->flags_lock)
+        flag_set(&new->flags, INO_VALID);
+
+    wait_queue_wake(&new->flags_queue);
+}
+
+void inode_mark_bad(struct inode *new)
+{
+    using_spinlock(&inode_hashes_lock) {
+        spinlock_acquire(&new->flags_lock);
+        /* Don't bother signalling INO_BAD if there are no other references */
+        if (atomic_dec_and_test(&new->ref)) {
+            /* Drop lock before __inode_kill, since 'new' will be invalid
+             * afterward */
+            spinlock_release(&new->flags_lock);
+            __inode_kill(new);
+        } else {
+            flag_set(&new->flags, INO_BAD);
+            wait_queue_wake(&new->flags_queue);
+            spinlock_release(&new->flags_lock);
+        }
+    }
+}
+
+/* Waits for an inode to become either valid or bad.
+ *
+ * If bad, it decrements the count, handles cleanup, and returns NULL.
+ * If valid, return the inode
+ */
+static struct inode *inode_wait_for_valid_or_bad(struct inode *inode)
+{
+    using_spinlock(&inode->flags_lock)
+        wait_queue_event_spinlock(&inode->flags_queue, inode->flags & F(INO_VALID, INO_BAD), &inode->flags_lock);
+
+    /* We need inode_hashes_lock to be able to __inode_kill */
+    spinlock_acquire(&inode_hashes_lock);
+    spinlock_acquire(&inode->flags_lock);
+
+    if (flag_test(&inode->flags, INO_BAD)) {
+        int drop = atomic_dec_and_test(&inode->ref);
+
+        spinlock_release(&inode->flags_lock);
+
+        if (drop)
+            __inode_kill(inode);
+
+        inode = NULL;
+    } else {
+        spinlock_release(&inode->flags_lock);
+    }
+
+    spinlock_release(&inode_hashes_lock);
+
+    return inode;
+}
+
+struct inode *inode_get_invalid(struct super_block *sb, ino_t ino)
+{
+    int hash = inode_hash_get(sb, ino);
+    struct inode *inode, *new = NULL, *found = NULL;
+
+  again:
+    using_spinlock(&inode_hashes_lock) {
+  again_no_acquire:
+        hlist_foreach_entry(&inode_hashes[hash], inode, hash_entry) {
+            if (inode->ino == ino && inode->sb == sb) {
+                spinlock_acquire(&inode->flags_lock);
+
+                if (flag_test(&inode->flags, INO_FREEING)) {
+                    wait_for_freeing(inode);
+                    goto again_no_acquire;
+                }
+
+                spinlock_release(&inode->flags_lock);
+                atomic_inc(&inode->ref);
+
+                found = inode;
+                break;
+            }
+        }
+
+        /* We have an allocated inode and did not find the one we were looking
+         * for - add the new one to the hashtable and continue on to set it up */
+        if (!found && new) {
+            __inode_hash_add(new);
+            list_add_tail(&sb->inodes, &new->sb_entry);
+            found = new;
+        }
+    }
+
+    /* Didn't find the inode, allocate a new one and try again */
+    if (!found && !new) {
+        new = inode_create(sb);
+        new->ino = ino;
+        goto again;
+    }
+
+    /* Found an inode, and it was not the one we allocated - deallocate if NULL */
+    if (new && found != new)
+        inode_deallocate(new);
+
+    if (found && found == new)
+        return found;
+
+    /* Found an inode, did not create it - wait for INO_VALID or INO_BAD */
+    if (found && found != new)
+        found = inode_wait_for_valid_or_bad(found);
+
+    /* The case of adding a new inode falls through to here - we return it with
+     * the INO_VALID flag not set. */
+    return found;
+}
+
+struct inode *inode_get(struct super_block *sb, ino_t ino)
+{
+    struct inode *inode = inode_get_invalid(sb, ino);
+    if (!inode)
+        return NULL;
+
+    /* No locking necessary because INO_VALID is never unset after being set
+     *
+     * This case is hit if inode_get_invalid created a fresh inode */
+    if (flag_test(&inode->flags, INO_VALID))
+        return inode;
+
+    /* If we added the new inode allocated by us, then fill it in and mark it valid */
+    int ret = sb->ops->inode_read(sb, inode);
+    if (ret) {
+        kp(KP_WARNING, "ERROR reading inode "PRinode"!!!\n", Pinode(inode));
+        inode_mark_bad(inode);
+        return NULL;
+    }
+
+    inode_mark_valid(inode);
+    return inode;
+}
+
+/* Protects the 'inode->sync_entry' members. Those are used to easily create
+ * lists of inodes currently being written out or deleted, so that we can queue
+ * them all up at once and then wait on them afterward. */
+static mutex_t sync_lock = MUTEX_INIT(sync_lock);
+
+void inode_sync(struct super_block *sb, int wait)
+{
+    list_head_t sync_list = LIST_HEAD_INIT(sync_list);
+    struct inode *inode;
+
+    using_mutex(&sync_lock) {
+        using_spinlock(&inode_hashes_lock) {
+            int hash;
+
+            for (hash = 0; hash < INODE_HASH_SIZE; hash++) {
+                hlist_foreach_entry(inode_hashes + hash, inode, hash_entry) {
+                    if (sb && inode->sb != sb)
+                        continue;
+
+                    spinlock_acquire(&inode->flags_lock);
+
+                    /* Check if we should actually be syncing this one before grabbing a reference */
+                    if (flag_test(&inode->flags, INO_FREEING)
+                            || !flag_test(&inode->flags, INO_VALID)
+                            || !flag_test(&inode->flags, INO_DIRTY)) {
+
+                        spinlock_release(&inode->flags_lock);
+                        /* FIXME: 'wait' flag should trigger some waiting on INO_FREEING maybe? */
+                        continue;
+                    }
+                    spinlock_release(&inode->flags_lock);
+
+                    /* By taking a reference we guarantee this inode won't go away */
+                    atomic_inc(&inode->ref);
+
+                    not_using_spinlock(&inode_hashes_lock) {
+                        inode_write_to_disk(inode, wait);
+
+                        if (wait) {
+                            atomic_inc(&inode->ref);
+                            list_add_tail(&sync_list, &inode->sync_entry);
+                        }
+                    }
+
+                    atomic_dec(&inode->ref);
+                }
+            }
+        }
+
+        if (!wait)
+            return;
+
+        while (!list_empty(&sync_list)) {
+            inode = list_take_first(&sync_list, struct inode, sync_entry);
+
+            inode_wait_for_write(inode);
+            inode_put(inode);
+        }
+    }
+}
+
+void inode_sync_all(int wait)
+{
+    return inode_sync(NULL, wait);
+}
+
+static void inode_finish_list(list_head_t *head)
+{
+    while (!list_empty(head)) {
+        struct inode *i = list_take_first(head, struct inode, sync_entry);
+
+        inode_finish(i);
+    }
+}
+
+/* Removes all the inodes associated with a super_block that have no existing
+ * references. */
+int inode_clear_super(struct super_block *sb)
+{
+    struct inode *inode;
+
+  again:
+    spinlock_acquire(&inode_hashes_lock);
+  again_locked:
+    list_foreach_entry(&sb->inodes, inode, sb_entry) {
+        /* Skip any inodes with active references */
+        if (atomic_get(&inode->ref))
+            continue;
+
+        spinlock_acquire(&inode->flags_lock);
+
+        /* If an inode is currently being free'd, wait for the signal and
+         * start over, so that when inode_clear_super() returns the
+         * inode is actually gone. */
+        if (flag_test(&inode->flags, INO_FREEING)) {
+            wait_for_freeing(inode);
+            /* wait_for_freeing drops the inode->flags_lock for us */
+            goto again_locked;
+        }
+
+        /* Can't happen - non-INO_VALID or INO_SYNC require at least one reference to exist */
+        kassert(flag_test(&inode->flags, INO_VALID), "Inode "PRinode" has no references but is not marked INO_VALID!!!!!", Pinode(inode));
+        kassert(!flag_test(&inode->flags, INO_SYNC), "Inode "PRinode" has no references but is marked INO_SYNC!!!!!", Pinode(inode));
+
+        /* Nothing's using this inode, mark it and get rid of it */
+        flag_set(&inode->flags, INO_FREEING);
+        spinlock_release(&inode->flags_lock);
+        spinlock_release(&inode_hashes_lock);
+
+        inode_finish(inode);
+
+        /* We dropped inode_hashes_lock and modified sb->inodes, so just start over. */
+        goto again;
+    }
+
+    spinlock_release(&inode_hashes_lock);
+
+    return 0;
+}
+
+void inode_oom(void)
+{
+    list_head_t finish_list = LIST_HEAD_INIT(finish_list);
+    struct inode *inode;
+
+    using_mutex(&sync_lock) {
+        using_spinlock(&inode_hashes_lock) {
+            int hash;
+
+            for (hash = 0; hash < INODE_HASH_SIZE; hash++) {
+                hlist_foreach_entry(inode_hashes + hash, inode, hash_entry) {
+                    /* Skip any inodes with active references */
+                    if (atomic_get(&inode->ref))
+                        continue;
+
+                    spinlock_acquire(&inode->flags_lock);
+                    if (!flag_test(&inode->flags, INO_VALID)
+                            || flag_test(&inode->flags, INO_FREEING)) {
+                        spinlock_release(&inode->flags_lock);
+                        continue;
+                    }
+
+                    kassert(flag_test(&inode->flags, INO_VALID), "Inode "PRinode" has no references but is not marked INO_VALID!!!!!", Pinode(inode));
+                    kassert(!flag_test(&inode->flags, INO_SYNC), "Inode "PRinode" has no references but is marked INO_SYNC!!!!!", Pinode(inode));
+
+                    flag_set(&inode->flags, INO_FREEING);
+                    spinlock_release(&inode->flags_lock);
+
+                    list_add_tail(&finish_list, &inode->sync_entry);
+                }
+            }
+        }
+
+        inode_finish_list(&finish_list);
+    }
+}
+
+#ifdef CONFIG_KERNEL_TESTS
+# include "inode_table_test.c"
+#endif

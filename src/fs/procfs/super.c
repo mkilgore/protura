@@ -28,7 +28,6 @@
 #include <protura/fs/char.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/file.h>
-#include <protura/fs/inode_table.h>
 #include <protura/fs/file_system.h>
 #include <protura/fs/binfmt.h>
 #include <protura/fs/vfs.h>

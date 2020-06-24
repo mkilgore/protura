@@ -11,6 +11,8 @@
 #include <protura/types.h>
 #include <protura/fs/char.h>
 
+struct tty;
+
 void keyboard_init(void);
 int keyboard_file_read(struct file *filp, void *vbuf, size_t len);
 

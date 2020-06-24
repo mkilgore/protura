@@ -15,7 +15,7 @@
 #include <protura/scheduler.h>
 #include <protura/wait.h>
 #include <protura/mm/kmalloc.h>
-#include <protura/fs/inode_table.h>
+#include <protura/fs/inode.h>
 
 #include <protura/mm/palloc.h>
 

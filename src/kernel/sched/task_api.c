@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
+#include <protura/dev.h>
 #include <protura/snprintf.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/user_check.h>

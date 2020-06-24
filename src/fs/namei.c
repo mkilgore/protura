@@ -20,7 +20,6 @@
 #include <protura/fs/super.h>
 #include <protura/fs/file.h>
 #include <protura/fs/inode.h>
-#include <protura/fs/inode_table.h>
 #include <protura/fs/namei.h>
 #include <protura/fs/fs.h>
 

@@ -16,6 +16,7 @@
 #include <protura/wait.h>
 #include <protura/basic_printf.h>
 #include <protura/work.h>
+#include <protura/dev.h>
 
 #include <arch/spinlock.h>
 #include <arch/drivers/keyboard.h>

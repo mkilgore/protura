@@ -17,7 +17,6 @@
 #include <protura/mutex.h>
 #include <protura/bits.h>
 
-#include <protura/fs/inode_table.h>
 #include <protura/fs/pipe.h>
 
 struct inode_ops;
@@ -26,10 +25,70 @@ struct file;
 struct block_device;
 struct char_device;
 
+/*
+ * Inode state transitions:
+ *
+ * ref>0             ref>=0                       ref=0
+ *  0 >-------------> VALID >----------------> VALID+FREEING >------+
+ *  V                  ^ V                           ^              |
+ *  |                  | |                           |              |
+ *  |           +------+ +-+                  ref=0  ^              |
+ *  |           |          |             VALID+FREEING+DIRTY+SYNC   |
+ *  |           |          |                         ^              |
+ *  |           |          |                         |              |
+ *  |           |   ref>=0 V                  ref=0  ^              |
+ *  V ref>0     |     VALID+DIRTY >-------> VALID+FREEING+DIRTY     |
+ * BAD          |          V                                        |
+ *  V           |          |                                        |
+ *  |           |    ref>0 V                                        |
+ *  |           |  VALID+DIRTY+SYNC                                 |
+ *  |           |          V                                        |
+ *  |           |          |                                        |
+ *  |           +----------+                                        |
+ *  |                                                               V
+ *  +-----------------------------------------------------------> free'd
+ *
+ * VALID: Inode's data is a correct representation of the inode. Invalid inodes
+ *        have not yet been read from the disk or initialized beyond inode
+ *        number and superblock.
+ *
+ * DIRTY: Contents of the inode different from the contents on disk.
+ *
+ * SYNC: The inode is currently being written to disk.
+ *
+ * FREEING: The inode is in the process of being removed from the hashtable and
+ *          will eventually be free'd from memory, new references to it should
+ *          not be handed out.
+ *
+ * BAD: Indicates an error during initialization (I/O error, inode did not
+ *      exist, etc.). These inodes are immediately dropped.
+ *
+ * Notes:
+ *  * INO_VALID is never unset. In certain situations this can be checked for without a lock.
+ *
+ *  * INO_BAD inodes never transition to INO_VALID, and thus are never returned from inode_get
+ *      They are free'd immediately when their last reference is released.
+ *      Newly created inodes can be marked bad via inode_mark_bad()
+ *
+ *  * During INO_SYNC, the inode is written to disk, then INO_SYNC+INO_DIRTY are cleared together
+ *      During the syncing process a reference to the inode must be held the entire time.
+ *
+ *  * When INO_FREEING is set, references to that inode cannot be handed out
+ *      and inode_get callers need to wait for the inode to be completely flushed
+ *      to disk and free'd (This waiting happens on a separate queue from the one in the inode)
+ *
+ *  * The transition to INO_FREEING can only happen when ref=0
+ *      Consequently, the initial state and INO_SYNC state can never transition
+ *      to INO_FREEING, as they require at least one reference be present for the
+ *      entire state.
+ */
 enum inode_flags {
-    INO_VALID, /* Inode's data is a valid version of the data */
-    INO_DIRTY, /* Inode's data is not the same as the disk's version */
+    INO_VALID,
+    INO_DIRTY,
     INO_MOUNT, /* Inode is a mount point */
+    INO_FREEING,
+    INO_SYNC,
+    INO_BAD,
 };
 
 struct inode {
@@ -52,19 +111,26 @@ struct inode {
     uid_t uid;
     gid_t gid;
 
+    spinlock_t flags_lock;
     flags_t flags;
+    struct wait_queue flags_queue;
+    atomic_t ref;
 
     /* If set, this inode is a mount point - 'mount' is the root of the mounted
      * file-system */
     mutex_t mount_lock;
     struct inode *mount;
 
+    /* Protects inode size/resize, along with writes to fields such as mode,
+     * nlinks, blocks, a/m/c time */
     mutex_t lock;
 
-    atomic_t ref;
     hlist_node_t hash_entry;
     list_node_t list_entry;
 
+    list_node_t sync_entry;
+
+    list_node_t sb_entry;
     list_node_t sb_dirty_entry;
 
     struct super_block *sb;
@@ -130,39 +196,19 @@ struct inode_ops {
 #define inode_has_readlink(inode) ((inode)->ops && (inode)->ops->readlink)
 #define inode_has_follow_link(inode) ((inode)->ops && (inode)->ops->follow_link)
 
-#define inode_is_valid(inode) bit_test(&(inode)->flags, INO_VALID)
-#define inode_is_dirty(inode) bit_test(&(inode)->flags, INO_DIRTY)
-
-#define inode_set_valid(inode) bit_set(&(inode)->flags, INO_VALID)
-
-#define inode_set_dirty_unlocked(inode) \
-    do { \
-        if (!bit_test(&(inode)->flags, INO_DIRTY)) { \
-            bit_set(&(inode)->flags, INO_DIRTY); \
-            if (!list_node_is_in_list(&(inode)->sb_dirty_entry)) \
-                list_add(&(inode)->sb->dirty_inodes, &(inode)->sb_dirty_entry); \
-        } \
-    } while (0)
-
-#define inode_set_dirty(inode) \
-    do { \
-        using_super_block((inode)->sb) { \
-            inode_set_dirty_unlocked(inode); \
-        } \
-    } while (0)
-
-#define inode_clear_valid(inode) bit_clear(&(inode)->flags, INO_VALID)
-#define inode_clear_dirty(inode) bit_clear(&(inode)->flags, INO_DIRTY)
-
 extern struct inode_ops inode_ops_null;
 
 static inline void inode_init(struct inode *i)
 {
     mutex_init(&i->lock);
     mutex_init(&i->mount_lock);
+    spinlock_init(&i->flags_lock);
+    wait_queue_init(&i->flags_queue);
     atomic_init(&i->ref, 0);
     list_node_init(&i->list_entry);
+    list_node_init(&i->sb_entry);
     list_node_init(&i->sb_dirty_entry);
+    list_node_init(&i->sync_entry);
     hlist_node_init(&i->hash_entry);
 
     pipe_info_init(&i->pipe_info);
@@ -208,18 +254,6 @@ static inline int inode_try_lock_write(struct inode *i)
     return 0;
 }
 
-static inline void inode_inc_nlinks(struct inode *inode)
-{
-    atomic_inc(&inode->nlinks);
-    inode_set_dirty(inode);
-}
-
-static inline void inode_dec_nlinks(struct inode *inode)
-{
-    atomic_dec(&inode->nlinks);
-    inode_set_dirty(inode);
-}
-
 #define using_inode_lock_read(inode) \
     using_mutex(&(inode)->lock)
 
@@ -232,7 +266,76 @@ static inline void inode_dec_nlinks(struct inode *inode)
 #define using_inode_mount(inode) \
     using_mutex(&(inode)->mount_lock)
 
-void inode_cache_flush(void);
-int inode_clear_super(struct super_block *sb);
+/* If an inode was acquired from inode_get_invalid() and was returned without
+ * INO_VALID set, then this will mark INO_VALID and wake up anybody waiting on
+ * it to become valid. */
+void inode_mark_valid(struct inode *);
+
+/* If an inode was acquired from inode_get_invalid() and was returned without
+ * INO_VALID set, this will mark the inode INO_BAD and handle freeing the inode
+ * for you. After this is called the inode can no longer be used */
+void inode_mark_bad(struct inode *);
+
+void inode_put(struct inode *);
+
+/* Creates a completely empty inode, not tied to any internal lists. Useful for
+ * making inodes that will not be part of the global inode hashtable. */
+struct inode *inode_create(struct super_block *);
+
+/* Acquires a new reference to an inode. Note that when calling this you should
+ * always already have a valid reference to the inode */
+struct inode *inode_dup(struct inode *);
+
+/* Returns the requested inode, or NULL if it does not exist.
+ *
+ * The returned inode will always have INO_VALID set, and never have INO_FREEING set. */
+struct inode *inode_get(struct super_block *, ino_t ino);
+
+/* Attempts to look up an inode. If it is not found, it creates a new inode
+ * with the specified inode number, but does not call sb->read_inode. Instead,
+ * the inode is returned without INO_VALID set and the caller is expected it
+ * fill it out themselves and then call inode_make_valid() */
+struct inode *inode_get_invalid(struct super_block *, ino_t ino);
+
+/* Writes the specified inode to the disk. If wait=1, then the function doesn't
+ * return until the contents have been wrriten to the disk */
+int inode_write_to_disk(struct inode *, int wait);
+
+/* If inode_write_to_disk() is called with wait=0, then this function allows
+ * you to wait for the inode to be written to disk */
+void inode_wait_for_write(struct inode *);
+
+/* Syncs all inodes associatd with the superblock. If wait=1, the function
+ * doesn't return until they are all written to disk */
+void inode_sync(struct super_block *, int wait);
+
+/* Sync every inode on every superblock */
+void inode_sync_all(int wait);
+
+/* Attempts to clear out every inode associated with a superblock. If inodes
+ * are currently being free'd, it will wait for them to be free'd. If an inode
+ * currently has a reference, then it will not be cleared. */
+int inode_clear_super(struct super_block *);
+
+/* Attempts to clear out as many inode's as it can */
+void inode_oom(void);
+
+static inline void inode_set_dirty(struct inode *inode)
+{
+    using_spinlock(&inode->flags_lock)
+        flag_set(&inode->flags, INO_DIRTY);
+}
+
+static inline void inode_inc_nlinks(struct inode *inode)
+{
+    atomic_inc(&inode->nlinks);
+    inode_set_dirty(inode);
+}
+
+static inline void inode_dec_nlinks(struct inode *inode)
+{
+    atomic_dec(&inode->nlinks);
+    inode_set_dirty(inode);
+}
 
 #endif

@@ -11,6 +11,7 @@
 #include <protura/string.h>
 #include <protura/scheduler.h>
 #include <protura/wait.h>
+#include <protura/dev.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/user_check.h>

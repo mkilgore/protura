@@ -57,6 +57,8 @@ struct super_block {
     list_node_t list_entry;
 
     mutex_t super_block_lock;
+    /* Protected by the inode_hashes_lock */
+    list_head_t inodes;
     list_head_t dirty_inodes;
 
     struct super_block_ops *ops;
@@ -72,6 +74,7 @@ struct super_block {
         .root = NULL, \
         .list_entry = LIST_NODE_INIT((super_block).list_entry), \
         .super_block_lock = MUTEX_INIT((super_block).super_block_lock), \
+        .inodes = LIST_HEAD_INIT((super_block).inodes), \
         .dirty_inodes = LIST_HEAD_INIT((super_block).dirty_inodes), \
         .ops = NULL, \
     }

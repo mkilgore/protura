@@ -13,6 +13,7 @@
 #include <protura/mm/vm.h>
 #include <protura/mm/user_check.h>
 #include <protura/fs/procfs.h>
+#include <arch/timer.h>
 #include <protura/time.h>
 
 time_t current_uptime = 0;
