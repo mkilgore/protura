@@ -1,4 +1,5 @@
 
+subdir-y += boot
 subdir-y += drivers
 subdir-y += init
 subdir-y += kernel

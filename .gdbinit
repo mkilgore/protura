@@ -1,5 +1,5 @@
 
-add-symbol-file ./bin/kernel/protura_x86_multiboot.sym 0xC0100000
+add-symbol-file ./bin/kernel/vmprotura.sym 0xC0100000
 directory ./src
 directory ./src/fs
 directory ./src/kernel

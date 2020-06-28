@@ -1,5 +1,4 @@
 # Program wide settings
-EXE       := protura
 VERSION   := 0
 SUBLEVEL  := 7
 PATCH     := 1
@@ -37,7 +36,6 @@ EXTRA := $(shell ./scripts/version_tag.sh)
 
 VERSION_FULL := $(VERSION).$(SUBLEVEL).$(PATCH)$(EXTRA)
 
-$(info Building: $(EXE))
 $(info Arch:     $(ARCH))
 $(info Version:  $(VERSION_FULL))
 
@@ -73,7 +71,8 @@ else
 	conf := $(CONFIG_FILE)
 endif
 
-EXE_OBJ := $(OBJ_DIR)/$(EXE).o
+PROTURA_OBJ := $(OBJ_DIR)/protura.o
+KERNEL := $(KERNEL_DIR)/vmprotura
 
 # This is our default target - The default is the first target in the file so
 # we need to define this fairly high-up.
@@ -211,14 +210,6 @@ endef
 $(eval $(call subdir_inc,src))
 $(eval $(call subdir_inc,arch/$(ARCH)))
 
-# This is a list of targets to create bootable images from
-# Ex. For x86, there is a multiboot compliant image
-BOOT_TARGETS :=
-
-imgs_pfix := $(IMGS_DIR)/$(EXE)_$(ARCH)_
-
-$(eval $(call subdir_inc,arch/$(ARCH)/boot))
-
 define compile_file
 
 _tmp := $$(subst /,_,$$(basename $(1)))_y
@@ -234,28 +225,7 @@ endif
 
 endef
 
-REAL_BOOT_TARGETS :=
 DEP_LIST :=
-
-define create_boot_target
-
-_expand := $$(KERNEL_DIR)/$$(EXE)_$$(ARCH)_$(1)
-REAL_BOOT_TARGETS += $$(_expand)
-
-CLEAN_LIST += $$(OBJS_$(1)) $$(_expand) $$(_expand).full $$(_expand).sym
-DEP_LIST += $$(EXTRAS_$(1))
-
-$$(_expand): $$(EXE_OBJ) $$(OBJS_$(1)) $$(EXTRAS_$(1)) | $$(KERNEL_DIR)
-	@echo " CCLD    $$@"
-	$$(Q)$$(CC) $$(CPPFLAGS) -o $$@ $$(OBJS_$(1)) $$(EXE_OBJ) $$(LDFLAGS) $$(LDFLAGS_$(1)) 
-	@echo " COPY    $$@.full"
-	$$(Q)cp $$@ $$@.full
-	@echo " OBJCOPY $$@.sym"
-	$$(Q)$$(OBJCOPY) --only-keep-debug $$@ $$@.sym
-	@echo " OBJCOPY $$@"
-	$$(Q)$$(OBJCOPY) --strip-unneeded $$@
-
-endef
 
 $(foreach file,$(REAL_OBJS_y),$(eval $(call compile_file,$(file))))
 
@@ -270,7 +240,17 @@ endif
 
 CLEAN_LIST += $(DEP_LIST)
 
-$(foreach btarget,$(BOOT_TARGETS),$(eval $(call create_boot_target,$(btarget))))
+VM_LINK_SCRIPT := ./arch/$(ARCH)/boot/vmprotura.ld
+
+$(KERNEL) $(KERNEL).sym $(KERNEL).full: $(PROTURA_OBJ) $(VM_LINK_SCRIPT) | $(KERNEL_DIR)
+	@echo " CCLD    $@"
+	$(Q)$(CC) $(CPPFLAGS) -o $@ $(PROTURA_OBJ) $(LDFLAGS) -T $(VM_LINK_SCRIPT) -Wl,--build-id=none
+	@echo " COPY    $@.full"
+	$(Q)cp $@ $@.full
+	@echo " OBJCOPY $@.sym"
+	$(Q)$(OBJCOPY) --only-keep-debug $@ $@.sym
+	@echo " OBJCOPY $@"
+	$(Q)$(OBJCOPY) --strip-unneeded $@
 
 # Actual default entry
 real-all:
@@ -278,7 +258,7 @@ real-all:
 	@echo "See README.md for more information"
 
 PHONY += kernel
-kernel: configure $(REAL_BOOT_TARGETS) $(EXTRA_TARGETS)
+kernel: configure $(KERNEL) $(EXTRA_TARGETS)
 
 PHONY += configure
 configure: $(tree)/config.mk $(tree)/include/protura/config/autoconf.h
@@ -299,16 +279,16 @@ $(tree)/include/protura/config/autoconf.h: $(CONFIG_FILE) $(tree)/scripts/gencon
 	$(Q)$(PERL) $(tree)/scripts/genconfig.pl cpp < $< > $@
 
 dist: clean-kernel clean-toolchain clean-configure clean-disk
-	$(Q)mkdir -p $(EXE)-$(VERSION_N)
-	$(Q)cp -R Makefile README.md config.mk LICENSE ./doc ./include ./src ./test $(EXE)-$(VERSION_N)
-	$(Q)tar -cf $(EXE)-$(VERSION_N).tar $(EXE)-$(VERSION_N)
-	$(Q)gzip $(EXE)-$(VERSION_N).tar
-	$(Q)rm -fr $(EXE)-$(VERSION_N)
-	@echo " Created $(EXE)-$(VERSION_N).tar.gz"
+	$(Q)mkdir -p protura-$(VERSION_N)
+	$(Q)cp -R Makefile README.md config.mk LICENSE ./doc ./include ./src ./test protura-$(VERSION_N)
+	$(Q)tar -cf protura-$(VERSION_N).tar protura-$(VERSION_N)
+	$(Q)gzip protura-$(VERSION_N).tar
+	$(Q)rm -fr protura-$(VERSION_N)
+	@echo " Created protura-$(VERSION_N).tar.gz"
 
 PHONY += clean-kernel
 clean-kernel:
-	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(EXE_OBJ) $(IMGS_DIR); do \
+	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(PROTURA_OBJ) $(IMGS_DIR); do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
@@ -324,7 +304,7 @@ clean:
 	@echo " Please use one of 'clean-configure', 'clean-toolchain',"
 	@echo " 'clean-kernel', 'clean-disk', or 'clean-full'"
 
-$(EXE_OBJ): $(REAL_OBJS_y)
+$(PROTURA_OBJ): $(REAL_OBJS_y)
 	@echo " LD      $@"
 	$(Q)$(LD) -r $(REAL_OBJS_y) -o $@
 
