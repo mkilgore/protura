@@ -29,6 +29,8 @@ irq_handler:
     movw $_CPU_VAR, %ax
     movw %ax, %gs
 
+    cld
+
     pushl %esp
     call irq_global_handler
     addl $4, %esp
