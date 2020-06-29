@@ -38,4 +38,6 @@
 
 #define __cleanup(func) __attribute__((__cleanup__(func)))
 
+#define __weak __attribute__((weak))
+
 #endif

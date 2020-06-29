@@ -87,6 +87,10 @@ jobs:
       if: always() && steps.build-os.outcome == 'success'
       run: make check-ext2
 
+    - name: Run Symbol Table Tests
+      if: always() && steps.build-os.outcome == 'success'
+      run: make check-symbol-table
+
     - name: Archive test results
       if: always()
       uses: actions/upload-artifact@v2

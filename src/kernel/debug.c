@@ -56,11 +56,12 @@ void kprintf_internal(const char *fmt, ...)
 
 int reboot_on_panic = 0;
 
-void __panicv(const char *s, va_list lst)
+static __noreturn void __panicv_internal(const char *s, va_list lst, int trace)
 {
     cli();
     kprintfv_internal(s, lst);
-    dump_stack(KP_ERROR);
+    if (trace)
+        dump_stack(KP_ERROR);
 
     if (reboot_on_panic)
         system_reboot();
@@ -69,9 +70,26 @@ void __panicv(const char *s, va_list lst)
         hlt();
 }
 
-void __panic(const char *s, ...)
+__noreturn void __panicv_notrace(const char *s, va_list lst)
 {
-    cli();
+    __panicv_internal(s, lst, 0);
+}
+
+__noreturn void __panic_notrace(const char *s, ...)
+{
+    va_list lst;
+    va_start(lst, s);
+    __panicv_notrace(s, lst);
+    va_end(lst);
+}
+
+__noreturn void __panicv(const char *s, va_list lst)
+{
+    __panicv_internal(s, lst, 1);
+}
+
+__noreturn void __panic(const char *s, ...)
+{
     va_list lst;
     va_start(lst, s);
     __panicv(s, lst);

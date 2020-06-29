@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/compiler.h>
+#include <protura/symbols.h>
 #include <arch/ptable.h>
 #include <arch/memlayout.h>
 
@@ -22,15 +23,18 @@ void dump_stack_ptr(void *start, int log_level)
     pa_t page_dir = get_current_page_directory();
     pgd_t *pgd = p_to_v(page_dir);
 
-    kp(log_level, "  Stack: %p\n", start);
-
     for (frame = 1; stack != 0; stack = stack->caller_stackframe, frame++) {
         if (!pgd_ptr_is_valid(pgd, stack)) {
             kp(log_level, "  Stack is invalid past this point, was: %p\n", stack);
             return;
         }
 
-        kp(log_level, "  [%d][0x%08x]\n", frame, stack->return_addr);
+        const struct symbol *sym = ksym_lookup(stack->return_addr);
+
+        if (sym)
+            kp(log_level, "  [%d][0x%08x] %s\n", frame, stack->return_addr, sym->name);
+        else
+            kp(log_level, "  [%d][0x%08x]\n", frame, stack->return_addr);
     }
 }
 

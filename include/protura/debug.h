@@ -93,11 +93,14 @@ static inline const char *__kp_get_loglevel_string(int level)
 
 
 #define panic(str, ...) __panic("[%05ld][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
+#define panic_notrace(str, ...) __panic_notrace("[%05ld][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
 
 extern int reboot_on_panic;
 
 void __panic(const char *s, ...) __printf(1, 2) __noreturn;
 void __panicv(const char *s, va_list) __noreturn;
+void __panic_notrace(const char *s, ...) __printf(1, 2) __noreturn;
+void __panicv_notrace(const char *s, va_list) __noreturn;
 
 #define BUG(str, ...) \
     do { \

@@ -19,6 +19,7 @@
 #include <protura/fs/fs.h>
 #include <protura/fs/sys.h>
 #include <protura/drivers/tty.h>
+#include <protura/symbols.h>
 
 #include <arch/asm.h>
 #include <arch/cpu.h>
@@ -78,8 +79,6 @@ static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
     struct task *current = cpu_get_local()->current;
 
     if (!pg_err_was_user(frame->err)) {
-        kp(log_level, "PAGE DIR INDEX: 0x%08x, PAGE TABLE INDEX: 0x%08x\n", PAGING_DIR_INDEX(p) & 0x3FF, PAGING_TABLE_INDEX(p) & 0x3FF);
-
         kp(log_level, "EAX: 0x%08x EBX: 0x%08x ECX: 0x%08x EDX: 0x%08x\n",
             frame->eax,
             frame->ebx,
@@ -93,6 +92,10 @@ static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
             frame->ebp);
 
         kp(log_level, "Stack backtrace:\n");
+
+        const struct symbol *symbol = ksym_lookup(frame->eip);
+
+        kp(log_level, "EIP: [0x%08x] %s\n", frame->eip, symbol? symbol->name: "");
         dump_stack_ptr((void *)frame->ebp, log_level);
     }
 
@@ -123,7 +126,7 @@ static void paging_dump_stack(struct irq_frame *frame, uintptr_t p)
 static void halt_and_dump_stack(struct irq_frame *frame, uintptr_t p)
 {
     paging_dump_stack(frame, p);
-    panic("KERNEL PAGE FAULT!\n");
+    panic_notrace("KERNEL PAGE FAULT!\n");
 }
 
 static void page_fault_handler(struct irq_frame *frame, void *param)

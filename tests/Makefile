@@ -6,9 +6,10 @@ $(eval $(call dir_rule,$(TEST_RESULTS_DIR)/ktest))
 $(eval $(call dir_rule,$(TEST_RESULTS_DIR)/ext2))
 $(eval $(call dir_rule,$(TEST_RESULTS_DIR)/pci))
 $(eval $(call dir_rule,$(TEST_RESULTS_DIR)/uapi))
+$(eval $(call dir_rule,$(TEST_RESULTS_DIR)/symbol-table))
 
 PHONY += check
-check: check-uapi check-kernel check-ext2 check-pci
+check: check-uapi check-kernel check-ext2 check-pci check-symbol-table
 
 PHONY += check-kernel
 check-kernel: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(TEST_RESULTS_DIR)/ktest
@@ -21,6 +22,10 @@ check-ext2: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(TEST_RESULT
 PHONY += check-uapi
 check-uapi: | $(TEST_RESULTS_DIR)/uapi
 	$(Q)./tests/scripts/verify_uapi.sh "$(CC)" "$(TEST_RESULTS_DIR)/uapi" "./include/uapi" "./arch/$(ARCH)/include/uapi"
+
+PHONY += check-symbol-table
+check-symbol-table: $(KERNEL).full $(OBJ_DIR)/vmprotura_symbols2.c | $(TEST_RESULTS_DIR)/symbol-table
+	$(Q)./tests/scripts/verify_symbol_table.sh $(KERNEL).full $(OBJ_DIR)/vmprotura_symbols2.c "$(TEST_RESULTS_DIR)/symbol-table"
 
 PHONY += check-pci
 check-pci: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(TEST_RESULTS_DIR)/pci

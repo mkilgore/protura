@@ -74,6 +74,8 @@ endif
 PROTURA_OBJ := $(OBJ_DIR)/protura.o
 KERNEL := $(KERNEL_DIR)/vmprotura
 
+SYMBOL_OBJ := $(OBJ_DIR)/vmprotura_symbols2.o
+
 # This is our default target - The default is the first target in the file so
 # we need to define this fairly high-up.
 all: real-all
@@ -242,9 +244,32 @@ CLEAN_LIST += $(DEP_LIST)
 
 VM_LINK_SCRIPT := ./arch/$(ARCH)/boot/vmprotura.ld
 
-$(KERNEL) $(KERNEL).sym $(KERNEL).full: $(PROTURA_OBJ) $(VM_LINK_SCRIPT) | $(KERNEL_DIR)
+# To generate the symbol table, we have to do a few passes.
+# The idea is:
+#   1. Link the full kernel once without the symbol table, generate a symbol table based on that
+#   2. Link the full kernel again with the new symbol table, generate the symbol table a second time
+#   3. Link the target kernel with the second symbol table.
+$(OBJ_DIR)/vmprotura1.fake: $(PROTURA_OBJ) $(VM_LINK_SCRIPT) | $(OBJ_DIR)
 	@echo " CCLD    $@"
 	$(Q)$(CC) $(CPPFLAGS) -o $@ $(PROTURA_OBJ) $(LDFLAGS) -T $(VM_LINK_SCRIPT) -Wl,--build-id=none
+
+$(OBJ_DIR)/vmprotura2.fake: $(PROTURA_OBJ) $(OBJ_DIR)/vmprotura_symbols1.o $(VM_LINK_SCRIPT) | $(OBJ_DIR)
+	@echo " CCLD    $@"
+	$(Q)$(CC) $(CPPFLAGS) -o $@ $(PROTURA_OBJ) $(OBJ_DIR)/vmprotura_symbols1.o $(LDFLAGS) -T $(VM_LINK_SCRIPT) -Wl,--build-id=none
+
+$(OBJ_DIR)/vmprotura_symbols%.c: $(OBJ_DIR)/vmprotura%.fake ./scripts/symbol_table.sh ./scripts/symbol_table.pl | $(OBJ_DIR)
+	@echo " SYMTBL  $@"
+	$(Q)./scripts/symbol_table.sh $< > $@
+
+.SECONDARY: $(OBJ_DIR)/vmprotura_symbols1.c $(OBJ_DIR)/vmprotura_symbols2.c
+
+CLEAN_LIST += $(OBJ_DIR)/vmprotura_symbols1.c $(OBJ_DIR)/vmprotura_symbols2.c
+CLEAN_LIST += $(OBJ_DIR)/vmprotura_symbols1.o $(OBJ_DIR)/vmprotura_symbols2.o
+CLEAN_LIST += $(OBJ_DIR)/vmprotura1.fake $(OBJ_DIR)/vmprotura2.fake
+
+$(KERNEL) $(KERNEL).sym $(KERNEL).full: $(PROTURA_OBJ) $(SYMBOL_OBJ) $(VM_LINK_SCRIPT) | $(KERNEL_DIR)
+	@echo " CCLD    $@"
+	$(Q)$(CC) $(CPPFLAGS) -o $@ $(PROTURA_OBJ) $(LDFLAGS) $(SYMBOL_OBJ) -T $(VM_LINK_SCRIPT) -Wl,--build-id=none
 	@echo " COPY    $@.full"
 	$(Q)cp $@ $@.full
 	@echo " OBJCOPY $@.sym"
