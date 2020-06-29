@@ -43,6 +43,7 @@ struct super_block_fake {
 struct module_priv {
     struct super_block_fake *fake;
     ino_t next_ino;
+    void *temp_ptr_pages; /* 32 pages of temporary memory for holding tables */
 };
 
 static struct inode *fake_inode_alloc(struct super_block *sb)
@@ -439,13 +440,14 @@ static void test_inode_sync_diff_super(struct ktest *kt)
 
     ino_t next_ino = 20;
 
-    struct inode *new[inode_count];
+    struct inode **new = priv->temp_ptr_pages;
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(new); i++) {
+    for (i = 0; i < inode_count; i++) {
         new[i] = inode_get(&fake->sb, next_ino++);
 
         ktest_assert_notequal(kt, NULL, new[i]);
+        ktest_assert_equal(kt, 1, atomic_get(&new[i]->ref));
         ktest_assert_equal(kt, F(INO_VALID), new[i]->flags);
         ktest_assert_equal(kt, F(INODE_ALLOC_CALLED, INODE_READ_CALLED), fake->called);
 
@@ -463,7 +465,7 @@ static void test_inode_sync_diff_super(struct ktest *kt)
     inode_sync(&priv->fake->sb, 1);
 
     ktest_assert_equal(kt, 0, fake->called);
-    for (i = 0; i < ARRAY_SIZE(new); i++) {
+    for (i = 0; i < inode_count; i++) {
         ktest_assert_equal(kt, F(INO_VALID, INO_DIRTY), new[i]->flags);
         inode_put(new[i]);
     }
@@ -474,6 +476,7 @@ static void test_inode_sync_diff_super(struct ktest *kt)
 
 static void test_inode_sync(struct ktest *kt)
 {
+    struct module_priv *priv = ktest_get_mod_priv(kt);
     int inode_count = KT_ARG(kt, 0, int);
     struct super_block_fake *fake = kzalloc(sizeof(*fake), PAL_KERNEL);
     super_block_init(&fake->sb);
@@ -481,13 +484,14 @@ static void test_inode_sync(struct ktest *kt)
     fake->sb.ops = &fake_ops_nowait;
     ino_t next_ino = 20;
 
-    struct inode *new[inode_count];
+    struct inode **new = priv->temp_ptr_pages;
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(new); i++) {
+    for (i = 0; i < inode_count; i++) {
         new[i] = inode_get(&fake->sb, next_ino++);
 
         ktest_assert_notequal(kt, NULL, new[i]);
+        ktest_assert_equal(kt, 1, atomic_get(&new[i]->ref));
         ktest_assert_equal(kt, F(INO_VALID), new[i]->flags);
         ktest_assert_equal(kt, F(INODE_ALLOC_CALLED, INODE_READ_CALLED), fake->called);
 
@@ -503,7 +507,7 @@ static void test_inode_sync(struct ktest *kt)
     inode_sync(&fake->sb, 1);
 
     ktest_assert_equal(kt, F(INODE_WRITE_CALLED), fake->called);
-    for (i = 0; i < ARRAY_SIZE(new); i++) {
+    for (i = 0; i < inode_count; i++) {
         ktest_assert_equal(kt, F(INO_VALID), new[i]->flags);
         inode_put(new[i]);
     }
@@ -514,12 +518,13 @@ static void test_inode_sync(struct ktest *kt)
 
 static void test_inode_sync_all(struct ktest *kt)
 {
+    struct module_priv *priv = ktest_get_mod_priv(kt);
     int inode_count = KT_ARG(kt, 0, int);
     int super_count = KT_ARG(kt, 1, int);
     ino_t next_ino = 20;
 
-    struct super_block_fake *fakes[super_count];
-    struct inode *new[super_count][inode_count];
+    struct super_block_fake **fakes = kzalloc(sizeof(*fakes) * super_count, PAL_KERNEL);
+    struct inode *(*new)[inode_count] = priv->temp_ptr_pages;
     int i, j;
 
     for (i = 0; i < super_count; i++) {
@@ -535,6 +540,7 @@ static void test_inode_sync_all(struct ktest *kt)
             new[j][i] = inode;
 
             ktest_assert_notequal(kt, NULL, inode);
+            ktest_assert_equal(kt, 1, atomic_get(&inode->ref));
             ktest_assert_equal(kt, F(INO_VALID), inode->flags);
             ktest_assert_equal(kt, F(INODE_ALLOC_CALLED, INODE_READ_CALLED), fakes[j]->called);
 
@@ -554,6 +560,7 @@ static void test_inode_sync_all(struct ktest *kt)
         for (j = 0; j < inode_count; j++) {
             struct inode *inode = new[i][j];
 
+            ktest_assert_equal(kt, 1, atomic_get(&inode->ref));
             ktest_assert_equal(kt, F(INO_VALID), inode->flags);
             inode_put(inode);
         }
@@ -561,6 +568,8 @@ static void test_inode_sync_all(struct ktest *kt)
         inode_clear_super(&fakes[i]->sb);
         kfree(fakes[i]);
     }
+
+    kfree(fakes);
 }
 
 static int inode_table_module_setup(struct ktest_module *mod)
@@ -578,6 +587,8 @@ static int inode_table_module_setup(struct ktest_module *mod)
 
     priv->next_ino = 2;
 
+    priv->temp_ptr_pages = palloc_va(5, PAL_KERNEL);
+
     return 0;
 }
 
@@ -594,6 +605,7 @@ static int inode_table_module_teardown(struct ktest_module *mod)
 {
     struct module_priv *priv = mod->priv;
 
+    pfree_va(priv->temp_ptr_pages, 5);
     kfree(priv->fake);
     kfree(priv);
 
