@@ -4,6 +4,7 @@
 /* A separate way to start a kernel_task - This turns on interrupts before
  * falling through into kernel_task_entry */
 .globl kernel_task_entry_interruptable
+.type kernel_task_entry, @function
 kernel_task_entry_interruptable:
     sti
 
@@ -12,6 +13,7 @@ kernel_task_entry_interruptable:
  * task. We simply call that function, and then handle clean-up when the thread
  * exits via returning. */
 .global kernel_task_entry
+.type kernel_task_entry, @function
 kernel_task_entry:
 
     pop %ebx
@@ -26,6 +28,7 @@ kernel_task_entry:
     /* Loop just in case there is a problem -- In working conditions sys_exit
      * should never return */
 1: jmp 1b
+.size kernel_task_entry, .-kernel_task_entry
 
 .global kernel_task_entry_addr
 kernel_task_entry_addr:

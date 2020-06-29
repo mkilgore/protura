@@ -6,6 +6,7 @@ user_init_panic:
 .asciz "[PANIC]: User init failed to exec: %d\n"
 
 .globl arch_task_user_entry
+.type arch_task_user_entry, @function
 arch_task_user_entry:
 
     call sys_execve
@@ -21,6 +22,7 @@ bad_user_exec:
     push %eax
     push user_init_panic
     call __panic
+.size arch_task_user_entry, .-arch_task_user_entry
 
 .global arch_task_user_entry_addr
 arch_task_user_entry_addr:
