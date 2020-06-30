@@ -54,7 +54,7 @@ void readline_lite_setup_tty(struct readline_state *state)
     struct termios new = state->saved_tty_settings;
     new.c_iflag &= ~(IXON | ICRNL);
     new.c_oflag &= ~(OPOST);
-    new.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    new.c_lflag &= ~(ECHO | ICANON | IEXTEN);
 
     tcsetattr(STDIN_FILENO, TCSADRAIN, &new);
 }
