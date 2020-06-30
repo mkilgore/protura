@@ -22,7 +22,6 @@
 #include <protura/fs/file.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
-#include <protura/fs/sync.h>
 #include <protura/fs/vfs.h>
 
 #ifdef CONFIG_KERNEL_LOG_INODE
@@ -397,30 +396,16 @@ void inode_sync(struct super_block *sb, int wait)
                     }
                     spinlock_release(&inode->flags_lock);
 
-                    /* By taking a reference we guarantee this inode won't go away */
                     atomic_inc(&inode->ref);
-
-                    not_using_spinlock(&inode_hashes_lock) {
-                        inode_write_to_disk(inode, wait);
-
-                        if (wait) {
-                            atomic_inc(&inode->ref);
-                            list_add_tail(&sync_list, &inode->sync_entry);
-                        }
-                    }
-
-                    atomic_dec(&inode->ref);
+                    list_add_tail(&sync_list, &inode->sync_entry);
                 }
             }
         }
 
-        if (!wait)
-            return;
-
         while (!list_empty(&sync_list)) {
             inode = list_take_first(&sync_list, struct inode, sync_entry);
 
-            inode_wait_for_write(inode);
+            inode_write_to_disk(inode, wait);
             inode_put(inode);
         }
     }
@@ -441,8 +426,12 @@ static void inode_finish_list(list_head_t *head)
 }
 
 /* Removes all the inodes associated with a super_block that have no existing
- * references. */
-int inode_clear_super(struct super_block *sb)
+ * references.
+ *
+ * The root inode gets some special handling - if we manage to remove every
+ * inode from the super-block, then we check if we're holding the only root
+ * inode reference and drop it if so */
+int inode_clear_super(struct super_block *sb, struct inode *root)
 {
     struct inode *inode;
 
@@ -450,7 +439,7 @@ int inode_clear_super(struct super_block *sb)
     spinlock_acquire(&inode_hashes_lock);
   again_locked:
     list_foreach_entry(&sb->inodes, inode, sb_entry) {
-        /* Skip any inodes with active references */
+        /* Skip any inodes with active references - should always include root */
         if (atomic_get(&inode->ref))
             continue;
 
@@ -466,8 +455,8 @@ int inode_clear_super(struct super_block *sb)
         }
 
         /* Can't happen - non-INO_VALID or INO_SYNC require at least one reference to exist */
-        kassert(flag_test(&inode->flags, INO_VALID), "Inode "PRinode" has no references but is not marked INO_VALID!!!!!", Pinode(inode));
-        kassert(!flag_test(&inode->flags, INO_SYNC), "Inode "PRinode" has no references but is marked INO_SYNC!!!!!", Pinode(inode));
+        kassert(flag_test(&inode->flags, INO_VALID), "Inode "PRinode" has no references but is not marked INO_VALID!!!!!\n", Pinode(inode));
+        kassert(!flag_test(&inode->flags, INO_SYNC), "Inode "PRinode" has no references but is marked INO_SYNC!!!!!\n", Pinode(inode));
 
         /* Nothing's using this inode, mark it and get rid of it */
         flag_set(&inode->flags, INO_FREEING);
@@ -480,9 +469,57 @@ int inode_clear_super(struct super_block *sb)
         goto again;
     }
 
+    /* If there is more than one entry in here, the super was still in use */
+    if (sb->inodes.next->next != &sb->inodes)
+        goto release_hashes_lock;
+
+    /* The case that root is the only reference still held, in which case ref>1 */
+    if (atomic_get(&root->ref) != 1)
+        goto release_hashes_lock;
+
+    /* Verify sb->inodes only has one entry for the root inode left */
+    if (list_empty(&sb->inodes)) {
+        kp(KP_WARNING, "Super-Block has no inodes despite still having a reference to root!\n");
+        goto release_hashes_lock;
+    }
+
+    if (sb->inodes.next != &root->sb_entry) {
+        kp(KP_WARNING, "Super-Block's last inode is not a reference to root!\n");
+        goto release_hashes_lock;
+    }
+
+    if (!atomic_get(&root->ref)) {
+        kp(KP_WARNING, "Root's ref count is zero!\n");
+        atomic_inc(&root->ref);
+    }
+
+    /* Drop root reference!
+     *
+     * We actually have a guarentee that the reference cannot be acquired again
+     * even when we drop the hashes lock - the associated vfs_mount currently
+     * has VFS_MOUNT_UNMOUNTING set. While that is set, the vfs_mount cannot be
+     * used, and that is the only direct way to gain a reference to the
+     * super-block's root.
+     *
+     * Thus, we drop it here, and then the caller will finish up the rest of
+     * the umount.
+     */
+
+    using_spinlock(&root->flags_lock) {
+        atomic_dec(&root->ref);
+        flag_set(&root->flags, INO_FREEING);
+    }
+
     spinlock_release(&inode_hashes_lock);
 
+    inode_finish(root);
+
     return 0;
+
+
+  release_hashes_lock:
+    spinlock_release(&inode_hashes_lock);
+    return -EBUSY;
 }
 
 void inode_oom(void)
@@ -507,8 +544,8 @@ void inode_oom(void)
                         continue;
                     }
 
-                    kassert(flag_test(&inode->flags, INO_VALID), "Inode "PRinode" has no references but is not marked INO_VALID!!!!!", Pinode(inode));
-                    kassert(!flag_test(&inode->flags, INO_SYNC), "Inode "PRinode" has no references but is marked INO_SYNC!!!!!", Pinode(inode));
+                    kassert(flag_test(&inode->flags, INO_VALID), "Inode "PRinode" has no references but is not marked INO_VALID!!!!!\n", Pinode(inode));
+                    kassert(!flag_test(&inode->flags, INO_SYNC), "Inode "PRinode" has no references but is marked INO_SYNC!!!!!\n", Pinode(inode));
 
                     flag_set(&inode->flags, INO_FREEING);
                     spinlock_release(&inode->flags_lock);

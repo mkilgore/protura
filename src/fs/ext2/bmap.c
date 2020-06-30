@@ -58,7 +58,7 @@ sector_t ext2_block_alloc(struct ext2_super_block *sb)
 {
     sector_t ret = SECTOR_INVALID;
 
-    using_super_block(&sb->sb) {
+    using_ext2_super_block(sb) {
         ret = __ext2_mark_block(sb);
 
         if (ret != SECTOR_INVALID)
@@ -78,7 +78,7 @@ void ext2_block_release(struct ext2_super_block *sb, struct ext2_inode *inode, s
     int index = block % blocks_per_group;
     struct block *b;
 
-    using_super_block(&sb->sb) {
+    using_ext2_super_block(sb) {
         using_block_locked(sb->sb.dev, sb->groups[group].block_nr_block_bitmap, b) {
             bit_clear(b->data, index);
             sb->groups[group].block_unused_total++;

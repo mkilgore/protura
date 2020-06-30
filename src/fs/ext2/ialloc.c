@@ -86,7 +86,7 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
     sector_t inode_group_blk = 0;
     int inode_group_blk_offset = 0;
 
-    using_super_block(sb) {
+    using_ext2_super_block(ext2sb) {
         for (i = 0; i < ext2sb->block_group_count && !ino; i++)
             if ((ino = __ext2_check_block_group(ext2sb, i)) != 0)
                 break;
@@ -123,7 +123,7 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
     kp_ext2(sb, "ialloc: inode_alloc: %p\n", inode);
 
     if (!inode) {
-        using_super_block(sb)
+        using_ext2_super_block(ext2sb)
             __ext2_unset_inode_number(ext2sb, ino);
 
         return -ENOMEM;

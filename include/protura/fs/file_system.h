@@ -8,16 +8,23 @@
 #ifndef INCLUDE_FS_FILE_SYSTEM_H
 #define INCLUDE_FS_FILE_SYSTEM_H
 
-#ifdef __KERNEL__
-
 #include <protura/types.h>
 #include <protura/list.h>
 
 struct super_block;
 
+enum {
+    FILE_SYSTEM_NODEV,
+};
+
 struct file_system {
     const char *name;
-    struct super_block *(*read_sb) (dev_t dev);
+    flags_t flags;
+
+    struct super_block *(*super_alloc) (void);
+    void (*super_dealloc) (struct super_block *sb);
+
+    int (*read_sb2) (struct super_block *);
 
     list_node_t fs_list_entry;
 };
@@ -30,7 +37,5 @@ void file_system_unregister(const char *name);
 struct file_system *file_system_lookup(const char *name);
 
 extern const struct file_ops file_system_file_ops;
-
-#endif
 
 #endif

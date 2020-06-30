@@ -164,6 +164,8 @@ extern uint8_t ext2_dir_type_to_dt[];
 struct ext2_super_block {
     struct super_block sb;
 
+    mutex_t lock;
+
     int block_size;
     int block_group_count;
 
@@ -174,11 +176,8 @@ struct ext2_super_block {
     struct ext2_disk_block_group *groups;
 };
 
-static inline void ext2_super_block_init(struct ext2_super_block *sb)
-{
-    memset(sb, 0, sizeof(*sb));
-    super_block_init(&sb->sb);
-}
+#define using_ext2_super_block(sb) \
+    using_mutex(&(sb)->lock)
 
 struct ext2_inode {
     struct inode i;

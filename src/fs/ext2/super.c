@@ -71,7 +71,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
     inode_group = (ino - 1) / sb->disksb.inodes_per_block_group;
     inode_entry = (ino - 1) % sb->disksb.inodes_per_block_group;
 
-    using_super_block(super) {
+    using_ext2_super_block(sb) {
         inode_group_blk_nr = sb->groups[inode_group].block_nr_inode_table;
 
         inode_group_blk_nr += (inode_entry * sizeof(struct ext2_disk_inode)) / sb->block_size;
@@ -253,7 +253,7 @@ static int ext2_inode_delete(struct super_block *super, struct inode *i)
     inode_set_dirty(i);
     ext2_inode_write(super, i);
 
-    using_super_block(super) {
+    using_ext2_super_block(sb) {
 
         inode_group = (i->ino - 1) / sb->disksb.inodes_per_block_group;
         inode_entry = (i->ino - 1) % sb->disksb.inodes_per_block_group;
@@ -293,29 +293,23 @@ static struct inode *ext2_inode_alloc(struct super_block *super)
     return &inode->i;
 }
 
-static struct super_block *ext2_sb_read(dev_t dev)
+static int ext2_sb_read(struct super_block *super)
 {
     struct ext2_super_block *sb;
     struct block *sb_block;
     int block_size;
     uint32_t ext2_magic;
 
-    if (dev == 0)
-        return NULL;
+    super->ops = &ext2_sb_ops;
 
-    sb = kzalloc(sizeof(*sb), PAL_KERNEL);
-    ext2_super_block_init(sb);
-
-    sb->sb.bdev = block_dev_get(dev);
-    sb->sb.dev = dev;
-    sb->sb.ops = &ext2_sb_ops;
+    sb = container_of(super, struct ext2_super_block, sb);
 
     kp_ext2(sb, "Setting block_size to 1024\n");
 
-    block_dev_set_block_size(dev, 1024);
+    block_dev_set_block_size(super->dev, 1024);
 
     kp_ext2(sb, "Reading super_block...\n");
-    using_block_locked(dev, 1, sb_block) {
+    using_block_locked(super->dev, 1, sb_block) {
         struct ext2_disk_sb *disksb;
 
         disksb = (struct ext2_disk_sb *)sb_block->data;
@@ -328,34 +322,34 @@ static struct super_block *ext2_sb_read(dev_t dev)
 
     if (ext2_magic != EXT2_MAGIC) {
         kp(KP_WARNING, "EXT2: Error: Incorrect magic bits\n");
-        return NULL;
+        return -EINVAL;
     }
 
-    block_dev_set_block_size(dev, block_size);
+    block_dev_set_block_size(super->dev, block_size);
     sb->block_size = block_size;
 
     switch (block_size) {
     case 1024:
         sb->sb_block_nr = 1;
-        using_block_locked(dev, 1, sb_block)
+        using_block_locked(super->dev, 1, sb_block)
             memcpy(&sb->disksb, sb_block->data, sizeof(sb->disksb));
         break;
 
     case 2048:
         sb->sb_block_nr = 0;
-        using_block_locked(dev, 0, sb_block)
+        using_block_locked(super->dev, 0, sb_block)
             memcpy(&sb->disksb, sb_block->data + 1024, sizeof(sb->disksb));
         break;
 
     case 4096:
         sb->sb_block_nr = 0;
-        using_block_locked(dev, 0, sb_block)
+        using_block_locked(super->dev, 0, sb_block)
             memcpy(&sb->disksb, sb_block->data + 1024, sizeof(sb->disksb));
         break;
 
     default:
         kp(KP_ERROR, "EXT2: Error, unable to handle block_size\n");
-        return NULL;
+        return -EINVAL;
     }
 
     kp_ext2(sb, "version_major=%d,      version_minor=%d\n", \
@@ -419,7 +413,7 @@ static struct super_block *ext2_sb_read(dev_t dev)
         kp_ext2(sb, "Reading %d groups\n", g);
         kp_ext2(sb, "Group block %d\n", sb->sb_block_nr + 1 + i);
 
-        using_block_locked(dev, sb->sb_block_nr + 1 + i, block)
+        using_block_locked(super->dev, sb->sb_block_nr + 1 + i, block)
             memcpy(sb->groups + i * groups_per_block, block->data, g * sizeof(*sb->groups));
     }
 
@@ -434,9 +428,9 @@ static struct super_block *ext2_sb_read(dev_t dev)
     sb->disksb.last_mount_time = protura_current_time_get();
 
     kp_ext2(sb, "Reading root inode\n");
-    sb->sb.root = inode_get(&sb->sb, EXT2_ROOT_INO);
+    super->root_ino = EXT2_ROOT_INO;
 
-    return &sb->sb;
+    return 0;
 }
 
 static int ext2_sb_write(struct super_block *sb)
@@ -462,14 +456,14 @@ static int ext2_sb_write(struct super_block *sb)
 
         kp_ext2(ext2sb, "count=%d\n", count);
 
-        using_block_locked(ext2sb->sb.dev, ext2sb->sb_block_nr + 1 + i, b) {
+        using_block_locked(sb->dev, ext2sb->sb_block_nr + 1 + i, b) {
             memcpy(b->data, ext2sb->groups + i * groups_per_block, count * sizeof(*ext2sb->groups));
             block_mark_dirty(b);
         }
     }
 
     kp_ext2(ext2sb, "Writing ext2 super-block...\n");
-    using_block_locked(ext2sb->sb.dev, ext2sb->sb_block_nr, b) {
+    using_block_locked(sb->dev, ext2sb->sb_block_nr, b) {
         if (ext2sb->block_size >= 1024)
             memcpy(b->data, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
         else
@@ -484,13 +478,22 @@ static int ext2_sb_write(struct super_block *sb)
 
 static int ext2_sb_put(struct super_block *sb)
 {
-    struct ext2_super_block *ext2sb = container_of(sb, struct ext2_super_block, sb);
-
     ext2_sb_write(sb);
-
-    kfree(ext2sb);
-
     return 0;
+}
+
+static struct super_block *super_alloc(void)
+{
+    struct ext2_super_block *ext2sb = kzalloc(sizeof(*ext2sb), PAL_KERNEL);
+    super_block_init(&ext2sb->sb);
+    mutex_init(&ext2sb->lock);
+
+    return &ext2sb->sb;
+}
+
+static void super_dealloc(struct super_block *sb)
+{
+    kfree(container_of(sb, struct ext2_super_block, sb));
 }
 
 static struct super_block_ops ext2_sb_ops = {
@@ -505,7 +508,9 @@ static struct super_block_ops ext2_sb_ops = {
 
 static struct file_system ext2_fs = {
     .name = "ext2",
-    .read_sb = ext2_sb_read,
+    .read_sb2 = ext2_sb_read,
+    .super_alloc = super_alloc,
+    .super_dealloc = super_dealloc,
     .fs_list_entry = LIST_NODE_INIT(ext2_fs.fs_list_entry),
 };
 

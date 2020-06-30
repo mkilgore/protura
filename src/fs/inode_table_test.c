@@ -439,6 +439,7 @@ static void test_inode_sync_diff_super(struct ktest *kt)
     fake->sb.ops = &fake_ops_nowait;
 
     ino_t next_ino = 20;
+    struct inode *root = inode_get(&fake->sb, 2);
 
     struct inode **new = priv->temp_ptr_pages;
     int i;
@@ -470,7 +471,8 @@ static void test_inode_sync_diff_super(struct ktest *kt)
         inode_put(new[i]);
     }
 
-    inode_clear_super(&fake->sb);
+    int ret = inode_clear_super(&fake->sb, root);
+    ktest_assert_equal(kt, 0, ret);
     kfree(fake);
 }
 
@@ -485,6 +487,7 @@ static void test_inode_sync(struct ktest *kt)
     ino_t next_ino = 20;
 
     struct inode **new = priv->temp_ptr_pages;
+    struct inode *root = inode_get(&fake->sb, 2);
     int i;
 
     for (i = 0; i < inode_count; i++) {
@@ -512,7 +515,8 @@ static void test_inode_sync(struct ktest *kt)
         inode_put(new[i]);
     }
 
-    inode_clear_super(&fake->sb);
+    int ret = inode_clear_super(&fake->sb, root);
+    ktest_assert_equal(kt, 0, ret);
     kfree(fake);
 }
 
@@ -525,6 +529,7 @@ static void test_inode_sync_all(struct ktest *kt)
 
     struct super_block_fake **fakes = kzalloc(sizeof(*fakes) * super_count, PAL_KERNEL);
     struct inode *(*new)[inode_count] = priv->temp_ptr_pages;
+    struct inode **root = kzalloc(sizeof(*root) * super_count, PAL_KERNEL);
     int i, j;
 
     for (i = 0; i < super_count; i++) {
@@ -532,6 +537,8 @@ static void test_inode_sync_all(struct ktest *kt)
         super_block_init(&fakes[i]->sb);
         delay_work_init(&fakes[i]->work);
         fakes[i]->sb.ops = &fake_ops_nowait;
+
+        root[i] = inode_get(&fakes[i]->sb, 2);
     }
 
     for (i = 0; i < inode_count; i++, next_ino++) {
@@ -565,11 +572,12 @@ static void test_inode_sync_all(struct ktest *kt)
             inode_put(inode);
         }
 
-        inode_clear_super(&fakes[i]->sb);
+        inode_clear_super(&fakes[i]->sb, root[i]);
         kfree(fakes[i]);
     }
 
     kfree(fakes);
+    kfree(root);
 }
 
 static int inode_table_module_setup(struct ktest_module *mod)

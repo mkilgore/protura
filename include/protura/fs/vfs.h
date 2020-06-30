@@ -58,7 +58,8 @@ int vfs_symlink(struct inode *dir, const char *name, size_t len, const char *sym
 
 /* devname is for user convenience when display mount points and can be left NULL */
 int vfs_mount(struct inode *mount_point, dev_t block_dev, const char *filesystem, const char *devname, const char *mountname);
-int vfs_umount(struct super_block *sb);
+int vfs_umount(struct super_block *);
+struct inode *vfs_get_mount(struct inode *mount_point);
 
 struct inode_attributes {
     mode_t mode;

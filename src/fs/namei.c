@@ -48,6 +48,7 @@ int namei_full(struct nameidata *data, flags_t flags)
     while (*path) {
         struct inode *next;
         struct inode *link;
+        struct inode *mount_point;
         size_t len = 0, old_len = 0;
         const char *old_path;
 
@@ -80,19 +81,12 @@ int namei_full(struct nameidata *data, flags_t flags)
 
       translate_inode:
 
-        if (flag_test(&next->flags, INO_MOUNT)) {
-            link = NULL;
+        mount_point = vfs_get_mount(next);
 
-            using_inode_mount(next) {
-                if (next->mount)
-                    link = inode_dup(next->mount);
-            }
-
-            if (link) {
-                inode_put(next);
-                next = link;
-                goto translate_inode;
-            }
+        if (mount_point) {
+            inode_put(next);
+            next = mount_point;
+            goto translate_inode;
         }
 
         if (!flag_test(&flags, NAMEI_DONT_FOLLOW_LINK) && S_ISLNK(next->mode)) {

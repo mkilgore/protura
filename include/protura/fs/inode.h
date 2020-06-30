@@ -85,7 +85,6 @@ struct char_device;
 enum inode_flags {
     INO_VALID,
     INO_DIRTY,
-    INO_MOUNT, /* Inode is a mount point */
     INO_FREEING,
     INO_SYNC,
     INO_BAD,
@@ -112,11 +111,6 @@ struct inode {
     flags_t flags;
     struct wait_queue flags_queue;
     atomic_t ref;
-
-    /* If set, this inode is a mount point - 'mount' is the root of the mounted
-     * file-system */
-    mutex_t mount_lock;
-    struct inode *mount;
 
     /* Protects inode size/resize, along with writes to fields such as mode,
      * nlinks, blocks, a/m/c time */
@@ -198,7 +192,6 @@ extern struct inode_ops inode_ops_null;
 static inline void inode_init(struct inode *i)
 {
     mutex_init(&i->lock);
-    mutex_init(&i->mount_lock);
     spinlock_init(&i->flags_lock);
     wait_queue_init(&i->flags_queue);
     atomic_init(&i->ref, 0);
@@ -246,9 +239,6 @@ static inline int inode_try_lock_write(struct inode *i)
 
 #define using_inode(sb, ino, inode) \
     using((inode = inode_get(sb, ino)) != NULL, inode_put(inode))
-
-#define using_inode_mount(inode) \
-    using_mutex(&(inode)->mount_lock)
 
 /* If an inode was acquired from inode_get_invalid() and was returned without
  * INO_VALID set, then this will mark INO_VALID and wake up anybody waiting on
@@ -298,8 +288,12 @@ void inode_sync_all(int wait);
 
 /* Attempts to clear out every inode associated with a superblock. If inodes
  * are currently being free'd, it will wait for them to be free'd. If an inode
- * currently has a reference, then it will not be cleared. */
-int inode_clear_super(struct super_block *);
+ * currently has a reference, then it will not be cleared.
+ *
+ * If all the inodes can be dropped, then it will also drop the root inode. It
+ * is necessary to pass the root inode so that we know to expect an existing
+ * reference to it. */
+int inode_clear_super(struct super_block *, struct inode *root);
 
 /* Attempts to clear out as many inode's as it can */
 void inode_oom(void);

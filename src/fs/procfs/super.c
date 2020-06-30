@@ -31,7 +31,6 @@
 #include <protura/fs/file_system.h>
 #include <protura/fs/binfmt.h>
 #include <protura/fs/vfs.h>
-#include <protura/fs/sync.h>
 #include <protura/fs/procfs.h>
 #include "procfs_internal.h"
 
@@ -91,7 +90,6 @@ static int procfs_inode_read(struct super_block *sb, struct inode *inode)
 
 static int procfs_sb_put(struct super_block *sb)
 {
-    block_dev_anon_put(sb->dev);
     kfree(sb);
 
     return 0;
@@ -107,32 +105,24 @@ static struct super_block_ops procfs_sb_ops = {
     .sb_put = procfs_sb_put,
 };
 
-static struct super_block *procfs_read_sb(dev_t dev)
+static int procfs_read_sb(struct super_block *sb)
 {
-    struct super_block *sb;
-
-    sb = kzalloc(sizeof(*sb), PAL_KERNEL);
-    super_block_init(sb);
-
-    sb->dev = block_dev_anon_get();
     sb->ops = &procfs_sb_ops;
-    sb->bdev = NULL;
 
-    sb->root = inode_get(sb, PROCFS_ROOT_INO);
+    sb->root_ino = PROCFS_ROOT_INO;
 
-    return sb;
+    return 0;
 }
 
 static struct file_system procfs_fs = {
     .name = "proc",
-    .read_sb = procfs_read_sb,
+    .read_sb2 = procfs_read_sb,
     .fs_list_entry = LIST_NODE_INIT(procfs_fs.fs_list_entry),
+    .flags = F(FILE_SYSTEM_NODEV),
 };
 
 void procfs_init(void)
 {
-    file_system_register(&procfs_fs);
-
     procfs_hash_add_node(&procfs_root.node);
 
     procfs_register_entry(&procfs_root, "interrupts", &interrupts_file_ops);
@@ -149,5 +139,7 @@ void procfs_init(void)
     procfs_register_entry_ops(&procfs_root, "version", &proc_version_ops);
 
     procfs_register_entry_ops(&procfs_root, "task_api", &task_api_ops);
+
+    file_system_register(&procfs_fs);
 }
 

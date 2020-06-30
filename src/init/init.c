@@ -19,7 +19,6 @@
 #include <protura/fs/fs.h>
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
-#include <protura/fs/sync.h>
 #include <protura/drivers/console.h>
 #include <protura/ktest.h>
 

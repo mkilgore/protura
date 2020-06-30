@@ -29,7 +29,7 @@
 #include <protura/fs/fcntl.h>
 #include <protura/fs/file.h>
 #include <protura/net/ipv4/ipv4.h>
-#include <protura/fs/sys.h>
+#include <protura/fs/super.h>
 #include <protura/net/sys.h>
 #include <protura/utsname.h>
 #include <protura/ktest.h>

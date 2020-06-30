@@ -15,6 +15,7 @@
 
 struct inode;
 struct super_block;
+struct vfs_mount;
 
 struct super_block_ops {
     /* Used to allocate and deallocate 'struct inode's for a given super_block.
@@ -26,9 +27,6 @@ struct super_block_ops {
 
     /* Read, write, and delete may sleep */
     int (*inode_read) (struct super_block *, struct inode *);
-
-    /* Super block is locked wihle this is called .
-     * Inode is locked while this is called */
     int (*inode_write) (struct super_block *, struct inode *);
 
     /* called when nlink and the in-kernel reference count of the inode drops
@@ -37,24 +35,34 @@ struct super_block_ops {
      * Note that the passed inode is already locked for writing. */
     int (*inode_delete) (struct super_block *, struct inode *);
 
-    /* Super block is locked while sb_write is called */
+    /* umount_lock is locked while sb_write is called */
     int (*sb_write) (struct super_block *);
 
-    /* Super block is locked while sb_put is called */
+    /* umount_lock is locked while sb_put is called */
     int (*sb_put) (struct super_block *);
 };
 
+enum {
+    SUPER_IS_VALID,
+    SUPER_IS_DEAD,
+};
+
 struct super_block {
+    int count;
+
+    mutex_t umount_lock;
+
+    flags_t flags;
+
     dev_t dev;
     struct block_device *bdev;
-    struct inode *root;
+    ino_t root_ino;
 
-    struct inode *covered;
+    struct file_system *fs;
 
     /* Entry into list of all the current super_blocks */
     list_node_t list_entry;
 
-    mutex_t super_block_lock;
     /* Protected by the inode_hashes_lock */
     list_head_t inodes;
     list_head_t dirty_inodes;
@@ -62,16 +70,13 @@ struct super_block {
     struct super_block_ops *ops;
 };
 
-#define using_super_block(sb) \
-    using_mutex(&(sb)->super_block_lock)
-
 #define SUPER_BLOCK_INIT(super_block) \
     { \
+        .count = 0, \
+        .umount_lock = MUTEX_INIT((super_block).umount_lock), \
         .dev = 0, \
         .bdev = NULL, \
-        .root = NULL, \
         .list_entry = LIST_NODE_INIT((super_block).list_entry), \
-        .super_block_lock = MUTEX_INIT((super_block).super_block_lock), \
         .inodes = LIST_HEAD_INIT((super_block).inodes), \
         .dirty_inodes = LIST_HEAD_INIT((super_block).dirty_inodes), \
         .ops = NULL, \
@@ -137,5 +142,10 @@ static inline int sb_put(struct super_block *sb)
     else
         return -ENOTSUP;
 }
+
+void sync_all_supers(void);
+int mount_root(dev_t device, const char *fsystem);
+
+extern const struct file_ops mount_file_ops;
 
 #endif

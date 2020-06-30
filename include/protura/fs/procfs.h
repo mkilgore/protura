@@ -13,6 +13,7 @@
 #include <protura/mutex.h>
 #include <protura/list.h>
 #include <protura/hlist.h>
+#include <protura/fs/super.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/file.h>

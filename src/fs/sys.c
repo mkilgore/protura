@@ -806,6 +806,12 @@ int sys_mount(struct user_buffer source_buf, struct user_buffer target_buf, stru
     return ret;
 }
 
+void sys_sync(void)
+{
+    sync_all_supers();
+    block_sync_all(1);
+}
+
 int sys_umount(struct user_buffer target_buf)
 {
     struct task *current = cpu_get_local()->current;
@@ -830,7 +836,7 @@ int sys_umount(struct user_buffer target_buf)
 
     sb = target_name.found->sb;
 
-    if (target_name.found != sb->root) {
+    if (target_name.found->ino != sb->root_ino) {
         ret = -EINVAL;
         goto cleanup_target_name;
     }
@@ -840,6 +846,8 @@ int sys_umount(struct user_buffer target_buf)
     inode_put(target_name.found);
     target_name.found = NULL;
 
+    /* Careful - the super-block might actually be invalid. Luckily vfs_umount
+     * only uses it as an identifier */
     ret = vfs_umount(sb);
 
   cleanup_target_name:

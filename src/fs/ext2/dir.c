@@ -133,7 +133,7 @@ static int ext2_dir_rmdir(struct inode *dir, struct inode *deldir, const char *n
     if (ret)
         return ret;
 
-    using_super_block(dir->sb)
+    using_ext2_super_block(sb)
         sb->groups[ext2_ino_group(sb, deldir->ino)].directory_count--;
 
     /* '..' in deldir */
@@ -204,7 +204,7 @@ static int ext2_dir_mkdir(struct inode *dir, const char *name, size_t len, mode_
     if (ret)
         goto cleanup_newdir;
 
-    using_super_block(dir->sb)
+    using_ext2_super_block(sb)
         sb->groups[ext2_ino_group(sb, ino->i.ino)].directory_count++;
 
     newdir->ctime = newdir->mtime = protura_current_time_get();

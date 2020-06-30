@@ -12,7 +12,6 @@
 #include <protura/fs/stat.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
-#include <protura/fs/sync.h>
 
 #define PATH_MAX 256
 
@@ -64,5 +63,7 @@ mode_t sys_umask(mode_t);
 
 int sys_access(struct user_buffer path_buf, int mode);
 int sys_utimes(struct user_buffer path_buf, struct user_buffer timeval_buf);
+
+void sys_sync(void);
 
 #endif

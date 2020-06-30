@@ -12,7 +12,7 @@
 #include <protura/scheduler.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/fs/block.h>
-#include <protura/fs/sync.h>
+#include <protura/fs/sys.h>
 
 static struct task *bdflushd_thread;
 

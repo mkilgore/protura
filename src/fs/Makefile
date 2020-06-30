@@ -6,7 +6,7 @@ objs-y += bdflush.o
 objs-y += char_dev.o
 objs-y += file_system.o
 objs-y += inode_table.o
-objs-y += sync.o
+objs-y += super.o
 
 objs-y += file.o
 objs-y += dir.o
