@@ -119,7 +119,7 @@ DISK_DEP += $(COREUTILS_DEP)
 DISK_CLEAN += $(COREUTILS_OBJS) $(READLINE_OBJS) $(COREUTILS_PROGS) $(COREUTILS_DEP)
 
 $(COREUTILS_BASE_DIR)/common/readline.o: $(READLINE_OBJS)
-	@echo " CCLD    $@"
+	@echo " LD      $@"
 	$(Q)$(LD) -r -o $@ $^
 
 $(COREUTILS_BASE_DIR)/.%.d: $(COREUTILS_BASE_DIR)/%.c
