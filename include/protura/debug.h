@@ -84,16 +84,25 @@ static inline const char *__kp_get_loglevel_string(int level)
 #define kp(level, str, ...) \
     do { \
         if (level <= CONFIG_KERNEL_LOG_LEVEL) { \
+            const uint32_t ____kernel_time_ms = protura_uptime_get_ms(); \
             if (__builtin_constant_p((level))) \
-                kprintf_internal("[%05ld]" Q(TP(KP_STR, level)) ":" KP_CUR_LINE str, protura_uptime_get(), ## __VA_ARGS__); \
+                kprintf_internal("[%d.%03d]" Q(TP(KP_STR, level)) ":" KP_CUR_LINE str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, ## __VA_ARGS__); \
             else \
-                kprintf_internal("[%05ld]%s:" KP_CUR_LINE str, protura_uptime_get(), __kp_get_loglevel_string((level)), ## __VA_ARGS__); \
+                kprintf_internal("[%d.%03d]%s:" KP_CUR_LINE str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, __kp_get_loglevel_string((level)), ## __VA_ARGS__); \
         } \
     } while (0)
 
+#define panic(str, ...) \
+    do { \
+        const uint32_t ____kernel_time_ms = protura_uptime_get_ms(); \
+        __panic("[%d.%03d][PANIC]: " str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, ## __VA_ARGS__); \
+    } while (0)
 
-#define panic(str, ...) __panic("[%05ld][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
-#define panic_notrace(str, ...) __panic_notrace("[%05ld][PANIC]: " str, protura_uptime_get(), ## __VA_ARGS__);
+#define panic_notrace(str, ...) \
+    do { \
+        const uint32_t ____kernel_time_ms = protura_uptime_get_ms(); \
+        __panic_notrace("[%d.%03d][PANIC]: " str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, ## __VA_ARGS__); \
+    } while (0)
 
 extern int reboot_on_panic;
 

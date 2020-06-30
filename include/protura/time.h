@@ -10,8 +10,6 @@
 
 #include <protura/types.h>
 
-#ifdef __KERNEL__
-
 struct timeval {
     time_t tv_sec;
     suseconds_t tv_usec;
@@ -26,6 +24,7 @@ struct timezone {
 #define TIME_DAYS_TO_EPOCH 719499
 
 time_t protura_uptime_get(void);
+uint32_t protura_uptime_get_ms(void);
 void protura_uptime_inc(void);
 
  /*
@@ -45,7 +44,5 @@ extern struct procfs_entry_ops current_time_ops;
 
 int sys_time(struct user_buffer t);
 int sys_gettimeofday(struct user_buffer tv, struct user_buffer tz);
-
-#endif
 
 #endif

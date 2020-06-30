@@ -49,6 +49,11 @@ time_t protura_current_time_get(void)
     return protura_uptime_get() + protura_boot_time_get();
 }
 
+uint32_t protura_uptime_get_ms(void)
+{
+    return timer_get_ms();
+}
+
 static int protura_uptime_read(void *page, size_t page_size, size_t *len)
 {
     *len = snprintf(page, page_size, "%ld\n", protura_uptime_get());

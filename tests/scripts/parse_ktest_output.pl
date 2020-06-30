@@ -14,8 +14,8 @@ foreach my $line (<STDIN>) {
     my $text = $str[1];
     my $test_count;
 
-    # Parse the line [ddddd][L] into the time and log level
-    $timestatus =~ /\[(\d+)\]\[([a-zA-Z]+)\]/;
+    # Parse the line [ddddd.ddd][L] into the time and log level
+    $timestatus =~ /\[(\d+.\d+)\]\[([a-zA-Z]+)\]/;
     my $time = $1;
     my $status = $2;
 
