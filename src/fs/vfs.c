@@ -38,6 +38,18 @@ int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *
 {
     int ret = 0;
 
+    int access = 0;
+
+    if (flag_test(&file_flags, FILE_READABLE))
+        access |= R_OK;
+
+    if (flag_test(&file_flags, FILE_WRITABLE))
+        access |= W_OK;
+
+    ret = check_permission(inode, access);
+    if (ret)
+        return ret;
+
     kp_vfs("Allocated filp: %p\n", filp);
 
     filp->inode = inode_dup(inode);
@@ -67,18 +79,6 @@ int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_re
     struct file *filp;
 
     kp_vfs("Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
-
-    int access = 0;
-
-    if (flag_test(&file_flags, FILE_READABLE))
-        access |= R_OK;
-
-    if (flag_test(&file_flags, FILE_WRITABLE))
-        access |= W_OK;
-
-    ret = check_permission(inode, access);
-    if (ret)
-        return ret;
 
     *filp_ret = NULL;
 
