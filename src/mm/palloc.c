@@ -159,15 +159,17 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 {
     struct page *p, *buddy;
 
+    if (order >= PALLOC_MAPS || order < 0) {
+        kp(KP_ERROR, "palloc: break_page failed!");
+        return;
+    }
+
     if (alloc->maps[order].free_count == 0) {
-        if (order + 1 < alloc->map_count)
-            break_page(alloc, order + 1, flags);
-        else
-            return ;
+        break_page(alloc, order + 1, flags);
 
         /* It's possible 'break_page()' failed */
         if (alloc->maps[order].free_count == 0)
-            return ;
+            return;
     }
 
     p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
