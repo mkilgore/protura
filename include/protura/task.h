@@ -86,6 +86,7 @@ struct task {
 
     context_t context;
     void *kstack_bot, *kstack_top;
+    int in_page_fault;
 
     struct file *files[NOFILE];
     struct inode *cwd;

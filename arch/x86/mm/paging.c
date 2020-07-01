@@ -141,10 +141,15 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
     if (!current)
         halt_and_dump_stack(frame, p);
 
+    if (current->in_page_fault)
+        halt_and_dump_stack(frame, p);
+
+    current->in_page_fault = 1;
+
     /* Check if this page was a fault we can handle */
     int ret = address_space_handle_pagefault(current->addrspc, (va_t)p);
     if (!ret)
-        return;
+        goto clear_in_page_fault;
 
     /* If we're currently doing a read/write to a user pointer from the kernel,
      * then this flag will be set.
@@ -153,7 +158,7 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
      * will handle the fault */
     if (flag_test(&current->flags, TASK_FLAG_RW_USER) && current->user_check_jmp_address) {
         frame->eip = (uint32_t)current->user_check_jmp_address;
-        return;
+        goto clear_in_page_fault;
     }
 
     /* We had a page fault and it was not part of a read/write to userspace.
@@ -173,6 +178,10 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
     }
 
     flag_set(&current->flags, TASK_FLAG_KILLED);
+
+  clear_in_page_fault:
+    current->in_page_fault = 0;
+    return;
 }
 
 /* All of kernel-space virtual memory directly maps onto the lowest part of
@@ -255,7 +264,7 @@ void paging_setup_kernelspace(void **kbrk)
         cpu_set_cr4(cr4);
     }
 
-    kp(KP_NORMAL, "Setting-up initial kernel page-directory\n");
+    kp(KP_NORMAL, "Setting-up initial kernel page-directory, PSE: %s, PGE: %s\n", pse? "yes": "no", pge? "yes": "no");
     setup_kernel_pagedir(kbrk);
 
     set_current_page_directory(v_to_p(&kernel_dir));
