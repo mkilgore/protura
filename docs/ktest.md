@@ -3,6 +3,16 @@ ktest
 
 ktest is a unit testing framework for the Protura kernel. It provides an easy way to run a test suite against part of the kernel after it has booted but before user-space starts.
 
+Makefile Usage
+==============
+
+The easiest way to run the ktest test suite is via `make`. To run all tests run can run `make check-kernel`. That will run all the existing ktest tests on a variety of machines (The machine definitions can be found in `./tests/testcases/ktest/`). The Makefile also accepts a few arguments:
+
+| Parameter | Description |
+| --- | --- |
+| MODULE | The name of the ktest module to run. All other modules will be skipped. |
+| SINGLE_TEST| The name of a single test to run. All testcases will be run, all other tests are skipped |
+
 Kernel Parameters
 =================
 
@@ -10,6 +20,8 @@ Kernel Parameters
 | --- | --- | --- |
 | `ktest.run` | `false` | When `true`, all tests will be after the kernel has booted |
 | `ktest.reboot_after_run` | `false` | When `true`, the system will be rebooted after the tests have run. This is useful for implementing a CI framework, so that the system is automatically killed after the test run is over |
+| `ktest.module` | none | When set, only module(s) with a matching name as the one provided will be run |
+| `ktest.single_test` | none | When set, only test(s) with a matching name as the one provided will be run |
 
 API Usage
 =========
@@ -29,6 +41,7 @@ struct ktest_module {
     const char *name;
     const struct ktest_unit *tests;
     size_t test_count;
+    /* ... */
 };
 ```
 
@@ -113,3 +126,67 @@ static const struct ktest_unit kbuf_test_units[] = {
 ```
 
 That example defines two test cases for the provided function. They pass an integer and a string as arguments, and then inside the test `KT_ARG` is used to get the value of these arguments. Note that the types of the provided arguments are checked for consistency with the type provided to `KT_ARG`, though the checking happens at runtime and will fail your test, rather than fail to compile.
+
+Module Setup and Teardown functions
+-------------------------------------
+
+When defining a `struct ktest_module`, you can provide two functions to be called before any of the module's test are run, and after the module's tests are completed. You can also provide two additional setup and teardown functions to run before and after each test is run. These are all provided directly to the `KTEST_MODULE_DEFINE` as optional additional arguments. The module setup/teardown come first, and either both or neither arguments have to be provided (Though `NULL` can be provided if the function isn't needed). An example is below:
+
+```c
+static int module_setup(struct ktest_module *mod)
+{
+    /* ... */
+}
+
+static int module_teardown(struct ktest_module *mod)
+{
+    /* ... */
+}
+
+static int test_setup(struct ktest *kt)
+{
+    /* ... */
+}
+
+static const struct ktest_unit example_units[] = {
+};
+
+/* NULL has to be provided for test_teardown because a test_setup function is provided */
+KTEST_MODULE_DEFINE("example-module", example_units, module_setup, module_teardown, test_setup, NULL);
+```
+
+Module-scoped private information
+=================================
+
+Combined with module setup and teardown functions, it can be useful to share things between tests that might be a bit heavy to do in each test (Ex. Allocated scratch pieces of memory, or stuctures, etc.). This can be done via the `priv` field on the `struct module`. It can be accessed directly in your module setup and teardown functions, and also accessed through your `struct ktest *` pointer in your tests via `ktest_get_mod_priv()`. A simple example is below:
+
+```c
+struct mod_priv_info {
+    int v1;
+};
+
+static void test(struct ktest *kt)
+{
+    struct mod_priv_info *info = ktest_get_mod_priv(kt);
+    /* ... */
+}
+
+static int module_setup(struct ktest_module *mod)
+{
+    struct mod_priv_info *info = kmalloc(sizeof(*info), PAL_KERNEL);
+    info->v1 = 20;
+    mod->priv = info;
+}
+
+static int module_teardown(struct ktest_module *mod)
+{
+    struct mod_priv_info *info = mod->priv;
+    kfree(info);
+}
+
+static const struct ktest_unit example_units[] = {
+    KTEST_UNIT("Test", test),
+};
+
+KTEST_MODULE_DEFINE("example-module", example_units, module_setup, module_teardown);
+```

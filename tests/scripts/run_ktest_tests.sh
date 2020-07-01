@@ -6,11 +6,13 @@
 # Argument 2: First disk image
 # Argument 3: Second disk image
 # Argument 4: test results directory
+# Argument 5: Extra kernel arguments
 
 KERNEL=$1
 DISK_ONE=$2
 DISK_TWO=$3
 TEST_RESULTS_DIR=$4
+EXTRA_TEST_ARGS=$5
 
 QEMU_PID=
 RET=
@@ -29,7 +31,7 @@ function test_run {
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "ktest.run=true ktest.reboot_after_run=true" \
+        -append "ktest.run=true ktest.reboot_after_run=true $EXTRA_TEST_ARGS" \
         2> "$3" &
 
     QEMU_PID=$!

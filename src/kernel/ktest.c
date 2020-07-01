@@ -13,6 +13,7 @@
 #include <protura/snprintf.h>
 #include <protura/string.h>
 #include <protura/errors.h>
+#include <protura/symbols.h>
 #include <protura/cmdline.h>
 #include <protura/ksetjmp.h>
 #include <protura/ktest.h>
@@ -75,7 +76,7 @@ noinline void ktest_fail_test(struct ktest *ktest)
     klongjmp(&ktest->ktest_assert_fail, 1);
 }
 
-static int run_module(struct ktest_module *module)
+static int run_module(struct ktest_module *module, const char *single_test)
 {
     char buf[256];
     const struct ktest_unit *tests = module->tests;
@@ -104,6 +105,9 @@ static int run_module(struct ktest_module *module)
         ktest.cur_unit_test++;
         ktest.failed_tests = 0;
         ktest.unit = tests + i;
+
+        if (single_test && strcasecmp(ktest.unit->name, single_test) != 0)
+            continue;
 
         arg_str[0] = '\0';
         if (ktest.unit->args[0].name) {
@@ -172,7 +176,7 @@ static int run_module(struct ktest_module *module)
     return error_count;
 }
 
-static void run_ktest_modules(void)
+static void run_ktest_modules(const char *target_module, const char *single_test)
 {
     int errs = 0;
     int total_tests = 0;
@@ -180,7 +184,12 @@ static void run_ktest_modules(void)
     struct ktest_module *end = &__ktest_end;
 
     for (; start < end; start++) {
-        errs += run_module(start);
+        if (target_module && strcasecmp(start->name, target_module) != 0) {
+            kp(KP_NORMAL, "==== Skipped %s ====\n", start->name);
+            continue;
+        }
+
+        errs += run_module(start, single_test);
         total_tests += start->test_count;
     }
 
@@ -330,7 +339,10 @@ void ktest_init(void)
     if (reboot_after_tests)
         reboot_on_panic = 1;
 
-    run_ktest_modules();
+    const char *module = kernel_cmdline_get_string("ktest.module", NULL);
+    const char *single_test = kernel_cmdline_get_string("ktest.single_test", NULL);
+
+    run_ktest_modules(module, single_test);
 
     if (reboot_after_tests)
         system_reboot();
