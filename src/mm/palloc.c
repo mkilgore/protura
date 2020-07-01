@@ -210,6 +210,11 @@ static struct page *__palloc_phys_multiple(struct page_buddy_alloc *alloc, int o
     p = list_take_last(&alloc->maps[order].free_pages, struct page, page_list_node);
     alloc->maps[order].free_count--;
 
+    /* Sanity check - if somehow the page array was corrupted, this could catch
+     * it and fail us early */
+    if (p->page_number != (p - alloc->pages))
+        panic("SOMETHING IS WRONG!!!! page=%p, %d, %p\n", p, p->page_number, p->virt);
+
     p->order = -1;
 
     buddy_allocator.free_pages -= 1 << order;
