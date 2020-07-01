@@ -88,13 +88,7 @@ static void slab_test_two_frames(struct ktest *kt)
         slab_free(&test_slab, ptrs[i]);
     }
 
-    frame_count = 0;
-    for (frame = test_slab.first_frame; frame; frame = frame->next, frame_count++) {
-        ktest_assert_equal(kt, obj_count, frame->object_count);
-        ktest_assert_equal(kt, obj_count, frame->free_object_count);
-    }
-
-    ktest_assert_equal(kt, 2, frame_count);
+    ktest_assert_equal(kt, NULL, test_slab.first_frame);
 
     slab_clear(&test_slab);
     pfree(pages, 0);
@@ -127,8 +121,7 @@ static void slab_test_group_four_free_size(struct ktest *kt, int obj_size)
         }
     }
 
-    ktest_assert_notequal(kt, NULL, test_slab.first_frame);
-    ktest_assert_equal(kt, 0, slab_frame_alloc_count(test_slab.first_frame));
+    ktest_assert_equal(kt, NULL, test_slab.first_frame);
 
     slab_clear(&test_slab);
 }
@@ -158,8 +151,7 @@ static void slab_test_group_two_free_size(struct ktest *kt, int obj_size)
         }
     }
 
-    ktest_assert_notequal(kt, NULL, test_slab.first_frame);
-    ktest_assert_equal(kt, 0, slab_frame_alloc_count(test_slab.first_frame));
+    ktest_assert_equal(kt, NULL, test_slab.first_frame);
 
     slab_clear(&test_slab);
 }
@@ -187,8 +179,7 @@ static int slab_test_every_tenth_free_size(struct ktest *kt, int obj_size)
         for (i = k; i < 200; i += 10)
             slab_free(&test_slab, ptrs[i]);
 
-    ktest_assert_notequal(kt, NULL, test_slab.first_frame);
-    ktest_assert_equal(kt, 0, slab_frame_alloc_count(test_slab.first_frame));
+    ktest_assert_equal(kt, NULL, test_slab.first_frame);
 
     slab_clear(&test_slab);
     return ret;
@@ -216,8 +207,7 @@ static void slab_test_every_third_free_size(struct ktest *kt, int obj_size)
         for (i = k; i < 200; i += 3)
             slab_free(&test_slab, ptrs[i]);
 
-    ktest_assert_notequal(kt, NULL, test_slab.first_frame);
-    ktest_assert_equal(kt, 0, slab_frame_alloc_count(test_slab.first_frame));
+    ktest_assert_equal(kt, NULL, test_slab.first_frame);
 
     slab_clear(&test_slab);
 }
@@ -243,8 +233,7 @@ static void slab_test_reverse_free_size(struct ktest *kt, int obj_size)
     for (i = 199; i >= 0; i--)
         slab_free(&test_slab, ptrs[i]);
 
-    ktest_assert_notequal(kt, NULL, test_slab.first_frame);
-    ktest_assert_equal(kt, 0, slab_frame_alloc_count(test_slab.first_frame));
+    ktest_assert_equal(kt, NULL, test_slab.first_frame);
 
     slab_clear(&test_slab);
 }
@@ -270,8 +259,8 @@ static void slab_test_inorder_free_size(struct ktest *kt, int obj_size)
     for (i = 0; i < 200; i++)
         slab_free(&test_slab, ptrs[i]);
 
-    ktest_assert_notequal(kt, NULL, test_slab.first_frame);
-    ktest_assert_equal(kt, 0, slab_frame_alloc_count(test_slab.first_frame));
+    /* After freeing every point in the slab, the entire frame should have been released */
+    ktest_assert_equal(kt, NULL, test_slab.first_frame);
 
     slab_clear(&test_slab);
 }

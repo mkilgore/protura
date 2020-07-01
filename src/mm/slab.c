@@ -104,6 +104,21 @@ static void __slab_frame_free(struct slab_alloc *slab, struct slab_page_frame *f
     pfree_va(frame, frame->page_index_size);
 }
 
+void __slab_oom(struct slab_alloc *slab)
+{
+    struct slab_page_frame **prev = &slab->first_frame, *frame, *next;
+    for (frame = slab->first_frame; frame; frame = next) {
+        next = frame->next;
+
+        if (frame->free_object_count == frame->object_count) {
+            __slab_frame_free(slab, frame);
+            *prev = next;
+        } else {
+            prev = &frame->next;
+        }
+    }
+}
+
 static void *__slab_frame_object_alloc(struct slab_alloc *slab, struct slab_page_frame *frame)
 {
     struct page_frame_obj_empty *obj, *next;
@@ -165,7 +180,15 @@ static void __slab_frame_object_free(struct slab_alloc *slab, struct slab_page_f
 
             *current = new;
             frame->free_object_count++;
-            return ;
+
+            /* If this frame is unused, then run the OOM logic to get rid of it.
+             *
+             * We can't just remove it here because we don't have easy access
+             * to the previous frame. */
+            if (frame->free_object_count == frame->object_count)
+                __slab_oom(slab);
+
+            return;
         }
     }
 
@@ -220,21 +243,6 @@ void __slab_clear(struct slab_alloc *slab)
     for (frame = slab->first_frame; frame; frame = next) {
         next = frame->next;
         __slab_frame_free(slab, frame);
-    }
-}
-
-void __slab_oom(struct slab_alloc *slab)
-{
-    struct slab_page_frame **prev = &slab->first_frame, *frame, *next;
-    for (frame = slab->first_frame; frame; frame = next) {
-        next = frame->next;
-
-        if (frame->free_object_count == frame->object_count) {
-            __slab_frame_free(slab, frame);
-            *prev = next;
-        } else {
-            prev = &frame->next;
-        }
     }
 }
 
