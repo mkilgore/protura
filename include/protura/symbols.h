@@ -19,4 +19,7 @@ struct symbol {
 /* Returns the symbol that the specified address belongs too, or NULL if none */
 const struct symbol *ksym_lookup(uintptr_t addr);
 
+/* Returns the symbols associated with that name, or NULL if none */
+const struct symbol *ksym_lookup_name(const char *symbol_name);
+
 #endif

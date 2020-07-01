@@ -6,6 +6,7 @@
  * Free Software Foundation.
  */
 #include <protura/types.h>
+#include <protura/string.h>
 #include <protura/symbols.h>
 
 /* The Weak symbol attribute allows linking to complete during the first
@@ -19,6 +20,17 @@ const struct symbol *ksym_lookup(uintptr_t addr)
 
     for (sym = kernel_symbols; sym->name; sym++)
         if (sym->addr <= addr && (sym->addr + sym->size) >= addr)
+            return sym;
+
+    return NULL;
+}
+
+const struct symbol *ksym_lookup_name(const char *symbol_name)
+{
+    const struct symbol *sym;
+
+    for (sym = kernel_symbols; sym->name; sym++)
+        if (strcmp(sym->name, symbol_name) == 0)
             return sym;
 
     return NULL;
