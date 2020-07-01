@@ -63,6 +63,10 @@ jobs:
         make extra-mpc -j5
         ./scripts/ci/travis_extra_gcc.sh
 
+    - name: Build Less
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: make extra-less -j5
+
     - name: Build raw disk image
       id: build-os
       run: make disk
