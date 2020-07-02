@@ -25,6 +25,7 @@ static struct cpu_info cpu;
 void cpu_setup_fpu(struct cpu_info *c)
 {
     if (cpuid_has_sse()) {
+        kp(KP_NORMAL, "CPU has SSE support!\n");
         /* Turn SSE on */
         uint32_t cr0 = cpu_get_cr0();
         cr0 &= ~CR0_EM;
@@ -34,6 +35,8 @@ void cpu_setup_fpu(struct cpu_info *c)
         uint32_t cr4 = cpu_get_cr4();
         cr4 |= CR4_OSFXSR | CR4_OSXMMEXCPT;
         cpu_set_cr4(cr4);
+    } else {
+        kp(KP_NORMAL, "CPU does not support SSE.\n");
     }
 }
 
