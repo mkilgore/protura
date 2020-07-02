@@ -69,6 +69,7 @@ chmod 1777 $NEW_ROOT/tmp
 while read device; do
     if [ ! -z "$device" ]; then
         mknod $NEW_ROOT/$device
+        chmod 666 $NEW_ROOT/$(echo "$device" | cut -d' ' -f1)
     fi
 done < $EXTRA_ROOT_DIR/device_table.txt
 
