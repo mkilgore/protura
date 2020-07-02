@@ -23,17 +23,26 @@ struct address_space;
 struct vm_map;
 
 struct i387_fxsave {
-	uint16_t cwd;
-	uint16_t swd;
-	uint16_t twd;
-	uint16_t fop;
-	uint64_t rip;
-	uint64_t rdp;
-	uint32_t mxcsr;
-	uint32_t mxcsr_mask;
-	uint32_t st_space[32];
-	uint32_t xmm_space[64];
-	uint32_t padding[24];
+    uint16_t cwd; /* x87 FPU Control Word */
+    uint16_t swd; /* x87 FPU Status Word */
+
+    uint8_t twd; /* x87 FPU Tag Word */
+    uint8_t rsvd1;
+
+    uint16_t fop; /* x87 FPU Opcode */
+    uint32_t fip; /* x87 FPU IP Offset */
+    uint16_t fcs; /* x87 FPU IP Selector */
+    uint16_t rsvd2;
+
+    uint32_t fdp; /* x87 FPU Instruction Operand Offset */
+    uint16_t fds; /* x87 FPU Instruction Operand Selector */
+    uint16_t rsvd3;
+
+    uint32_t mxcsr;
+    uint32_t mxcsr_mask;
+    uint32_t st_space[32];
+    uint32_t xmm_space[64];
+    uint32_t padding[24];
 } __align(16);
 
 static inline void i387_fxsave(struct i387_fxsave *fxsave)
@@ -50,11 +59,16 @@ struct arch_task_info {
     struct i387_fxsave fxsave;
 };
 
-#define INIT_ARCH_TASK_INFO() \
+#define ARCH_TASK_INFO_INIT() \
     { \
         .fxsave.cwd = 0x37F, \
         .fxsave.mxcsr = 0x1F80, \
     }
+
+static inline void arch_task_info_init(struct arch_task_info *info)
+{
+    *info = (struct arch_task_info)ARCH_TASK_INFO_INIT();
+}
 
 /* Note, you should probably be calling the functions in vm.h unless you know
  * what you're doing. */
