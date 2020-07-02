@@ -37,8 +37,8 @@ static void cpuid_get_id(char *cpuid)
 
 static void cpuid_get_feature_flags(uint32_t *ecx_flags, uint32_t *edx_flags)
 {
-    asm volatile("cpuid": "=c" (*ecx_flags), "=d" (*edx_flags)
-                 : "a" (1));
+    uint32_t eax = 1, ebx;
+    asm volatile("cpuid": "=c" (*ecx_flags), "=d" (*edx_flags), "=b" (ebx), "+a" (eax));
 }
 
 void cpuid_init(void)
