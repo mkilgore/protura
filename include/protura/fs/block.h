@@ -199,6 +199,8 @@ static inline void block_dev_sync_block_async(struct block_device *dev, struct b
 
     if (!flag_test(&b->flags, BLOCK_VALID) || flag_test(&b->flags, BLOCK_DIRTY))
         (dev->ops->sync_block_async) (dev, b);
+    else
+        block_unlock(b);
 }
 
 static inline void block_submit(struct block *b)
