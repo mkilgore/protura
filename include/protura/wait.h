@@ -50,6 +50,12 @@ void wait_queue_node_init(struct wait_queue_node *);
 void wait_queue_register(struct wait_queue *, struct wait_queue_node *);
 void wait_queue_unregister(struct wait_queue_node *);
 
+static inline int wait_queue_waiting(struct wait_queue *queue)
+{
+    using_spinlock(&queue->lock)
+        return !list_empty(&queue->queue);
+}
+
 /* Called by the task that is done with whatever the tasks waiting in the queue
  * are waiting for. */
 int wait_queue_wake(struct wait_queue *);
