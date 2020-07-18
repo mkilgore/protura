@@ -67,9 +67,6 @@ struct sys_init arch_init_systems[] = {
     { "vm_area", vm_area_allocator_init },
     { "kwork", kwork_init },
     { "syscall", syscall_init },
-#ifdef CONFIG_PCI_SUPPORT
-    { "pci", pci_init },
-#endif
     { "video", video_init },
     { "boot-fbcon", setup_bootloader_framebuffer },
     { "block-cache", block_cache_init },
@@ -79,6 +76,9 @@ struct sys_init arch_init_systems[] = {
     { "pipe", pipe_init },
 #ifdef CONFIG_NET_SUPPORT
     { "net", net_init },
+#endif
+#ifdef CONFIG_PCI_SUPPORT
+    { "pci", pci_init },
 #endif
     { NULL, NULL }
 };
