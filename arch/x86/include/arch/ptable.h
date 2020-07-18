@@ -44,7 +44,7 @@ struct page_table_entry {
             uint32_t cache_disabled :1;
             uint32_t accessed :1;
             uint32_t dirty :1;
-            uint32_t zero :1;
+            uint32_t pat :1;
             uint32_t global :1;
             uint32_t reserved :3;
             uint32_t addr :20;
@@ -92,6 +92,8 @@ void page_table_change(pgd_t *new);
 /* Verifies that a pointer is mapped to backing memory in the provided page
  * directory. */
 int pgd_ptr_is_valid(pgd_t *, va_t);
+/* Sets the page cache mode setting on the supplied pte_t */
+void pte_set_pcm(pte_t *pte, int pcm);
 
 #define mk_pde(addr, flags) ((pde_t){ .entry = PAGING_FRAME((addr)) | flags })
 #define mk_pte(addr, flags) ((pte_t){ .entry = PAGING_FRAME((addr)) | flags })

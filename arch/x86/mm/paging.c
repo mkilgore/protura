@@ -25,6 +25,8 @@
 #include <arch/cpu.h>
 #include <arch/idt.h>
 #include <arch/cpuid.h>
+#include <arch/msr.h>
+#include <arch/pat.h>
 #include <arch/task.h>
 #include <arch/paging.h>
 #include <arch/backtrace.h>
@@ -184,6 +186,51 @@ static void page_fault_handler(struct irq_frame *frame, void *param)
     return;
 }
 
+/*
+ * These are readonly except during very early setup when we enable the PAT if
+ * the processor supports it. It maps the page cache modes to x86 PTE flags.
+ * These are 'best effort' settings which are compatible but not necessarily
+ * as performant, which will be replaced with PAT-based settings if possible.
+ */
+static uint32_t pcm_to_pte_flags[] = {
+    [PCM_CACHED] = 0,
+    [PCM_UNCACHED] = PTE_CACHE_DISABLE,
+    [PCM_UNCACHED_WEAK] = PTE_CACHE_DISABLE,
+    [PCM_WRITE_COMBINED] = PTE_CACHE_DISABLE,
+    [PCM_WRITE_THROUGH] = PTE_WRITE_THROUGH,
+};
+
+void pte_set_pcm(pte_t *pte, int pcm)
+{
+    pte->write_through = 0;
+    pte->cache_disabled = 0;
+    pte->pat = 0;
+    pte->entry |= pcm_to_pte_flags[pcm];
+}
+
+static void setup_pat(void)
+{
+    if (!cpuid_has_pat())
+        return;
+
+    kp(KP_NORMAL, "CPU supports PAT!\n");
+
+    uint64_t new_pat = PAT_ENT(0, PAT_MEM_WRITE_BACK)
+                     | PAT_ENT(1, PAT_MEM_UNCACHED)
+                     | PAT_ENT(2, PAT_MEM_UNCACHED_WEAK)
+                     | PAT_ENT(3, PAT_MEM_WRITE_COMBINED)
+                     | PAT_ENT(4, PAT_MEM_WRITE_THROUGH)
+                     ;
+
+    x86_write_msr(MSR_PAT, new_pat);
+
+    pcm_to_pte_flags[PCM_CACHED] = 0;
+    pcm_to_pte_flags[PCM_UNCACHED] = PTE_PAT_BIT_1;
+    pcm_to_pte_flags[PCM_UNCACHED_WEAK] = PTE_PAT_BIT_2;
+    pcm_to_pte_flags[PCM_WRITE_COMBINED] = PTE_PAT_BIT_1 | PTE_PAT_BIT_2;
+    pcm_to_pte_flags[PCM_WRITE_THROUGH] = PTE_PAT_BIT_3;
+}
+
 /* All of kernel-space virtual memory directly maps onto the lowest part of
  * physical memory (Or all of physical memory, if there is less physical memory
  * then the kernel's virtual memory space). This code sets up the kernel's page
@@ -209,6 +256,8 @@ static void setup_kernel_pagedir(void **kbrk)
     int kmap_dir_start = PAGING_DIR_INDEX(kmap_start);
 
     kp(KP_NORMAL, "kmap_end: %p, dir: 0x%03x\n", kmap_start, kmap_dir_start);
+
+    setup_pat();
 
     /* We start at the last table from low-memory */
     /* We use 4MB pages if we're able to, since they're nicer and we're never
@@ -330,6 +379,7 @@ void vm_area_map(va_t va, pa_t address, flags_t vm_flags, int pcm)
     if (flag_test(&vm_flags, VM_MAP_WRITE))
         table_entry |= PTE_WRITABLE;
 
+    table_entry |= pcm_to_pte_flags[pcm];
 
     table_off = PAGING_DIR_INDEX(va);
     page_off = PAGING_TABLE_INDEX(va);

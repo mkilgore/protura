@@ -94,6 +94,7 @@ extern char cpuid_id[10];
 #define cpuid_has_pse() ((cpuid_edx) & CPUID_FEAT_EDX_PSE)
 #define cpuid_has_pge() ((cpuid_edx) & CPUID_FEAT_EDX_PGE)
 #define cpuid_has_sse() (((cpuid_edx) & CPUID_FEAT_EDX_SSE) && ((cpuid_edx) & CPUID_FEAT_EDX_FXSR))
+#define cpuid_has_pat() ((cpuid_edx) & CPUID_FEAT_EDX_PAT)
 
 void cpuid_init(void);
 

@@ -29,8 +29,11 @@
 #define PTE_CACHE_DISABLE  0x010
 #define PTE_ACCESSED       0x020
 #define PTE_DIRTY          0x040
+#define PTE_PAT_BIT_3      0x080
 #define PTE_GLOBAL         0x100
-#define PTE_RESERVED       0x080
+
+#define PTE_PAT_BIT_1      0x008 /* Write Through */
+#define PTE_PAT_BIT_2      0x010 /* Cache Disable */
 
 /* Align to a power of two */
 #define ALIGN_2(v, a) ((typeof(v))(((uintptr_t)(v) + (a) - 1) & ~(a - 1)))
