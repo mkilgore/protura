@@ -19,6 +19,7 @@
 #include <protura/drivers/rtl.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
+#include <protura/video/bga.h>
 
 #include "internal.h"
 
@@ -39,6 +40,18 @@ static const struct pci_driver pci_drivers[] = {
         .device_init = e1000_device_init,
     },
 #endif
+    {
+        .name = "Bochs Graphics Adaptor",
+        .vendor = 0x1234,
+        .device = 0x1111,
+        .device_init = bga_device_init,
+    },
+    {
+        .name = "Bochs Graphics Adaptor",
+        .vendor = 0x80EE,
+        .device = 0xBEEF,
+        .device_init = bga_device_init,
+    },
     {
         .name = "Generic ATA/IDE Interface",
         .class = 1,
