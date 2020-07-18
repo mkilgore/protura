@@ -58,9 +58,9 @@ static __always_inline int bit_test_and_set(const volatile void *value, int bit)
     int old;
 
     asm volatile(LOCK_PREFIX "bts %2, %0;"
-            "movl %1, $0;"
-            "jc f1;"
-            "movl %1, $1;"
+            "movl $0, %1;"
+            "jc 1f;"
+            "movl $1, %1;"
             "1:"
             : "+m" (*(volatile int *)value), "=r" (old)
             : "Ir" (bit)
