@@ -181,14 +181,14 @@ int sys_execve(struct user_buffer file_buf, struct user_buffer argv_buf, struct 
     ret = namex(tmp_file, current->cwd, &exe);
     if (ret) {
         irq_frame_set_syscall_ret(frame, ret);
-        return 0;
+        return ret;
     }
 
     ret = check_permission(exe, X_OK);
     if (ret) {
         inode_put(exe);
         irq_frame_set_syscall_ret(frame, ret);
-        return 0;
+        return ret;
     }
 
     ret = execve(exe, tmp_file, argv_buf, envp_buf, frame);
@@ -199,6 +199,6 @@ int sys_execve(struct user_buffer file_buf, struct user_buffer argv_buf, struct 
     if (ret)
         irq_frame_set_syscall_ret(frame, ret);
 
-    return 0;
+    return ret;
 }
 
