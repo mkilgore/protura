@@ -37,6 +37,10 @@ static list_head_t vm_area_list = LIST_HEAD_INIT(vm_area_list);
  * This allows us to quickly take an address and find it's associated
  * `vm_area`, and also take a vm_area and quickly check the nearest vm_areas to
  * it for combining into larger areas.
+ *
+ * FIXME: This uses a *lot* of memory, with the default config it's 256KB. This
+ *        is too much for a feature we don't actually use all that much, and we can
+ *        definitely represent the mappings in a mroe efficent way.
  */
 static struct vm_area *vm_area_mappings[KMAP_PAGES];
 
@@ -237,7 +241,7 @@ void vm_area_allocator_init(void)
         vm_area_mappings[i] = area;
 }
 
-void *kmmap(pa_t address, size_t len, flags_t vm_flags)
+void *kmmap_pcm(pa_t address, size_t len, flags_t vm_flags, int pcm)
 {
     size_t addr_offset = address % PG_SIZE;
     pa_t pg_addr = address & ~PG_SIZE;
@@ -250,9 +254,14 @@ void *kmmap(pa_t address, size_t len, flags_t vm_flags)
     area = vm_area_alloc(pages);
 
     for (i = 0; i < pages; i++)
-        vm_area_map(area->area + i * PG_SIZE, pg_addr + i * PG_SIZE, vm_flags);
+        vm_area_map(area->area + i * PG_SIZE, pg_addr + i * PG_SIZE, vm_flags, pcm);
 
     return area->area + addr_offset;
+}
+
+void *kmmap(pa_t address, size_t len, flags_t vm_flags)
+{
+    return kmmap_pcm(address, len, vm_flags, PCM_UNCACHED_WEAK);
 }
 
 void kmunmap(void *p)

@@ -350,7 +350,7 @@ static int syscall_tests_setup(struct ktest_module *mod)
     memset(priv->top_page->virt, 0x01, PG_SIZE);
 
     struct task *current = cpu_get_local()->current;
-    page_table_map_entry(current->addrspc->page_dir, (va_t)0xBFFFFF000, page_to_pa(priv->top_page), VM_MAP_READ | VM_MAP_WRITE);
+    page_table_map_entry(current->addrspc->page_dir, (va_t)0xBFFFFF000, page_to_pa(priv->top_page), VM_MAP_READ | VM_MAP_WRITE, PCM_CACHED);
 
     return 0;
 }

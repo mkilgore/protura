@@ -318,7 +318,7 @@ uintptr_t paging_get_phys(va_t virt)
     return cur_page_table->entries[page_off].entry & 0xFFFFF000;
 }
 
-void vm_area_map(va_t va, pa_t address, flags_t vm_flags)
+void vm_area_map(va_t va, pa_t address, flags_t vm_flags, int pcm)
 {
     pgd_t *dir;
     pgt_t *table;
@@ -330,11 +330,6 @@ void vm_area_map(va_t va, pa_t address, flags_t vm_flags)
     if (flag_test(&vm_flags, VM_MAP_WRITE))
         table_entry |= PTE_WRITABLE;
 
-    if (flag_test(&vm_flags, VM_MAP_NOCACHE))
-        table_entry |= PTE_CACHE_DISABLE;
-
-    if (flag_test(&vm_flags, VM_MAP_WRITETHROUGH))
-        table_entry |= PTE_WRITE_THROUGH;
 
     table_off = PAGING_DIR_INDEX(va);
     page_off = PAGING_TABLE_INDEX(va);

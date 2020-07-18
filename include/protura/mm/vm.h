@@ -29,7 +29,11 @@ struct vm_region {
     va_t start, end;
 };
 
-/* A task's mapped address space */
+/* A task's mapped address space
+ *
+ * Note there is no locking, it is presumed that it is only ever owned by one
+ * task, and the owner is the only one who modifies it. This may not be true in
+ * the future. */
 struct address_space {
     list_head_t vm_maps;
 
@@ -57,6 +61,7 @@ struct vm_map {
     struct vm_region addr;
 
     flags_t flags;
+    int page_cache_mode;
 
     struct file *filp;
     off_t file_page_offset;
@@ -64,12 +69,18 @@ struct vm_map {
     const struct vm_map_ops *ops;
 };
 
+enum page_cache_mode {
+    PCM_CACHED,
+    PCM_UNCACHED,
+    PCM_UNCACHED_WEAK,
+    PCM_WRITE_COMBINED,
+    PCM_WRITE_THROUGH,
+};
+
 enum vm_map_flags {
     VM_MAP_READ,
     VM_MAP_WRITE,
     VM_MAP_EXE,
-    VM_MAP_NOCACHE,
-    VM_MAP_WRITETHROUGH,
 };
 
 #define vm_map_is_readable(map)   flag_test(&(map)->flags, VM_MAP_READ)

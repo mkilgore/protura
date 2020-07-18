@@ -58,7 +58,7 @@ static int vm_map_pad_last_page(struct exe_params *params, struct vm_map *map, o
     kp_elf(params, "file_size: %ld, align_file_size: %ld, off: 0x%04x\n", file_size, PG_ALIGN_DOWN(file_size), off);
     kp_elf(params, "Mapping last page of map %p-%p: %p\n", map->addr.start, map->addr.end, address);
 
-    page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags);
+    page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags, PCM_CACHED);
     return 0;
 }
 

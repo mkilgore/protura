@@ -78,6 +78,9 @@ void address_space_clear(struct address_space *addrspc)
 
 static struct vm_map *vm_map_copy(struct address_space *new, struct address_space *old, struct vm_map *old_map)
 {
+    if (flag_test(&old_map->flags, VM_MAP_NOFORK))
+        return NULL;
+
     struct vm_map *new_map = kmalloc(sizeof(*new_map), PAL_KERNEL);
     vm_map_init(new_map);
 

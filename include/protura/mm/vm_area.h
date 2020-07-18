@@ -37,7 +37,7 @@ static inline void vm_area_init(struct vm_area *vm)
 struct vm_area *vm_area_alloc(int pages);
 void vm_area_free(struct vm_area *);
 
-void vm_area_map(va_t va, pa_t address, flags_t vm_flags);
+void vm_area_map(va_t va, pa_t address, flags_t vm_flags, int pcm);
 void vm_area_unmap(va_t va);
 
 void vm_area_allocator_init(void);

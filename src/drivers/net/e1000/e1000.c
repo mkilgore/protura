@@ -302,7 +302,7 @@ void e1000_device_init(struct pci_dev *dev)
         uint32_t mem = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFFFFFF0;
         uint32_t size = pci_bar_size(dev, PCI_REG_BAR(0));
 
-        e1000->mem_base = kmmap(mem, size, F(VM_MAP_READ) | F(VM_MAP_WRITE) | F(VM_MAP_NOCACHE));
+        e1000->mem_base = kmmap(mem, size, F(VM_MAP_READ) | F(VM_MAP_WRITE));
         kp(KP_NORMAL, "  E1000 MEM: 0x%08x, %d bytes\n", mem, size);
     }
 
