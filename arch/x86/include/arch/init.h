@@ -14,7 +14,7 @@
 
 extern char kernel_cmdline[];
 
-void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_info *info);
+void cmain(void *kern_start, void *kern_end, uint32_t magic, void *info);
 
 extern struct sys_init arch_init_systems[];
 

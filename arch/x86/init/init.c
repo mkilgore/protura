@@ -9,6 +9,7 @@
 #include <protura/types.h>
 #include <protura/kmain.h>
 #include <protura/multiboot.h>
+#include <protura/multiboot2.h>
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/mm/memlayout.h>
@@ -66,37 +67,11 @@ struct sys_init arch_init_systems[] = {
     { NULL, NULL }
 };
 
-/* Note: kern_start and kern_end are virtual addresses
- *
- * info is the physical address of the multiboot info structure
- */
-void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_info *info)
+static void handle_multiboot_info(struct multiboot_info *info, pa_t *high_addr)
 {
     struct multiboot_memmap *mmap = (struct multiboot_memmap *)P2V(((struct multiboot_info*)P2V(info))->mmap_addr);
-    pa_t high_addr = 0;
 
-    cpuid_init();
-
-    cpu_init_early();
-
-    /* initialize klog so that it captures all of the early boot logging */
-    klog_init();
-
-    /* Initalize output early for debugging */
-    vt_console_early_init();
-    vt_console_kp_register();
-
-    if (com_init_early() == 0)
-        com_kp_register();
-
-    kp(KP_NORMAL, "Protura booting...\n");
-
-    /* We setup the IDT fairly early - This is because the actual 'setup' is
-     * extremely simple, and things shouldn't register interrupt handlers until
-     * the IDT it setup.
-     *
-     * This does *not* enable interrupts. */
-    idt_init();
+    kp(KP_NORMAL, "Using Multiboot information...\n");
 
     /* We haven't started paging, so MB 1 is identity mapped and we can safely
      * deref 'info' and 'cmdline' */
@@ -126,10 +101,88 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, struct multiboot_in
         if (mmap->base_addr == 0)
             continue;
 
-        high_addr = mmap->base_addr + mmap->length;
-        high_addr = PG_ALIGN(high_addr) - 0x1000;
+        *high_addr = mmap->base_addr + mmap->length;
+        *high_addr = PG_ALIGN(*high_addr) - 0x1000;
         break;
     }
+}
+
+static void handle_multiboot2_info(void *info, pa_t *high_addr)
+{
+    uint32_t size = *(uint32_t *)info;
+    struct multiboot2_tag *tag;
+    struct multiboot2_tag_basic_meminfo *meminfo;
+    struct multiboot2_tag_string *str;
+    struct multiboot2_tag_framebuffer_common *framebuffer;
+
+    kp(KP_NORMAL, "Using Multiboot2 information...\n");
+    kp(KP_NORMAL, "multiboot2: info size: %d\n", size);
+
+    for (tag = (info + 8); tag->type; tag = (struct multiboot2_tag *)((char *)tag + ALIGN_2(tag->size, 8))) {
+        kp(KP_NORMAL, "Multiboot tag, type: %d, size: %d\n", tag->type, tag->size);
+        switch (tag->type) {
+        case MULTIBOOT2_TAG_TYPE_BASIC_MEMINFO:
+            meminfo = container_of(tag, struct multiboot2_tag_basic_meminfo, tag);
+
+            /* mem_upper starts at 1MB and is given to us in KB's */
+            *high_addr = PG_ALIGN_DOWN((uint32_t)meminfo->mem_upper * 1024 + (1024 * 1024));
+
+            kp(KP_NORMAL, "mmap: High Addr: 0x%08x\n", *high_addr);
+            break;
+
+        case MULTIBOOT2_TAG_TYPE_CMDLINE:
+            str = container_of(tag, struct multiboot2_tag_string, tag);
+
+            strncpy(kernel_cmdline, str->string, sizeof(kernel_cmdline));
+            kernel_cmdline[sizeof(kernel_cmdline) - 1] = '\0';
+
+            kp(KP_NORMAL, "Cmdline: %s\n", kernel_cmdline);
+            kernel_cmdline_init();
+            break;
+        }
+    }
+}
+
+/* Note: kern_start and kern_end are virtual addresses
+ *
+ * info is the physical address of the multiboot info structure
+ */
+void cmain(void *kern_start, void *kern_end, uint32_t magic, void *info)
+{
+    pa_t high_addr = 0;
+
+    cpuid_init();
+
+    cpu_init_early();
+
+    /* initialize klog so that it captures all of the early boot logging */
+    klog_init();
+
+    /* Initalize output early for debugging */
+    vt_console_early_init();
+    vt_console_kp_register();
+
+    if (com_init_early() == 0)
+        com_kp_register();
+
+    kp(KP_NORMAL, "Protura booting...\n");
+
+    /* We setup the IDT fairly early - This is because the actual 'setup' is
+     * extremely simple, and things shouldn't register interrupt handlers until
+     * the IDT it setup.
+     *
+     * This does *not* enable interrupts. */
+    idt_init();
+
+    /* Now we parse the multiboot information. This also feeds us the
+     * "high_addr" which represents the end of physical memory. This should
+     * probably be fixed for something better... */
+    if (magic == MULTIBOOT_BOOTLOADER_MAGIC)
+        handle_multiboot_info(info, &high_addr);
+    else if (magic == MULTIBOOT2_BOOTLOADER_MAGIC)
+        handle_multiboot2_info(info, &high_addr);
+    else
+        panic("MAGIC VALUE DOES NOT MATCH MULTIBOOT OR MULTIBOOT2, CANNOT BOOT!!!!\n");
 
     kp(KP_NORMAL, "Memory size: %dMB\n", high_addr / 1024 / 1024);
     kp(KP_NORMAL, "Memory pages: %d\n", __PA_TO_PN(high_addr) + 1);

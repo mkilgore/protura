@@ -7,13 +7,52 @@
  */
 
 #include <protura/multiboot.h>
+#include <protura/multiboot2.h>
 #include <arch/paging.h>
 #include <protura/mm/memlayout.h>
 #include <arch/gdt.h>
 
 .section .multiboot
+
+.align 8
+multiboot2_header:
+.long MULTIBOOT2_HEADER_MAGIC
+.long MULTIBOOT2_ARCHITECTURE_I386
+.long multiboot2_header_end - multiboot2_header
+.long -(MULTIBOOT2_HEADER_MAGIC + MULTIBOOT2_ARCHITECTURE_I386 + (multiboot2_header_end - multiboot2_header))
+
+/* Ask for relevant tags to be given to us */
+.align 8
+required_tags_start:
+.short MULTIBOOT2_HEADER_TAG_INFORMATION_REQUEST
+.short 0
+.long required_tags_end - required_tags_start
+.long MULTIBOOT2_TAG_TYPE_CMDLINE
+.long MULTIBOOT2_TAG_TYPE_BASIC_MEMINFO
+.long MULTIBOOT2_TAG_TYPE_MMAP
+required_tags_end:
+
+/* Ask for framebuffer */
+.align 8
+framebuffer_tag_start:
+.short MULTIBOOT2_HEADER_TAG_FRAMEBUFFER
+.short MULTIBOOT2_HEADER_TAG_OPTIONAL
+.long framebuffer_tag_end - framebuffer_tag_start
+.long 1280
+.long 800
+.long 32
+framebuffer_tag_end:
+
+/* Mark end of tags */
+.align 8
+.short MULTIBOOT2_HEADER_TAG_END
+.short 0
+.long 8
+
+multiboot2_header_end:
+
 multiboot:
-.align 4
+.align 8
 .long MULTIBOOT_HEADER_MAGIC
 .long MULTIBOOT_PROTURA_FLAGS
 .long MULTIBOOT_PROTURA_CHECKSUM
