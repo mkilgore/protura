@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -20,7 +21,7 @@
 #include "db_passwd.h"
 #include "db_group.h"
 
-#define DIRMAX 200
+#define FILE_ARGMAX 200
 
 static const char *arg_str = "[Flags] [Files]";
 static const char *usage_str = "List Files and directories inside of a directory\n";
@@ -248,6 +249,55 @@ static void item_name_set_color(struct util_column *column, mode_t mode)
     }
 }
 
+void display_item(const char *path, const char *name)
+{
+    struct stat st;
+    struct util_line *cur_line;
+
+    if (!dereference_links)
+        lstat(path, &st);
+    else
+        stat(path, &st);
+
+    cur_line = util_display_next_line(&display);
+
+    if (show_size)
+        render_size(cur_line, st.st_size);
+
+    if (show_inode)
+        util_line_printf(cur_line, "%d", (int)st.st_ino);
+
+    if (long_fmt) {
+        render_mode_flags(cur_line, st.st_mode);
+
+        render_user(cur_line, st.st_uid);
+        render_group(cur_line, st.st_gid);
+
+        if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode) || S_ISLNK(st.st_mode) || S_ISFIFO(st.st_mode))
+            render_size(cur_line, st.st_size);
+
+        if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))
+            util_line_printf(cur_line, "%d, %d", (int)major(st.st_rdev), (int)minor(st.st_rdev));
+
+        struct util_column *col = util_line_next_column(cur_line);
+        col->buf = malloc(100);
+        strftime(col->buf, 100, "%b %e %H:%M", gmtime(&st.st_mtime));
+    }
+
+    struct util_column *name_column = util_line_next_column(cur_line);
+
+    item_name_set_color(name_column, st.st_mode);
+
+    if (!S_ISLNK(st.st_mode)) {
+        util_column_strdup(name_column, name);
+    } else {
+        char buf[255];
+        readlink(path, buf, sizeof(buf));
+
+        util_column_printf(name_column, "%s -> %s", name, buf);
+    }
+}
+
 void list_items(DIR *directory, const char *base)
 {
     struct dirent *item;
@@ -259,8 +309,6 @@ void list_items(DIR *directory, const char *base)
 
     while ((item = readdir(directory))) {
         char path[256];
-        struct stat st;
-        struct util_line *cur_line;
 
         if (show_all == SHOW_NORMAL && item->d_name[0] == '.')
             continue;
@@ -271,48 +319,7 @@ void list_items(DIR *directory, const char *base)
 
         snprintf(path, sizeof(path), "%s%s%s", base, (need_slash)? "/": "",  item->d_name);
 
-        if (!dereference_links)
-            lstat(path, &st);
-        else
-            stat(path, &st);
-
-        cur_line = util_display_next_line(&display);
-
-        if (show_size)
-            render_size(cur_line, st.st_size);
-
-        if (show_inode)
-            util_line_printf(cur_line, "%d", (int)st.st_ino);
-
-        if (long_fmt) {
-            render_mode_flags(cur_line, st.st_mode);
-
-            render_user(cur_line, st.st_uid);
-            render_group(cur_line, st.st_gid);
-
-            if (S_ISDIR(st.st_mode) || S_ISREG(st.st_mode) || S_ISLNK(st.st_mode) || S_ISFIFO(st.st_mode))
-                render_size(cur_line, st.st_size);
-
-            if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode))
-                util_line_printf(cur_line, "%d, %d", (int)major(st.st_rdev), (int)minor(st.st_rdev));
-
-            struct util_column *col = util_line_next_column(cur_line);
-            col->buf = malloc(100);
-            strftime(col->buf, 100, "%b %e %H:%M", gmtime(&st.st_mtime));
-        }
-
-        struct util_column *name_column = util_line_next_column(cur_line);
-
-        item_name_set_color(name_column, st.st_mode);
-
-        if (!S_ISLNK(st.st_mode)) {
-            util_column_strdup(name_column, item->d_name);
-        } else {
-            char buf[255];
-            readlink(item->d_name, buf, sizeof(buf));
-
-            util_column_printf(name_column, "%s -> %s", item->d_name, buf);
-        }
+        display_item(path, item->d_name);
     }
 
     util_display_render(&display);
@@ -320,8 +327,8 @@ void list_items(DIR *directory, const char *base)
 
 
 int main(int argc, char **argv) {
-    size_t dirs = 0, i;
-    const char *dirarray[DIRMAX] = { NULL };
+    size_t args = 0, i;
+    const char *arg_array[FILE_ARGMAX] = { NULL };
 
     prog_name = argv[0];
 
@@ -365,8 +372,8 @@ int main(int argc, char **argv) {
             break;
 
         case ARG_EXTRA:
-            if (dirs < sizeof(dirarray)) {
-                dirarray[dirs++] = argarg;
+            if (args < sizeof(arg_array)) {
+                arg_array[args++] = argarg;
             } else {
                 fprintf(stderr, "%s: To many directories given to ls\n", argv[0]);
                 return 1;
@@ -378,8 +385,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (dirs == 0)
-        dirarray[dirs++] = "./";
+    if (args == 0)
+        arg_array[args++] = "./";
 
     int err = passwd_db_load(&pwdb);
     if (err) {
@@ -393,21 +400,56 @@ int main(int argc, char **argv) {
         show_groups = 0;
     }
 
-    for (i = 0; i < dirs; i++) {
-        DIR *directory = opendir(dirarray[i]);
+    int has_files = 0;
+
+    /* Print files first */
+    for (i = 0; i < args; i++) {
+        struct stat st;
+        if (!dereference_links)
+            err = lstat(arg_array[i], &st);
+        else
+            err = stat(arg_array[i], &st);
+
+        if (err == -1) {
+            fprintf(stderr, "%s: %s: %s\n", argv[0], arg_array[i], strerror(errno));
+            arg_array[i] = NULL;
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode))
+            continue;
+
+        has_files++;
+        display_item(arg_array[i], arg_array[i]);
+
+        arg_array[i] = NULL;
+    }
+
+    if (has_files) {
+        util_display_render(&display);
+
+        if (has_files != args)
+            putchar('\n');
+    }
+
+    for (i = 0; i < args; i++) {
+        if (!arg_array[i])
+            continue;
+
+        DIR *directory = opendir(arg_array[i]);
 
         if (directory == NULL) {
             perror(*argv);
             return 1;
         }
 
-        if (dirs > 1)
-            printf("%s:\n", dirarray[i]);
+        if (args > 1)
+            printf("%s:\n", arg_array[i]);
 
-        list_items(directory, dirarray[i]);
+        list_items(directory, arg_array[i]);
 
-        if (dirs > 1)
-            printf("\n");
+        if (args > 1)
+            putchar('\n');
     }
 }
 
