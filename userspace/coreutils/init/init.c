@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <protura/syscall.h>
 #include <sys/mount.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
 
@@ -272,6 +274,14 @@ int main(int argc, char **argv)
 
         while (!ent->finished)
             sigsuspend(&sigset);
+    }
+
+    /* We attempt to open tty1 to switch away from tty 0 to tty 1, because tty
+     * 0 is the kernel log and not a console. */
+    int tty1 = open("/dev/tty1", O_RDONLY | O_NOCTTY);
+    if (tty1 != -1) {
+        ioctl(tty1, TIOSETCONSOLE, 1);
+        close(tty1);
     }
 
     while (1) {
