@@ -36,7 +36,7 @@ static int mmap_file_fill_page(struct vm_map *map, va_t address)
     if (err < 0)
         return err;
 
-    page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags);
+    page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags, PCM_CACHED);
     return 0;
 }
 

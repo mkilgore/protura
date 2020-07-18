@@ -80,6 +80,9 @@ enum vm_map_flags {
     VM_MAP_READ,
     VM_MAP_WRITE,
     VM_MAP_EXE,
+
+    VM_MAP_NOFORK, /* Mapping should be dropped on fork */
+    VM_MAP_IGNORE, /* Direct mapping to address (Ex. Memory map IO). Don't touch or free backing pages */
 };
 
 #define vm_map_is_readable(map)   flag_test(&(map)->flags, VM_MAP_READ)

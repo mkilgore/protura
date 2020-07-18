@@ -66,7 +66,10 @@ void address_space_clear(struct address_space *addrspc)
     list_foreach_take_entry(&addrspc->vm_maps, map, address_space_entry) {
         int page_count = (map->addr.end - map->addr.start) / PG_SIZE;
 
-        page_table_free_range(addrspc->page_dir, map->addr.start, page_count);
+        if (flag_test(&map->flags, VM_MAP_IGNORE))
+            page_table_zap_range(addrspc->page_dir, map->addr.start, page_count);
+        else
+            page_table_free_range(addrspc->page_dir, map->addr.start, page_count);
 
         if (map->filp)
             vfs_close(map->filp);
@@ -91,18 +94,23 @@ static struct vm_map *vm_map_copy(struct address_space *new, struct address_spac
 
     int pages = (uintptr_t)(old_map->addr.end - old_map->addr.start) / PG_SIZE;
 
-    /* Make a copy of each page in this map */
-    page_table_copy_range(new->page_dir, old->page_dir, old_map->addr.start, pages);
+    if (!flag_test(&old_map->flags, VM_MAP_IGNORE)) {
+        /* We can rely on the page fault handler to fault in pages for a
+         * read-only file mapping. If we don't have that though, then we need
+         * to just duplicate all the backing pages */
+        if (flag_test(&old_map->flags, VM_MAP_WRITE) || !old_map->filp)
+            page_table_copy_range(new->page_dir, old->page_dir, old_map->addr.start, pages);
+    } else {
+        /* If the mapping is marked VM_MAP_IGNORE, then we simply copy the PTEs
+         * rather than create new backing pages */
+        page_table_clone_range(new->page_dir, old->page_dir, old_map->addr.start, pages);
+    }
 
     if (old_map->filp) {
-        int err = vfs_open(old_map->filp->inode, old_map->filp->flags, &new_map->filp);
-        if (err) {
-            kfree(new_map);
-            return NULL;
-        }
-
+        new_map->filp = file_dup(old_map->filp);
         new_map->file_page_offset = old_map->file_page_offset;
     }
+
     new_map->ops = old_map->ops;
 
     return new_map;
@@ -117,6 +125,8 @@ void address_space_copy(struct address_space *new, struct address_space *old)
     list_foreach_entry(&old->vm_maps, map, address_space_entry) {
 
         new_map = vm_map_copy(new, old, map);
+        if (!new_map)
+            continue;
 
         if (old->code == map)
             new->code = new_map;
