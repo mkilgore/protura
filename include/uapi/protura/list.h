@@ -73,6 +73,12 @@ static inline void list_add_tail(list_head_t *head, list_node_t *new)
 #define list_attach(head, node) \
     list_add_tail(node, head)
 
+#define list_add_after(node1, node2) \
+    list_add((node1), (node2))
+
+#define list_add_before(node1, node2) \
+    list_add_tail((node1), (node2))
+
 static inline void __list_del(list_node_t *prev, list_node_t *next)
 {
     next->prev = prev;
