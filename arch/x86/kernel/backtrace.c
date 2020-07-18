@@ -10,7 +10,7 @@
 #include <protura/debug.h>
 #include <protura/compiler.h>
 #include <protura/symbols.h>
-#include <arch/ptable.h>
+#include <protura/mm/ptable.h>
 #include <arch/memlayout.h>
 
 #include <arch/backtrace.h>

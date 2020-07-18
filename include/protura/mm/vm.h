@@ -11,10 +11,9 @@
 #include <protura/types.h>
 #include <protura/list.h>
 #include <protura/bits.h>
+#include <protura/mm/ptable.h>
 #include <arch/task.h>
 
-#include <arch/paging.h>
-#include <arch/ptable.h>
 
 struct inode;
 struct page;

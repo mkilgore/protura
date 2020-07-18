@@ -71,27 +71,14 @@ typedef struct page_table_entry pte_t;
 
 extern struct page_directory kernel_dir;
 
-void page_table_map_entry(pgd_t *table, va_t virtual, pa_t physical, flags_t vm_flags);
-void page_table_unmap_entry(pgd_t *table, va_t virtual);
-pte_t *page_table_get_entry(pgd_t *table, va_t virtual);
-
-/* This does a pfree() of all the mapped pages */
-void page_table_free_range(pgd_t *table, va_t virtual, int pages);
-
 /* Allocates a new empty page directory */
 pgd_t *page_table_new(void);
-
-/* Duplicates pages in a defined range */
-void page_table_copy_range(pgd_t *new, pgd_t *old, va_t virtual, int pages);
 
 /* This just frees the page table */
 void page_table_free(pgd_t *);
 
 void page_table_change(pgd_t *new);
 
-/* Verifies that a pointer is mapped to backing memory in the provided page
- * directory. */
-int pgd_ptr_is_valid(pgd_t *, va_t);
 /* Sets the page cache mode setting on the supplied pte_t */
 void pte_set_pcm(pte_t *pte, int pcm);
 

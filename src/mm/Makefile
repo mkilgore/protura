@@ -7,4 +7,5 @@ objs-y += vm_area.o
 objs-y += mmap.o
 objs-y += sbrk.o
 objs-y += user_check.o
+objs-y += ptable.o
 

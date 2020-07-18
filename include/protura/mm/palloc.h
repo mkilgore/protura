@@ -15,9 +15,9 @@
 #include <protura/list.h>
 #include <protura/string.h>
 #include <protura/bits.h>
+#include <protura/mm/ptable.h>
 #include <arch/align.h>
 #include <arch/memlayout.h>
-#include <arch/paging.h>
 #include <arch/log2.h>
 
 struct inode;

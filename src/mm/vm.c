@@ -16,6 +16,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/memlayout.h>
 #include <protura/mm/vm.h>
+#include <protura/mm/ptable.h>
 #include <protura/fs/vfs.h>
 
 static int mmap_private_fill_page(struct vm_map *map, va_t address)
@@ -24,9 +25,10 @@ static int mmap_private_fill_page(struct vm_map *map, va_t address)
     if (!p)
         return -ENOSPC;
 
-    page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags);
+    page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags, PCM_CACHED);
     return 0;
 }
+
 
 int address_space_handle_pagefault(struct address_space *addrspc, va_t address)
 {
