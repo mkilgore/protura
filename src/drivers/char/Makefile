@@ -15,4 +15,5 @@ objs-y += mem_full.o
 objs-y += mem_null.o
 
 subdir-y += serial
+subdir-y += event
 
