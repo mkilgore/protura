@@ -16,6 +16,7 @@
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/vm_area.h>
+#include <protura/mm/kmmap.h>
 #include <protura/fs/block.h>
 #include <protura/fs/char.h>
 #include <protura/fs/file_system.h>
@@ -48,6 +49,20 @@
 
 char kernel_cmdline[2048];
 
+static struct fb_info framebuffer_info;
+
+void setup_bootloader_framebuffer(void)
+{
+    if (!framebuffer_info.framebuffer_addr)
+        return;
+
+    kp(KP_NORMAL, "Initializing framebuffer from bootloader...\n");
+    framebuffer_info.framebuffer = kmmap_pcm(framebuffer_info.framebuffer_addr, framebuffer_info.framebuffer_size, F(VM_MAP_READ) | F(VM_MAP_WRITE), PCM_WRITE_COMBINED);
+
+    fbcon_set_framebuffer(&framebuffer_info);
+    kp(KP_NORMAL, "Framebuffer from bootloader in use!\n");
+}
+
 struct sys_init arch_init_systems[] = {
     { "vm_area", vm_area_allocator_init },
     { "kwork", kwork_init },
@@ -56,6 +71,7 @@ struct sys_init arch_init_systems[] = {
     { "pci", pci_init },
 #endif
     { "video", video_init },
+    { "boot-fbcon", setup_bootloader_framebuffer },
     { "block-cache", block_cache_init },
     { "block-device", block_dev_init },
     { "char-device", char_dev_init },
@@ -138,6 +154,27 @@ static void handle_multiboot2_info(void *info, pa_t *high_addr)
 
             kp(KP_NORMAL, "Cmdline: %s\n", kernel_cmdline);
             kernel_cmdline_init();
+            break;
+
+        case MULTIBOOT2_TAG_TYPE_FRAMEBUFFER:
+            framebuffer = container_of(tag, struct multiboot2_tag_framebuffer_common, tag);
+
+            kp(KP_NORMAL, "Framebuffer, type: %d, width: %d, height: %d, BPP: %d\n",
+                    framebuffer->framebuffer_type,
+                    framebuffer->framebuffer_width,
+                    framebuffer->framebuffer_height,
+                    framebuffer->framebuffer_bpp);
+
+            if (framebuffer->framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
+                break;
+
+            framebuffer_info.framebuffer_addr = framebuffer->framebuffer_addr;
+            framebuffer_info.width = framebuffer->framebuffer_width;
+            framebuffer_info.height = framebuffer->framebuffer_height;
+            framebuffer_info.bpp = framebuffer->framebuffer_bpp;
+
+            framebuffer_info.framebuffer_size = framebuffer_info.width * framebuffer_info.height * (framebuffer_info.bpp / 8);
+
             break;
         }
     }
