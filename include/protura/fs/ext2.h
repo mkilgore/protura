@@ -159,7 +159,7 @@ extern uint8_t ext2_dir_type_to_dt[];
 #include <protura/mutex.h>
 
 /*
- * Note this is locked with super_block_lock in the struct super_block
+ * The lock protects modifications of the block groups.
  */
 struct ext2_super_block {
     struct super_block sb;
