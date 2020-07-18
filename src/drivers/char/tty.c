@@ -309,6 +309,7 @@ static int tty_ioctl(struct file *filp, int cmd, struct user_buffer arg)
 {
     int ret;
     int state;
+    int console;
     struct task *current = cpu_get_local()->current;
     struct tty *tty = filp->priv_data;
     pid_t tmp;
@@ -411,6 +412,15 @@ static int tty_ioctl(struct file *filp, int cmd, struct user_buffer arg)
             return -EINVAL;
 
         keyboard_set_state(state);
+        return 0;
+
+    case TIOSETCONSOLE:
+        console = (int)arg.ptr;
+
+        if (console < 0 || console >= CONSOLE_MAX)
+            return -EINVAL;
+
+        console_switch_vt(console);
         return 0;
     }
 

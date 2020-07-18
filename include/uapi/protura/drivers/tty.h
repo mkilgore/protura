@@ -154,6 +154,7 @@ struct winsize {
 #define TIOCSWINSZ ((__TIO << 8) + 9)
 
 #define TIOSETKBD     ((__TIO << 8) + 127)
+#define TIOSETCONSOLE ((__TIO << 8) + 128)
 
 /* Sets whether keyboard input should be sent to the console.
  *

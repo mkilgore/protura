@@ -11,6 +11,8 @@
 #include <protura/types.h>
 #include <protura/fs/char.h>
 
+#define CONSOLE_MAX CONFIG_CONSOLE_COUNT
+
 void vt_console_kp_register(void);
 void vt_console_kp_unregister(void);
 
