@@ -19,3 +19,7 @@
 /dev/full c 6 1
 /dev/null c 6 2
 
+/dev/fb0 c 9 0
+
+/dev/keyboard c 10 0
+
