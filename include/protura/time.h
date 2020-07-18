@@ -44,5 +44,6 @@ extern struct procfs_entry_ops current_time_ops;
 
 int sys_time(struct user_buffer t);
 int sys_gettimeofday(struct user_buffer tv, struct user_buffer tz);
+int sys_usleep(useconds_t useconds);
 
 #endif

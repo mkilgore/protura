@@ -105,5 +105,6 @@
 #define SYSCALL_UMASK        0x5D
 #define SYSCALL_ACCESS       0x5E
 #define SYSCALL_UTIMES       0x5F
+#define SYSCALL_USLEEP       0x60
 
 #endif

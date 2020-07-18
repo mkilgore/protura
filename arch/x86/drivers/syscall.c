@@ -489,6 +489,11 @@ static void sys_handler_utimes(struct irq_frame *frame)
     frame->eax = sys_utimes(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
 }
 
+static void sys_handler_usleep(struct irq_frame *frame)
+{
+    frame->eax = sys_usleep(frame->ebx);
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -588,6 +593,7 @@ static struct syscall_handler {
     SYSCALL(UMASK, sys_handler_umask),
     SYSCALL(ACCESS, sys_handler_access),
     SYSCALL(UTIMES, sys_handler_utimes),
+    SYSCALL(USLEEP, sys_handler_usleep),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)
