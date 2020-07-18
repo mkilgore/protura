@@ -29,7 +29,8 @@ qemu_line="qemu-system-i386 \
     -kernel $KERNEL \
     -append \"$KERNEL_ARGS\""
 
-GDB_CMD="gdb"
+
+GDB_CMD="sleep .5; gdb"
 QEMU_CMD="$qemu_line"
 # QEMU_LOG_CMD="sleep .1; stty -icanon -echo; socat file:\$(tty),raw,echo=0 unix-connect:qemu-serial-socket | tee ./com2.log"
 QEMU_LOG_CMD="sleep 1; stty raw -echo; socat - tcp:localhost:4567 | tee $LOGS_DIR/com2.log"
