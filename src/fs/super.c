@@ -407,9 +407,16 @@ int vfs_umount(struct super_block *sb)
 
 int mount_root(dev_t device, const char *fsystem)
 {
+    struct block_device *bdev = block_dev_get(device);
+    if (!bdev) {
+        panic("BLOCK DEVICE %d:%d does not exist!\n", DEV_MAJOR(device), DEV_MINOR(device));
+    }
+
     int ret = vfs_mount(NULL, device, fsystem, NULL, "/");
-    if (ret)
+    if (ret) {
+        panic("UNABLE TO MOUNT ROOT DEVICE!!! Err: %d\n", ret);
         return ret;
+    }
 
     using_spinlock(&super_lock) {
         struct vfs_mount *root_mount = list_first_entry(&mount_list, struct vfs_mount, mount_point_node);
