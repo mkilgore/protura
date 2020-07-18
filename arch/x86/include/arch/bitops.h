@@ -32,6 +32,22 @@ static __always_inline void bit_clear(volatile void *value, int bit)
             : "memory");
 }
 
+static __always_inline int bit_toggle(volatile void *value, int bit)
+{
+    int old;
+
+    asm volatile(LOCK_PREFIX "btc %2, %0;"
+            "movl $0, %1;"
+            "jc 1f;"
+            "movl $1, %1;"
+            "1:"
+            : "+m" (*(volatile int *)value), "=r" (old)
+            : "Ir" (bit)
+            : "memory");
+
+    return old;
+}
+
 static __always_inline int bit_test(const void *value, int bit)
 {
     return ((1 << (bit & 31)) & (((const uint32_t *)value)[bit >> 5])) != 0;
@@ -122,6 +138,7 @@ static __always_inline int bit_find_next_set(const void *value, size_t bytes, in
 
 #define flag_set(flags, f) bit_set(flags, f)
 #define flag_clear(flags, f) bit_clear(flags, f)
+#define flag_toggle(flags, f) bit_toggle(flags, f)
 #define flag_test(flags, f) bit_test(flags, f)
 #define flag_test_and_set(flags, f) bit_test_and_set(flags, f)
 
