@@ -10,6 +10,7 @@
 
 #include <protura/types.h>
 #include <protura/fs/char.h>
+#include <protura/drivers/screen.h>
 
 #define CONSOLE_MAX CONFIG_CONSOLE_COUNT
 
@@ -20,5 +21,6 @@ void vt_console_early_init(void);
 void vt_console_init(void);
 
 void console_switch_vt(int new_vt);
+void console_swap_active_screen(struct screen *);
 
 #endif

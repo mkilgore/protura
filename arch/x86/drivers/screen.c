@@ -21,7 +21,7 @@
 
 #define SCR_MEMLOC ((void *)(0xB8000 + KMEM_KBASE))
 
-static void scr_enable_cursor(void)
+static void scr_enable_cursor(struct screen *screen)
 {
     /* Enable cursor from scanlines 13 to 15 */
     outb(0x3D4, 0x0A);
@@ -31,13 +31,13 @@ static void scr_enable_cursor(void)
     outb(0x3D5, 0x0F);
 }
 
-static void scr_disable_cursor(void)
+static void scr_disable_cursor(struct screen *screen)
 {
     outb(0x3D4, 0x0A);
     outb(0x3D5, 0x0D | 0x20);
 }
 
-static void scr_updatecur(int row, int col)
+static void scr_updatecur(struct screen *screen, int row, int col)
 {
     uint16_t curloc = row * SCR_COLS + col;
     outb(0x3D4, 14);
@@ -55,5 +55,6 @@ struct screen arch_screen = {
 
 void arch_screen_init(void)
 {
-    scr_enable_cursor();
+    /* We don't use the argument so NULL is ok */
+    scr_enable_cursor(NULL);
 }

@@ -434,7 +434,7 @@ static void vt_set_dec_setting(struct vt *vt, char cmd)
         vt->cursor_is_on = 1;
 
         if (vt->screen->cursor_on)
-            (vt->screen->cursor_on) ();
+            (vt->screen->cursor_on) (vt->screen);
 
         break;
     }
@@ -461,7 +461,7 @@ static void vt_unset_dec_setting(struct vt *vt, char cmd)
         vt->cursor_is_on = 0;
 
         if (vt->screen->cursor_off)
-            (vt->screen->cursor_off) ();
+            (vt->screen->cursor_off) (vt->screen);
 
         break;
     }
@@ -748,6 +748,9 @@ int vt_write(struct vt *vt, const char *buf, size_t len)
 
         __vt_updatecur(vt);
     }
+
+    if (vt->screen->refresh)
+        vt->screen->refresh(vt->screen);
 
     return len;
 }

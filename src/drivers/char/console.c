@@ -21,10 +21,10 @@
 #include <protura/drivers/screen.h>
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/tty.h>
+#include <protura/drivers/console.h>
 
 #include "vt_internal.h"
 
-#define CONSOLE_MAX CONFIG_CONSOLE_COUNT
 
 /* This cannot be modified without holding the locks for all of the current
  * console_vts */
@@ -46,29 +46,57 @@ void console_switch_vt(int new_vt)
      * screen state from `arch_screen` to the screen buffer for the current
      * screen */
 
+    struct screen *real_screen = console_vts[current_vt].screen;
+    if (!real_screen)
+        real_screen = &arch_screen;
+
     memcpy(console_scr_bufs[current_vt],
-           arch_screen.buf,
-           sizeof(**arch_screen.buf) * SCR_COLS * SCR_ROWS);
+           real_screen->buf,
+           sizeof(**real_screen->buf) * SCR_COLS * SCR_ROWS);
 
     console_vts[current_vt].screen = console_screens + current_vt;
 
     current_vt = new_vt;
 
-    memcpy(arch_screen.buf,
+    memcpy(real_screen->buf,
            console_scr_bufs[current_vt],
-           sizeof(**arch_screen.buf) * SCR_COLS * SCR_ROWS);
+           sizeof(**real_screen->buf) * SCR_COLS * SCR_ROWS);
 
-    console_vts[current_vt].screen = &arch_screen;
-    arch_screen.move_cursor(console_vts[current_vt].cur_row, console_vts[current_vt].cur_col);
+    console_vts[current_vt].screen = real_screen;
+    real_screen->move_cursor(real_screen, console_vts[current_vt].cur_row, console_vts[current_vt].cur_col);
 
     if (console_vts[current_vt].cursor_is_on)
-        arch_screen.cursor_on();
+        real_screen->cursor_on(real_screen);
     else
-        arch_screen.cursor_off();
+        real_screen->cursor_off(real_screen);
+
+    if (real_screen->refresh)
+        real_screen->refresh(real_screen);
 
     keyboard_set_tty(console_vts[current_vt].tty);
 
+    for (i = CONSOLE_MAX - 1; i >= 0; i--)
+        spinlock_release(&console_vts[i].lock);
+}
+
+void console_swap_active_screen(struct screen *new)
+{
+    int i;
     for (i = 0; i < CONSOLE_MAX; i++)
+        spinlock_acquire(&console_vts[i].lock);
+
+    console_vts[current_vt].screen = new;
+    new->move_cursor(new, console_vts[current_vt].cur_row, console_vts[current_vt].cur_col);
+
+    if (console_vts[current_vt].cursor_is_on)
+        new->cursor_on(new);
+    else
+        new->cursor_off(new);
+
+    if (new->refresh)
+        new->refresh(new);
+
+    for (i = CONSOLE_MAX - 1; i >= 0; i--)
         spinlock_release(&console_vts[i].lock);
 }
 
@@ -127,7 +155,7 @@ void vt_console_early_init(void)
     vt_early_init(console_vts);
 
     /* "Switch" to 0 to assign the arch_screen to it */
-    console_switch_vt(0);
+    console_swap_active_screen(&arch_screen);
 }
 
 void vt_console_init(void)

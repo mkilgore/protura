@@ -110,7 +110,7 @@ void __vt_clear(struct vt *vt)
 void __vt_updatecur(struct vt *vt)
 {
     if (vt->screen->move_cursor)
-        vt->screen->move_cursor(vt->cur_row, vt->cur_col);
+        vt->screen->move_cursor(vt->screen, vt->cur_row, vt->cur_col);
 }
 
 void __vt_scroll(struct vt *vt, int lines)

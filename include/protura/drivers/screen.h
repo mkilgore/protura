@@ -13,9 +13,11 @@
 
 struct screen {
     struct screen_char (*buf)[SCR_COLS];
-    void (*move_cursor) (int row, int col);
-    void (*cursor_on) (void);
-    void (*cursor_off) (void);
+
+    void (*move_cursor) (struct screen *, int row, int col);
+    void (*cursor_on) (struct screen *);
+    void (*cursor_off) (struct screen *);
+    void (*refresh) (struct screen *);
 };
 
 #endif
