@@ -100,10 +100,10 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
             inode_group_blk = ext2sb->groups[i].block_nr_inode_table;
             kp_ext2(sb, "ialloc: group start: %d\n", inode_group_blk);
 
-            inode_group_blk += (entry * sizeof(struct ext2_disk_inode)) / ext2sb->block_size;
+            inode_group_blk += (entry * ext2sb->disksb.inode_entry_size) / ext2sb->block_size;
             kp_ext2(sb, "ialloc: inode group block: %d\n", inode_group_blk);
 
-            inode_group_blk_offset = entry % (ext2sb->block_size / sizeof(struct ext2_disk_inode));
+            inode_group_blk_offset = entry % (ext2sb->block_size / ext2sb->disksb.inode_entry_size);
             kp_ext2(sb, "ialloc: inode group block offset: %d\n", inode_group_blk_offset);
         }
 

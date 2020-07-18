@@ -62,6 +62,7 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
     struct ext2_inode *inode = container_of(i, struct ext2_inode, i);
     struct ext2_disk_inode *disk_inode;
     struct block *b;
+    size_t inode_entry_size = sb->disksb.inode_entry_size;
     ino_t ino = i->ino;
     int inode_group_blk_nr;
     int inode_group, inode_entry, inode_offset;
@@ -74,9 +75,9 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
     using_ext2_super_block(sb) {
         inode_group_blk_nr = sb->groups[inode_group].block_nr_inode_table;
 
-        inode_group_blk_nr += (inode_entry * sizeof(struct ext2_disk_inode)) / sb->block_size;
+        inode_group_blk_nr += (inode_entry * inode_entry_size) / sb->block_size;
 
-        inode_offset = inode_entry % (sb->block_size / sizeof(struct ext2_disk_inode));
+        inode_offset = inode_entry % (sb->block_size / inode_entry_size);
 
         kp_ext2(sb, "Inode group: %d\n", inode_group);
         kp_ext2(sb, "Inode group block: %d\n", sb->groups[inode_group].block_nr_inode_table);
@@ -89,10 +90,9 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
         inode->inode_group_blk_offset = inode_offset;
 
         using_block_locked(super->dev, inode_group_blk_nr, b) {
-            disk_inode = (struct ext2_disk_inode *)b->data;
-            disk_inode += inode_offset;
+            disk_inode = (struct ext2_disk_inode *)(b->data + inode_entry_size * inode_offset);
 
-            kp_ext2(sb, "inode per block: %d\n", (int)(sb->block_size / sizeof(struct ext2_disk_inode)));
+            kp_ext2(sb, "inode per block: %d\n", (int)(sb->block_size / inode_entry_size));
             kp_ext2(sb, "Using block %d\n", inode_group_blk_nr);
 
             inode->i.mode = disk_inode->mode;
@@ -141,9 +141,12 @@ static int ext2_inode_read(struct super_block *super, struct inode *i)
 
 static void verify_ext2_inode(struct super_block *super, struct ext2_inode *inode)
 {
+    struct ext2_super_block *sb = container_of(super, struct ext2_super_block, sb);
     struct block *b;
+    size_t inode_entry_size = sb->disksb.inode_entry_size;
+
     using_block_locked(super->dev, inode->inode_group_blk_nr, b) {
-        struct ext2_disk_inode *dinode = (struct ext2_disk_inode *)b->data + inode->inode_group_blk_offset;
+        struct ext2_disk_inode *dinode = (struct ext2_disk_inode *)(b->data + inode_entry_size * inode->inode_group_blk_offset);
 
 #define inode_assert(inode, cond) \
     kassert(cond, "inode %d:%d not set dirty!\n", (inode)->i.sb->dev, (inode)->i.ino);
@@ -183,6 +186,7 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
     struct ext2_super_block *sb = container_of(super, struct ext2_super_block, sb);
     struct ext2_inode *inode = container_of(i, struct ext2_inode, i);
     struct block *b;
+    size_t inode_entry_size = sb->disksb.inode_entry_size;
 
     kp_ext2(sb, "writing inode: %d\n", i->ino);
 
@@ -202,7 +206,7 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
     kp_ext2(sb, "Inode size: %ld\n", inode->i.size);
 
     using_block_locked(super->dev, inode->inode_group_blk_nr, b) {
-        struct ext2_disk_inode *dinode = (struct ext2_disk_inode *)b->data + inode->inode_group_blk_offset;
+        struct ext2_disk_inode *dinode = (struct ext2_disk_inode *)(b->data + inode_entry_size * inode->inode_group_blk_offset);
 
         dinode->mode = inode->i.mode;
         dinode->size = inode->i.size;
