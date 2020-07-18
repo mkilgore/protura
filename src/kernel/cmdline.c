@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/snprintf.h>
 #include <protura/string.h>
+#include <protura/strtol.h>
 #include <arch/init.h>
 #include <protura/cmdline.h>
 
@@ -133,6 +134,20 @@ static int parse_bool(const char *value)
     return -1;
 }
 
+static int parse_int(const char *value, int *out)
+{
+    const char *endp = NULL;
+
+    long result = strtol(value, &endp, 10);
+
+    if (!endp || *endp)
+        return -1;
+
+    *out = (int)result;
+
+    return 0;
+}
+
 int kernel_cmdline_get_bool(const char *name, int def)
 {
     struct cmd_arg *arg = find_arg(name);
@@ -157,4 +172,21 @@ const char *kernel_cmdline_get_string(const char *name, const char *def)
         return arg->value;
 
     return def;
+}
+
+int kernel_cmdline_get_int(const char *name, int def)
+{
+    struct cmd_arg *arg = find_arg(name);
+
+    if (!arg)
+        return def;
+
+    int val;
+    int err = parse_int(arg->value, &val);
+    if (err == -1) {
+        kp(KP_WARNING, "Integer value for arg \"%s\" is invalid. Value: \"%s\". using default: %d\n", arg->name, arg->value, def);
+        return def;
+    }
+
+    return val;
 }
