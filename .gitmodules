@@ -33,3 +33,6 @@
 	path = userspace/extras/less
 	url = https://github.com/mkilgore/protura-less.git
 	branch = protura
+[submodule "userspace/extras/gbemuc"]
+	path = userspace/extras/gbemuc
+	url = https://github.com/mkilgore/gbemuc

@@ -85,5 +85,14 @@ $(EXTRA_DIR)/gcc.built: $(EXTRA_DIR)/gmp.built $(EXTRA_DIR)/mpfr.built $(EXTRA_D
 	@echo " TOUCH   $@"
 	$(Q)touch $@
 
+.PHONY: extra-gbemuc
+DISK_CLEAN_EXTRA += $(EXTRA_DIR)/gbemuc.built
+extra-gbemuc: $(EXTRA_DIR)/gbemuc.built
+$(EXTRA_DIR)/gbemuc.built:
+	@echo " BUILD   gbemuc"
+	$(Q)cd $(EXTRA_DIR); ./build_gbemuc.sh "$(TARGET)" "$(DISK_ROOT)" "$(EXTRAS_PREFIX)" "$(MAKEFLAGS)"
+	@echo " TOUCH   $@"
+	$(Q)touch $@
+
 DISK_EXTRA_PROGS := $(wildcard $(EXTRA_DIR)/*.built)
 DISK_CLEAN += $(DISK_CLEAN_EXTRA)
