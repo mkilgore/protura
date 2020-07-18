@@ -127,6 +127,8 @@ void address_space_vm_map_add(struct address_space *, struct vm_map *);
 void address_space_vm_map_remove(struct address_space *, struct vm_map *);
 int address_space_handle_pagefault(struct address_space *, va_t address);
 
+int address_space_find_region(struct address_space *, size_t size, struct vm_region *region);
+
 extern const struct vm_map_ops mmap_file_ops;
 
 void *sys_sbrk(intptr_t increment);

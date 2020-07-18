@@ -189,3 +189,38 @@ void vm_map_resize(struct vm_map *map, struct vm_region new_size)
     if (map->addr.end != new_size.end)
         vm_map_resize_end(map, new_size.end);
 }
+
+#define MMAP_START_ADDRS (va_t)0x80000000
+
+int address_space_find_region(struct address_space *addrspc, size_t size, struct vm_region *region)
+{
+    struct vm_map *prev = NULL;
+    struct vm_map *map;
+
+    size = ALIGN_2(size, PG_SIZE);
+
+    list_foreach_entry(&addrspc->vm_maps, map, address_space_entry) {
+        if (map->addr.start > MMAP_START_ADDRS)
+            break;
+
+        prev = map;
+    }
+
+    va_t bottom;
+    if (prev)
+        bottom = ((MMAP_START_ADDRS < prev->addr.end)? prev->addr.end: MMAP_START_ADDRS);
+    else
+        bottom = MMAP_START_ADDRS;
+
+
+    /* Calculate the ammount of space we have in the intended MMAP location */
+    size_t space_after_addrs = (map->addr.start - bottom);
+
+    if (space_after_addrs >= size) {
+        region->start = bottom;
+        region->end = region->start + size;
+        return 0;
+    }
+
+    return -ENOMEM;
+}
