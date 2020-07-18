@@ -20,6 +20,7 @@
 #include <protura/fs/file_system.h>
 #include <protura/fs/pipe.h>
 #include <protura/drivers/pci.h>
+#include <protura/video/fbcon.h>
 #include <protura/net.h>
 #include <protura/work.h>
 #include <protura/cmdline.h>
@@ -29,6 +30,7 @@
 #include <protura/drivers/console.h>
 #include <protura/drivers/ata.h>
 #include <protura/drivers/com.h>
+#include <protura/video/video.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>
 #include <arch/init.h>
@@ -52,6 +54,7 @@ struct sys_init arch_init_systems[] = {
 #ifdef CONFIG_PCI_SUPPORT
     { "pci", pci_init },
 #endif
+    { "video", video_init },
     { "block-cache", block_cache_init },
     { "block-device", block_dev_init },
     { "char-device", char_dev_init },
