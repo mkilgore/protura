@@ -31,7 +31,7 @@ char cpuid_id[10];
 
 static void cpuid_get_id(char *cpuid)
 {
-    asm volatile("cpuid":"=a" (*cpuid), "=b" (*(cpuid + 1)), "=c" (*(cpuid + 2)), "=d" (*(cpuid + 3))
+    asm volatile("cpuid": "=a" (*cpuid), "=b" (*(cpuid + 1)), "=c" (*(cpuid + 2)), "=d" (*(cpuid + 3))
                  : "a" (0));
 }
 
