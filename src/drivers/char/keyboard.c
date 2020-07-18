@@ -20,6 +20,7 @@
 #include <protura/event/keyboard.h>
 #include <arch/asm.h>
 #include <protura/fs/char.h>
+#include <protura/video/fbcon.h>
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/console.h>
 
@@ -200,6 +201,7 @@ void keyboard_submit_keysym(uint8_t keysym, int release_flag)
      * a bad state */
     if (keysym == KS_PRINT_SCREEN) {
         atomic_set(&keyboard.state, TTY_KEYBOARD_STATE_ON);
+        fbcon_force_unblank();
     }
 
     /* If the keyboard is off, then don't continue */
