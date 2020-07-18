@@ -453,6 +453,7 @@ int __ext2_dir_read_dent(struct file *filp, struct user_buffer dent, size_t size
         entry = (struct ext2_disk_directory_entry *)(b->data + block_off);
 
         if (entry->ino == 0) {
+            filp->offset += entry->rec_len;
             skip = 1;
             break;
         }
