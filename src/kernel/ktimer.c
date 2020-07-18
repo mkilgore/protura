@@ -33,34 +33,33 @@
 static spinlock_t timers_lock;
 static list_head_t timer_list = LIST_HEAD_INIT(timer_list);
 
-static void run_timer_outside_lock(struct ktimer *timer)
-{
-    void (*callback) (struct ktimer *) = timer->callback;
-
-    not_using_spinlock(&timers_lock)
-        (callback) (timer);
-}
-
 void timer_handle_timers(uint64_t tick)
 {
-    struct ktimer *timer, *next;
-    list_head_t tmp_list = LIST_HEAD_INIT(tmp_list);
+    struct ktimer *timer;
+    void (*callback) (struct ktimer *);
 
     while (1) {
-        using_spinlock(&timers_lock) {
-            timer = list_first_entry(&timer_list, struct ktimer, timer_entry);
+        spinlock_acquire(&timers_lock);
 
-            if (timer->wake_up_tick != tick)
-                return;
-
-            list_del(&timer->timer_entry);
-            list_replace(&timer->timer_list, &tmp_list);
-
-            run_timer_outside_lock(timer);
-
-            list_foreach_take_entry(&tmp_list, next, timer_entry)
-                run_timer_outside_lock(next);
+        if (list_empty(&timer_list)) {
+            spinlock_release(&timers_lock);
+            return;
         }
+
+        timer = list_first_entry(&timer_list, struct ktimer, timer_entry);
+
+        if (timer->wake_up_tick > tick) {
+            spinlock_release(&timers_lock);
+            return;
+        }
+
+        list_del(&timer->timer_entry);
+
+        /* Store callback because timer might be modified once we release the lock */
+        callback = timer->callback;
+        spinlock_release(&timers_lock);
+
+        (callback) (timer);
     }
 }
 
@@ -75,13 +74,13 @@ int timer_add(struct ktimer *timer, uint64_t ms)
             return -1;
 
         list_foreach_entry(&timer_list, t, timer_entry) {
-            if (t->wake_up_tick == timer->wake_up_tick)
-                list_add_tail(&t->timer_list, &timer->timer_entry);
-            else if (t->wake_up_tick > timer->wake_up_tick)
-                list_add_tail(&t->timer_entry, &timer->timer_entry);
+            if (t->wake_up_tick >= timer->wake_up_tick) {
+                list_add_before(&t->timer_entry, &timer->timer_entry);
+                break;
+            }
         }
 
-        if (list_ptr_is_head(&t->timer_entry, &timer_list))
+        if (!list_node_is_in_list(&timer->timer_entry))
             list_add_tail(&timer_list, &timer->timer_entry);
 
         return 0;
@@ -94,41 +93,7 @@ int timer_del(struct ktimer *timer)
         if (!list_node_is_in_list(&timer->timer_entry))
             return -1;
 
-        if (list_empty(&timer->timer_list)) {
-            list_del(&timer->timer_entry);
-        } else {
-            struct ktimer *next = list_first_entry(&timer->timer_list, struct ktimer, timer_entry);
-
-            /*
-             * Takes this setup:
-             *
-             * timer_list
-             *     |
-             *     V
-             *   timer -> next -> ...
-             *     |
-             *     V
-             *   ...
-             *
-             * And turns it into this:
-             *
-             * timer_list
-             *     |
-             *     V
-             *   next -> ...
-             *     |
-             *     V
-             *   ...
-             *
-             * It makes 'next' the head of the list that used to extend from
-             * 'timer' (that 'next' was a part of) and also puts 'next' on the
-             * list extending from 'timer_list'
-             */
-
-            list_del(&next->timer_entry);
-            list_replace(&timer->timer_list, &next->timer_list);
-            list_replace(&timer->timer_entry, &next->timer_entry);
-        }
+        list_del(&timer->timer_entry);
     }
 
     return 0;

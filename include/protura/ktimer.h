@@ -14,7 +14,6 @@
 
 struct ktimer {
     list_node_t timer_entry;
-    list_head_t timer_list;
 
     uint64_t wake_up_tick;
 
@@ -24,7 +23,12 @@ struct ktimer {
 #define KTIMER_INIT(timer) \
     { \
         .timer_entry = LIST_NODE_INIT((timer).timer_entry), \
-        .timer_list = LIST_HEAD_INIT((timer).timer_list), \
+    }
+
+#define KTIMER_CALLBACK_INIT(timer, callb) \
+    { \
+        .timer_entry = LIST_NODE_INIT((timer).timer_entry), \
+        .callback = (callb), \
     }
 
 static inline void ktimer_init(struct ktimer *timer)
@@ -40,7 +44,7 @@ static inline void ktimer_clear(struct ktimer *timer)
 void timer_handle_timers(uint64_t tick);
 int timer_add(struct ktimer *timer, uint64_t ms);
 
-/* Returns 0 if the timer was deleted, -1 if the timer was not scheduled */
+/* Returns 0 if the timer was deleted, -1 if the timer was already scheduled */
 int timer_del(struct ktimer *timer);
 
 #endif
