@@ -17,6 +17,7 @@
 
 #include <arch/spinlock.h>
 #include <arch/drivers/keyboard.h>
+#include <protura/event/keyboard.h>
 #include <arch/asm.h>
 #include <protura/fs/char.h>
 #include <protura/drivers/keyboard.h>
@@ -33,6 +34,8 @@ static struct keyboard {
     uint8_t key_pressed_map[256 / 8];
 
     struct tty *tty;
+
+    atomic_t state;
 } keyboard = {
     .led_status = 0,
     .mod_flags = 0,
@@ -189,6 +192,8 @@ static void (*key_handler[KT_MAX]) (uint8_t, int) = {
 void keyboard_submit_keysym(uint8_t keysym, int release_flag)
 {
     uint8_t table = keyboard.mod_flags;
+
+    keyboard_event_queue_submit(keysym, release_flag);
 
     /* Record the state of the provided keysym in the key_pressed_map, and set
      * is_repeat if appropriate */

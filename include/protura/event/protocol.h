@@ -32,10 +32,11 @@ int event_queue_open(struct file *, struct event_queue *);
 int event_queue_read(struct file *, struct user_buffer, size_t);
 int event_queue_release(struct file *);
 
-extern struct file_ops event_file_ops;
-
 /* List of minor device numbers for every event queue */
 enum {
+    EVENT_MINOR_KEYBOARD,
 };
+
+extern struct file_ops event_file_ops;
 
 #endif
