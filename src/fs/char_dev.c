@@ -19,6 +19,7 @@
 #include <protura/drivers/tty.h>
 #include <protura/drivers/mem.h>
 #include <protura/drivers/qemudbg.h>
+#include <protura/event/protocol.h>
 #include <protura/video/fbcon.h>
 #include <protura/fs/file.h>
 #include <protura/fs/fs.h>
@@ -59,6 +60,11 @@ static struct char_device devices[] = {
         .major = CHAR_DEV_FB,
         .fops = &fb_file_ops,
     },
+    [CHAR_DEV_EVENT] = {
+        .name = "event",
+        .major = CHAR_DEV_EVENT,
+        .fops = &event_file_ops,
+    }
 };
 
 struct char_device *char_dev_get(dev_t device)

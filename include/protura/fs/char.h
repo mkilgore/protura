@@ -25,6 +25,7 @@ enum {
     CHAR_DEV_SERIAL_TTY = 7,
     CHAR_DEV_QEMU_DBG = 8,
     CHAR_DEV_FB = 9,
+    CHAR_DEV_EVENT = 10,
 };
 
 void char_dev_init(void);
