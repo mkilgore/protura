@@ -22,6 +22,10 @@ The Protura OS project structure is described below:
     - Contains "extra" programs, like `vim` and `less`, which can be optionally compiled as part of the OS disk image
   - `utils`
     - Extra random utility programs, mostly test programs.
+  - `root`
+    - Contains the "root" of the disk's file system. This is combined along with the contents of `./obj/disk_root`.
+    - `misc`
+      - Files in here are ignored by `git`, which makes it an easy spot to drop files you want present in the created disk
 
 When building the OS, the below directories are creating as needed:
 
