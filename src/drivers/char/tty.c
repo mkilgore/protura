@@ -308,6 +308,7 @@ static int tty_open(struct inode *inode, struct file *filp)
 static int tty_ioctl(struct file *filp, int cmd, struct user_buffer arg)
 {
     int ret;
+    int state;
     struct task *current = cpu_get_local()->current;
     struct tty *tty = filp->priv_data;
     pid_t tmp;
@@ -403,6 +404,14 @@ static int tty_ioctl(struct file *filp, int cmd, struct user_buffer arg)
             break;
         }
         break;
+
+    case TIOSETKBD:
+        state = (int)arg.ptr;
+        if (state != TTY_KEYBOARD_STATE_ON && state != TTY_KEYBOARD_STATE_OFF)
+            return -EINVAL;
+
+        keyboard_set_state(state);
+        return 0;
     }
 
     kp(KP_TRACE, "tty_ioctl: INVALID CMD: 0x%04x\n", cmd);

@@ -153,4 +153,13 @@ struct winsize {
 #define TIOCGWINSZ ((__TIO << 8) + 8)
 #define TIOCSWINSZ ((__TIO << 8) + 9)
 
+#define TIOSETKBD     ((__TIO << 8) + 127)
+
+/* Sets whether keyboard input should be sent to the console.
+ *
+ * The expectation is that if you turn it off, you'll be listening for raw
+ * keyboard input via the event interface. */
+#define TTY_KEYBOARD_STATE_ON 0
+#define TTY_KEYBOARD_STATE_OFF 1
+
 #endif

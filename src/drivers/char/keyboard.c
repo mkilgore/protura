@@ -195,6 +195,18 @@ void keyboard_submit_keysym(uint8_t keysym, int release_flag)
 
     keyboard_event_queue_submit(keysym, release_flag);
 
+    /* The Print Screen key is treated special - we restore the console to
+     * sanity, so the user has some hope of recovering if a program left it in
+     * a bad state */
+    if (keysym == KS_PRINT_SCREEN) {
+        atomic_set(&keyboard.state, TTY_KEYBOARD_STATE_ON);
+    }
+
+    /* If the keyboard is off, then don't continue */
+    int state = atomic_get(&keyboard.state);
+    if (state == TTY_KEYBOARD_STATE_OFF)
+        return;
+
     /* Record the state of the provided keysym in the key_pressed_map, and set
      * is_repeat if appropriate */
     if (release_flag) {
@@ -231,6 +243,16 @@ void keyboard_submit_keysym(uint8_t keysym, int release_flag)
 void keyboard_set_tty(struct tty *tty)
 {
     WRITE_ONCE(keyboard.tty, tty);
+}
+
+void keyboard_set_state(int state)
+{
+    /*
+     * FIXME: This is kinda messy, we're not clearing pressed keys or mod keys,
+     * so if this is swapped while one is held the state could be all screwed
+     * up.
+     */
+    atomic_set(&keyboard.state, state);
 }
 
 void keyboard_init(void)
