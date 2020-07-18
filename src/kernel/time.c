@@ -98,7 +98,7 @@ int sys_gettimeofday(struct user_buffer tv, struct user_buffer tz)
     struct timeval tmp;
 
     tmp.tv_sec = tick / TIMER_TICKS_PER_SEC;
-    tmp.tv_usec = (tick % (TIMER_TICKS_PER_SEC)) * (TIMER_TICKS_PER_SEC / 1000);
+    tmp.tv_usec = ((uint64_t)(tick % (TIMER_TICKS_PER_SEC)) * 1000000 / TIMER_TICKS_PER_SEC);
 
     return user_copy_from_kernel(tv, tmp);
 }
