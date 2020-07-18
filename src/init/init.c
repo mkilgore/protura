@@ -39,10 +39,16 @@ static int start_user_init(void *unused)
         (sys->init) ();
     }
 
+    int root_major = kernel_cmdline_get_int("major", CONFIG_ROOT_MAJOR);
+    int root_minor = kernel_cmdline_get_int("minor", CONFIG_ROOT_MINOR);
+    const char *fstype = kernel_cmdline_get_string("fstype", CONFIG_ROOT_FSTYPE);
+
+    kp(KP_NORMAL, "Mounting root device %d:%d, fs type \"%s\"\n", root_major, root_minor, fstype);
+
     /* Mount the current IDE drive as an ext2 filesystem */
-    int ret = mount_root(DEV_MAKE(CONFIG_ROOT_MAJOR, CONFIG_ROOT_MINOR), CONFIG_ROOT_FSTYPE);
+    int ret = mount_root(DEV_MAKE(root_major, root_minor), fstype);
     if (ret)
-        panic("UNABLE TO MOUNT ROOT FILESYSTEM\n");
+        panic("UNABLE TO MOUNT ROOT FILESYSTEM, (%d, %d): %s\n", root_major, root_minor, fstype);
 
 #ifdef CONFIG_KERNEL_TESTS
     ktest_init();
