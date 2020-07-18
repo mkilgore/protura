@@ -19,8 +19,10 @@ static list_head_t kp_output_list = LIST_HEAD_INIT(kp_output_list);
 
 void kp_output_register(struct kp_output *output)
 {
-    using_spinlock(&kprintf_lock)
-        list_add_tail(&kp_output_list, &output->node);
+    using_spinlock(&kprintf_lock) {
+        if (!list_node_is_in_list(&output->node))
+            list_add_tail(&kp_output_list, &output->node);
+    }
 }
 
 void kp_output_unregister(struct kp_output *rm_output)
