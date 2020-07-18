@@ -16,7 +16,7 @@
 
 #include <arch/spinlock.h>
 #include <protura/fs/block.h>
-#include "ide.h"
+#include "ata.h"
 
 struct mbr_part {
     uint8_t attributes;
@@ -40,7 +40,7 @@ void make_part(struct mbr_part *mbr, struct partition *part)
 {
     partition_init(part);
     part->start = mbr->lba_start;
-    part->device_size = mbr->lba_length * IDE_SECTOR_SIZE;
+    part->device_size = mbr->lba_length * ATA_SECTOR_SIZE;
 
     kp(KP_NORMAL, "  PART Start: %d, Length: %d\n", part->start, part->device_size);
 }

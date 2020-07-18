@@ -27,7 +27,7 @@
 
 #include <arch/asm.h>
 #include <protura/drivers/console.h>
-#include <protura/drivers/ide.h>
+#include <protura/drivers/ata.h>
 #include <protura/drivers/com.h>
 #include <arch/gdt.h>
 #include <arch/idt.h>

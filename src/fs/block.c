@@ -12,7 +12,6 @@
 #include <protura/list.h>
 #include <protura/scheduler.h>
 #include <protura/mm/kmalloc.h>
-#include <protura/drivers/ide.h>
 #include <protura/crc.h>
 
 #include <arch/spinlock.h>

@@ -14,8 +14,7 @@
 #include <arch/asm.h>
 
 #include <protura/fs/procfs.h>
-#include <protura/drivers/ide.h>
-#include <protura/drivers/ide_dma.h>
+#include <protura/drivers/ata.h>
 #include <protura/drivers/e1000.h>
 #include <protura/drivers/rtl.h>
 #include <protura/drivers/pci.h>
@@ -24,14 +23,6 @@
 #include "internal.h"
 
 static const struct pci_driver pci_drivers[] = {
-#ifdef CONFIG_IDE_DMA_SUPPORT
-    {
-        .name = "Intel PIIX3 IDE DMA",
-        .vendor = PCI_VENDOR_ID_INTEL,
-        .device = PCI_DEVICE_ID_82371SB_PIIX3_IDE,
-        .device_init = ide_dma_device_init,
-    },
-#endif
 #ifdef CONFIG_NET_RTL8139_DRIVER
     {
         .name = "RealTek RTL8139 Fast Ethernet",
@@ -48,6 +39,12 @@ static const struct pci_driver pci_drivers[] = {
         .device_init = e1000_device_init,
     },
 #endif
+    {
+        .name = "Generic ATA/IDE Interface",
+        .class = 1,
+        .subclass = 1,
+        .device_init = ata_pci_init,
+    },
     {
         .name = NULL,
         .vendor = 0,

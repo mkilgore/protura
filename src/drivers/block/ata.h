@@ -1,18 +1,16 @@
-#ifndef SRC_DRIVERS_BLOCK_IDE_H
-#define SRC_DRIVERS_BLOCK_IDE_H
+#ifndef SRC_DRIVERS_BLOCK_ATA_H
+#define SRC_DRIVERS_BLOCK_ATA_H
 
 #include <protura/types.h>
+#include <protura/list.h>
 #include <protura/fs/block.h>
+#include <arch/spinlock.h>
 #include <protura/drivers/pci.h>
-
-enum {
-    IDE_SECTOR_SIZE = 512,
-};
 
 /* structure returned by HDIO_GET_IDENTITY, as per ANSI ATA2 rev.2f spec.
  *
  * Format from the Linux Kernel source code. */
-struct ide_identify_format {
+struct ata_identify_format {
     uint16_t config; /* lots of obsolete bit flags */
     uint16_t cyls;/* "physical" cyls */
     uint16_t reserved2; /* reserved (word 2) */
@@ -59,58 +57,66 @@ struct ide_identify_format {
     uint16_t reserved70; /* reserved (word 70) */
 } __packed;
 
-#define PRD_MAX 10
+#ifdef CONFIG_KERNEL_LOG_ATA
+# define kp_ata(str, ...) kp(KP_NORMAL, "ATA: " str, ## __VA_ARGS__)
+#else
+# define kp_ata(str, ...) do { ; } while (0)
+#endif
 
-struct ide_dma_prd {
-    uint32_t addr;
-    uint32_t bcnt;
-} __packed __align(0x08);
+enum {
+    ATA_PORT_DATA = 0,
+    ATA_PORT_FEAT_ERR = 1,
+    ATA_PORT_SECTOR_CNT = 2,
+    ATA_PORT_LBA_LOW_8 = 3,
+    ATA_PORT_LBA_MID_8= 4,
+    ATA_PORT_LBA_HIGH_8 = 5,
+    ATA_PORT_DRIVE_HEAD = 6,
+    ATA_PORT_COMMAND_STATUS = 7,
 
-struct ide_dma_info {
-    struct pci_dev device;
-    unsigned int is_enabled :1;
+    ATA_STATUS_BUSY = (1 << 7),
+    ATA_STATUS_READY = (1 << 6),
+    ATA_STATUS_DRIVE_FAULT = (1 << 5),
+    ATA_STATUS_DATA_REQUEST = (1 << 3),
+    ATA_STATUS_DATA_CORRECT = (1 << 2),
+    ATA_STATUS_ERROR = (1 << 0),
 
-    io_t dma_io_base;
-    uint8_t dma_irq;
-    int dma_dir;
+    /* This is not a real part of the status, but we report this if the status check hits the timeout */
+    ATA_STATUS_TIMEOUT = (1 << 8),
 
-    struct ide_dma_prd prd_table[PRD_MAX];
+    ATA_CTL_STOP_INT = (1 << 1),
+    ATA_CTL_RESET = (1 << 2),
+
+    ATA_DH_SHOULD_BE_SET = (1 << 5) | (1 << 7),
+    ATA_DH_LBA = (1 << 6),
+
+    /* Set this bit to use the slave ATA drive instead of master */
+    ATA_DH_SLAVE = (1 << 4),
+
+    ATA_COMMAND_PIO_LBA28_READ = 0x20,
+    ATA_COMMAND_PIO_LBA28_WRITE = 0x30,
+
+    ATA_COMMAND_DMA_LBA28_READ = 0xC8,
+    ATA_COMMAND_DMA_LBA28_WRITE = 0xCA,
+
+    ATA_COMMAND_CACHE_FLUSH = 0xE7,
+    ATA_COMMAND_IDENTIFY = 0xEC,
+
+    ATA_SECTOR_SIZE = 512,
 };
 
-#ifdef CONFIG_IDE_DMA_SUPPORT
-void ide_dma_init(struct ide_dma_info *, struct pci_dev *);
+struct ata_drive {
+    spinlock_t lock;
 
-int ide_dma_setup_read(struct ide_dma_info *, struct block *);
-int ide_dma_setup_write(struct ide_dma_info *, struct block *);
+    struct block *current;
+    size_t current_sector_offset;
+    int sectors_left;
 
-void ide_dma_start(struct ide_dma_info *);
+    list_head_t block_queue_master;
+    list_head_t block_queue_slave;
 
-void ide_dma_abort(struct ide_dma_info *);
-int  ide_dma_check(struct ide_dma_info *);
-void ide_dma_clear_error(struct ide_dma_info *info);
-#else
-
-static inline void ide_dma_init(struct ide_dma_info *info, struct pci_dev *dev) { }
-
-static inline int ide_dma_setup_read(struct ide_dma_info *info, struct block *blk)
-{
-    return -ENOTSUP;
-}
-
-static inline int ide_dma_setup_write(struct ide_dma_info *info, struct block *blk)
-{
-    return -ENOTSUP;
-}
-
-static inline void ide_dma_start(struct ide_dma_info *info) { }
-
-static inline void ide_dma_abort(struct ide_dma_info *info) { }
-static inline int  ide_dma_check(struct ide_dma_info *info)
-{
-    return -ENOTSUP;
-}
-static inline void ide_dma_clear_error(struct ide_dma_info *info) { }
-
-#endif
+    io_t io_base;
+    io_t ctrl_io_base;
+    int drive_irq;
+};
 
 #endif

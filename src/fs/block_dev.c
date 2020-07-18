@@ -17,7 +17,7 @@
 #include <protura/fs/file.h>
 #include <protura/fs/pipe.h>
 
-#include <protura/drivers/ide.h>
+#include <protura/drivers/ata.h>
 
 int block_dev_pread_generic(struct file *filp, struct user_buffer buf, size_t len, off_t off)
 {
@@ -125,7 +125,7 @@ static struct block_device devices[] = {
         .major = BLOCK_DEV_IDE_MASTER,
         .partitions = NULL,
         .partition_count = 0,
-        .ops = &ide_master_block_device_ops,
+        .ops = &ata_master_block_device_ops,
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_MASTER].blocks),
     },
@@ -134,7 +134,7 @@ static struct block_device devices[] = {
         .major = BLOCK_DEV_IDE_SLAVE,
         .partitions = NULL,
         .partition_count = 0,
-        .ops = &ide_slave_block_device_ops,
+        .ops = &ata_slave_block_device_ops,
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_SLAVE].blocks),
     },
@@ -153,7 +153,6 @@ static struct block_device devices[] = {
 
 void block_dev_init(void)
 {
-    ide_init();
 }
 
 struct block_device *block_dev_get(dev_t device)
