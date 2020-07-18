@@ -72,11 +72,15 @@ check-pci: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(TEST_RESULTS
 
 PHONY += debug
 debug: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)
-	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img
+	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img "-curses" "video=off"
 
 PHONY += debug-ktest
 debug-ktest: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)
-	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img "ktest.run=true $(EXTRA_TEST_ARGS)"
+	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img "-curses" "video=off ktest.run=true $(EXTRA_TEST_ARGS)"
+
+PHONY += debug-vga
+debug-vga: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)
+	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img "-vga none -device bochs-display"
 
 PHONY += debug-net
 debug-net: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)

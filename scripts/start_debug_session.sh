@@ -4,21 +4,24 @@
 # Argument 2: The kernel to run in qemu
 # Argument 3: The master disk to attach
 # Argument 4: The slave disk to attach
-# Argument 5: Any extra arguments to provide to the kernel
+# Argument 5: Display setting
+# Argument 6: Any extra arguments to provide to the kernel
 
 LOGS_DIR=$1
 KERNEL=$2
 DISK_ONE=$3
 DISK_TWO=$4
-KERNEL_ARGS=$5
+DISPLAY_ARGS=$5
+KERNEL_ARGS=$6
 
 qemu_line="qemu-system-i386 \
     -serial file:$LOGS_DIR/qemu.log \
     -serial tcp:localhost:4567,server,nowait \
     -monitor unix:qemu-monitor-socket,server,nowait \
-    -curses \
+    $DISPLAY_ARGS \
     -s \
     -S \
+    -m 512M \
     -debugcon file:$LOGS_DIR/qemu_debug.log \
     -d cpu_reset \
     -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
