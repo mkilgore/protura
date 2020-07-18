@@ -29,6 +29,7 @@ enum {
     /* If this isn't set, then that means the contents of this block aren't
      * correct, and need to be read from the disk. */
     BLOCK_VALID,
+    BLOCK_LOCKED,
 };
 
 struct block {
@@ -47,10 +48,9 @@ struct block {
     struct block_device *bdev;
     list_node_t bdev_blocks_entry;
 
+    spinlock_t flags_lock;
     flags_t flags;
-
-    /* To be able to modify this block, you have to acquire this lock */
-    mutex_t block_mutex;
+    struct wait_queue flags_queue;
 
     list_node_t block_sync_node;
 
@@ -61,32 +61,37 @@ struct block {
 
 static inline void block_mark_dirty(struct block *b)
 {
-    flag_set(&b->flags, BLOCK_DIRTY);
+    using_spinlock(&b->flags_lock)
+        flag_set(&b->flags, BLOCK_DIRTY);
 }
 
 static inline void block_mark_clean(struct block *b)
 {
-    flag_clear(&b->flags, BLOCK_DIRTY);
+    using_spinlock(&b->flags_lock)
+        flag_clear(&b->flags, BLOCK_DIRTY);
 }
 
 static inline int block_waiting(struct block *b)
 {
-    return mutex_waiting(&b->block_mutex);
+    return wait_queue_waiting(&b->flags_queue);
 }
 
 static inline void block_lock(struct block *b)
 {
-    kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
-    mutex_lock(&b->block_mutex);
-    kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
+    using_spinlock(&b->flags_lock) {
+        wait_queue_event_spinlock(&b->flags_queue, !flag_test(&b->flags, BLOCK_LOCKED), &b->flags_lock);
+
+        flag_set(&b->flags, BLOCK_LOCKED);
+    }
 }
 
 static inline int block_try_lock(struct block *b)
 {
-    kp(KP_LOCK, "block %d:%d: Locking\n", b->dev, b->sector);
-    if (mutex_try_lock(&b->block_mutex)) {
-        kp(KP_LOCK, "block %d:%d: Locked\n", b->dev, b->sector);
-        return SUCCESS;
+    using_spinlock(&b->flags_lock) {
+        if (!flag_test(&b->flags, BLOCK_LOCKED)) {
+            flag_set(&b->flags, BLOCK_LOCKED);
+            return SUCCESS;
+        }
     }
 
     return 1;
@@ -94,9 +99,10 @@ static inline int block_try_lock(struct block *b)
 
 static inline void block_unlock(struct block *b)
 {
-    kp(KP_LOCK, "block %d:%d: Unlocking\n", b->dev, b->sector);
-    mutex_unlock(&b->block_mutex);
-    kp(KP_LOCK, "block %d:%d: Unlocked\n", b->dev, b->sector);
+    using_spinlock(&b->flags_lock) {
+        flag_clear(&b->flags, BLOCK_LOCKED);
+        wait_queue_wake(&b->flags_queue);
+    }
 }
 
 struct block *bread(dev_t, sector_t);
@@ -165,6 +171,8 @@ struct block_device {
     struct partition *partitions;
     int partition_count;
 
+    void *priv;
+
     struct block_device_ops *ops;
     struct file_ops *fops;
 };
@@ -195,12 +203,9 @@ void block_sync_all(int wait);
 
 static inline void block_dev_sync_block_async(struct block_device *dev, struct block *b)
 {
-    kassert(mutex_is_locked(&b->block_mutex), "!!!block_dev_sync_block_async called with an unlocked block!!!");
+    kassert(flag_test(&b->flags, BLOCK_LOCKED), "!!!block_dev_sync_block_async called with an unlocked block!!!");
 
-    if (!flag_test(&b->flags, BLOCK_VALID) || flag_test(&b->flags, BLOCK_DIRTY))
-        (dev->ops->sync_block_async) (dev, b);
-    else
-        block_unlock(b);
+    (dev->ops->sync_block_async) (dev, b);
 }
 
 static inline void block_submit(struct block *b)

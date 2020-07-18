@@ -69,7 +69,9 @@ static struct block *block_new(void)
 {
     struct block *b = kzalloc(sizeof(*b), PAL_KERNEL);
 
-    mutex_init(&b->block_mutex);
+    spinlock_init(&b->flags_lock);
+    wait_queue_init(&b->flags_queue);
+
     list_node_init(&b->block_list_node);
     list_node_init(&b->block_lru_node);
     list_node_init(&b->bdev_blocks_entry);
@@ -106,8 +108,10 @@ void __block_cache_shrink(void)
         if (block_try_lock(b) != SUCCESS)
             continue;
 
-        if (atomic_get(&b->refs) != 0)
+        if (atomic_get(&b->refs) != 0) {
+            block_unlock(b);
             continue;
+        }
 
         if (!flag_test(&b->flags, BLOCK_DIRTY)) {
             block_unlock(b);
@@ -123,8 +127,8 @@ void __block_cache_shrink(void)
 
 void block_wait_for_sync(struct block *b)
 {
-    block_lock(b);
-    block_unlock(b);
+    using_spinlock(&b->flags_lock)
+        wait_queue_event_spinlock(&b->flags_queue, !flag_test(&b->flags, BLOCK_LOCKED), &b->flags_lock);
 }
 
 static struct block *__bread(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
@@ -185,9 +189,12 @@ struct block *bread(dev_t device, sector_t sector)
     }
 
     /* We can check this without the lock because BLOCK_VALID is never removed
-     * once set */
+     * once set, and syncing an extra time isn't a big deal. */
     if (!flag_test(&b->flags, BLOCK_VALID)) {
         block_lock(b);
+
+        /* We check again just to avoid doing multiple syncs if we don't need
+         * too - the block could have become valid while we waited to lock it */
         block_dev_sync_block_async(b->bdev, b);
 
         /* Wait for syncing */
