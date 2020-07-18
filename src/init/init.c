@@ -56,8 +56,6 @@ static int start_user_init(void *unused)
 
     kp(KP_NORMAL, "Kernel is done booting!\n");
 
-    vt_console_kp_unregister();
-
     const char *init_prog = kernel_cmdline_get_string("init", "/bin/init");
 
     kp(KP_NORMAL, "Starting \"%s\"...\n", init_prog);

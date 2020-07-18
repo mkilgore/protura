@@ -9,6 +9,7 @@
 #include <protura/stdarg.h>
 #include <protura/debug.h>
 #include <protura/spinlock.h>
+#include <protura/drivers/console.h>
 
 #include <arch/backtrace.h>
 #include <arch/reset.h>
@@ -60,6 +61,9 @@ int reboot_on_panic = 0;
 
 static __noreturn void __panicv_internal(const char *s, va_list lst, int trace)
 {
+    /* Switch VT to 0 so that the console is shown to the user */
+    console_switch_vt(0);
+
     cli();
     kprintfv_internal(s, lst);
     if (trace)
