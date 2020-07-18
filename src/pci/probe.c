@@ -350,12 +350,26 @@ static void enum_pci(void)
     pci_enumerate_bus(0);
 }
 
-static void pci_load_device(struct pci_dev *dev, uint16_t vendor, uint16_t device)
+/* A simple helper function - if 'target' is zero then the check isn't performed */
+static int pci_eq(int target, int actual)
+{
+    return !target || (target == actual);
+}
+
+static void pci_load_device(struct pci_dev *dev, uint16_t vendor, uint16_t device, uint16_t class, uint16_t subclass)
 {
     const struct pci_driver *driver;
-    for (driver = pci_drivers; driver->name; driver++)
-        if (driver->vendor == vendor && driver->device == device)
+    for (driver = pci_drivers; driver->name; driver++) {
+        if (pci_eq(driver->vendor, vendor)
+                && pci_eq(driver->device, device)
+                && pci_eq(driver->class, class)
+                && pci_eq(driver->subclass, subclass)) {
+
+            kp(KP_NORMAL, "Initializing device: %s\n", driver->name);
             (driver->device_init) (dev);
+            return;
+        }
+    }
 }
 
 static void load_pci_devices(void)
@@ -363,7 +377,7 @@ static void load_pci_devices(void)
     struct pci_dev_entry *entry;
 
     list_foreach_entry(&pci_dev_list, entry, pci_dev_node)
-        pci_load_device(&entry->info.id, entry->info.vendor, entry->info.device);
+        pci_load_device(&entry->info.id, entry->info.vendor, entry->info.device, entry->info.class, entry->info.subclass);
 }
 
 void pci_init(void)
@@ -384,3 +398,14 @@ size_t pci_bar_size(struct pci_dev *dev, uint8_t bar_reg)
     return (~size) + 1;
 }
 
+int pci_has_interrupt_line(struct pci_dev *dev)
+{
+    uint8_t int_line = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
+    uint8_t result;
+
+    pci_config_write_uint8(dev, PCI_REG_INTERRUPT_LINE, 0xFE);
+    result = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
+    pci_config_write_uint8(dev, PCI_REG_INTERRUPT_LINE, int_line);
+
+    return result == 0xFE;
+}

@@ -10,7 +10,11 @@ struct pci_dev {
 
 struct pci_driver {
     const char *name;
+
+    /* These are ignored if they are zero */
     uint16_t vendor, device;
+    uint16_t class, subclass;
+
     void (*device_init) (struct pci_dev *);
 };
 
@@ -64,6 +68,7 @@ void pci_config_write_uint8(struct pci_dev *dev, uint8_t regno, uint8_t value);
 #define PCI_BAR_IO 0x00000001
 
 size_t pci_bar_size(struct pci_dev *dev, uint8_t bar_reg);
+int pci_has_interrupt_line(struct pci_dev *dev);
 
 extern const struct file_ops pci_file_ops;
 
