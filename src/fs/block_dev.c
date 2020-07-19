@@ -119,7 +119,6 @@ static struct block_device devices[] = {
         .fops = NULL,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_NONE].blocks),
     },
-#ifdef CONFIG_IDE_DRIVER
     [BLOCK_DEV_IDE_MASTER] = {
         .name = "ide-master",
         .major = BLOCK_DEV_IDE_MASTER,
@@ -138,7 +137,6 @@ static struct block_device devices[] = {
         .fops = &block_dev_file_ops_generic,
         .blocks = LIST_HEAD_INIT(devices[BLOCK_DEV_IDE_SLAVE].blocks),
     },
-#endif
     [BLOCK_DEV_ANON] = {
         .name = "anon",
         .major = BLOCK_DEV_ANON,
