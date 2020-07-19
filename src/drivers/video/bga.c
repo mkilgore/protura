@@ -85,10 +85,11 @@ void bga_device_init(struct pci_dev *dev)
     bga->id = bga_dispi_reg_read(bga, VBE_DISPI_INDEX_ID);
     kp(KP_NORMAL, "    BGA ID: 0x%04x\n", bga->id);
 
-    if (bga->id != VBE_DISPI_ID4 && bga->id != VBE_DISPI_ID5) {
-        kp(KP_WARNING, "    Unsuppored BGA ID!\n");
-        return;
-    }
+    /* We don't always get the correct id, some things like qemu like to report
+     * VBE_DISPI_ID0 even though they support a linear framebuffer. We just
+     * continue on and hope we're good anyway. */
+    if (bga->id != VBE_DISPI_ID4 && bga->id != VBE_DISPI_ID5)
+        kp(KP_WARNING, "    Unsuppored BGA ID! Continuing anyway...\n");
 
     fb_mem = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFFFFFF0;
     fb_size = pci_bar_size(dev, PCI_REG_BAR(0));
@@ -98,7 +99,6 @@ void bga_device_init(struct pci_dev *dev)
 
     bga->info.framebuffer = kmmap_pcm(fb_mem, fb_size, F(VM_MAP_READ) | F(VM_MAP_WRITE), PCM_WRITE_COMBINED);
     bga->info.framebuffer_size = fb_size;
-
 
     bga->info.bpp = 32;
     bga->info.width = 1024;
