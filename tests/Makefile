@@ -80,7 +80,7 @@ debug-ktest: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)
 
 PHONY += debug-vga
 debug-vga: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)
-	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img "-vga none -device bochs-display"
+	$(Q)./scripts/start_debug_session.sh $(LOGS_DIR) $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img "-vga std"
 
 PHONY += debug-net
 debug-net: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)
