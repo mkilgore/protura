@@ -67,6 +67,10 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       run: make extra-less -j5
 
+    - name: Build gbemuc
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: make extra-gbemuc -j5
+
     - name: Build raw disk image
       id: build-os
       run: make disk
