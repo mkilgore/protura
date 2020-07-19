@@ -42,6 +42,7 @@ test-disks: $(TEST_DISK_IMGS)
 
 $(TEST_DISKS_DIR)/%.img: $(TESTS_DIR)/testcases/test-disks/%.sh | $(TEST_DISKS_DIR) $(DISK_MOUNT)
 	@echo " TSTDISK $@"
+	$(Q)sudo rm -fr $@
 	$(Q)sudo $< $@ $(DISK_MOUNT)
 
 PHONY += check
