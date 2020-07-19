@@ -61,6 +61,8 @@ void setup_bootloader_framebuffer(void)
 
     fbcon_set_framebuffer(&framebuffer_info);
     kp(KP_NORMAL, "Framebuffer from bootloader in use!\n");
+
+    video_mark_disabled();
 }
 
 struct sys_init arch_init_systems[] = {

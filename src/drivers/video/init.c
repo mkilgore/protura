@@ -18,6 +18,11 @@ int video_is_disabled(void)
     return __video_is_disabled;
 }
 
+void video_mark_disabled(void)
+{
+    __video_is_disabled = 1;
+}
+
 void video_init(void)
 {
     __video_is_disabled = strcasecmp(kernel_cmdline_get_string("video", ""), "off") == 0;
