@@ -1,7 +1,7 @@
 # Program wide settings
 VERSION   := 0
 SUBLEVEL  := 9
-PATCH     := 0
+PATCH     := 1
 
 ARCH   := x86
 BITS   := 32
