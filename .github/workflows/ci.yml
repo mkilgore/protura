@@ -116,9 +116,10 @@ jobs:
       with:
         draft: true
         files: |
-          imgs/protura_x86_multiboot
-          disk.vdi
-          disk.img
-          disk.vhd
+          ./bin/kernel/vmprotura
+          ./bin/kernel/vmprotura.sym
+          ./bin/imgs/disk.vdi
+          ./bin/imgs/disk.img
+          ./bin/imgs/disk.vhd
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
