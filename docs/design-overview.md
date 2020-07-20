@@ -99,4 +99,5 @@ Extra ported utilities:
   - Mostly just useful before `vim` was ported.
 - less
   - Really nice for viewing files, much nicer to use then `more` provided by our coreutils
-
+- gbemuc
+  - A Gameboy Emulator
