@@ -21,7 +21,7 @@ KERNEL_BINS=$5
 
 echo "DISK: $DISK_IMG"
 
-truncate -s 256MB $DISK_IMG \
+truncate -s 512MB $DISK_IMG \
     || exit 1
 
 sfdisk $DISK_IMG < $DIR/partition_table \
