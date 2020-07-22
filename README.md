@@ -8,7 +8,7 @@ operating system. It is heavily inspired by the design of the Linux kernel and
 other various open source kernels and os development information. Most of the
 existing parts of Protura are heavily simplified versions of what is
 approximately found in the Linux kernel, largely as a learning exercise. See
-the [Design Overview](docs/design-overview.md) for more information on what the
+the [Design Overview](https://mkilgore.github.io/protura/docs/design-overview.html) for more information on what the
 kernel supports.
 
 ![Small gif showing the Protura OS functioning](docs/screenshots/ping_and_gcc.gif?raw=true)
@@ -16,15 +16,15 @@ kernel supports.
 Documentation Quick Links
 =========================
 
-[Information on building the kernel and disk images](/docs/build.md)
+[Information on building the kernel and disk images](https://mkilgore.github.io/protura/docs/build.html)
 
-[Design and feature overview of the kernel](/docs/design-overview.md)
+[Design and feature overview of the kernel](https://mkilgore.github.io/protura/docs/design-overview.html)
 
-[Project Structure](/docs/project-structure.md)
+[Project Structure](https://mkilgore.github.io/protura/docs/project-structure.html)
 
-[Testing the kernel](/docs/kernel-testing.md)
+[Testing the kernel](https://mkilgore.github.io/protura/docs/kernel-testing.html)
 
-[ktest API](/docs/ktest.md)
+[ktest API](https://mkilgore.github.io/protura/docs/ktest.html)
 
 Running the OS
 ==============
