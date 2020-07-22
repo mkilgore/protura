@@ -1,3 +1,9 @@
+---
+layout: post
+title: "Kernel Testing"
+parent: Documentation
+---
+
 Kernel Testing
 ==============
 

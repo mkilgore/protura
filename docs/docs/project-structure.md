@@ -1,3 +1,9 @@
+---
+layout: post
+title: "Project Structure"
+parent: Documentation
+---
+
 Project Structure
 =================
 

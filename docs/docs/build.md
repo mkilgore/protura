@@ -1,7 +1,22 @@
-Build
-=====
+---
+layout: post
+title:  "Building Protura"
+parent: Documentation
+---
+
+Building Protura
+================
+{: .no_toc }
 
 This page describes all the necessary steps to setup your system and build Protura.
+
+## Table of contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
 
 Buildtime Dependencies
 ----------------------
@@ -12,8 +27,8 @@ Component | Dependencies
 --------- | ------------
 gcc cross-compiler and cross-binutils | gcc suite, libmpc, libgmp, libmpfr, flex, bison, texinfo
 kernel | perl
-disk image creation | grub2, mkfs.ext2, sfdisk, losetup, qemu-img (for VDI and VHD images)
-testing | qemu-system-i386, e2fsck, perl
+disk image creation | bash, grub2, mkfs.ext2, sfdisk, losetup, qemu-img (for VDI and VHD images)
+testing | qemu-system-i386, e2fsck, perl, bash
 debugging | qemu-system-i386, tmux, socat, gdb, gdb-dashboard (optional)
 
 ### Ubuntu
@@ -110,4 +125,3 @@ Note that cleaning the toolchain removes the `./obj/disk_root` directory, so it
 deletes anything else inside that folder. If you're rebuilding the toolchain,
 you should rebuild everything else as well - Unless you're just rebuilding
 newlib.
-

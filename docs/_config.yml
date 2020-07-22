@@ -1,1 +1,20 @@
-theme: jekyll-theme-hacker
+
+title: Protura
+description: Documentation and Articles about Protura OS
+baseurl: "/protura" # the subpath of your site, e.g. /blog
+url: "http://mkilgore.github.io" # the base hostname & protocol for your site, e.g. http://example.com
+
+# Build settings
+markdown: kramdown
+remote_theme: pmarsceill/just-the-docs
+
+# Aux links for the upper right navigation
+aux_links:
+  "Protura Github Repository":
+    - "//github.com/mkilgore/Protura"
+
+# Makes Aux links open in a new tab. Default is false
+aux_links_new_tab: true
+
+footer_content: "Copyright &copy; 2020 Matt Kilgore"
+color_scheme: dark

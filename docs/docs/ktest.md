@@ -1,10 +1,25 @@
+---
+layout: post
+title: "ktest"
+parent: Documentation
+---
+
 ktest
 =====
+{: .no_toc }
 
 ktest is a unit testing framework for the Protura kernel. It provides an easy way to run a test suite against part of the kernel after it has booted but before user-space starts.
 
+## Table of contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
 Makefile Usage
-==============
+--------------
 
 The easiest way to run the ktest test suite is via `make`. To run all tests run can run `make check-kernel`. That will run all the existing ktest tests on a variety of machines (The machine definitions can be found in `./tests/testcases/ktest/`). The Makefile also accepts a few arguments:
 
@@ -14,7 +29,7 @@ The easiest way to run the ktest test suite is via `make`. To run all tests run 
 | SINGLE_TEST| The name of a single test to run. All testcases will be run, all other tests are skipped |
 
 Kernel Parameters
-=================
+-----------------
 
 | Parameter | Default | Description |
 | --- | --- | --- |
@@ -24,7 +39,7 @@ Kernel Parameters
 | `ktest.single_test` | none | When set, only test(s) with a matching name as the one provided will be run |
 
 API Usage
-=========
+---------
 
 The core of ktest is two structures:
 
@@ -63,12 +78,11 @@ KTEST_MODULE_DEFINE("example-test-suite", example_test_units);
 
 Note that everything is `static` and all the test information is `const` - this is required. The `KTEST_UNIT()` macro should be used to create `struct ktest_unit` entries, and the `KTEST_MODULE_DEFINE()` macro should be used for creating the `struct ktest_module`.
 
-Assertions
-----------
+### Assertions
 
 A few different assertion types are included. But with that, instead of having many different assertion functions for every type, the arguments to some of the assertion functions are type-checked via `_Generic` to produce better test output. The current list of assertion functions are below. Note that for all of the assertions, the "actual" should be the thing under test, and the "expected" should be the value you're comparing against.
 
-| assertion | description |
+| Assertion | Description |
 | --- | --- |
 | `ktest_assert_equal(kt, expected, actual)` | Compares two values and passes if they are the same. The type of these arguments are used to determine how to compare and display these values |
 | `ktest_assert_notequal(kt, expected, actual)` | Compares two values and passes if they are different. The type of these arguments are used to determine how to compare and display these values |
@@ -77,8 +91,7 @@ A few different assertion types are included. But with that, instead of having m
 | `ktest_assert_fail(kt, fmt, ..)` | Always fails. Display a `printf`-style formatted message |
 
 
-Unit Test Cases
----------------
+### Unit Test Cases
 
 The `KTEST_UNIT` macro allows defining multiple test cases for a single test function. This works by providing sets of arguments (described in the next section) to the `KTEST_UNIT` macro, one for each test case you want to run. The argument sets are wrapped in parenthesis, thus it looks like this:
 
@@ -96,12 +109,11 @@ static const struct ktest_unit kbuf_test_units[] = {
 };
 ```
 
-Unit Test Arguments
--------------------
+### Unit Test Arguments
 
 Arguments to a unit test can be provided to a test via the `KT_*` macros. Current ones are:
 
-| macro | type | Notes |
+| Macro | Type | Notes |
 | --- | --- | --- |
 | `KT_INT` | `int` | |
 | `KT_UINT` | `unsigned int` | |
@@ -127,8 +139,7 @@ static const struct ktest_unit kbuf_test_units[] = {
 
 That example defines two test cases for the provided function. They pass an integer and a string as arguments, and then inside the test `KT_ARG` is used to get the value of these arguments. Note that the types of the provided arguments are checked for consistency with the type provided to `KT_ARG`, though the checking happens at runtime and will fail your test, rather than fail to compile.
 
-Module Setup and Teardown functions
--------------------------------------
+### Module Setup and Teardown functions
 
 When defining a `struct ktest_module`, you can provide two functions to be called before any of the module's test are run, and after the module's tests are completed. You can also provide two additional setup and teardown functions to run before and after each test is run. These are all provided directly to the `KTEST_MODULE_DEFINE` as optional additional arguments. The module setup/teardown come first, and either both or neither arguments have to be provided (Though `NULL` can be provided if the function isn't needed). An example is below:
 
@@ -155,8 +166,7 @@ static const struct ktest_unit example_units[] = {
 KTEST_MODULE_DEFINE("example-module", example_units, module_setup, module_teardown, test_setup, NULL);
 ```
 
-Module-scoped private information
-=================================
+### Module-scoped private information
 
 Combined with module setup and teardown functions, it can be useful to share things between tests that might be a bit heavy to do in each test (Ex. Allocated scratch pieces of memory, or stuctures, etc.). This can be done via the `priv` field on the `struct module`. It can be accessed directly in your module setup and teardown functions, and also accessed through your `struct ktest *` pointer in your tests via `ktest_get_mod_priv()`. A simple example is below:
 
