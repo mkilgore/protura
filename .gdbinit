@@ -66,5 +66,5 @@ end
 define end_switch_task
     set $esp = $prev_esp
     set $ebp = $prev_ebp
-    set $eip = $prev_dip
+    set $eip = $prev_eip
 end
