@@ -60,7 +60,7 @@ tmux split-window -h
 tmux select-pane -t 1
 tmux send-keys "$QEMU_DEBUG_CMD" Enter
 
-tmux select-window -t 1
+tmux select-window -t 0
 tmux select-pane -t 2
 tmux send-keys "$GDB_CMD" Enter
 
@@ -87,7 +87,7 @@ TTYS=( $(tmux list-panes -F "#{pane_tty}") )
 tmux list-panes -F "#{pane_tty}"
 echo "TTYS: $TTYS"
 
-tmux select-pane -t ":1.2"
+tmux select-pane -t ":0.2"
 
 # We add this so if a test fails the kernel automatically breaks at that point
 tmux send-keys "break ktest_fail_test" Enter
