@@ -1,7 +1,9 @@
 ---
 layout: post
 title: "ktest"
-parent: Documentation
+parent: APIs
+grand_parent: Documentation
+author: "Matt Kilgore"
 ---
 
 ktest
@@ -21,7 +23,13 @@ ktest is a unit testing framework for the Protura kernel. It provides an easy wa
 Makefile Usage
 --------------
 
-The easiest way to run the ktest test suite is via `make`. To run all tests run can run `make check-kernel`. That will run all the existing ktest tests on a variety of machines (The machine definitions can be found in `./tests/testcases/ktest/`). The Makefile also accepts a few arguments:
+The easiest way to run the ktest test suite is via `make`. To run all tests one
+can run `make check-kernel`. That will run all the existing ktest tests on a
+variety of machines (The machine definitions can be found in
+`./tests/testcases/ktest/`). It is also possible to run `make debug-ktest`
+which will run the same tests as `make check-kernel`, but will start the
+debugging environment and break on the first failed test. Both commands accept
+a few arguments:
 
 | Parameter | Description |
 | --- | --- |
