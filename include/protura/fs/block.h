@@ -22,12 +22,41 @@
 
 struct block_device;
 
+/*
+ * Block state transitions:
+ *
+ *    0            free'd
+ *    V              ^
+ *    |              |
+ *    V              ^
+ *  LOCKED >-----> VALID <----+  VALID+DIRTY
+ *                  ^ V       |    V   ^
+ *                  | |       |    |   |
+ *                  ^ V       |    |   |
+ *             VALID+LOCKED   |    |   |
+ *                   V        |    |   |
+ *                   |        |    |   |
+ *                   V        ^    V   |
+ *                VALID+DIRTY+LOCKED >-+
+ *
+ * VALID: Block's data is an accurate representation of what should be on the disk.
+ *
+ * DIRTY: Block's data has been modified from what was on disk.
+ *
+ * LOCKED: Block's data is currently being accessed (To read it, modify it,
+ *         sync it, etc.), nobody else can access the data until it is unlocked.
+ *
+ * Notes:
+ *  * The state is protected by the flags_lock
+ *
+ *  * When the block is LOCKED, refs > 0
+ *
+ *  * Only the person who has locked the block can set or clear VALID and
+ *    DIRTY. Consequently, the person who locked the block does not need to take
+ *    flags_lock to *view* these bits. They still need to take it to modify them.
+ */
 enum {
-    /* If this is set, then the contents of this block has been modified and
-     * doesn't match the contents of the disk. */
     BLOCK_DIRTY,
-    /* If this isn't set, then that means the contents of this block aren't
-     * correct, and need to be read from the disk. */
     BLOCK_VALID,
     BLOCK_LOCKED,
 };
@@ -69,6 +98,14 @@ static inline void block_mark_clean(struct block *b)
 {
     using_spinlock(&b->flags_lock)
         flag_clear(&b->flags, BLOCK_DIRTY);
+}
+
+static inline void block_mark_synced(struct block *b)
+{
+    using_spinlock(&b->flags_lock) {
+        flag_set(&b->flags, BLOCK_VALID);
+        flag_clear(&b->flags, BLOCK_DIRTY);
+    }
 }
 
 static inline int block_waiting(struct block *b)

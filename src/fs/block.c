@@ -22,7 +22,7 @@
 #define BLOCK_HASH_TABLE_SIZE CONFIG_BLOCK_HASH_TABLE_SIZE
 
 static struct {
-    mutex_t lock;
+    spinlock_t lock;
 
     /* List of cached blocks ready to be checked-out.
      *
@@ -32,7 +32,7 @@ static struct {
     struct hlist_head cache[BLOCK_HASH_TABLE_SIZE];
     list_head_t lru;
 } block_cache = {
-    .lock = MUTEX_INIT(block_cache.lock),
+    .lock = SPINLOCK_INIT(),
     .cache_count = 0,
     .cache = { { NULL }, },
     .lru = LIST_HEAD_INIT(block_cache.lru),
@@ -113,6 +113,7 @@ void __block_cache_shrink(void)
             continue;
         }
 
+        /* Don't need the spinlock, there's no existing references */
         if (!flag_test(&b->flags, BLOCK_DIRTY)) {
             block_unlock(b);
             continue;
@@ -131,15 +132,28 @@ void block_wait_for_sync(struct block *b)
         wait_queue_event_spinlock(&b->flags_queue, !flag_test(&b->flags, BLOCK_LOCKED), &b->flags_lock);
 }
 
-static struct block *__bread(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
+static struct block *__find_block(dev_t device, sector_t sector)
 {
-    struct block *b = NULL;
+    struct block *b;
     int hash = block_hash(device, sector);
 
     hlist_foreach_entry(block_cache.cache + hash, b, cache)
         if (b->dev == device && b->sector == sector)
-            break;
+            return b;
 
+    return NULL;
+}
+
+/* This function returns the `struct block *` for the given device and sector,
+ * but does not sync it, so it may be completely fresh and not actually read
+ * off the disk. */
+static struct block *bread_nosync(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
+{
+    struct block *b = NULL, *new = NULL;
+
+    spinlock_acquire(&block_cache.lock);
+
+    b = __find_block(device, sector);
     if (b)
         goto inc_and_return;
 
@@ -149,26 +163,52 @@ static struct block *__bread(dev_t device, struct block_device *bdev, size_t blo
     if (block_cache.cache_count >= CONFIG_BLOCK_CACHE_MAX_SIZE)
         __block_cache_shrink();
 
-    b = block_new();
-    b->block_size = block_size;
+    spinlock_release(&block_cache.lock);
+
+    new = block_new();
+    new->block_size = block_size;
 
     if (block_size != PG_SIZE)
-        b->data = kzalloc(block_size, PAL_KERNEL);
+        new->data = kzalloc(block_size, PAL_KERNEL);
     else
-        b->data = palloc_va(0, PAL_KERNEL);
+        new->data = palloc_va(0, PAL_KERNEL);
 
-    b->sector = sector;
-    b->dev = device;
-    b->bdev = bdev;
+    new->sector = sector;
+    new->dev = device;
+    new->bdev = bdev;
+
+    spinlock_acquire(&block_cache.lock);
+
+    /* We had to drop the lock because allocating the memory may sleep. If
+     * there is a race and a second allocation happens for the same block then
+     * the block we just made might already be in the hash list.  In that
+     * situation we simply delete the one we just made and return the existing
+     * one. */
+    b = __find_block(device, sector);
+
+    if (b) {
+        block_delete(new);
+        goto inc_and_return;
+    }
 
     /* Insert our new block into the cache */
-    hlist_add(block_cache.cache + hash, &b->cache);
+    int hash = block_hash(device, sector);
+    hlist_add(block_cache.cache + hash, &new->cache);
     block_cache.cache_count++;
 
-    list_add(&bdev->blocks, &b->bdev_blocks_entry);
+    list_add(&bdev->blocks, &new->bdev_blocks_entry);
+
+    b = new;
 
   inc_and_return:
     atomic_inc(&b->refs);
+
+    /* Refresh the LRU entry for this block */
+    if (list_node_is_in_list(&b->block_lru_node))
+        list_del(&b->block_lru_node);
+    list_add(&block_cache.lru, &b->block_lru_node);
+
+    spinlock_release(&block_cache.lock);
     return b;
 }
 
@@ -180,25 +220,31 @@ struct block *bread(dev_t device, sector_t sector)
     if (!dev)
         return NULL;
 
-    using_mutex(&block_cache.lock) {
-        b = __bread(device, dev, block_dev_get_block_size(device), sector);
-
-        if (list_node_is_in_list(&b->block_lru_node))
-            list_del(&b->block_lru_node);
-        list_add(&block_cache.lru, &b->block_lru_node);
-    }
+    b = bread_nosync(device, dev, block_dev_get_block_size(device), sector);
+    if (!b)
+        return NULL;
 
     /* We can check this without the lock because BLOCK_VALID is never removed
      * once set, and syncing an extra time isn't a big deal. */
     if (!flag_test(&b->flags, BLOCK_VALID)) {
-        block_lock(b);
+        int should_sync = 0, should_wait = 0;
 
-        /* We check again just to avoid doing multiple syncs if we don't need
-         * too - the block could have become valid while we waited to lock it */
-        block_dev_sync_block_async(b->bdev, b);
+        /* If the block is already LOCKED, then it will become VALID once's
+         * that done and we don't need to submit it outselves */
+        using_spinlock(&b->flags_lock) {
+            if (flag_test(&b->flags, BLOCK_LOCKED))
+                should_wait = 1;
+            else if (!flag_test(&b->flags, BLOCK_VALID))
+                should_sync = 1;
+        }
 
-        /* Wait for syncing */
-        block_wait_for_sync(b);
+        if (should_sync) {
+            block_lock(b);
+            block_submit(b);
+        }
+
+        if (should_wait || should_sync)
+            block_wait_for_sync(b);
     }
 
     return b;
@@ -223,13 +269,18 @@ void block_dev_clear(dev_t dev)
 
     block_dev_sync(bdev, dev, 1);
 
-    using_mutex(&block_cache.lock) {
+    using_spinlock(&block_cache.lock) {
         list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
             if (dev != DEV_NONE && b->dev != dev)
                 continue;
 
-            if (block_try_lock(b) != SUCCESS || atomic_get(&b->refs) != 0 || flag_test(&b->flags, BLOCK_DIRTY)) {
+            if (block_try_lock(b) != SUCCESS || atomic_get(&b->refs) != 0) {
                 kp(KP_WARNING, "BLOCK: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
+                continue;
+            }
+
+            if (flag_test(&b->flags, BLOCK_DIRTY)) {
+                kp(KP_WARNING, "BLOCK: Block %d:%d was still dirty when block_dev_clear was called!!!!\n", b->dev, b->sector);
                 continue;
             }
 
@@ -242,33 +293,33 @@ void block_dev_clear(dev_t dev)
 void block_dev_sync(struct block_device *bdev, dev_t dev, int wait)
 {
     list_head_t sync_list = LIST_HEAD_INIT(sync_list);
-    struct block *b;
+    struct block *b, *next;
 
     using_mutex(&sync_lock) {
-        using_mutex(&block_cache.lock) {
-            /* Note that this looping is safe because we always ensure we have a
-             * reference to a block before dropping the `block_cache.lock`, which
-             * means the current node will always be present when we're done */
+        using_spinlock(&block_cache.lock) {
             list_foreach_entry(&bdev->blocks, b, bdev_blocks_entry) {
                 if (dev != DEV_NONE && b->dev != dev)
                     continue;
 
-                atomic_inc(&b->refs);
-                not_using_mutex(&block_cache.lock) {
-                    block_lock(b);
-
+                using_spinlock(&b->flags_lock) {
                     if (flag_test(&b->flags, BLOCK_VALID) && flag_test(&b->flags, BLOCK_DIRTY)) {
-                        block_dev_sync_block_async(b->bdev, b);
-                        if (wait) {
-                            atomic_inc(&b->refs);
-                            list_add_tail(&sync_list, &b->block_sync_node);
-                        }
-                    } else {
-                        block_unlock(b);
+                        atomic_inc(&b->refs);
+                        list_add_tail(&sync_list, &b->block_sync_node);
                     }
                 }
-                atomic_dec(&b->refs);
             }
+        }
+
+        /* It's better to to simply hold the block_cache.lock spinlock the
+         * whole time and then submit all the blocks down here.
+         *
+         * Safe is used because if we're not waiting we need to drop the reference here too. */
+        list_foreach_entry_safe(&sync_list, b, next, block_sync_node) {
+            block_lock(b);
+            block_submit(b);
+
+            if (!wait)
+                brelease(b);
         }
 
         if (!wait)
@@ -287,35 +338,41 @@ void block_dev_sync(struct block_device *bdev, dev_t dev, int wait)
 void block_sync_all(int wait)
 {
     list_head_t sync_list = LIST_HEAD_INIT(sync_list);
-    struct block *b;
+    struct block *b, *next;
 
     using_mutex(&sync_lock) {
-        using_mutex(&block_cache.lock) {
+        using_spinlock(&block_cache.lock) {
             int hash;
 
-            /* Note that this looping is safe because we always ensure we have a
-             * reference to a block before dropping the `block_cache.lock`, which
-             * means the current node will always be present when we're done */
             for (hash = 0; hash < BLOCK_HASH_TABLE_SIZE; hash++) {
                 hlist_foreach_entry(block_cache.cache + hash, b, cache) {
 
-                    atomic_inc(&b->refs);
-                    not_using_mutex(&block_cache.lock) {
-                        block_lock(b);
-
+                    using_spinlock(&b->flags_lock) {
                         if (flag_test(&b->flags, BLOCK_VALID) && flag_test(&b->flags, BLOCK_DIRTY)) {
-                            block_dev_sync_block_async(b->bdev, b);
-                            if (wait) {
-                                atomic_inc(&b->refs);
-                                list_add_tail(&sync_list, &b->block_sync_node);
-                            }
-                        } else {
-                            block_unlock(b);
+                            atomic_inc(&b->refs);
+                            list_add_tail(&sync_list, &b->block_sync_node);
                         }
                     }
-                    atomic_dec(&b->refs);
                 }
             }
+        }
+
+        /* It's better to to simply hold the block_cache.lock spinlock the
+         * whole time and then submit all the blocks down here.
+         *
+         * Safe is used because if we're not waiting we need to drop the reference here too. */
+        list_foreach_entry_safe(&sync_list, b, next, block_sync_node) {
+            block_lock(b);
+
+            if (!flag_test(&b->flags, BLOCK_VALID) || !flag_test(&b->flags, BLOCK_DIRTY)) {
+                bunlockrelease(b);
+                continue;
+            }
+
+            block_submit(b);
+
+            if (!wait)
+                brelease(b);
         }
 
         if (!wait)

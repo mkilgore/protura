@@ -189,9 +189,7 @@ static void __ata_handle_intr(struct ata_drive *drive)
     }
 
     if (request_done) {
-        flag_set(&b->flags, BLOCK_VALID);
-        flag_clear(&b->flags, BLOCK_DIRTY);
-
+        block_mark_synced(b);
         bunlockrelease(b);
 
         drive->current = NULL;
