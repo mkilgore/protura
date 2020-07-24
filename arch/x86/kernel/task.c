@@ -104,7 +104,7 @@ void arch_task_setup_stack_user(struct task *t)
     arch_task_setup_stack_user_with_exec(t, NULL);
 }
 
-static void setup_kernel_stack_generic(struct task *t, int (*kernel_task) (void *), void *ptr, uintptr_t task_entry)
+void arch_task_setup_stack_kernel(struct task *t, int (*kernel_task) (void *), void *ptr)
 {
     char *ksp = t->kstack_top;
 
@@ -121,21 +121,9 @@ static void setup_kernel_stack_generic(struct task *t, int (*kernel_task) (void 
      * scheduler_entry, so that when that function returns, it will "return" to
      * the task_entry function */
     ksp -= sizeof(uintptr_t);
-    *(uintptr_t *)ksp = (uintptr_t)task_entry;
+    *(uintptr_t *)ksp = (uintptr_t)kernel_task_entry_addr;
 
     ksp = setup_scheduler_entry(t, ksp);
-
-    return ;
-}
-
-void arch_task_setup_stack_kernel(struct task *t, int (*kernel_task) (void *), void *ptr)
-{
-    setup_kernel_stack_generic(t, kernel_task, ptr, kernel_task_entry_addr);
-}
-
-void arch_task_setup_stack_kernel_interruptable(struct task *t, int (*kernel_task) (void *), void *ptr)
-{
-    setup_kernel_stack_generic(t, kernel_task, ptr, kernel_task_entry_interruptable_addr);
 }
 
 void arch_task_change_address_space(struct address_space *addrspc)

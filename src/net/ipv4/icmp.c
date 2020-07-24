@@ -92,6 +92,6 @@ void icmp_init(void)
     if (ret)
         panic("Error opening ICMP Socket!\n");
 
-    icmp_sock_thread = task_kernel_new_interruptable("icmp-thread", icmp_handler, icmp_socket);
+    icmp_sock_thread = task_kernel_new("icmp-thread", icmp_handler, icmp_socket);
     scheduler_task_add(icmp_sock_thread);
 }

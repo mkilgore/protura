@@ -12,6 +12,7 @@
 #include <protura/snprintf.h>
 #include <protura/scheduler.h>
 #include <protura/mm/palloc.h>
+#include <protura/mm/kmalloc.h>
 
 #include <arch/task.h>
 #include <arch/memlayout.h>
@@ -112,7 +113,14 @@ void cpu_setup_idle(void)
 
     snprintf(name, sizeof(name), "kidle %d", c->cpu_id);
 
-    c->kidle = task_kernel_new_interruptable(name, cpu_idle_loop, (void *)c->cpu_id);
+    struct task *t = kmalloc(sizeof(*t), PAL_KERNEL | PAL_ATOMIC);
+    if (!t)
+        panic("Unable to allocate cpu idle task!\n");
+
+    task_init(t);
+    task_kernel_init(t, name, cpu_idle_loop, (void *)c->cpu_id);
+
+    c->kidle = t;
     c->intr_count = 0;
 }
 

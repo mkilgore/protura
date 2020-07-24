@@ -79,7 +79,6 @@ static inline void arch_task_info_init(struct arch_task_info *info)
 void arch_task_setup_stack_user(struct task *t);
 void arch_task_setup_stack_user_with_exec(struct task *t, const char *exe);
 void arch_task_setup_stack_kernel(struct task *t, int (*kernel_task) (void *), void *ptr);
-void arch_task_setup_stack_kernel_interruptable(struct task *t, int (*kernel_task) (void *), void *ptr);
 
 void arch_task_switch(context_t *old, struct task *new);
 

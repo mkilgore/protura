@@ -27,6 +27,6 @@ static __noreturn int bdflushd_loop(void *ptr)
 
 void block_cache_init(void)
 {
-    bdflushd_thread = task_kernel_new_interruptable("bdflushd", bdflushd_loop, NULL);
+    bdflushd_thread = task_kernel_new("bdflushd", bdflushd_loop, NULL);
     scheduler_task_add(bdflushd_thread);
 }

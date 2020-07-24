@@ -143,14 +143,13 @@ int sys_getpgrp(struct user_buffer pgrp);
 /* Used when a task is already killed and dead */
 void task_free(struct task *);
 
-/* Interruptable tasks run with interrupts enabled */
-void task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable);
+/* Creates a new kernel-only task - it has no coresponding userspace, but
+ * otherwise can do pretty much anything */
 struct task *__must_check task_kernel_new(const char *name, int (*kernel_task) (void *), void *);
-struct task *__must_check task_kernel_new_interruptable(const char *name, int (*kernel_task) (void *), void *);
+void task_kernel_init(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr);
 
 void task_print(char *buf, size_t size, struct task *);
 void task_switch(context_t *old, struct task *new);
-
 
 /* Turns the provided task into a 'zombie' - Closes all files, releases held
  * inode's, free's the address-space, etc... Free's everything except it's own

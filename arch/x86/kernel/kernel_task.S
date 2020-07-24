@@ -1,20 +1,14 @@
 
 .extern sys_exit
 
-/* A separate way to start a kernel_task - This turns on interrupts before
- * falling through into kernel_task_entry */
-.globl kernel_task_entry_interruptable
-.type kernel_task_entry, @function
-kernel_task_entry_interruptable:
-    sti
-
-/* task_kernel_new already sets up the kernel stack with argv and argc already
+/* task_kernel_new already sets up the kernel stack with the params already
  * pushed, along with the address of the function to call to run the kernel
  * task. We simply call that function, and then handle clean-up when the thread
  * exits via returning. */
-.global kernel_task_entry
+.globl kernel_task_entry
 .type kernel_task_entry, @function
 kernel_task_entry:
+    sti
 
     pop %ebx
 
@@ -33,7 +27,3 @@ kernel_task_entry:
 .global kernel_task_entry_addr
 kernel_task_entry_addr:
     .long kernel_task_entry
-
-.globl kernel_task_entry_interruptable_addr
-kernel_task_entry_interruptable_addr:
-    .long kernel_task_entry_interruptable

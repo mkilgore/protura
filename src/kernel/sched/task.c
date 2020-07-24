@@ -117,7 +117,7 @@ struct task *task_new(void)
     return task;
 }
 
-void task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr, int is_interruptable)
+void task_kernel_init(struct task *t, const char *name, int (*kernel_task)(void *), void *ptr)
 {
     flag_set(&t->flags, TASK_FLAG_KERNEL);
 
@@ -126,24 +126,7 @@ void task_kernel_generic(struct task *t, const char *name, int (*kernel_task)(vo
     /* We never exit to user-mode, so we have no frame */
     t->context.frame = NULL;
 
-    if (is_interruptable)
-        arch_task_setup_stack_kernel_interruptable(t, kernel_task, ptr);
-    else
-        arch_task_setup_stack_kernel(t, kernel_task, ptr);
-}
-
-/* The main difference here is that the interruptable kernel task entry
- * function will enable interrupts before calling 'kernel_task', regular kernel
- * task's won't. */
-struct task *task_kernel_new_interruptable(const char *name, int (*kernel_task)(void *), void *ptr)
-{
-    struct task *t = task_new();
-
-    if (!t)
-        return NULL;
-
-    task_kernel_generic(t, name, kernel_task, ptr, 1);
-    return t;
+    arch_task_setup_stack_kernel(t, kernel_task, ptr);
 }
 
 struct task *task_kernel_new(const char *name, int (*kernel_task)(void *), void *ptr)
@@ -153,7 +136,7 @@ struct task *task_kernel_new(const char *name, int (*kernel_task)(void *), void 
     if (!t)
         return NULL;
 
-    task_kernel_generic(t, name, kernel_task, ptr, 0);
+    task_kernel_init(t, name, kernel_task, ptr);
     return t;
 }
 

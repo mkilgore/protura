@@ -77,7 +77,7 @@ static int start_user_init(void *unused)
  */
 void kmain(void)
 {
-    reboot_on_panic  = kernel_cmdline_get_bool("reboot_on_panic", 0);
+    reboot_on_panic = kernel_cmdline_get_bool("reboot_on_panic", 0);
 
     cpu_setup_idle();
 
@@ -86,7 +86,7 @@ void kmain(void)
         panic("Unable to allocate kernel init task!\n");
 
     task_init(t);
-    task_kernel_generic(t, "Kernel init", start_user_init, NULL, 1);
+    task_kernel_init(t, "Kernel init", start_user_init, NULL);
     scheduler_task_add(t);
 
     kp(KP_NORMAL, "Starting scheduler\n");
