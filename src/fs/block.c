@@ -383,7 +383,7 @@ void block_sync_all(int wait)
 
             /* Wait for block to be synced, and then drop reference */
             block_wait_for_sync(b);
-            atomic_dec(&b->refs);
+            brelease(b);
         }
     }
 }
