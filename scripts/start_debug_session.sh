@@ -28,7 +28,6 @@ qemu_line="qemu-system-i386 \
     -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
     -net nic,model=rtl8139 \
     -net nic,model=e1000 \
-    -net tap,ifname=tap0,script=no,downscript=no \
     -kernel $KERNEL \
     -append \"$KERNEL_ARGS\""
 
