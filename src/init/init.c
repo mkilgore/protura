@@ -22,8 +22,6 @@
 #include <protura/drivers/console.h>
 #include <protura/ktest.h>
 
-#include <protura/init/init_basic.h>
-
 /* Initial user task */
 struct task *task_pid1;
 
