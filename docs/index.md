@@ -17,7 +17,9 @@ other various open source kernels and OS development information. Most of the
 existing parts of Protura are simplified versions of what is found in the Linux
 kernel, largely as a learning exercise.
 
+{: refdef: style="text-align: center;"}
 ![Small gif showing the Protura OS functioning](screenshots/ping_and_gcc.gif?raw=true)
+{: refdef}
 
 Running the OS
 ==============
