@@ -33,31 +33,40 @@
 static spinlock_t timers_lock;
 static list_head_t timer_list = LIST_HEAD_INIT(timer_list);
 
+/* FIXME: This should be per-CPU, since they can all trigger ktimers.
+ *
+ * NOTE: This *CANNOT* be used to read the state of the current timer, once we
+ * drop the lock in timer_handle_timers() this thing could be free'd at any time.
+ *
+ * What we can do, however, is do a direct pointer comparison against a
+ * pointer provided to us in `timer_cancel()`. If they're equal, the timer is
+ * potentially still running, and we need to wait until they don't equal. */
+static struct ktimer *currently_running_timer;
+
 void timer_handle_timers(uint64_t tick)
 {
     struct ktimer *timer;
     void (*callback) (struct ktimer *);
 
     while (1) {
-        spinlock_acquire(&timers_lock);
+        using_spinlock(&timers_lock) {
+            currently_running_timer = NULL;
 
-        if (list_empty(&timer_list)) {
-            spinlock_release(&timers_lock);
-            return;
+            if (list_empty(&timer_list))
+                return;
+
+            timer = list_first_entry(&timer_list, struct ktimer, timer_entry);
+
+            if (timer->wake_up_tick > tick)
+                return;
+
+            list_del(&timer->timer_entry);
+
+            /* Store callback because timer might be modified once we release the lock */
+            callback = timer->callback;
+
+            currently_running_timer = timer;
         }
-
-        timer = list_first_entry(&timer_list, struct ktimer, timer_entry);
-
-        if (timer->wake_up_tick > tick) {
-            spinlock_release(&timers_lock);
-            return;
-        }
-
-        list_del(&timer->timer_entry);
-
-        /* Store callback because timer might be modified once we release the lock */
-        callback = timer->callback;
-        spinlock_release(&timers_lock);
 
         (callback) (timer);
     }
@@ -99,3 +108,23 @@ int timer_del(struct ktimer *timer)
     return 0;
 }
 
+void timer_cancel(struct ktimer *timer)
+{
+    int ret = timer_del(timer);
+
+    /* The easy case, timer wasn't yet run, just return */
+    if (!ret)
+        return;
+
+    /* Annoying case, timer might currently be running, keep checking
+     * `currently_running_timer and yielding. Timers are *supposed* to finish
+     * quickly, so this shouldn't last that long. */
+    while (1) {
+        using_spinlock(&timers_lock) {
+            if (currently_running_timer != timer)
+                return;
+        }
+
+        scheduler_task_yield();
+    }
+}

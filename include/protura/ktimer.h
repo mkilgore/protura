@@ -47,4 +47,7 @@ int timer_add(struct ktimer *timer, uint64_t ms);
 /* Returns 0 if the timer was deleted, -1 if the timer was already scheduled */
 int timer_del(struct ktimer *timer);
 
+/* Ensure both the timer was removed *and* the timer is not currently running */
+void timer_cancel(struct ktimer *timer);
+
 #endif
