@@ -142,8 +142,8 @@ static inline void block_unlock(struct block *b)
     }
 }
 
-struct block *bread(dev_t, sector_t);
-void brelease(struct block *);
+struct block *block_get(dev_t, sector_t);
+void block_put(struct block *);
 void block_wait_for_sync(struct block *);
 
 static inline struct block *block_dup(struct block *b)
@@ -152,24 +152,24 @@ static inline struct block *block_dup(struct block *b)
     return b;
 }
 
-static inline struct block *breadlock(dev_t dev, sector_t sec)
+static inline struct block *block_getlock(dev_t dev, sector_t sec)
 {
-    struct block *b = bread(dev, sec);
+    struct block *b = block_get(dev, sec);
     block_lock(b);
     return b;
 }
 
-static inline void bunlockrelease(struct block *b)
+static inline void block_unlockput(struct block *b)
 {
     block_unlock(b);
-    brelease(b);
+    block_put(b);
 }
 
 #define using_block(dev, sector, block) \
-    using_nocheck(((block) = bread(dev, sector)), (brelease(block)))
+    using_nocheck(((block) = block_get(dev, sector)), (block_put(block)))
 
 #define using_block_locked(dev, sector, block) \
-    using_nocheck(((block) = breadlock(dev, sector)), (bunlockrelease(block)))
+    using_nocheck(((block) = block_getlock(dev, sector)), (block_unlockput(block)))
 
 void block_cache_init(void);
 
@@ -188,7 +188,7 @@ static inline void partition_init(struct partition *part)
 }
 
 struct block_device_ops {
-    void (*sync_block_async) (struct block_device *, struct block *b);
+    void (*sync_block) (struct block_device *, struct block *b);
 };
 
 enum block_device_flags{
@@ -238,16 +238,11 @@ void block_dev_clear(dev_t dev);
 void block_dev_sync(struct block_device *, dev_t, int wait);
 void block_sync_all(int wait);
 
-static inline void block_dev_sync_block_async(struct block_device *dev, struct block *b)
-{
-    kassert(flag_test(&b->flags, BLOCK_LOCKED), "!!!block_dev_sync_block_async called with an unlocked block!!!");
-
-    (dev->ops->sync_block_async) (dev, b);
-}
-
 static inline void block_submit(struct block *b)
 {
-    block_dev_sync_block_async(b->bdev, b);
+    kassert(flag_test(&b->flags, BLOCK_LOCKED), "block_submit() called with an unlocked block!");
+
+    (b->bdev->ops->sync_block) (b->bdev, b);
 }
 
 dev_t block_dev_anon_get(void);

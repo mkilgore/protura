@@ -190,7 +190,7 @@ static void __ata_handle_intr(struct ata_drive *drive)
 
     if (request_done) {
         block_mark_synced(b);
-        bunlockrelease(b);
+        block_unlockput(b);
 
         drive->current = NULL;
 
@@ -207,7 +207,7 @@ static void ata_handle_intr(struct irq_frame *frame, void *param)
         __ata_handle_intr(drive);
 }
 
-static void ata_sync_block_async(struct ata_drive *drive, struct block *b, int master_or_slave)
+static void ata_sync_block(struct ata_drive *drive, struct block *b, int master_or_slave)
 {
     /* Shouldn't really happen, since the block is locked and they can check
      * this before calling, but check it anyway */
@@ -229,22 +229,22 @@ static void ata_sync_block_async(struct ata_drive *drive, struct block *b, int m
     }
 }
 
-void ata_sync_block_async_master(struct block_device *dev, struct block *b)
+void ata_sync_block_master(struct block_device *dev, struct block *b)
 {
-    return ata_sync_block_async(dev->priv, b, 0);
+    return ata_sync_block(dev->priv, b, 0);
 }
 
-void ata_sync_block_async_slave(struct block_device *dev, struct block *b)
+void ata_sync_block_slave(struct block_device *dev, struct block *b)
 {
-    return ata_sync_block_async(dev->priv, b, 1);
+    return ata_sync_block(dev->priv, b, 1);
 }
 
 struct block_device_ops ata_master_block_device_ops = {
-    .sync_block_async = ata_sync_block_async_master,
+    .sync_block = ata_sync_block_master,
 };
 
 struct block_device_ops ata_slave_block_device_ops = {
-    .sync_block_async = ata_sync_block_async_slave,
+    .sync_block = ata_sync_block_slave,
 };
 
 static void ata_identity_fix_string(uint8_t *s, size_t len)

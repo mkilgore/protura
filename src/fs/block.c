@@ -55,6 +55,15 @@ static void __block_uncache(struct block *b)
     block_cache.cache_count--;
 }
 
+static void __block_cache(struct block *b)
+{
+    int hash = block_hash(b->dev, b->sector);
+    hlist_add(block_cache.cache + hash, &b->cache);
+    block_cache.cache_count++;
+
+    list_add(&b->bdev->blocks, &b->bdev_blocks_entry);
+}
+
 static void block_delete(struct block *b)
 {
     if (b->block_size == PG_SIZE)
@@ -147,7 +156,7 @@ static struct block *__find_block(dev_t device, sector_t sector)
 /* This function returns the `struct block *` for the given device and sector,
  * but does not sync it, so it may be completely fresh and not actually read
  * off the disk. */
-static struct block *bread_nosync(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
+static struct block *block_get_nosync(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
 {
     struct block *b = NULL, *new = NULL;
 
@@ -192,12 +201,7 @@ static struct block *bread_nosync(dev_t device, struct block_device *bdev, size_
     }
 
     /* Insert our new block into the cache */
-    int hash = block_hash(device, sector);
-    hlist_add(block_cache.cache + hash, &new->cache);
-    block_cache.cache_count++;
-
-    list_add(&bdev->blocks, &new->bdev_blocks_entry);
-
+    __block_cache(new);
     b = new;
 
   inc_and_return:
@@ -212,7 +216,7 @@ static struct block *bread_nosync(dev_t device, struct block_device *bdev, size_
     return b;
 }
 
-struct block *bread(dev_t device, sector_t sector)
+struct block *block_get(dev_t device, sector_t sector)
 {
     struct block *b;
     struct block_device *dev = block_dev_get(device);
@@ -220,7 +224,7 @@ struct block *bread(dev_t device, sector_t sector)
     if (!dev)
         return NULL;
 
-    b = bread_nosync(device, dev, block_dev_get_block_size(device), sector);
+    b = block_get_nosync(device, dev, block_dev_get_block_size(device), sector);
     if (!b)
         return NULL;
 
@@ -250,7 +254,7 @@ struct block *bread(dev_t device, sector_t sector)
     return b;
 }
 
-void brelease(struct block *b)
+void block_put(struct block *b)
 {
     atomic_dec(&b->refs);
 }
@@ -319,7 +323,7 @@ void block_dev_sync(struct block_device *bdev, dev_t dev, int wait)
             block_submit(b);
 
             if (!wait)
-                brelease(b);
+                block_put(b);
         }
 
         if (!wait)
@@ -365,14 +369,14 @@ void block_sync_all(int wait)
             block_lock(b);
 
             if (!flag_test(&b->flags, BLOCK_VALID) || !flag_test(&b->flags, BLOCK_DIRTY)) {
-                bunlockrelease(b);
+                block_unlockput(b);
                 continue;
             }
 
             block_submit(b);
 
             if (!wait)
-                brelease(b);
+                block_put(b);
         }
 
         if (!wait)
@@ -383,7 +387,7 @@ void block_sync_all(int wait)
 
             /* Wait for block to be synced, and then drop reference */
             block_wait_for_sync(b);
-            brelease(b);
+            block_put(b);
         }
     }
 }
