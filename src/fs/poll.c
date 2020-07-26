@@ -56,20 +56,30 @@
  * If it is not set after we start sleeping, then it is clear we have not yet
  * been woken-up by one of our wait_queues and can safely suspend ourselves
  * until we recieve a wake-up.
+ *
+ * The optional timeout is handled by a similar mechanism - a ktimer is started
+ * at the beginning of `poll()`. If it goes off, it sets the `timeout` flag in
+ * the poll_table and wakes the polling task, causing it to exit the sleep early.
  */
 
 struct poll_table_entry {
     struct wait_queue_node wait_node;
-    struct poll_table *table;
-
     list_node_t poll_table_node;
-    struct task *poll_task;
+
+    struct poll_table *table;
 };
 
 struct poll_table {
-    int event;
+    spinlock_t event_lock;
+    unsigned int event :1;
+    unsigned int timeout :1;
+
     list_head_t entries;
+    struct task *poll_task;
+    struct ktimer timer;
 };
+
+static void poll_table_timer_callback(struct ktimer *);
 
 #define POLL_TABLE_ENTRY_INIT(entry) \
     { \
@@ -79,7 +89,9 @@ struct poll_table {
 
 #define POLL_TABLE_INIT(table) \
     { \
+        .event_lock = SPINLOCK_INIT(), \
         .entries = LIST_HEAD_INIT((table).entries), \
+        .timer = KTIMER_CALLBACK_INIT((table).timer, poll_table_timer_callback), \
     }
 
 static inline void poll_table_entry_init(struct poll_table_entry *entry)
@@ -92,12 +104,25 @@ static inline void poll_table_init(struct poll_table *table)
     *table = (struct poll_table)POLL_TABLE_INIT(*table);
 }
 
+static void poll_table_timer_callback(struct ktimer *timer)
+{
+    struct poll_table *table = container_of(timer, struct poll_table, timer);
+
+    using_spinlock(&table->event_lock) {
+        table->timeout = 1;
+        scheduler_task_wake(table->poll_task);
+    }
+}
+
 static void poll_table_wait_queue_callback(struct work *work)
 {
     struct poll_table_entry *entry = container_of(work, struct poll_table_entry, wait_node.on_complete);
+    struct poll_table *table = entry->table;
 
-    entry->table->event = 1;
-    scheduler_task_wake(entry->poll_task);
+    using_spinlock(&table->event_lock) {
+        table->event = 1;
+        scheduler_task_wake(table->poll_task);
+    }
 }
 
 void poll_table_add(struct poll_table *table, struct wait_queue *queue)
@@ -106,7 +131,6 @@ void poll_table_add(struct poll_table *table, struct wait_queue *queue)
 
     poll_table_entry_init(entry);
     entry->table = table;
-    entry->poll_task = cpu_get_local()->current;
 
     work_init_callback(&entry->wait_node.on_complete, poll_table_wait_queue_callback);
 
@@ -120,6 +144,12 @@ static void poll_table_unwait(struct poll_table *table)
     struct poll_table_entry *entry;
 
     list_foreach_take_entry(&table->entries, entry, poll_table_node) {
+        /* This doesn't race with poll_table_wait_queue_callback because that
+         * is called while holding the wait_queue's internal lock.
+         *
+         * Meaning, it is not possible for unregister to return and
+         * `poll_table_wait_queue_callback()` to still be running or
+         * "scheduled" to run later. */
         wait_queue_unregister(&entry->wait_node);
         kfree(entry);
     }
@@ -169,8 +199,10 @@ int sys_poll(struct user_buffer ufds, nfds_t nfds, int timeout)
             goto pfree_fds;
     }
 
+    table.poll_task = cpu_get_local()->current;
+
     if (timeout > 0)
-        current->wake_up = scheduler_calculate_wakeup(timeout);
+        timer_add(&table.timer, timeout);
     else if (timeout == 0)
         exit_poll = 1;
 
@@ -192,13 +224,15 @@ int sys_poll(struct user_buffer ufds, nfds_t nfds, int timeout)
             }
         }
 
-        if (!exit_poll)
-            sleep_event_intr(table.event || (current->wake_up == 0 && timeout > 0));
+        if (!exit_poll) {
+            using_spinlock(&table.event_lock)
+                sleep_event_intr_spinlock(table.event || table.timeout, &table.event_lock);
+        }
 
         poll_table_unwait(&table);
-    } while (!exit_poll && !has_pending_signal(current) && !(current->wake_up == 0 && timeout > 0));
+    } while (!exit_poll && !has_pending_signal(current) && !table.timeout);
 
-    current->wake_up = 0;
+    timer_cancel(&table.timer);
 
     if (event_count == 0 && has_pending_signal(current))
         event_count = -EINTR;
