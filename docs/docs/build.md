@@ -57,32 +57,36 @@ An expanded version not using `full` looks like this (Note: use `-jX` to paralle
     make kernel
     make disk
 
-The extra utilities can be built like this:
+The extra utilities can be built like this (Any required dependencies are automatically built as well):
 
     make extra-ncurses
     make extra-vim
     make extra-ed
     make extra-gcc
     make extra-binutils
+    make extra-less
+    make extra-gbemuc
 
 After building those utilities, `make disk` should be run again to regenerate the disk image.
 
 Individual build steps
 ----------------------
 
-First, you have to generate `./config.mk` and `./include/protura/config/autoconf.h` from protura.conf, both of which are used in all of the rest of the compilation steps:
+First, you have to generate `./config.mk` and
+`./include/protura/config/autoconf.h` from protura.conf, both of which are used
+in all of the rest of the compilation steps:
 
     make configure
 
-Then, install the protura kernel headers into the new system root, located at `./obj/disk_root` - the headers are
+Then, install the protura kernel headers into the new system root, located at
+`./obj/disk_root` - the headers are
 used in the compilation of the toolchain in the next step.
 
     make install-kernel-headers
 
-Build i686-protura toolchain (Necessary to build kernel, libc, and utils)
-
-The toolchain will be built into the `./bin/toolchain` directory - This location is
-configurable in `./Makefile`.
+Now the `i686-protura` toolchain needs to be built. The toolchain will be built
+into the `./bin/toolchain` directory - This location is configurable in
+`./Makefile`.
 
     make toolchain
 
@@ -90,7 +94,9 @@ Build the Protura kernel. The compiled kernel images will be located in `./bin/k
 
     make kernel
 
-Build the disk.img Protura disk image. This will build all of the necessary userspace programs, placing them into `./obj/disk_root`, and then put together a full disk image that will reside in `./bin/imgs`:
+Build the disk.img Protura disk image. This will build all of the necessary
+userspace programs, placing them into `./obj/disk_root`, and then put together
+a full disk image that will reside in `./bin/imgs`:
 
     make disk
 
