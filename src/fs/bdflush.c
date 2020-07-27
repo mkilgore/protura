@@ -19,7 +19,7 @@ static struct task *bdflushd_thread;
 static __noreturn int bdflushd_loop(void *ptr)
 {
     while (1) {
-        scheduler_task_waitms(CONFIG_BDFLUSH_DELAY);
+        task_sleep_ms(CONFIG_BDFLUSH_DELAY);
 
         sys_sync();
     }

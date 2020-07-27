@@ -352,7 +352,7 @@ static void ata_drive_init(struct ata_drive *drive)
     outb(drive->ctrl_io_base, ATA_CTL_RESET | ATA_CTL_STOP_INT);
 
     /* The reset take a few ms */
-    scheduler_task_waitms(10);
+    task_sleep_ms(10);
 
     outb(drive->ctrl_io_base, ATA_CTL_STOP_INT);
 

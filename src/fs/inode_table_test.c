@@ -70,7 +70,7 @@ static int fake_inode_write(struct super_block *sb, struct inode *inode)
     struct super_block_fake *fake = container_of(sb, struct super_block_fake, sb);
 
     /* Allows testing inode_wait_for_write() waits for INO_SYNC to be cleared */
-    scheduler_task_waitms(INODE_DELAY);
+    task_sleep_ms(INODE_DELAY);
     fake->inode_lock_was_set = mutex_is_locked(&fake->inode->lock);
     fake->inode_flags = fake->inode->flags;
 
@@ -97,7 +97,7 @@ static int fake_inode_delete(struct super_block *sb, struct inode *inode)
     struct super_block_fake *fake = container_of(sb, struct super_block_fake, sb);
 
     /* Allows testing inode_wait_for_write() waits for INO_FREEING to be cleared */
-    scheduler_task_waitms(INODE_DELAY);
+    task_sleep_ms(INODE_DELAY);
     fake->inode_lock_was_set = mutex_is_locked(&fake->inode->lock);
     fake->inode_flags = fake->inode->flags;
 
@@ -330,7 +330,7 @@ static void test_inode_wait_for_write(struct ktest *kt)
     kwork_schedule_callback(&fake->work.work, write_inode_callback);
 
     /* Wait for write_inode_callback to start syncing the inode. Should happen pretty fast, generally. */
-    scheduler_task_waitms(10);
+    task_sleep_ms(10);
 
     ktest_assert_equal(kt, F(INO_VALID, INO_DIRTY, INO_SYNC), fake->inode->flags);
 
@@ -390,7 +390,7 @@ static void test_inode_wait_on_freeing(struct ktest *kt)
     kwork_schedule_callback(&fake->work.work, drop_inode_callback);
 
     /* Wait for drop_inode_callback to start dropping the inode. Should happen pretty fast, generally. */
-    scheduler_task_waitms(10);
+    task_sleep_ms(10);
 
     ktest_assert_equal(kt, F(INO_VALID, INO_FREEING), fake->inode->flags);
 
