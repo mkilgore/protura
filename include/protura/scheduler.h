@@ -85,7 +85,6 @@ static inline uint32_t scheduler_calculate_wakeup(uint32_t mseconds)
 }
 
 void scheduler_task_waitms(uint32_t mseconds);
-int sys_sleep(int seconds);
 void scheduler(void);
 
 /* Entry point for all new tasks */

@@ -207,4 +207,9 @@ static inline int signals_pending(void)
     return t->sig_pending & ~t->sig_blocked;
 }
 
+int task_sleep_ms(int ms);
+int task_sleep_intr_ms(int ms);
+int sys_sleep(int seconds);
+int sys_usleep(useconds_t us);
+
 #endif

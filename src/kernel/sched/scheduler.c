@@ -123,24 +123,6 @@ void scheduler_task_waitms(uint32_t mseconds)
         __yield(t);
 }
 
-int sys_sleep(int seconds)
-{
-    int ticks;
-    struct task *t = cpu_get_local()->current;
-
-    scheduler_task_waitms(seconds * 1000);
-
-    if (t->wake_up == 0)
-        return 0;
-
-    ticks = (t->wake_up - timer_get_ticks()) / TIMER_TICKS_PER_SEC;
-
-    if (ticks < 0)
-        ticks = 0;
-
-    return ticks;
-}
-
 void scheduler_task_mark_dead(struct task *t)
 {
     t->state = TASK_DEAD;

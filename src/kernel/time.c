@@ -102,20 +102,3 @@ int sys_gettimeofday(struct user_buffer tv, struct user_buffer tz)
 
     return user_copy_from_kernel(tv, tmp);
 }
-
-int sys_usleep(useconds_t useconds)
-{
-    struct task *t = cpu_get_local()->current;
-
-    sleep_intr {
-        t->wake_up = timer_get_ticks() + (useconds / 1000) * (TIMER_TICKS_PER_SEC / 1000);
-
-        if (!has_pending_signal(t))
-            scheduler_task_yield();
-    }
-
-    if (has_pending_signal(t))
-        return -EINTR;
-
-    return 0;
-}
