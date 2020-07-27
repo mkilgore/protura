@@ -88,9 +88,8 @@ pid_t sys_wait(struct user_buffer ret);
     ({ \
         int ____ret = 0; \
         while (1) { \
-            int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
-            \
             wait_queue_register(queue, &cpu_get_local()->current->wait); \
+            \
             if (is_intr) \
                 scheduler_set_intr_sleeping(); \
             else \
@@ -99,6 +98,7 @@ pid_t sys_wait(struct user_buffer ret);
             if (condition) \
                 break; \
             \
+            int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
             if (sig_is_pending) { \
                 ____ret = -ERESTARTSYS; \
                 break; \

@@ -144,12 +144,12 @@ void scheduler_task_entry(void);
     ({ \
         int ret = 0; \
         while (1) { \
-            int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
-            \
             if (is_intr) \
                 scheduler_set_intr_sleeping(); \
             else \
                 scheduler_set_sleeping(); \
+            \
+            int sig_is_pending = is_intr? has_pending_signal(cpu_get_local()->current): 0; \
             \
             if (condition) \
                 break; \
