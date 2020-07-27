@@ -72,6 +72,12 @@ void timer_handle_timers(uint64_t tick)
     }
 }
 
+int timer_was_fired(struct ktimer *timer)
+{
+    using_spinlock(&timers_lock)
+        return !list_node_is_in_list(&timer->timer_entry);
+}
+
 int timer_add(struct ktimer *timer, uint64_t ms)
 {
     struct ktimer *t;

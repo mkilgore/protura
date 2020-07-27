@@ -36,11 +36,6 @@ static inline void ktimer_init(struct ktimer *timer)
     *timer = (struct ktimer)KTIMER_INIT(*timer);
 }
 
-static inline void ktimer_clear(struct ktimer *timer)
-{
-
-}
-
 void timer_handle_timers(uint64_t tick);
 int timer_add(struct ktimer *timer, uint64_t ms);
 
@@ -49,5 +44,8 @@ int timer_del(struct ktimer *timer);
 
 /* Ensure both the timer was removed *and* the timer is not currently running */
 void timer_cancel(struct ktimer *timer);
+
+/* Returns 1 if the timer has been fired (It may currently be running) */
+int timer_was_fired(struct ktimer *timer);
 
 #endif
