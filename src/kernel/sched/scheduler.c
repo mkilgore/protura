@@ -85,12 +85,6 @@ static inline void __yield(struct task *current)
     ktasks.lock.eflags = eflags;
 }
 
-static inline void __sleep(struct task *t)
-{
-    t->state = TASK_SLEEPING;
-    __yield(t);
-}
-
 void scheduler_task_yield(void)
 {
     struct task *t = cpu_get_local()->current;
@@ -109,16 +103,6 @@ void scheduler_task_yield_preempt(void)
     struct task *t = cpu_get_local()->current;
 
     flag_set(&t->flags, TASK_FLAG_PREEMPTED);
-    using_spinlock(&ktasks.lock)
-        __yield(t);
-}
-
-void scheduler_task_waitms(uint32_t mseconds)
-{
-    struct task *t = cpu_get_local()->current;
-    t->state = TASK_INTR_SLEEPING;
-    t->wake_up = timer_get_ticks() + mseconds * (TIMER_TICKS_PER_SEC / 1000);
-
     using_spinlock(&ktasks.lock)
         __yield(t);
 }
@@ -297,9 +281,6 @@ void scheduler(void)
             task_free(t);
         }
 
-
-        uint32_t ticks = timer_get_ticks();
-
         /* Select the first RUNNABLE task in the schedule list.
          *
          * We do a simple foreach over every task in the list to check them.
@@ -310,52 +291,21 @@ void scheduler(void)
          * If we didn't reach the end of the list, then we found a task to run.
          * We use 'list_new_last' to rotate the list such that the node after
          * our selected task is the new head of the task list. This way, we
-         * keep the same ordering and ensure that the next task we run is a
-         * task we haven't checked yet. */
+         * keep the same ordering of tasks, but also ensure that the next time
+         * we schedule a task, we'll start with the task right after the one we
+         * just scheduled. */
         list_foreach_entry(&ktasks.list, t, task_list_node) {
-            /* If a task was preempted, then we start it again, reguardless of
+            /* If a task was preempted, then we start it again, regardless of
              * it's current state. It's possible they aren't actually
              * TASK_RUNNING, which is why this check is needed. */
             if (flag_test(&t->flags, TASK_FLAG_PREEMPTED)) {
                 flag_clear(&t->flags, TASK_FLAG_PREEMPTED);
-                goto found_task;
-            }
-
-            switch (t->state) {
-            case TASK_RUNNING:
-                if (!flag_test(&t->flags, TASK_FLAG_RUNNING))
-                    goto found_task;
-                break;
-
-            case TASK_INTR_SLEEPING:
-            case TASK_SLEEPING:
-                if (t->wake_up <= ticks && t->wake_up > 0) {
-                    t->wake_up = 0;
-                    goto found_task;
-                }
-                break;
-
-            /* Stopped tasks are skipped */
-            case TASK_STOPPED:
-                break;
-
-            /* Dead tasks can be removed and freed - They should already be
-             * attached to ktasks.dead and not in this list.
-             *
-             * Zombie's on the other hand, are waiting to be reaped by their
-             * parent. */
-            case TASK_DEAD:
-            case TASK_ZOMBIE:
-                break;
-
-            /* TASK_NONE's should really not be in the scheduler list unless
-             * there was an error */
-            case TASK_NONE:
                 break;
             }
+
+            if (t->state == TASK_RUNNING)
+                break;
         }
-
-    found_task:
 
         if (list_ptr_is_head(&ktasks.list, &t->task_list_node)) {
             /* We execute this cpu's idle task if we didn't find a task to run */

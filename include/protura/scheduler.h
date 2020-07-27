@@ -84,7 +84,6 @@ static inline uint32_t scheduler_calculate_wakeup(uint32_t mseconds)
     return timer_get_ticks() + mseconds * (TIMER_TICKS_PER_SEC / 1000);
 }
 
-void scheduler_task_waitms(uint32_t mseconds);
 void scheduler(void);
 
 /* Entry point for all new tasks */

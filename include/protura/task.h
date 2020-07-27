@@ -67,8 +67,6 @@ struct task {
 
     int ret_code, ret_signal;
 
-    int wake_up; /* Tick number to wake-up on */
-
     list_node_t task_list_node;
 
     /* If this task is sleeping in a wait_queue, then this node is attached to
