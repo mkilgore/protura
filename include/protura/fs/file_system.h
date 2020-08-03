@@ -9,6 +9,7 @@
 #define INCLUDE_FS_FILE_SYSTEM_H
 
 #include <protura/types.h>
+#include <protura/bits.h>
 #include <protura/list.h>
 
 struct super_block;
