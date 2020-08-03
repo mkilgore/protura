@@ -56,7 +56,6 @@ struct super_block {
 
     flags_t flags;
 
-    dev_t dev;
     struct block_device *bdev;
     ino_t root_ino;
 
@@ -76,7 +75,6 @@ struct super_block {
     { \
         .count = 0, \
         .umount_lock = MUTEX_INIT((super_block).umount_lock), \
-        .dev = 0, \
         .bdev = NULL, \
         .list_entry = LIST_NODE_INIT((super_block).list_entry), \
         .inodes = LIST_HEAD_INIT((super_block).inodes), \

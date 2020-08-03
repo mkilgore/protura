@@ -536,10 +536,11 @@ int sys_pipe(struct user_buffer fds)
 
 void pipe_init(void)
 {
-    pipe_fake_super_block.dev = block_dev_anon_get();
-    pipe_fake_super_block.bdev = 0;
+    dev_t dev = block_dev_anon_get();
+
+    pipe_fake_super_block.bdev = block_dev_get(dev);
     pipe_fake_super_block.ops = &pipe_fake_super_block_ops;
 
-    kp(KP_NORMAL, "Pipe dev: %d\n", pipe_fake_super_block.dev);
+    kp(KP_NORMAL, "Pipe dev: %d\n", pipe_fake_super_block.bdev->dev);
 }
 

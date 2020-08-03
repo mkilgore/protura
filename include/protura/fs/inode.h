@@ -169,7 +169,7 @@ struct inode_ops {
     int (*follow_link) (struct inode *dir, struct inode *symlink, struct inode **result);
 };
 
-#define Pinode(i) (i)->sb->dev, (i)->ino
+#define Pinode(i) (i)->sb->bdev->dev, (i)->ino
 #define PRinode "%d:%d"
 
 #define inode_has_truncate(inode) ((inode)->ops && (inode)->ops->truncate)

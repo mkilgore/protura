@@ -80,7 +80,7 @@ static struct super_block *super_alloc(struct file_system *fs)
 static void super_unused_dealloc(struct super_block *sb)
 {
     if (!sb->bdev)
-        block_dev_anon_put(sb->dev);
+        block_dev_anon_put(sb->bdev->dev);
 
     if (sb->fs->super_dealloc)
         (sb->fs->super_dealloc) (sb);
@@ -149,10 +149,14 @@ static int vfs_mount_try_umount(struct vfs_mount *vfsmount)
 
     mutex_unlock(&sb->umount_lock);
 
-    if (sb->bdev)
-        block_dev_sync(sb->bdev, sb->dev, 1);
+    struct block_device *bdev = sb->bdev;
+
+    if (bdev)
+        block_dev_sync(bdev, 1);
 
     super_put(sb);
+    block_dev_put(bdev);
+
     inode_put(vfsmount->covered);
     wait_queue_wake(&umount_queue);
 
@@ -166,7 +170,8 @@ static struct super_block *super_get_nodev(struct file_system *fs)
 {
     struct super_block *sb = super_alloc(fs);
 
-    sb->dev = block_dev_anon_get();
+    dev_t dev = block_dev_anon_get();
+    sb->bdev = block_dev_get(dev);
     sb->count++;
     sb->fs = fs;
     return sb;
@@ -182,7 +187,7 @@ static struct super_block *super_get_or_create(dev_t device, struct file_system 
   again:
     spinlock_acquire(&super_lock);
     list_foreach_entry(&super_block_list, sb, list_entry) {
-        if (sb->dev == device) {
+        if (sb->bdev->dev == device) {
             sb->count++;
 
             spinlock_release(&super_lock);
@@ -209,7 +214,6 @@ static struct super_block *super_get_or_create(dev_t device, struct file_system 
         return NULL;
 
     tmp = super_alloc(fs);
-    tmp->dev = device;
     tmp->bdev = bdev;
     tmp->fs = fs;
     goto again;
@@ -412,6 +416,7 @@ int mount_root(dev_t device, const char *fsystem)
     if (!bdev) {
         panic("BLOCK DEVICE %d:%d does not exist!\n", DEV_MAJOR(device), DEV_MINOR(device));
     }
+    block_dev_put(bdev);
 
     int ret = vfs_mount(NULL, device, fsystem, NULL, "/");
     if (ret) {

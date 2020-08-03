@@ -392,8 +392,9 @@ int sys_socket(int afamily, int type, int protocol)
 
 void socket_subsystem_init(void)
 {
-    socket_fake_super_block.dev = block_dev_anon_get();
-    socket_fake_super_block.bdev = 0;
+    dev_t dev = block_dev_anon_get();
+
+    socket_fake_super_block.bdev = block_dev_get(dev);
     socket_fake_super_block.ops = &socket_fake_super_block_ops;
 }
 
