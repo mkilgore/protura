@@ -22,9 +22,10 @@
 #include <protura/utsname.h>
 #include <protura/klog.h>
 #include <protura/drivers/pci.h>
+#include <protura/block/disk.h>
 
 #include <arch/spinlock.h>
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
 #include <protura/fs/char.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/file.h>

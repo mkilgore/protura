@@ -16,7 +16,8 @@
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
 
-#include <protura/fs/block.h>
+#include <protura/block/bdev.h>
+#include <protura/block/bcache.h>
 #include <protura/fs/super.h>
 #include <protura/fs/file.h>
 #include <protura/fs/inode.h>

@@ -19,6 +19,7 @@
 #include <protura/fs/fs.h>
 #include <protura/fs/namei.h>
 #include <protura/fs/vfs.h>
+#include <protura/block/bdev.h>
 #include <protura/drivers/console.h>
 #include <protura/ktest.h>
 

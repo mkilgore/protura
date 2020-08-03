@@ -16,11 +16,13 @@
 #include <protura/atomic.h>
 #include <protura/dump_mem.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/mm/vm.h>
 #include <arch/task.h>
 #include <arch/paging.h>
 #include <arch/idt.h>
 
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
+#include <protura/block/bdev.h>
 #include <protura/fs/super.h>
 #include <protura/fs/file.h>
 #include <protura/fs/stat.h>

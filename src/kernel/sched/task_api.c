@@ -18,6 +18,7 @@
 #include <protura/fs/procfs.h>
 #include <protura/task_api.h>
 #include <protura/fs/file.h>
+#include <protura/block/bdev.h>
 
 #include <protura/task.h>
 #include <protura/scheduler.h>

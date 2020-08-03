@@ -11,7 +11,6 @@
 #include <protura/types.h>
 #include <protura/errors.h>
 
-#include <protura/fs/block.h>
 #include <protura/fs/file_system.h>
 #include <protura/fs/super.h>
 #include <protura/fs/inode.h>

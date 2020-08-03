@@ -14,7 +14,7 @@
 #include <protura/mm/kmalloc.h>
 
 #include <arch/spinlock.h>
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
 #include <protura/fs/char.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/file.h>

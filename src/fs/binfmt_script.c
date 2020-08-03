@@ -20,7 +20,7 @@
 #include <arch/paging.h>
 #include <arch/idt.h>
 
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
 #include <protura/fs/super.h>
 #include <protura/fs/file.h>
 #include <protura/fs/stat.h>

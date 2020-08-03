@@ -15,7 +15,7 @@
 #include <protura/mm/user_check.h>
 
 #include <arch/spinlock.h>
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
 #include <protura/fs/char.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/file.h>

@@ -153,7 +153,6 @@ extern uint8_t ext2_dir_type_to_dt[];
 
 #ifdef __KERNEL__
 
-#include <protura/fs/block.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/super.h>
 #include <protura/mutex.h>

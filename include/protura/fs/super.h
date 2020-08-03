@@ -9,8 +9,10 @@
 #define INCLUDE_FS_SUPER_H
 
 #include <protura/types.h>
+#include <protura/bits.h>
+#include <protura/mutex.h>
 #include <protura/errors.h>
-#include <protura/fs/block.h>
+#include <protura/block/bdev.h>
 #include <protura/fs/dirent.h>
 
 struct inode;

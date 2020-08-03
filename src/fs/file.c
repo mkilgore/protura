@@ -17,7 +17,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/user_check.h>
 
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
 #include <protura/fs/super.h>
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>

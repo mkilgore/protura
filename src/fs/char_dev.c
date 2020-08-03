@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/scheduler.h>
+#include <protura/dev.h>
 #include <protura/wait.h>
 
 #include <arch/spinlock.h>
