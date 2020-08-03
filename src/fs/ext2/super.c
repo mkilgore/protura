@@ -305,6 +305,10 @@ static int ext2_sb_read(struct super_block *super)
     int block_size;
     uint32_t ext2_magic;
 
+    int ret = block_dev_open(super->bdev, 0);
+    if (ret)
+        return ret;
+
     super->ops = &ext2_sb_ops;
 
     sb = container_of(super, struct ext2_super_block, sb);
@@ -330,7 +334,7 @@ static int ext2_sb_read(struct super_block *super)
         return -EINVAL;
     }
 
-    block_dev_set_block_size(super->dev, block_size);
+    block_dev_block_size_set(super->bdev, block_size);
     sb->block_size = block_size;
 
     switch (block_size) {
@@ -484,6 +488,8 @@ static int ext2_sb_write(struct super_block *sb)
 static int ext2_sb_put(struct super_block *sb)
 {
     ext2_sb_write(sb);
+    block_dev_close(sb->bdev);
+
     return 0;
 }
 
