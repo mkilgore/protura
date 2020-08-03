@@ -17,7 +17,6 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/vm_area.h>
 #include <protura/mm/kmmap.h>
-#include <protura/fs/block.h>
 #include <protura/fs/char.h>
 #include <protura/fs/file_system.h>
 #include <protura/fs/pipe.h>
@@ -27,6 +26,7 @@
 #include <protura/work.h>
 #include <protura/cmdline.h>
 #include <protura/klog.h>
+#include <protura/block/bcache.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/console.h>
@@ -71,11 +71,10 @@ struct sys_init arch_init_systems[] = {
     { "syscall", syscall_init },
     { "video", video_init },
     { "boot-fbcon", setup_bootloader_framebuffer },
-    { "block-cache", block_cache_init },
-    { "block-device", block_dev_init },
     { "char-device", char_dev_init },
     { "file-systems", file_systems_init },
     { "pipe", pipe_init },
+    { "bdflush", bdflush_init },
 #ifdef CONFIG_NET_SUPPORT
     { "net", net_init },
 #endif
