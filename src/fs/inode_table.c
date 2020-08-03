@@ -78,16 +78,17 @@ struct inode *inode_create(struct super_block *sb)
 
 static void inode_deallocate(struct inode *i)
 {
+    if (i->bdev)
+        block_dev_put(i->bdev);
+
     i->sb->ops->inode_dealloc(i->sb, i);
 }
 
-static void __inode_kill(struct inode *i)
+static void __inode_uncache(struct inode *i)
 {
     hlist_del(&i->hash_entry);
     list_del(&i->sb_entry);
     list_del(&i->sb_dirty_entry);
-
-    inode_deallocate(i);
 }
 
 static void __inode_wait_for_write(struct inode *inode)
@@ -147,7 +148,9 @@ static void inode_evict(struct inode *inode)
 
     /* All done here, get rid of it */
     using_spinlock(&inode_hashes_lock)
-        __inode_kill(inode);
+        __inode_uncache(inode);
+
+    inode_deallocate(inode);
 
     /* Notify anybody waiting for this inode to be free'd */
     wait_queue_wake(&inode_freeing_queue);
@@ -162,7 +165,9 @@ static void inode_finish(struct inode *inode)
     /* We're good here because nobody will take a reference while INO_FREEING
      * is set, so holding inode_hashes_lock means nobody else has access to the current inode */
     using_spinlock(&inode_hashes_lock)
-        __inode_kill(inode);
+        __inode_uncache(inode);
+
+    inode_deallocate(inode);
 
     /* If someone was looking to use this inode for some reason, they'll be
      * waiting on inode_freeing_queue - wake them up so they can recreate the
@@ -236,20 +241,24 @@ void inode_mark_valid(struct inode *new)
 
 void inode_mark_bad(struct inode *new)
 {
+    struct inode *drop = NULL;
+
     using_spinlock(&inode_hashes_lock) {
         spinlock_acquire(&new->flags_lock);
         /* Don't bother signalling INO_BAD if there are no other references */
         if (atomic_dec_and_test(&new->ref)) {
-            /* Drop lock before __inode_kill, since 'new' will be invalid
-             * afterward */
             spinlock_release(&new->flags_lock);
-            __inode_kill(new);
+            __inode_uncache(new);
+            drop = new;
         } else {
             flag_set(&new->flags, INO_BAD);
             wait_queue_wake(&new->flags_queue);
             spinlock_release(&new->flags_lock);
         }
     }
+
+    if (drop)
+        inode_deallocate(drop);
 }
 
 /* Waits for an inode to become either valid or bad.
@@ -262,7 +271,7 @@ static struct inode *inode_wait_for_valid_or_bad(struct inode *inode)
     using_spinlock(&inode->flags_lock)
         wait_queue_event_spinlock(&inode->flags_queue, inode->flags & F(INO_VALID, INO_BAD), &inode->flags_lock);
 
-    /* We need inode_hashes_lock to be able to __inode_kill */
+    /* We need inode_hashes_lock to be able to __inode_uncache */
     spinlock_acquire(&inode_hashes_lock);
     spinlock_acquire(&inode->flags_lock);
 
@@ -272,14 +281,16 @@ static struct inode *inode_wait_for_valid_or_bad(struct inode *inode)
         spinlock_release(&inode->flags_lock);
 
         if (drop)
-            __inode_kill(inode);
+            __inode_uncache(inode);
 
+        spinlock_release(&inode_hashes_lock);
+
+        inode_deallocate(inode);
         inode = NULL;
     } else {
         spinlock_release(&inode->flags_lock);
+        spinlock_release(&inode_hashes_lock);
     }
-
-    spinlock_release(&inode_hashes_lock);
 
     return inode;
 }
