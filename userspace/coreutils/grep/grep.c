@@ -94,7 +94,6 @@ int main(int argc, char **argv)
         case ARG_EXTRA:
             if (!pattern) {
                 pattern = argarg;
-                printf("Pattern: %s\n", pattern);
                 break;
             }
 
