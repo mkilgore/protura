@@ -10,19 +10,22 @@
 #include <protura/debug.h>
 #include <protura/dump_mem.h>
 #include <protura/string.h>
+#include <protura/snprintf.h>
 #include <protura/scheduler.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/palloc.h>
 #include <protura/wait.h>
+#include <protura/ida.h>
 
 #include <arch/spinlock.h>
 #include <arch/idt.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/asm.h>
-#include <protura/fs/block.h>
+#include <protura/block/disk.h>
+#include <protura/block/bcache.h>
+#include <protura/block/bdev.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
-#include <protura/fs/mbr_part.h>
 #include <protura/drivers/ata.h>
 #include "ata.h"
 
@@ -114,33 +117,21 @@ static void __ata_start_request(struct ata_drive *drive)
     }
 
     struct block *b = drive->current;
-
-
-    /* Convert from block sectors to ATA sectors */
     int sector_count = b->block_size / ATA_SECTOR_SIZE;
-    sector_t sector_start = b->sector * sector_count;
 
-    if (DEV_MINOR(b->dev)) {
-        int minor = DEV_MINOR(b->dev);
-        int part_no = minor - 1;
-
-        if (part_no < b->bdev->partition_count)
-            sector_start += b->bdev->partitions[part_no].start;
-    }
-
-    kp_ata("Request B: %d, sector: %d, count: %d, slave: %d\n", b->sector, sector_start, sector_count, is_slave);
+    kp_ata("Request B: %d, sector: %d, count: %d, slave: %d\n", b->sector, b->real_sector, sector_count, is_slave);
 
     drive->current_sector_offset = 0;
     drive->sectors_left = sector_count;
 
     outb(ata_reg(drive, ATA_PORT_SECTOR_CNT), sector_count);
-    outb(ata_reg(drive, ATA_PORT_LBA_LOW_8), sector_start & 0xFF);
-    outb(ata_reg(drive, ATA_PORT_LBA_MID_8), (sector_start >> 8) & 0xFF);
-    outb(ata_reg(drive, ATA_PORT_LBA_HIGH_8), (sector_start >> 16) & 0xFF);
+    outb(ata_reg(drive, ATA_PORT_LBA_LOW_8), b->real_sector & 0xFF);
+    outb(ata_reg(drive, ATA_PORT_LBA_MID_8), (b->real_sector >> 8) & 0xFF);
+    outb(ata_reg(drive, ATA_PORT_LBA_HIGH_8), (b->real_sector >> 16) & 0xFF);
 
     outb(ata_reg(drive, ATA_PORT_DRIVE_HEAD), ATA_DH_SHOULD_BE_SET
                                             | ATA_DH_LBA
-                                            | ((sector_start >> 24) & 0x0F)
+                                            | ((b->real_sector >> 24) & 0x0F)
                                             | (is_slave? ATA_DH_SLAVE: 0)
                                             );
 
@@ -229,23 +220,15 @@ static void ata_sync_block(struct ata_drive *drive, struct block *b, int master_
     }
 }
 
-void ata_sync_block_master(struct block_device *dev, struct block *b)
+static void ata_sync_block_master(struct disk *disk, struct block *b)
 {
-    return ata_sync_block(dev->priv, b, 0);
+    return ata_sync_block(disk->priv, b, 0);
 }
 
-void ata_sync_block_slave(struct block_device *dev, struct block *b)
+static void ata_sync_block_slave(struct disk *disk, struct block *b)
 {
-    return ata_sync_block(dev->priv, b, 1);
+    return ata_sync_block(disk->priv, b, 1);
 }
-
-struct block_device_ops ata_master_block_device_ops = {
-    .sync_block = ata_sync_block_master,
-};
-
-struct block_device_ops ata_slave_block_device_ops = {
-    .sync_block = ata_sync_block_slave,
-};
 
 static void ata_identity_fix_string(uint8_t *s, size_t len)
 {
@@ -292,8 +275,9 @@ static int ata_wait_for_status(struct ata_drive *drive, int status, uint32_t ms)
     return ret;
 }
 
-static void ata_identify(struct block_device *bdev, struct ata_drive *drive)
+static int ata_identify(struct ata_drive *drive, uint32_t *size)
 {
+    int ret = 0;
     struct page *page = palloc(0, PAL_KERNEL);
     outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_IDENTIFY);
 
@@ -301,12 +285,13 @@ static void ata_identify(struct block_device *bdev, struct ata_drive *drive)
 
     /* if we got zero back, the drive isn't present */
     if (status == 0)
-        return;
+        return 1;
 
     /* We wait for the drive to respond for one second maximum before giving up */
     status = ata_wait_for_status(drive, ATA_STATUS_READY, 1000);
     if (status & (ATA_STATUS_DRIVE_FAULT | ATA_STATUS_ERROR | ATA_STATUS_TIMEOUT) || !(status & ATA_STATUS_READY)) {
         kp(KP_NORMAL, "IDENTIFY command returned status: 0x%02x\n", status);
+        ret = 1;
         goto cleanup;
     }
 
@@ -317,38 +302,37 @@ static void ata_identify(struct block_device *bdev, struct ata_drive *drive)
 
     kp(KP_NORMAL, "IDENTIFY Model: %s, capacity: %dMB\n", id->model, id->lba_capacity * ATA_SECTOR_SIZE / 1024 / 1024);
 
-    flag_set(&bdev->flags, BLOCK_DEV_EXISTS);
-    bdev->device_size = id->lba_capacity * ATA_SECTOR_SIZE;
+    *size = id->lba_capacity;
 
   cleanup:
     pfree(page, 0);
+    return ret;
 }
 
-static void ata_identify_master(struct block_device *device, struct ata_drive *drive)
+static int ata_identify_master(struct ata_drive *drive)
 {
+    uint32_t capacity = 0;
     outb(ata_reg(drive, ATA_PORT_DRIVE_HEAD), ATA_DH_SHOULD_BE_SET);
-    ata_identify(device, drive);
+
+    int ret = ata_identify(drive, &capacity);
+    drive->master_sectors = capacity;
+
+    return ret;
 }
 
-static void ata_identify_slave(struct block_device *device, struct ata_drive *drive)
+static int ata_identify_slave(struct ata_drive *drive)
 {
+    uint32_t capacity = 0;
     outb(ata_reg(drive, ATA_PORT_DRIVE_HEAD), ATA_DH_SHOULD_BE_SET | ATA_DH_SLAVE);
-    ata_identify(device, drive);
+
+    int ret = ata_identify(drive, &capacity);
+    drive->slave_sectors = capacity;
+
+    return ret;
 }
 
-static int is_initialized;
-static void ata_drive_init(struct ata_drive *drive)
+static int ata_drive_init(struct ata_drive *drive)
 {
-    int i;
-    struct block_device *master, *slave;
-
-    /* FIXME: Hack, we only support one ATA device. The current structure can
-     * easily support more, but we need some block_device changes to tie multiple storage devices under the same major. */
-    if (is_initialized)
-        return;
-
-    is_initialized = 1;
-
     outb(drive->ctrl_io_base, ATA_CTL_RESET | ATA_CTL_STOP_INT);
 
     /* The reset take a few ms */
@@ -356,59 +340,122 @@ static void ata_drive_init(struct ata_drive *drive)
 
     outb(drive->ctrl_io_base, ATA_CTL_STOP_INT);
 
-    master = block_dev_get(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0));
-    slave = block_dev_get(DEV_MAKE(BLOCK_DEV_IDE_SLAVE, 0));
-
-    master->priv = drive;
-    slave->priv = drive;
-
     kp(KP_NORMAL, "Probing ATA device: 0x%04x, 0x%04x, %d\n", drive->io_base, drive->ctrl_io_base, drive->drive_irq);
-    ata_identify_master(master, drive);
-    ata_identify_slave(slave, drive);
+    drive->has_master = !ata_identify_master(drive);
+    drive->has_slave = !ata_identify_slave(drive);
+
+    kp(KP_NORMAL, "Master: %d, Slave: %d\n", drive->has_master, drive->has_slave);
+
+    /* If neither drives are present, skip this device */
+    if (!drive->has_master && !drive->has_slave)
+        return 1;
 
     /* We do a read status here to clear any pending interrupt before enabling them */
     ata_read_status(drive);
     outb(drive->ctrl_io_base, 0);
 
-    int err = irq_register_callback(drive->drive_irq, ata_handle_intr, "ATA", IRQ_INTERRUPT, drive, F(IRQF_SHARED));
-    if (err) {
-        kp(KP_WARNING, "ATA: Interrupt %d is already in use! Check log, drive cannot be used.\n", drive->drive_irq);
+    return 0;
+}
+
+/*
+ * Adjusts the max number of disks and partitions. There is 2^20 minors, so a
+ * shift of 8 gives 256 minors per disk (255 partitions), and a max of 4096
+ * disks
+ *
+ * In practice, we limit the max number of disks lower than that */
+#define ATA_MINOR_SHIFT 8
+#define ATA_MAX_DISKS 32
+
+static uint32_t ata_ids[ATA_MAX_DISKS / 32];
+static struct ida ata_ida = IDA_INIT(ata_ids, ATA_MAX_DISKS);
+
+static void ata_disk_put(struct disk *disk)
+{
+    struct ata_drive *drive = disk->priv;
+    int drop_drive = 0;
+
+    ida_putid(&ata_ida, disk->first_minor >> ATA_MINOR_SHIFT);
+
+    using_spinlock(&drive->lock) {
+        drive->refs--;
+        if (!drive->refs)
+            drop_drive = 1;
+    }
+
+    if (drop_drive)
+        kfree(drive);
+}
+
+static struct disk_ops ata_master_disk_ops = {
+    .sync_block = ata_sync_block_master,
+    .put = ata_disk_put,
+};
+
+static struct disk_ops ata_slave_disk_ops = {
+    .sync_block = ata_sync_block_slave,
+    .put = ata_disk_put,
+};
+
+static void make_disk(struct ata_drive *ata, const struct disk_ops *ops, uint32_t capacity)
+{
+    int index = ida_getid(&ata_ida);
+    if (index == -1) {
+        kp(KP_WARNING, "Found potential ATA disk at 0x%04x, but there are no free device numbers!\n", ata->io_base);
         return;
     }
 
-    if (flag_test(&master->flags, BLOCK_DEV_EXISTS)) {
-        block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_MASTER, 0), ATA_SECTOR_SIZE);
-        int master_partition_count = mbr_add_partitions(master);
+    struct disk *disk = disk_alloc();
 
-        kp(KP_NORMAL, "Master partition count: %d\n", master_partition_count);
+    snprintf(disk->name, sizeof(disk->name), "hd%c", 'a' + index);
 
-        for (i = 0; i < master_partition_count; i++)
-            master->partitions[i].block_size = ATA_SECTOR_SIZE;
-    }
+    disk->ops = ops;
 
-    if (flag_test(&slave->flags, BLOCK_DEV_EXISTS)) {
-        block_dev_set_block_size(DEV_MAKE(BLOCK_DEV_IDE_SLAVE, 0), ATA_SECTOR_SIZE);
-        int slave_partition_count = mbr_add_partitions(slave);
+    disk->major = BLOCK_DEV_ATA;
+    disk->first_minor = index << ATA_MINOR_SHIFT;
+    disk->minor_count = 1 << ATA_MINOR_SHIFT;
 
-        kp(KP_NORMAL, "Slave partition count: %d\n", slave_partition_count);
+    disk->min_block_size_shift = log2(ATA_SECTOR_SIZE);
 
-        for (i = 0; i < slave_partition_count; i++)
-            slave->partitions[i].block_size = ATA_SECTOR_SIZE;
-    }
+    using_spinlock(&ata->lock)
+        ata->refs++;
 
-    if (!flag_test(&master->flags, BLOCK_DEV_EXISTS) && !flag_test(&slave->flags, BLOCK_DEV_EXISTS))
-        kp(KP_NORMAL, "No ATA drives detected.\n");
+    disk->priv = ata;
+
+    disk_capacity_set(disk, capacity);
+
+    disk_register(disk);
 }
 
-/* FIXME: We only support one right now because there is only one ATA block device */
-static struct ata_drive static_drive = {
-    .lock = SPINLOCK_INIT(),
-    .block_queue_master = LIST_HEAD_INIT(static_drive.block_queue_master),
-    .block_queue_slave = LIST_HEAD_INIT(static_drive.block_queue_slave),
-    .io_base = 0x1F0,
-    .ctrl_io_base = 0x3F6,
-    .drive_irq = 14,
-};
+static void ata_create_disk(io_t io_base, io_t ctrl_io_base, int int_line)
+{
+    struct ata_drive *ata = kzalloc(sizeof(*ata), PAL_KERNEL);
+    spinlock_init(&ata->lock);
+    list_head_init(&ata->block_queue_master);
+    list_head_init(&ata->block_queue_slave);
+
+    ata->io_base = io_base;
+    ata->ctrl_io_base = ctrl_io_base;
+    ata->drive_irq = int_line;
+
+    int ret = ata_drive_init(ata);
+    if (ret) {
+        kfree(ata);
+        return;
+    }
+
+    int err = irq_register_callback(ata->drive_irq, ata_handle_intr, "ATA", IRQ_INTERRUPT, ata, F(IRQF_SHARED));
+    if (err) {
+        kp(KP_WARNING, "ATA: Interrupt %d is already in use! Check log, drive cannot be used.\n", ata->drive_irq);
+        kfree(ata);
+        return;
+    }
+
+    if (ata->has_master)
+        make_disk(ata, &ata_master_disk_ops, ata->master_sectors);
+
+    if (ata->has_slave)
+        make_disk(ata, &ata_slave_disk_ops, ata->slave_sectors);
+}
 
 void ata_pci_init(struct pci_dev *dev)
 {
@@ -417,16 +464,30 @@ void ata_pci_init(struct pci_dev *dev)
     io_t ctrl_io_base = pci_config_read_uint32(dev, PCI_REG_BAR(1)) & 0xFFF0;
     int int_line = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
 
-    if (io_base && io_base != 1)
-        static_drive.io_base = io_base;
+    if (!io_base || io_base == 1)
+        io_base = 0x1F0;
 
-    if (ctrl_io_base && ctrl_io_base != 1)
-        static_drive.ctrl_io_base = ctrl_io_base;
+    if (!ctrl_io_base || ctrl_io_base == 1)
+        ctrl_io_base = 0x3F6;
 
-    if (pci_has_interrupt_line(dev) && int_line)
-        static_drive.drive_irq = int_line;
+    if (!pci_has_interrupt_line(dev) || !int_line)
+        int_line = 14;
 
-    kp(KP_NORMAL, "PCI IDE device, IO Base: 0x%04x, IO Ctrl: 0x%04x, INT: %d\n", static_drive.io_base, static_drive.ctrl_io_base, static_drive.drive_irq);
+    kp(KP_NORMAL, "PCI IDE device, IO Base: 0x%04x, IO Ctrl: 0x%04x, INT: %d\n", io_base, ctrl_io_base, int_line);
+    ata_create_disk(io_base, ctrl_io_base, int_line);
 
-    ata_drive_init(&static_drive);
+    io_base = pci_config_read_uint32(dev, PCI_REG_BAR(2)) & 0xFFF0;
+    ctrl_io_base = pci_config_read_uint32(dev, PCI_REG_BAR(3)) & 0xFFF0;
+
+    if (!io_base || io_base == 1)
+        io_base = 0x170;
+
+    if (!ctrl_io_base || ctrl_io_base == 1)
+        ctrl_io_base = 0x376;
+
+    if (!pci_has_interrupt_line(dev) || int_line == 14)
+        int_line = 15;
+
+    kp(KP_NORMAL, "PCI IDE device, IO Base: 0x%04x, IO Ctrl: 0x%04x, INT: %d\n", io_base, ctrl_io_base, int_line);
+    ata_create_disk(io_base, ctrl_io_base, int_line);
 }

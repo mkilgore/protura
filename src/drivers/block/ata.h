@@ -3,7 +3,7 @@
 
 #include <protura/types.h>
 #include <protura/list.h>
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
 #include <arch/spinlock.h>
 #include <protura/drivers/pci.h>
 
@@ -117,6 +117,14 @@ struct ata_drive {
     io_t io_base;
     io_t ctrl_io_base;
     int drive_irq;
+
+    uint8_t has_master :1;
+    uint8_t has_slave  :1;
+
+    uint32_t master_sectors;
+    uint32_t slave_sectors;
+
+    int refs;
 };
 
 #endif
