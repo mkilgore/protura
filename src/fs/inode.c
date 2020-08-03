@@ -46,12 +46,12 @@ static int check_ents_in_block(struct block *b, int ents, const char *name, size
 int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct inode **result)
 {
     struct block *b;
-    dev_t dev = dir->sb->dev;
+    struct block_device *bdev = dir->sb->bdev;
     int sectors, i, ents;
-    size_t sector_size = block_dev_get_block_size(dev);
+    size_t sector_size = block_dev_block_size_get(bdev);
     int dents_in_block = sector_size / sizeof(struct dirent);
 
-    kp(KP_NORMAL, "inode lookup: Dev: %d:%d, block_size: %d\n", DEV_MAJOR(dev), DEV_MINOR(dev), sector_size);
+    kp(KP_NORMAL, "inode lookup: Dev: %d:%d, block_size: %d\n", DEV_MAJOR(bdev->dev), DEV_MINOR(bdev->dev), sector_size);
 
     int found_entry = 0;
     struct dirent found;
@@ -71,7 +71,7 @@ int inode_lookup_generic(struct inode *dir, const char *name, size_t len, struct
 
             s = vfs_bmap(dir, i);
 
-            using_block_locked(dev, s, b)
+            using_block_locked(bdev, s, b)
                 found_entry = check_ents_in_block(b, ents_to_check, name, len, &found);
         }
     }

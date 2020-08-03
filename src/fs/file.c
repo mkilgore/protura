@@ -29,7 +29,7 @@ int fs_file_generic_pread(struct file *filp, struct user_buffer buf, size_t size
 {
     off_t len;
     off_t have_read = 0;
-    dev_t dev = filp->inode->sb->dev;
+    struct block_device *bdev = filp->inode->sb->bdev;
 
     if (!file_is_readable(filp))
         return -EBADF;
@@ -48,7 +48,7 @@ int fs_file_generic_pread(struct file *filp, struct user_buffer buf, size_t size
         len = filp->inode->size - off;
 
     /* Access the block device for this file, and get it's block size */
-    off_t block_size = block_dev_get_block_size(dev);
+    off_t block_size = block_dev_block_size_get(bdev);
     sector_t sec = off / block_size;
     off_t sec_off = off - sec * block_size;
 
@@ -67,7 +67,7 @@ int fs_file_generic_pread(struct file *filp, struct user_buffer buf, size_t size
              * every position to save space. */
             if (on_dev != SECTOR_INVALID) {
                 int err;
-                using_block_locked(dev, on_dev, b)
+                using_block_locked(bdev, on_dev, b)
                     err = user_memcpy_from_kernel(user_buffer_index(buf, have_read), b->data + sec_off, left);
 
                 if (err)
@@ -106,7 +106,7 @@ int fs_file_generic_write(struct file *filp, struct user_buffer buf, size_t size
     int ret = 0;
     off_t len;
     off_t have_written = 0;
-    dev_t dev = filp->inode->sb->dev;
+    struct block_device *bdev = filp->inode->sb->bdev;
 
     if (!file_is_writable(filp))
         return -EBADF;
@@ -129,7 +129,7 @@ int fs_file_generic_write(struct file *filp, struct user_buffer buf, size_t size
             return ret;
     }
 
-    off_t block_size = block_dev_get_block_size(dev);
+    off_t block_size = block_dev_block_size_get(bdev);
     sector_t sec = filp->offset / block_size;
     off_t sec_off = filp->offset - sec * block_size;
 
@@ -150,7 +150,7 @@ int fs_file_generic_write(struct file *filp, struct user_buffer buf, size_t size
 
             int err;
 
-            using_block_locked(dev, on_dev, b) {
+            using_block_locked(bdev, on_dev, b) {
                 err = user_memcpy_to_kernel(b->data + sec_off, user_buffer_index(buf, have_written), left);
                 block_mark_dirty(b);
             }

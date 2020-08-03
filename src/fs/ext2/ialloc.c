@@ -41,7 +41,7 @@ static ino_t __ext2_check_block_group(struct ext2_super_block *sb, int group_no)
     if (group_no == 0)
         inode_start = sb->disksb.first_inode;
 
-    using_block_locked(sb->sb.dev, group->block_nr_inode_bitmap, b) {
+    using_block_locked(sb->sb.bdev, group->block_nr_inode_bitmap, b) {
         loc = bit_find_next_zero(b->data, sb->block_size, inode_start);
 
         ino = loc + group_no * sb->block_size * CHAR_BIT + 1;
@@ -64,7 +64,7 @@ static void __ext2_unset_inode_number(struct ext2_super_block *sb, ino_t ino)
     int inode_group = (ino - 1) / sb->disksb.inodes_per_block_group;
     int inode_entry = (ino - 1) % sb->disksb.inodes_per_block_group;
 
-    using_block_locked(sb->sb.dev, sb->groups[inode_group].block_nr_inode_bitmap, b) {
+    using_block_locked(sb->sb.bdev, sb->groups[inode_group].block_nr_inode_bitmap, b) {
         if (bit_test(b->data, inode_entry) == 0)
             kp_ext2(sb, "EXT2 (%p): Error, attempted to unset inode with ino(%d) not currently used!\n", sb, ino);
 

@@ -53,7 +53,7 @@ static int ext2_follow_link(struct inode *dir, struct inode *symlink, struct ino
         if (s == SECTOR_INVALID)
             return -EINVAL;
 
-        b = block_getlock(ext2_symlink->i.sb->dev, s);
+        b = block_getlock(ext2_symlink->i.sb->bdev, s);
         if (!b)
             return -EINVAL;
 
@@ -89,7 +89,7 @@ static int ext2_readlink(struct inode *symlink, char *buf, size_t buf_len)
         if (s == SECTOR_INVALID)
             return -EINVAL;
 
-        b = block_getlock(ext2_symlink->i.sb->dev, s);
+        b = block_getlock(ext2_symlink->i.sb->bdev, s);
         if (!b)
             return -EINVAL;
 
