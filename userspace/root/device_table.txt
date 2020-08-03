@@ -11,9 +11,11 @@
 
 /dev/qemudbg c 8 0
 
-/dev/hda b 1 0
-/dev/hda1 b 1 1
-/dev/hdb b 2 0
+/dev/hda b 4 0
+/dev/hda1 b 4 1
+/dev/hdb b 4 256
+/dev/hdc b 4 512
+/dev/hdd b 4 768
 
 /dev/zero c 6 0
 /dev/full c 6 1
