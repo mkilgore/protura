@@ -37,7 +37,7 @@ struct task_api_info {
     unsigned int is_kernel :1;
     unsigned int has_tty :1;
 
-    __kudev_t tty_devno;
+    __kdev_t tty_devno;
     char name[128];
 };
 
@@ -61,7 +61,7 @@ struct task_api_mem_info {
 };
 
 struct task_api_file {
-    __kudev_t dev;
+    __kdev_t dev;
     __kino_t inode;
     __kmode_t mode;
     __koff_t offset;

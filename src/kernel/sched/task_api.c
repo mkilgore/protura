@@ -48,7 +48,7 @@ static void __fill_task_api_info(struct task_api_info *tinfo, struct task *task)
 
     if (task->tty) {
         tinfo->has_tty = 1;
-        tinfo->tty_devno = DEV_TO_USERSPACE(task->tty->device_no);
+        tinfo->tty_devno = task->tty->device_no;
     }
 
     switch (task->state) {
@@ -193,7 +193,7 @@ static int task_api_fill_file_info(struct task_api_file_info *info)
             info->files[i].is_append = 1;
 
         info->files[i].inode = filp->inode->ino;
-        info->files[i].dev = DEV_TO_USERSPACE(filp->inode->sb->dev);
+        info->files[i].dev = filp->inode->sb->bdev->dev;
         info->files[i].mode = filp->inode->mode;
         info->files[i].offset = filp->offset;
         info->files[i].size = filp->inode->size;

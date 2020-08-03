@@ -16,7 +16,6 @@ typedef __kint32_t __kpid_t;
 typedef __kuint32_t __kmode_t;
 
 typedef __kuint32_t __kdev_t;
-typedef __kuint16_t __kudev_t; /* Userspace dev_t */
 typedef __kuint32_t __ksector_t;
 
 typedef __kuint32_t __kino_t;

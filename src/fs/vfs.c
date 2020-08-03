@@ -306,12 +306,12 @@ int vfs_chdir(const char *path)
 
 int vfs_stat(struct inode *inode, struct stat *buf)
 {
-    buf->st_dev = DEV_TO_USERSPACE(inode->sb->dev);
+    buf->st_dev = inode->sb->bdev->dev;
     buf->st_ino = inode->ino;
     buf->st_mode = inode->mode;
     buf->st_nlink = atomic32_get(&inode->nlinks);
     buf->st_size = inode->size;
-    buf->st_rdev = DEV_TO_USERSPACE(inode->dev_no);
+    buf->st_rdev = inode->dev_no;
 
     buf->st_uid = inode->uid;
     buf->st_gid = inode->gid;

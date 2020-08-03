@@ -441,7 +441,7 @@ int sys_mknod(struct user_buffer node, mode_t mode, dev_t dev)
         goto cleanup_namei;
     }
 
-    ret = vfs_mknod(name.parent, name.name_start, name.name_len, mode, DEV_FROM_USERSPACE(dev));
+    ret = vfs_mknod(name.parent, name.name_start, name.name_len, mode, dev);
 
   cleanup_namei:
     if (name.parent)
