@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Matt Kilgore
+ * Copyright (C) 2020 Matt Kilgore
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License v2 as published by the
@@ -15,8 +15,9 @@
 #include <protura/wait.h>
 
 #include <arch/spinlock.h>
-#include <protura/fs/block.h>
-#include "ata.h"
+#include <protura/block/bdev.h>
+#include <protura/block/disk.h>
+#include <protura/block/bcache.h>
 
 struct mbr_part {
     uint8_t attributes;
@@ -36,23 +37,12 @@ struct mbr_part {
     uint32_t lba_length;
 } __packed;
 
-void make_part(struct mbr_part *mbr, struct partition *part)
-{
-    partition_init(part);
-    part->start = mbr->lba_start;
-    part->device_size = mbr->lba_length * ATA_SECTOR_SIZE;
-
-    kp(KP_NORMAL, "  PART Start: %d, Length: %d\n", part->start, part->device_size);
-}
-
-int mbr_add_partitions(struct block_device *device)
+static int mbr_add_partitions(struct block_device *device)
 {
     struct block *b;
     struct page *block_dup;
     size_t i;
-    int partition_count = 0;
-    int count = 0;
-    dev_t raw = DEV_MAKE(device->major, 0);
+    struct disk *disk = device->disk;
 
     const int mbr_part_offsets[] = {
         0x1BE,
@@ -63,32 +53,28 @@ int mbr_add_partitions(struct block_device *device)
 
     block_dup = palloc(0, PAL_KERNEL);
 
-    using_block_locked(raw, 0, b)
+    using_block_locked(device, 0, b)
         memcpy(block_dup->virt, b->data, b->block_size);
 
     for (i = 0; i < ARRAY_SIZE(mbr_part_offsets); i++) {
         struct mbr_part *p = (struct mbr_part *)(block_dup->virt + mbr_part_offsets[i]);
-        if (p->lba_length)
-            partition_count++;
-    }
-
-    if (!partition_count)
-        goto cleanup;
-
-    device->partitions = kmalloc(partition_count * sizeof(*device->partitions), PAL_KERNEL);
-    device->partition_count = partition_count;
-
-    kp(KP_NORMAL, "Partitions for device: %d: \n", device->major);
-    for (i = 0; i < ARRAY_SIZE(mbr_part_offsets); i++) {
-        struct mbr_part *p = (struct mbr_part *)(block_dup->virt + mbr_part_offsets[i]);
 
         if (p->lba_length) {
-            make_part(p, device->partitions + count);
-            count++;
+            struct disk_part *part = disk_part_alloc();
+
+            part->first_sector = p->lba_start;
+            part->sector_count = p->lba_length;
+
+            kp(KP_NORMAL, "Partition for device %d:%d: start: %d, len: %d\n", DEV_MAJOR(device->dev), DEV_MINOR(device->dev), part->first_sector, part->sector_count);
+            disk_part_add(disk, part);
         }
     }
 
-  cleanup:
     pfree(block_dup, 0);
-    return partition_count;
+    return 0;
+}
+
+int block_dev_repartition(struct block_device *bdev)
+{
+    return mbr_add_partitions(bdev);
 }

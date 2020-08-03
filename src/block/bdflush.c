@@ -11,7 +11,7 @@
 #include <protura/string.h>
 #include <protura/scheduler.h>
 #include <protura/mm/kmalloc.h>
-#include <protura/fs/block.h>
+#include <protura/block/bcache.h>
 #include <protura/fs/sys.h>
 
 static struct task *bdflushd_thread;
@@ -25,7 +25,7 @@ static __noreturn int bdflushd_loop(void *ptr)
     }
 }
 
-void block_cache_init(void)
+void bdflush_init(void)
 {
     bdflushd_thread = task_kernel_new("bdflushd", bdflushd_loop, NULL);
     scheduler_task_add(bdflushd_thread);

@@ -17,7 +17,9 @@
 #include <arch/spinlock.h>
 #include <arch/task.h>
 #include <arch/cpu.h>
-#include <protura/fs/block.h>
+#include <protura/block/disk.h>
+#include <protura/block/bdev.h>
+#include <protura/block/bcache.h>
 
 #define BLOCK_HASH_TABLE_SIZE CONFIG_BLOCK_HASH_TABLE_SIZE
 
@@ -57,7 +59,7 @@ static void __block_uncache(struct block *b)
 
 static void __block_cache(struct block *b)
 {
-    int hash = block_hash(b->dev, b->sector);
+    int hash = block_hash(b->bdev->dev, b->sector);
     hlist_add(block_cache.cache + hash, &b->cache);
     block_cache.cache_count++;
 
@@ -147,7 +149,7 @@ static struct block *__find_block(dev_t device, sector_t sector)
     int hash = block_hash(device, sector);
 
     hlist_foreach_entry(block_cache.cache + hash, b, cache)
-        if (b->dev == device && b->sector == sector)
+        if (b->bdev->dev == device && b->sector == sector)
             return b;
 
     return NULL;
@@ -156,13 +158,13 @@ static struct block *__find_block(dev_t device, sector_t sector)
 /* This function returns the `struct block *` for the given device and sector,
  * but does not sync it, so it may be completely fresh and not actually read
  * off the disk. */
-static struct block *block_get_nosync(dev_t device, struct block_device *bdev, size_t block_size, sector_t sector)
+static struct block *block_get_nosync(struct block_device *bdev, size_t block_size, sector_t sector)
 {
     struct block *b = NULL, *new = NULL;
 
     spinlock_acquire(&block_cache.lock);
 
-    b = __find_block(device, sector);
+    b = __find_block(bdev->dev, sector);
     if (b)
         goto inc_and_return;
 
@@ -183,7 +185,6 @@ static struct block *block_get_nosync(dev_t device, struct block_device *bdev, s
         new->data = palloc_va(0, PAL_KERNEL);
 
     new->sector = sector;
-    new->dev = device;
     new->bdev = bdev;
 
     spinlock_acquire(&block_cache.lock);
@@ -193,7 +194,7 @@ static struct block *block_get_nosync(dev_t device, struct block_device *bdev, s
      * the block we just made might already be in the hash list.  In that
      * situation we simply delete the one we just made and return the existing
      * one. */
-    b = __find_block(device, sector);
+    b = __find_block(bdev->dev, sector);
 
     if (b) {
         block_delete(new);
@@ -216,15 +217,14 @@ static struct block *block_get_nosync(dev_t device, struct block_device *bdev, s
     return b;
 }
 
-struct block *block_get(dev_t device, sector_t sector)
+struct block *block_get(struct block_device *dev, sector_t sector)
 {
     struct block *b;
-    struct block_device *dev = block_dev_get(device);
 
     if (!dev)
         return NULL;
 
-    b = block_get_nosync(device, dev, block_dev_get_block_size(device), sector);
+    b = block_get_nosync(dev, block_dev_block_size_get(dev), sector);
     if (!b)
         return NULL;
 
@@ -266,25 +266,24 @@ void block_put(struct block *b)
  */
 static mutex_t sync_lock = MUTEX_INIT(sync_lock);
 
-void block_dev_clear(dev_t dev)
+void block_dev_clear(struct block_device *bdev)
 {
-    struct block_device *bdev = block_dev_get(dev);
     struct block *b;
 
-    block_dev_sync(bdev, dev, 1);
+    block_dev_sync(bdev, 1);
 
     using_spinlock(&block_cache.lock) {
         list_foreach_take_entry(&bdev->blocks, b, bdev_blocks_entry) {
-            if (dev != DEV_NONE && b->dev != dev)
+            if (b->bdev != bdev)
                 continue;
 
             if (block_try_lock(b) != SUCCESS || atomic_get(&b->refs) != 0) {
-                kp(KP_WARNING, "BLOCK: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->dev, b->sector);
+                kp(KP_WARNING, "BLOCK: Reference to Block %d:%d held when block_dev_clear was called!!!!\n", b->bdev->dev, b->sector);
                 continue;
             }
 
             if (flag_test(&b->flags, BLOCK_DIRTY)) {
-                kp(KP_WARNING, "BLOCK: Block %d:%d was still dirty when block_dev_clear was called!!!!\n", b->dev, b->sector);
+                kp(KP_WARNING, "BLOCK: Block %d:%d was still dirty when block_dev_clear was called!!!!\n", b->bdev->dev, b->sector);
                 continue;
             }
 
@@ -294,7 +293,7 @@ void block_dev_clear(dev_t dev)
     }
 }
 
-void block_dev_sync(struct block_device *bdev, dev_t dev, int wait)
+void block_dev_sync(struct block_device *bdev, int wait)
 {
     list_head_t sync_list = LIST_HEAD_INIT(sync_list);
     struct block *b, *next;
@@ -302,7 +301,7 @@ void block_dev_sync(struct block_device *bdev, dev_t dev, int wait)
     using_mutex(&sync_lock) {
         using_spinlock(&block_cache.lock) {
             list_foreach_entry(&bdev->blocks, b, bdev_blocks_entry) {
-                if (dev != DEV_NONE && b->dev != dev)
+                if (b->bdev != bdev)
                     continue;
 
                 using_spinlock(&b->flags_lock) {

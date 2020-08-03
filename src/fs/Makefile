@@ -1,8 +1,5 @@
 
 objs-y += inode.o
-objs-y += block.o
-objs-y += block_dev.o
-objs-y += bdflush.o
 objs-y += char_dev.o
 objs-y += file_system.o
 objs-y += inode_table.o

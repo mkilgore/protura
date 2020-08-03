@@ -1,24 +1,15 @@
-/*
- * Copyright (C) 2015 Matt Kilgore
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License v2 as published by the
- * Free Software Foundation.
- */
-#ifndef INCLUDE_FS_BLOCK_H
-#define INCLUDE_FS_BLOCK_H
+#ifndef INCLUDE_PROTURA_BLOCK_BCACHE_H
+#define INCLUDE_PROTURA_BLOCK_BCACHE_H
 
 #include <protura/types.h>
 #include <protura/stddef.h>
-#include <protura/debug.h>
-#include <protura/scheduler.h>
 #include <protura/wait.h>
 #include <protura/list.h>
 #include <protura/hlist.h>
+#include <protura/scheduler.h>
 #include <protura/mutex.h>
 #include <protura/atomic.h>
 #include <protura/dev.h>
-#include <protura/crc.h>
 
 struct block_device;
 
@@ -70,9 +61,11 @@ struct block {
     /* 'block_size' is the size of the data for this block. */
     size_t block_size;
 
-    /* Location of the first block on the device, and the actual device it represents. */
+    /* Location of this block on the block device */
     sector_t sector;
-    dev_t dev;
+
+    /* Location of this block with any partition information taken into account */
+    sector_t real_sector;
 
     struct block_device *bdev;
     list_node_t bdev_blocks_entry;
@@ -142,7 +135,7 @@ static inline void block_unlock(struct block *b)
     }
 }
 
-struct block *block_get(dev_t, sector_t);
+struct block *block_get(struct block_device *bdev, sector_t);
 void block_put(struct block *);
 void block_wait_for_sync(struct block *);
 
@@ -152,9 +145,9 @@ static inline struct block *block_dup(struct block *b)
     return b;
 }
 
-static inline struct block *block_getlock(dev_t dev, sector_t sec)
+static inline struct block *block_getlock(struct block_device *bdev, sector_t sec)
 {
-    struct block *b = block_get(dev, sec);
+    struct block *b = block_get(bdev, sec);
     block_lock(b);
     return b;
 }
@@ -165,87 +158,12 @@ static inline void block_unlockput(struct block *b)
     block_put(b);
 }
 
-#define using_block(dev, sector, block) \
-    using_nocheck(((block) = block_get(dev, sector)), (block_put(block)))
+#define using_block(bdev, sector, block) \
+    using_nocheck(((block) = block_get(bdev, sector)), (block_put(block)))
 
-#define using_block_locked(dev, sector, block) \
-    using_nocheck(((block) = block_getlock(dev, sector)), (block_unlockput(block)))
+#define using_block_locked(bdev, sector, block) \
+    using_nocheck(((block) = block_getlock(bdev, sector)), (block_unlockput(block)))
 
-void block_cache_init(void);
-
-struct file_ops;
-
-struct partition {
-    list_node_t part_entry;
-    sector_t start;
-    size_t block_size;
-    size_t device_size;
-};
-
-static inline void partition_init(struct partition *part)
-{
-    *part = (struct partition){ .part_entry = LIST_NODE_INIT((*part).part_entry) };
-}
-
-struct block_device_ops {
-    void (*sync_block) (struct block_device *, struct block *b);
-};
-
-enum block_device_flags{
-    BLOCK_DEV_EXISTS,
-};
-
-struct block_device {
-    const char *name;
-    int major;
-    flags_t flags;
-
-    list_head_t blocks;
-
-    size_t block_size;
-    size_t device_size;
-
-    struct partition *partitions;
-    int partition_count;
-
-    void *priv;
-
-    struct block_device_ops *ops;
-    struct file_ops *fops;
-};
-
-extern struct file_ops block_dev_file_ops_generic;
-
-int block_dev_file_open_generic(struct inode *dev, struct file *filp);
-int block_dev_file_close_generic(struct file *);
-
-enum {
-    BLOCK_DEV_NONE = 0,
-    BLOCK_DEV_IDE_MASTER = 1,
-    BLOCK_DEV_IDE_SLAVE = 2,
-    BLOCK_DEV_ANON = 3,
-};
-
-void block_dev_init(void);
-
-struct block_device *block_dev_get(dev_t device);
-
-int block_dev_set_block_size(dev_t device, size_t size);
-size_t block_dev_get_block_size(dev_t device);
-size_t block_dev_get_device_size(dev_t device);
-
-void block_dev_clear(dev_t dev);
-void block_dev_sync(struct block_device *, dev_t, int wait);
-void block_sync_all(int wait);
-
-static inline void block_submit(struct block *b)
-{
-    kassert(flag_test(&b->flags, BLOCK_LOCKED), "block_submit() called with an unlocked block!");
-
-    (b->bdev->ops->sync_block) (b->bdev, b);
-}
-
-dev_t block_dev_anon_get(void);
-void block_dev_anon_put(dev_t);
+void bdflush_init(void);
 
 #endif
