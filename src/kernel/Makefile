@@ -14,6 +14,7 @@ objs-y += kbuf.o
 objs-y += klog.o
 objs-y += reboot.o
 objs-y += ksym.o
+objs-y += ida.o
 
 subdir-y += str
 subdir-y += sched
