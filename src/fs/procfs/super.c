@@ -133,6 +133,7 @@ void procfs_init(void)
     procfs_register_entry(&procfs_root, "binfmts", &binfmt_file_ops);
     procfs_register_entry(&procfs_root, "klog", &klog_file_ops);
     procfs_register_entry(&procfs_root, "pci_devices", &pci_file_ops);
+    procfs_register_entry(&procfs_root, "disks", &disk_file_ops);
 
     procfs_register_entry_ops(&procfs_root, "uptime", &uptime_ops);
     procfs_register_entry_ops(&procfs_root, "boottime", &boot_time_ops);
