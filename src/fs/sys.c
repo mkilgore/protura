@@ -404,7 +404,19 @@ int sys_mknod(struct user_buffer node, mode_t mode, dev_t dev)
     struct nameidata name;
     int ret;
 
+    mode_t format = mode & S_IFMT;
+
+    if (!format)
+        format = S_IFREG;
+
+    if (format == S_IFDIR)
+        return -EPERM;
+
+    if (format != S_IFREG && format != S_IFCHR && format != S_IFBLK && format != S_IFIFO)
+        return -EINVAL;
+
     mode = (mode & 0777) & ~current->umask;
+    mode |= format;
 
     __cleanup_user_string char *tmp_file = NULL;
     ret = user_alloc_string(node, &tmp_file);
