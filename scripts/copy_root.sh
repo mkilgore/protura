@@ -17,6 +17,10 @@ KERNEL_BINS=$2
 EXTRA_ROOT_DIR=$3
 NEW_ROOT=$4
 
+MKILGORE_ID=1000
+EXUSER_ID=1001
+DISK_GROUP=900
+
 cp -R $OLD_ROOT/* $NEW_ROOT/
 
 mkdir $NEW_ROOT/mnt
@@ -35,8 +39,8 @@ chmod 760 -R $NEW_ROOT/root
 chmod +s $NEW_ROOT/bin/su
 
 # apply proper ownership to home directories
-chown -R 1000:1000 $NEW_ROOT/home/mkilgore/
-chown -R 1001:1001 $NEW_ROOT/home/exuser/
+chown -R $MKILGORE_ID:$MKILGORE_ID $NEW_ROOT/home/mkilgore/
+chown -R $EXUSER_ID:$EXUSER_ID $NEW_ROOT/home/exuser/
 
 mkdir $NEW_ROOT/etc
 cp -R $EXTRA_ROOT_DIR/etc/* $NEW_ROOT/etc/
@@ -65,11 +69,39 @@ cp -R $DIR/grub.cfg $NEW_ROOT/boot/grub
 # Apply global permissions and sticky bit to /tmp
 chmod 1777 $NEW_ROOT/tmp
 
-# Create /dev nodes based on device_table.txt file
-while read device; do
-    if [ ! -z "$device" ]; then
-        mknod $NEW_ROOT/$device
-        chmod 666 $NEW_ROOT/$(echo "$device" | cut -d' ' -f1)
-    fi
-done < $EXTRA_ROOT_DIR/device_table.txt
+# Create /dev nodes
+mknod --mode=666 $NEW_ROOT/dev/tty  c 5 0
+mknod --mode=666 $NEW_ROOT/dev/tty0 c 5 1
+mknod --mode=666 $NEW_ROOT/dev/tty1 c 5 2
+mknod --mode=666 $NEW_ROOT/dev/tty2 c 5 3
+mknod --mode=666 $NEW_ROOT/dev/tty3 c 5 4
+mknod --mode=666 $NEW_ROOT/dev/tty4 c 5 5
+mknod --mode=666 $NEW_ROOT/dev/tty5 c 5 6
 
+mknod --mode=666 $NEW_ROOT/dev/ttyS0 c 7 0
+mknod --mode=666 $NEW_ROOT/dev/ttyS1 c 7 1
+
+mknod --mode=666 $NEW_ROOT/dev/qemudbg c 8 0
+
+mknod --mode=660 $NEW_ROOT/dev/hda b 4 0
+chown 0:$DISK_GROUP $NEW_ROOT/dev/hda
+
+mknod --mode=660 $NEW_ROOT/dev/hda1 b 4 1
+chown 0:$DISK_GROUP $NEW_ROOT/dev/hda1
+
+mknod --mode=660 $NEW_ROOT/dev/hdb b 4 256
+chown 0:$DISK_GROUP $NEW_ROOT/dev/hdb
+
+mknod --mode=660 $NEW_ROOT/dev/hdc b 4 512
+chown 0:$DISK_GROUP $NEW_ROOT/dev/hdc
+
+mknod --mode=660 $NEW_ROOT/dev/hdd b 4 768
+chown 0:$DISK_GROUP $NEW_ROOT/dev/hdd
+
+mknod --mode=666 $NEW_ROOT/dev/zero c 6 0
+mknod --mode=666 $NEW_ROOT/dev/full c 6 1
+mknod --mode=666 $NEW_ROOT/dev/null c 6 2
+
+mknod --mode=666 $NEW_ROOT/dev/fb0 c 9 0
+
+mknod --mode=666 $NEW_ROOT/dev/keyboard c 10 0
