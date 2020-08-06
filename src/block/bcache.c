@@ -125,7 +125,7 @@ void __block_cache_shrink(void)
         }
 
         /* Don't need the spinlock, there's no existing references */
-        if (!flag_test(&b->flags, BLOCK_DIRTY)) {
+        if (flag_test(&b->flags, BLOCK_DIRTY)) {
             block_unlock(b);
             continue;
         }
