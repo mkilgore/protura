@@ -473,7 +473,7 @@ static int ext2_sb_write(struct super_block *sb)
 
     kp_ext2(ext2sb, "Writing ext2 super-block...\n");
     using_block_locked(sb->bdev, ext2sb->sb_block_nr, b) {
-        if (ext2sb->block_size >= 1024)
+        if (ext2sb->block_size == 1024)
             memcpy(b->data, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
         else
             memcpy(b->data + 1024, &ext2sb->disksb, sizeof(struct ext2_disk_sb));
