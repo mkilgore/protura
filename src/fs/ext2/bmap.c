@@ -26,29 +26,35 @@
 static sector_t __ext2_mark_block(struct ext2_super_block *sb)
 {
     sector_t ret = SECTOR_INVALID;
-    int blocks_per_group = sb->block_size * CHAR_BIT;
+    int blocks_per_group = sb->disksb.blocks_per_block_group;
+    int max_block_location = sb->disksb.blocks_per_block_group;
     int i;
 
-    for (i = 0; i < sb->block_group_count; i++) {
+    for (i = 0; i < sb->block_group_count && ret == SECTOR_INVALID; i++) {
         struct block *b;
         if (!sb->groups[i].block_unused_total)
             continue ;
+
+        /* Account for the last block group potentially being cut off early if
+         * block_total is smaller than this block would allow */
+        if (i == sb->block_group_count - 1)
+            max_block_location = sb->disksb.block_total - i * sb->disksb.blocks_per_block_group;
 
         kp_ext2(sb, "Group: %d, block bitmap: %d\n", i, sb->groups[i].block_nr_block_bitmap);
 
         using_block_locked(sb->sb.bdev, sb->groups[i].block_nr_block_bitmap, b) {
             int location = bit_find_first_zero(b->data, sb->block_size);
 
-            kp_ext2(sb, "First zero: %d\n", location);
+            if (location != -1 && location < max_block_location) {
+                kp_ext2(sb, "First zero: %d\n", location);
 
-            ret = i * blocks_per_group + location + sb->disksb.sb_block_number;
-            bit_set(b->data, location);
-            sb->groups[i].block_unused_total--;
+                ret = i * blocks_per_group + location + sb->disksb.sb_block_number;
+                bit_set(b->data, location);
+                sb->groups[i].block_unused_total--;
 
-            block_mark_dirty(b);
+                block_mark_dirty(b);
+            }
         }
-
-        break;
     }
 
     return ret;
@@ -65,14 +71,12 @@ sector_t ext2_block_alloc(struct ext2_super_block *sb)
             sb->disksb.block_unused_total--;
     }
 
-    kp_ext2(sb, "block_alloc: %d\n", ret);
-
     return ret;
 }
 
 void ext2_block_release(struct ext2_super_block *sb, struct ext2_inode *inode, sector_t orig_block)
 {
-    int blocks_per_group = sb->block_size * CHAR_BIT;
+    int blocks_per_group = sb->disksb.blocks_per_block_group;
     int block = orig_block - sb->disksb.sb_block_number;
     int group = block / blocks_per_group;
     int index = block % blocks_per_group;
@@ -311,7 +315,6 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
 
     kp_ext2(sb, "Alloced block: %d -> %d\n", inode_sector, ret);
 
-    /* FIXME: This new block needs to be mapped back into the inode correctly. */
     if (inode_sector < ARRAY_SIZE(i->blk_ptrs_direct)) {
         kp_ext2(sb, "Mapping allocated block to direct ptrs\n");
         i->blk_ptrs_direct[inode_sector] = ret;
