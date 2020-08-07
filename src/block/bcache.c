@@ -30,12 +30,12 @@ static struct {
      *
      * Note: Some of the cached blocks may be currently locked by another
      * process. */
-    int cache_count;
+    size_t cache_size;
     struct hlist_head cache[BLOCK_HASH_TABLE_SIZE];
     list_head_t lru;
 } block_cache = {
     .lock = SPINLOCK_INIT(),
-    .cache_count = 0,
+    .cache_size = 0,
     .cache = { { NULL }, },
     .lru = LIST_HEAD_INIT(block_cache.lru),
 };
@@ -49,19 +49,19 @@ static inline int block_hash(dev_t device, sector_t sector)
 
 static void __block_uncache(struct block *b)
 {
+    block_cache.cache_size -= b->block_size;
     /* Remove this block from the cache */
     hlist_del(&b->cache);
     list_del(&b->block_lru_node);
     list_del(&b->bdev_blocks_entry);
 
-    block_cache.cache_count--;
 }
 
 static void __block_cache(struct block *b)
 {
     int hash = block_hash(b->bdev->dev, b->sector);
     hlist_add(block_cache.cache + hash, &b->cache);
-    block_cache.cache_count++;
+    block_cache.cache_size += b->block_size;
 
     list_add(&b->bdev->blocks, &b->bdev_blocks_entry);
 }
@@ -95,29 +95,14 @@ static struct block *block_new(void)
 
 static void __block_cache_shrink(void)
 {
-    int i = 0;
-    struct block *b, *next, *first;
+    size_t freed_space = 0;
+    int already_synced = 0;
+    struct block *b, *next;
 
     kp(KP_NORMAL, "Shrinking block cache...\n");
 
-    /* We loop over the list backwards. We start at the 'first' entry so that
-     * when we call 'list_prev_entry()' we get the last entry in the list. */
-    first = list_first_entry(&block_cache.lru, struct block, block_lru_node);
-
-    next = list_last_entry(&block_cache.lru, struct block, block_lru_node);
-
-    for (i = 0; i < CONFIG_BLOCK_CACHE_SHRINK_COUNT; i++) {
-        b = next;
-        next = list_prev_entry(b, block_lru_node);
-
-        /* If we hit the first entry, then we exit the loop.
-         *
-         * Note: If this happens there's probably a error somewhere else in the
-         * kernel causing lots of blocks to not be unlocked/released, because a
-         * large majority of the blocks in the cache are currently locked. */
-        if (b == first)
-            break;
-
+  again:
+    list_foreach_entry_safe(&block_cache.lru, b, next, block_lru_node) {
         if (block_try_lock(b) != SUCCESS)
             continue;
 
@@ -132,11 +117,34 @@ static void __block_cache_shrink(void)
             continue;
         }
 
+        freed_space += b->block_size;
+
         /* Remove this block from the cache */
         __block_uncache(b);
 
         block_delete(b);
+
+        if (freed_space >= CONFIG_BLOCK_CACHE_SHRINK_SIZE)
+            break;
     }
+
+    /* We could be stuck due to too many dirty blocks, sync them and try one more time */
+    if (!already_synced && freed_space < CONFIG_BLOCK_CACHE_SHRINK_SIZE) {
+        spinlock_release(&block_cache.lock);
+
+        /* We could potentially be more optimal and only sync the LRU blocks.
+         * The only potential problem with that approach is that if someone
+         * grabs a reference during the sync they may no longer be in the LRU
+         * after the sync() and we'll still have no blocks to free. */
+        block_sync_all(1);
+
+        spinlock_acquire(&block_cache.lock);
+
+        already_synced = 1;
+        goto again;
+    }
+
+    kp(KP_NORMAL, "Block cache shrunk, free'd bytes: %d\n", freed_space);
 }
 
 void bcache_oom(void)
@@ -180,7 +188,7 @@ struct block *block_get_nosync(struct block_device *bdev, sector_t sector)
     /* We do the shrink *before* we allocate a new block if it is necessary.
      * This is to ensure the shrink can't remove the block we're about to add
      * from the cache. */
-    if (block_cache.cache_count >= CONFIG_BLOCK_CACHE_MAX_SIZE)
+    if (block_cache.cache_size >= CONFIG_BLOCK_CACHE_MAX_SIZE)
         __block_cache_shrink();
 
     spinlock_release(&block_cache.lock);
@@ -220,7 +228,7 @@ struct block *block_get_nosync(struct block_device *bdev, sector_t sector)
     /* Refresh the LRU entry for this block */
     if (list_node_is_in_list(&b->block_lru_node))
         list_del(&b->block_lru_node);
-    list_add(&block_cache.lru, &b->block_lru_node);
+    list_add_tail(&block_cache.lru, &b->block_lru_node);
 
     spinlock_release(&block_cache.lock);
     return b;
