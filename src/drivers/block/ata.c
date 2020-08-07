@@ -98,6 +98,48 @@ static void ata_pio_read_next_sector(struct ata_drive *drive)
     drive->current_sector_offset += ATA_SECTOR_SIZE;
 }
 
+static void start_pio_request(struct ata_drive *drive, struct block *b)
+{
+    if (!flag_test(&b->flags, BLOCK_DIRTY)) {
+        kp_ata("Start read: %d\n", b->sector);
+        outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_PIO_LBA28_READ);
+    } else {
+        kp_ata("Start write: %d\n", b->sector);
+        outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_PIO_LBA28_WRITE);
+
+        int status = ata_wait_for_drq(drive);
+
+        kassert(status & ATA_STATUS_DATA_REQUEST, "Drive not ready after busy wait! Status: 0x%02x\n", status);
+        kassert(!(status & ATA_STATUS_BUSY), "Drive busy after busy wait! Status: 0x%02x\n", status);
+
+        ata_pio_write_next_sector(drive);
+    }
+}
+
+static void start_dma_request(struct ata_drive *drive, struct block *b)
+{
+    drive->prdt[0].addr = V2P(b->data);
+    drive->prdt[0].bcnt = b->block_size | 0x80000000;
+
+    outl(drive->dma_base + ATA_DMA_IO_PRDT, V2P(drive->prdt));
+
+    if (!flag_test(&b->flags, BLOCK_DIRTY)) {
+        kp_ata("Start read: %d\n", b->sector);
+
+        outb(drive->dma_base + ATA_DMA_IO_CMD, ATA_DMA_CMD_RWCON);
+        outb(drive->dma_base + ATA_DMA_IO_STAT, inb(drive->dma_base + ATA_DMA_IO_STAT)); /* Per Linux, clear the status register */
+        outb(drive->dma_base + ATA_DMA_IO_CMD, ATA_DMA_CMD_RWCON | ATA_DMA_CMD_SSBM);
+        outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_DMA_LBA28_READ);
+    } else {
+        kp_ata("Start write: %d\n", b->sector);
+
+        outb(drive->dma_base + ATA_DMA_IO_CMD, 0);
+        outb(drive->dma_base + ATA_DMA_IO_STAT, inb(drive->dma_base + ATA_DMA_IO_STAT)); /* Per Linux, clear the status register */
+        outb(drive->dma_base + ATA_DMA_IO_CMD, ATA_DMA_CMD_SSBM);
+        outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_DMA_LBA28_WRITE);
+    }
+}
+
 static void __ata_start_request(struct ata_drive *drive)
 {
     int is_slave;
@@ -135,20 +177,27 @@ static void __ata_start_request(struct ata_drive *drive)
                                             | (is_slave? ATA_DH_SLAVE: 0)
                                             );
 
+    if (drive->use_dma)
+        start_dma_request(drive, b);
+    else
+        start_pio_request(drive, b);
+}
+
+static int __ata_handle_intr_pio(struct ata_drive *drive, struct block *b)
+{
     if (!flag_test(&b->flags, BLOCK_DIRTY)) {
-        kp_ata("Start read: %d\n", b->sector);
-        outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_PIO_LBA28_READ);
+        ata_pio_read_next_sector(drive);
+
+        if (!drive->sectors_left)
+            return 1;
     } else {
-        kp_ata("Start write: %d\n", b->sector);
-        outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_PIO_LBA28_WRITE);
-
-        int status = ata_wait_for_drq(drive);
-
-        kassert(status & ATA_STATUS_DATA_REQUEST, "Drive not ready after busy wait! Status: 0x%02x\n", status);
-        kassert(!(status & ATA_STATUS_BUSY), "Drive busy after busy wait! Status: 0x%02x\n", status);
-
-        ata_pio_write_next_sector(drive);
+        if (!drive->sectors_left)
+            return 1;
+        else
+            ata_pio_write_next_sector(drive);
     }
+
+    return 0;
 }
 
 static void __ata_handle_intr(struct ata_drive *drive)
@@ -165,18 +214,13 @@ static void __ata_handle_intr(struct ata_drive *drive)
     kassert(status & (ATA_STATUS_DATA_REQUEST | ATA_STATUS_READY), "Drive not busy but DRQ not set! Status: 0x%02x\n", status);
     kassert(!(status & ATA_STATUS_ERROR), "Drive reported error reading block %d! Status: 0x%02x\n", b->sector, status);
 
-    int request_done = 0;
+    int request_done;
 
-    if (!flag_test(&b->flags, BLOCK_DIRTY)) {
-        ata_pio_read_next_sector(drive);
-
-        if (!drive->sectors_left)
-            request_done = 1;
+    if (drive->use_dma) {
+        inb(drive->dma_base + ATA_DMA_IO_STAT);
+        request_done = 1;
     } else {
-        if (!drive->sectors_left)
-            request_done = 1;
-        else
-            ata_pio_write_next_sector(drive);
+        request_done = __ata_handle_intr_pio(drive, b);
     }
 
     if (request_done) {
@@ -304,6 +348,10 @@ static int ata_identify(struct ata_drive *drive, uint32_t *size)
 
     *size = id->lba_capacity;
 
+    drive->use_dma = drive->dma_base && (id->capability & ATA_CAPABILITY_DMA);
+    if (drive->use_dma)
+        kp(KP_NORMAL, "  Supports DMA for disk I/O!\n");
+
   cleanup:
     pfree(page, 0);
     return ret;
@@ -426,7 +474,7 @@ static void make_disk(struct ata_drive *ata, const struct disk_ops *ops, uint32_
     disk_register(disk);
 }
 
-static void ata_create_disk(io_t io_base, io_t ctrl_io_base, int int_line)
+static void ata_create_disk(io_t io_base, io_t ctrl_io_base, io_t dma_base, int int_line)
 {
     struct ata_drive *ata = kzalloc(sizeof(*ata), PAL_KERNEL);
     spinlock_init(&ata->lock);
@@ -436,6 +484,7 @@ static void ata_create_disk(io_t io_base, io_t ctrl_io_base, int int_line)
     ata->io_base = io_base;
     ata->ctrl_io_base = ctrl_io_base;
     ata->drive_irq = int_line;
+    ata->dma_base = dma_base;
 
     int ret = ata_drive_init(ata);
     if (ret) {
@@ -462,7 +511,11 @@ void ata_pci_init(struct pci_dev *dev)
     /* May be zero, in that case it will get filled in later */
     io_t io_base = pci_config_read_uint32(dev, PCI_REG_BAR(0)) & 0xFFF0;
     io_t ctrl_io_base = pci_config_read_uint32(dev, PCI_REG_BAR(1)) & 0xFFF0;
+    io_t dma_base = pci_config_read_uint32(dev, PCI_REG_BAR(4)) & 0xFFF0;
     int int_line = pci_config_read_uint8(dev, PCI_REG_INTERRUPT_LINE);
+
+    uint32_t cmd = pci_config_read_uint8(dev, PCI_REG_COMMAND);
+    pci_config_write_uint32(dev, PCI_REG_COMMAND, cmd | PCI_COMMAND_BUS_MASTER | PCI_COMMAND_IO_SPACE);
 
     if (!io_base || io_base == 1)
         io_base = 0x1F0;
@@ -473,8 +526,8 @@ void ata_pci_init(struct pci_dev *dev)
     if (!pci_has_interrupt_line(dev) || !int_line)
         int_line = 14;
 
-    kp(KP_NORMAL, "PCI IDE device, IO Base: 0x%04x, IO Ctrl: 0x%04x, INT: %d\n", io_base, ctrl_io_base, int_line);
-    ata_create_disk(io_base, ctrl_io_base, int_line);
+    kp(KP_NORMAL, "PCI ATA device, IO Base: 0x%04x, IO Ctrl: 0x%04x, DMA: 0x%04x, INT: %d\n", io_base, ctrl_io_base, dma_base, int_line);
+    ata_create_disk(io_base, ctrl_io_base, dma_base, int_line);
 
     io_base = pci_config_read_uint32(dev, PCI_REG_BAR(2)) & 0xFFF0;
     ctrl_io_base = pci_config_read_uint32(dev, PCI_REG_BAR(3)) & 0xFFF0;
@@ -488,6 +541,9 @@ void ata_pci_init(struct pci_dev *dev)
     if (!pci_has_interrupt_line(dev) || int_line == 14)
         int_line = 15;
 
-    kp(KP_NORMAL, "PCI IDE device, IO Base: 0x%04x, IO Ctrl: 0x%04x, INT: %d\n", io_base, ctrl_io_base, int_line);
-    ata_create_disk(io_base, ctrl_io_base, int_line);
+    if (dma_base)
+        dma_base += 8;
+
+    kp(KP_NORMAL, "PCI ATA device, IO Base: 0x%04x, IO Ctrl: 0x%04x, DMA: 0x%04x, INT: %d\n", io_base, ctrl_io_base, dma_base, int_line);
+    ata_create_disk(io_base, ctrl_io_base, dma_base, int_line);
 }

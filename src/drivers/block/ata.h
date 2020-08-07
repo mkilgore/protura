@@ -57,6 +57,15 @@ struct ata_identify_format {
     uint16_t reserved70; /* reserved (word 70) */
 } __packed;
 
+#define ATA_CAPABILITY_DMA 0x01
+
+#define PRD_MAX 10
+
+struct ata_dma_prd {
+    uint32_t addr;
+    uint32_t bcnt;
+} __packed __align(0x08);
+
 #ifdef CONFIG_KERNEL_LOG_ATA
 # define kp_ata(str, ...) kp(KP_NORMAL, "ATA: " str, ## __VA_ARGS__)
 #else
@@ -102,6 +111,13 @@ enum {
     ATA_COMMAND_IDENTIFY = 0xEC,
 
     ATA_SECTOR_SIZE = 512,
+
+    ATA_DMA_IO_CMD = 0,
+    ATA_DMA_IO_STAT = 2,
+    ATA_DMA_IO_PRDT = 4,
+
+    ATA_DMA_CMD_SSBM = (1 << 0), /* Start bus mastering */
+    ATA_DMA_CMD_RWCON = (1 << 3), /* If set, we're doing a read */
 };
 
 struct ata_drive {
@@ -114,12 +130,16 @@ struct ata_drive {
     list_head_t block_queue_master;
     list_head_t block_queue_slave;
 
+    struct ata_dma_prd prdt[PRD_MAX];
+
     io_t io_base;
     io_t ctrl_io_base;
+    io_t dma_base;
     int drive_irq;
 
     uint8_t has_master :1;
     uint8_t has_slave  :1;
+    uint8_t use_dma    :1;
 
     uint32_t master_sectors;
     uint32_t slave_sectors;
