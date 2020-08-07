@@ -136,6 +136,7 @@ static inline void block_unlock(struct block *b)
 }
 
 struct block *block_get(struct block_device *bdev, sector_t);
+struct block *block_get_nosync(struct block_device *bdev, sector_t sector);
 void block_put(struct block *);
 void block_wait_for_sync(struct block *);
 

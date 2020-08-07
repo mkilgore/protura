@@ -166,9 +166,10 @@ static struct block *__find_block(dev_t device, sector_t sector)
 /* This function returns the `struct block *` for the given device and sector,
  * but does not sync it, so it may be completely fresh and not actually read
  * off the disk. */
-static struct block *block_get_nosync(struct block_device *bdev, size_t block_size, sector_t sector)
+struct block *block_get_nosync(struct block_device *bdev, sector_t sector)
 {
     struct block *b = NULL, *new = NULL;
+    size_t block_size = block_dev_block_size_get(bdev);
 
     spinlock_acquire(&block_cache.lock);
 
@@ -232,7 +233,7 @@ struct block *block_get(struct block_device *dev, sector_t sector)
     if (!dev)
         return NULL;
 
-    b = block_get_nosync(dev, block_dev_block_size_get(dev), sector);
+    b = block_get_nosync(dev, sector);
     if (!b)
         return NULL;
 
