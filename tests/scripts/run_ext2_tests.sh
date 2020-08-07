@@ -42,6 +42,7 @@ for test in $TESTS; do
     timeout --foreground 120 qemu-system-i386 \
         -serial file:$TEST_LOG \
         -d cpu_reset \
+        -m 512M \
         -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
         -drive format=raw,file=$DISK_CPY,media=disk,index=1,if=ide \
         -display none \
@@ -50,7 +51,7 @@ for test in $TESTS; do
         -append "init=/tests/ext2/$test reboot_on_panic=1" \
         2> $TEST_ERR_LOG &
 
-    wait
+    wait $!
     RET=$?
 
     if [ "$RET" -ne "0" ]; then
