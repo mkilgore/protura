@@ -15,6 +15,7 @@ TEST_PREFIX=$4
 QEMU_PID=
 RET=
 DISK_CPY=./obj/disk_cpy.img
+DISK_CPY=./obj/main_disk_cpy.img
 
 . ./tests/scripts/colors.sh
 
@@ -38,7 +39,7 @@ for test in $TESTS; do
 
     printf "EXT2 test: $test ..."
 
-    timeout 120 qemu-system-i386 \
+    timeout --foreground 120 qemu-system-i386 \
         -serial file:$TEST_LOG \
         -d cpu_reset \
         -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
@@ -49,13 +50,25 @@ for test in $TESTS; do
         -append "init=/tests/ext2/$test reboot_on_panic=1" \
         2> $TEST_ERR_LOG &
 
-    wait $QEMU_PID
+    wait
     RET=$?
 
     if [ "$RET" -ne "0" ]; then
         echo "QEMU TIMEOUT" >> "$TEST_LOG"
 
         printf "$RED QEMU TIMEOUT, DISK LIKELY NOT SYNCED, FAILURE!!$RESET ..."
+
+        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
+    fi
+
+    if [ ! -s "$TEST_LOG" ]; then
+        printf "$RED KERNEL LOG EMPTY, AUTOMATIC FAILURE!!$RESET ..."
+
+        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
+    fi
+
+    if grep -q "PANIC" $TEST_LOG; then
+        printf "$RED KERNEL PANIC, AUTOMATIC FAILURE!!$RESET ..."
 
         TOTAL_RESULT=$(($TOTAL_RESULT + 1))
     fi
