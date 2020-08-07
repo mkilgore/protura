@@ -64,7 +64,7 @@ static uint8_t ext2_dir_type(mode_t mode)
 
 /* Finds the entry coresponding to 'name', and returns the on-disk entry in
  * '*result'. The block that *result resides in is returned by the function.
- * This block should be passed to brelease() when you're done messing with
+ * This block should be passed to block_unlockput() when you're done messing with
  * *result. Note that this function may/will return NULL when a lookup fails */
 __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *name, size_t len, struct ext2_disk_directory_entry **result)
 {
