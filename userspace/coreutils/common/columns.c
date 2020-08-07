@@ -25,6 +25,7 @@ void util_column_printf(struct util_column *column, const char *fmt, ...)
     va_start(lst, fmt);
 
     util_column_printfv(column, fmt, lst);
+    va_end(lst);
 }
 
 void util_column_strdup(struct util_column *column, const char *str)
@@ -41,6 +42,7 @@ void util_line_printf(struct util_line *line, const char *fmt, ...)
     va_start(lst, fmt);
 
     util_column_printfv(util_line_next_column(line), fmt, lst);
+    va_end(lst);
 }
 
 void util_line_strdup(struct util_line *line, const char *str)
@@ -57,6 +59,7 @@ void util_line_printf_ar(struct util_line *line, const char *fmt, ...)
 
     column->alignment = UTIL_ALIGN_RIGHT;
     util_column_printfv(column, fmt, lst);
+    va_end(lst);
 }
 
 void util_line_strdup_ar(struct util_line *line, const char *str)
