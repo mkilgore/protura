@@ -30,6 +30,8 @@ typedef __kuseconds_t useconds_t;
 typedef __ksuseconds_t suseconds_t;
 typedef __kuid_t uid_t;
 typedef __kgid_t gid_t;
+typedef __kfsblkcnt_t fsblkcnt_t;
+typedef __kfsfilcnt_t fsfilcnt_t;
 
 typedef __kptrdiff_t ptrdiff_t;
 

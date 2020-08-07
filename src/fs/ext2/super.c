@@ -18,6 +18,7 @@
 #include <arch/spinlock.h>
 #include <protura/block/bcache.h>
 #include <protura/block/bdev.h>
+#include <protura/block/statvfs.h>
 #include <protura/fs/char.h>
 #include <protura/fs/stat.h>
 #include <protura/fs/file.h>
@@ -507,12 +508,36 @@ static void super_dealloc(struct super_block *sb)
     kfree(container_of(sb, struct ext2_super_block, sb));
 }
 
+static int ext2_statvfs(struct super_block *super, struct statvfs *statvfs)
+{
+    struct ext2_super_block *sb = container_of(super, struct ext2_super_block, sb);
+
+    using_ext2_super_block(sb) {
+        statvfs->f_bsize = sb->block_size;
+        statvfs->f_frsize = statvfs->f_bsize;
+
+        statvfs->f_blocks = sb->disksb.block_total;
+        statvfs->f_bfree = sb->disksb.block_unused_total;
+        statvfs->f_bavail = statvfs->f_bfree;
+
+        statvfs->f_files = sb->disksb.inode_total;
+        statvfs->f_ffree = sb->disksb.inode_unused_total;
+        statvfs->f_favail = statvfs->f_ffree;
+
+        statvfs->f_fsid = FSID_EXT2;
+        statvfs->f_namemax = 255;
+    }
+
+    return 0;
+}
+
 static struct super_block_ops ext2_sb_ops = {
     .inode_read = ext2_inode_read,
     .inode_write = ext2_inode_write,
     .inode_delete = ext2_inode_delete,
     .inode_dealloc = ext2_inode_dealloc,
     .inode_alloc = ext2_inode_alloc,
+    .statvfs = ext2_statvfs,
     .sb_write = ext2_sb_write,
     .sb_put = ext2_sb_put,
 };

@@ -106,5 +106,7 @@
 #define SYSCALL_ACCESS       0x5E
 #define SYSCALL_UTIMES       0x5F
 #define SYSCALL_USLEEP       0x60
+#define SYSCALL_STATVFS      0x61
+#define SYSCALL_FSTATVFS     0x62
 
 #endif

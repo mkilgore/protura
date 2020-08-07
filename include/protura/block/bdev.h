@@ -9,6 +9,7 @@
 #include <protura/fs/file.h>
 #include <protura/mutex.h>
 #include <protura/dev.h>
+#include <protura/block/statvfs.h>
 
 struct disk;
 struct disk_part;

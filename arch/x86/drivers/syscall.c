@@ -494,6 +494,16 @@ static void sys_handler_usleep(struct irq_frame *frame)
     frame->eax = sys_usleep(frame->ebx);
 }
 
+static void sys_handler_statvfs(struct irq_frame *frame)
+{
+    frame->eax = sys_statvfs(make_user_buffer(frame->ebx), make_user_buffer(frame->ecx));
+}
+
+static void sys_handler_fstatvfs(struct irq_frame *frame)
+{
+    frame->eax = sys_fstatvfs(frame->ebx, make_user_buffer(frame->ecx));
+}
+
 #define SYSCALL(call, handler) \
     [SYSCALL_##call] = { SYSCALL_##call, handler }
 
@@ -594,6 +604,8 @@ static struct syscall_handler {
     SYSCALL(ACCESS, sys_handler_access),
     SYSCALL(UTIMES, sys_handler_utimes),
     SYSCALL(USLEEP, sys_handler_usleep),
+    SYSCALL(STATVFS, sys_handler_statvfs),
+    SYSCALL(FSTATVFS, sys_handler_fstatvfs),
 };
 
 static void syscall_handler(struct irq_frame *frame, void *param)

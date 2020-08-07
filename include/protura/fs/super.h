@@ -13,6 +13,7 @@
 #include <protura/mutex.h>
 #include <protura/errors.h>
 #include <protura/block/bdev.h>
+#include <protura/block/statvfs.h>
 #include <protura/fs/dirent.h>
 
 struct inode;
@@ -36,6 +37,9 @@ struct super_block_ops {
      *
      * Note that the passed inode is already locked for writing. */
     int (*inode_delete) (struct super_block *, struct inode *);
+
+    /* Fills in all the relevant settings in the statvfs structure */
+    int (*statvfs) (struct super_block *, struct statvfs *);
 
     /* umount_lock is locked while sb_write is called */
     int (*sb_write) (struct super_block *);

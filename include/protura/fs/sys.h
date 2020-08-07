@@ -37,6 +37,8 @@ int sys_rename(struct user_buffer old, struct user_buffer new);
 int sys_lstat(struct user_buffer path, struct user_buffer buf);
 int sys_readlink(struct user_buffer path, struct user_buffer buf, size_t buf_len);
 int sys_symlink(struct user_buffer target, struct user_buffer link);
+int sys_statvfs(struct user_buffer path_buf, struct user_buffer user_statvfs);
+int sys_fstatvfs(int fd, struct user_buffer user_statvfs);
 
 /* Called internally by sys_open - Performs the same function, but takes
  * arguments relating to inode's and file's rather then a path name and

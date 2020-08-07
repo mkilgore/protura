@@ -7,6 +7,7 @@
 #include <protura/list.h>
 #include <protura/hlist.h>
 #include <protura/fs/file.h>
+#include <protura/block/statvfs.h>
 
 struct disk;
 struct file_ops;

@@ -33,4 +33,7 @@ typedef __kuintptr_t __kdaddr_t;
 
 typedef long __kptrdiff_t;
 
+typedef __kuint64_t __kfsblkcnt_t;
+typedef __kuint64_t __kfsfilcnt_t;
+
 #endif

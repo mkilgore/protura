@@ -1101,3 +1101,52 @@ int sys_utimes(struct user_buffer path_buf, struct user_buffer timeval_buf)
     inode_put(path_name.found);
     return ret;
 }
+
+int sys_statvfs(struct user_buffer path_buf, struct user_buffer user_statvfs)
+{
+    struct nameidata path_name;
+    struct task *current = cpu_get_local()->current;
+
+    __cleanup_user_string char *tmp_path = NULL;
+    int ret = user_alloc_string(path_buf, &tmp_path);
+    if (ret)
+        return ret;
+
+    memset(&path_name, 0, sizeof(path_name));
+    path_name.path = tmp_path;
+    path_name.cwd = current->cwd;
+
+    ret = namei_full(&path_name, F(NAMEI_GET_INODE));
+    if (!path_name.found)
+        return ret;
+
+    struct statvfs statvfs;
+    memset(&statvfs, 0, sizeof(statvfs));
+
+    ret = vfs_statvfs(path_name.found, &statvfs);
+
+    if (!ret)
+        ret = user_copy_from_kernel(user_statvfs, statvfs);
+
+    inode_put(path_name.found);
+    return ret;
+}
+
+int sys_fstatvfs(int fd, struct user_buffer user_statvfs)
+{
+    struct file *filp;
+    struct statvfs statvfs;
+    int ret;
+
+    ret = fd_get_checked(fd, &filp);
+    if (ret)
+        return ret;
+
+    memset(&statvfs, 0, sizeof(statvfs));
+
+    ret = vfs_statvfs(filp->inode, &statvfs);
+    if (!ret)
+        ret = user_copy_from_kernel(user_statvfs, statvfs);
+
+    return ret;
+}

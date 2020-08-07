@@ -432,6 +432,16 @@ int mount_root(dev_t device, const char *fsystem)
     return 0;
 }
 
+int vfs_statvfs(struct inode *inode, struct statvfs *statvfs)
+{
+    struct super_block *sb = inode->sb;
+
+    if (sb->ops->statvfs)
+        return sb->ops->statvfs(sb, statvfs);
+
+    return -ENOTSUP;
+}
+
 static int mount_seq_start(struct seq_file *seq)
 {
     spinlock_acquire(&super_lock);
@@ -448,9 +458,9 @@ static int mount_seq_render(struct seq_file *seq)
     struct vfs_mount *mount = seq_list_get_entry(seq, struct vfs_mount, mount_point_node);
 
     if (mount->devname)
-        return seq_printf(seq, "%s\t%s\t%s\n", mount->devname, mount->mountname, mount->filesystem);
+        return seq_printf(seq, "%s\t%s\t%s\n", mount->devname, mount->filesystem, mount->mountname);
     else
-        return seq_printf(seq, "(%d,%d)\t%s\t%s\n", DEV_MAJOR(mount->dev), DEV_MINOR(mount->dev), mount->mountname, mount->filesystem);
+        return seq_printf(seq, "(%d,%d)\t%s\t%s\n", DEV_MAJOR(mount->dev), DEV_MINOR(mount->dev), mount->filesystem, mount->mountname);
 }
 
 static int mount_seq_next(struct seq_file *seq)

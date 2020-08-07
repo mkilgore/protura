@@ -12,6 +12,7 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
 #include <protura/fs/dent.h>
+#include <protura/block/statvfs.h>
 
 /* Note: vfs_open and vfs_close do *not* touch the file-descriptor table for
  * the current process. To do that, use sys_*.
@@ -46,6 +47,7 @@ int vfs_chdir(const char *path);
 int vfs_getdents(struct file *filp, struct dent *, size_t dent_buf_size);
 
 int vfs_stat(struct inode *inode, struct stat *buf);
+int vfs_statvfs(struct inode *inode, struct statvfs *statvfs);
 
 int vfs_create(struct inode *dir, const char *name, size_t len, mode_t mode, struct inode **result);
 int vfs_mkdir(struct inode *dir, const char *name, size_t len, mode_t mode);
