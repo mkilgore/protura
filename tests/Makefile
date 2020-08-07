@@ -36,14 +36,27 @@ TEST_DISK_RESULTS_DIRS := $(patsubst %,$(TEST_RESULTS_DIR)/ext2/%,$(TEST_DISK_CA
 
 # Define rules all the required test result directories for the ext2 testcases
 $(foreach dir,$(TEST_DISK_RESULTS_DIRS),$(eval $(call dir_rule,$(dir))))
+$(foreach disk,$(TEST_DISK_CASES),$(eval $(call dir_rule,$(DISK_MOUNT)/$(disk))))
 
 PHONY += test-disks
 test-disks: $(TEST_DISK_IMGS)
 
-$(TEST_DISKS_DIR)/%.img: $(TESTS_DIR)/testcases/test-disks/%.sh | $(TEST_DISKS_DIR) $(DISK_MOUNT)
+$(TEST_DISKS_DIR)/%.img: $(TESTS_DIR)/testcases/test-disks/%.sh | $(TEST_DISKS_DIR) $(DISK_MOUNT)/%
 	@echo " TSTDISK $@"
 	$(Q)sudo rm -fr $@
-	$(Q)sudo $< $@ $(DISK_MOUNT)
+	$(Q)sudo $< $@ "$(DISK_MOUNT)/$*"
+
+EXT2_TESTS :=
+
+define check_test_disk_rule
+EXT2_TESTS += check-$(1)
+
+check-$(1): $$(TEST_DISKS_DIR)/$(1).img $$(IMGS_DIR)/disk.img $$(KERNEL) | $$(TEST_RESULTS_DIR)/ext2/$(1)
+	@echo " EXT2TST $(1)"
+	$(Q)./tests/scripts/run_ext2_tests.sh $$(KERNEL) $$(IMGS_DIR)/disk.img $$(TEST_DISKS_DIR)/$(1).img "$$(TEST_RESULTS_DIR)/ext2/$(1)" "$(1)"
+endef
+
+$(foreach disk,$(TEST_DISK_CASES),$(eval $(call check_test_disk_rule,$(disk))))
 
 PHONY += check
 check: check-uapi check-kernel check-ext2 check-pci check-symbol-table
@@ -53,11 +66,7 @@ check-kernel: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(TEST_RESU
 	$(Q)./tests/scripts/run_ktest_tests.sh $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)/ktest "$(EXTRA_TEST_ARGS)"
 
 PHONY += check-ext2
-check-ext2: $(IMGS_DIR)/disk.img test-disks $(KERNEL) | $(TEST_DISK_RESULTS_DIRS)
-	$(Q)for disk in $(TEST_DISK_CASES); do \
-		echo " Testing disk $$disk..."; \
-		./tests/scripts/run_ext2_tests.sh $(KERNEL) $(IMGS_DIR)/disk.img $(TEST_DISKS_DIR)/$$disk.img $(TEST_RESULTS_DIR)/ext2/$$disk/; \
-	done || exit 1
+check-ext2: $(EXT2_TESTS)
 
 PHONY += check-uapi
 check-uapi: | $(TEST_RESULTS_DIR)/uapi
