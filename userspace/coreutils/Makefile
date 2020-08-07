@@ -59,6 +59,7 @@ COREUTILS_PROG_LIST = \
 	chmod \
 	chown \
 	su \
+	df \
 
 COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROG_LIST))
 
