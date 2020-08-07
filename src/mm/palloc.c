@@ -16,6 +16,7 @@
 #include <protura/wait.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/fs/inode.h>
+#include <protura/block/bcache.h>
 
 #include <protura/mm/palloc.h>
 
@@ -65,6 +66,7 @@ void __oom(void)
 {
     kmalloc_oom();
     inode_oom();
+    bcache_oom();
 }
 
 struct page *page_from_pn(pn_t page_num)
@@ -189,6 +191,11 @@ static void break_page(struct page_buddy_alloc *alloc, int order, unsigned int f
 
 static void __palloc_sleep_for_enough_pages(struct page_buddy_alloc *alloc, int order, unsigned int flags)
 {
+    if (alloc->free_pages < (1 << order)) {
+        kp(KP_WARNING, "Out of memory! Attempting to free some up...\n");
+        __oom();
+    }
+
     wait_queue_event_spinlock(&alloc->maps[order].wait_for_free, alloc->free_pages >= (1 << order), &alloc->lock);
 }
 

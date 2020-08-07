@@ -93,10 +93,12 @@ static struct block *block_new(void)
     return b;
 }
 
-void __block_cache_shrink(void)
+static void __block_cache_shrink(void)
 {
     int i = 0;
     struct block *b, *next, *first;
+
+    kp(KP_NORMAL, "Shrinking block cache...\n");
 
     /* We loop over the list backwards. We start at the 'first' entry so that
      * when we call 'list_prev_entry()' we get the last entry in the list. */
@@ -135,6 +137,12 @@ void __block_cache_shrink(void)
 
         block_delete(b);
     }
+}
+
+void bcache_oom(void)
+{
+    using_spinlock(&block_cache.lock)
+        __block_cache_shrink();
 }
 
 void block_wait_for_sync(struct block *b)
