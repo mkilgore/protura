@@ -93,7 +93,7 @@ jobs:
 
     - name: Run EXT2 Tests
       if: always() && steps.build-os.outcome == 'success'
-      run: make check-ext2
+      run: make check-ext2 -j3
 
     - name: Run Symbol Table Tests
       if: always() && steps.build-os.outcome == 'success'
