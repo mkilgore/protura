@@ -497,14 +497,6 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
         symlink->gid = current->creds.gid;
     }
 
-    using_inode_lock_write(dir)
-        ret = __ext2_dir_add(dir, name, len, symlink->ino, S_IFLNK);
-
-    if (ret) {
-        inode_mark_bad(symlink);
-        return ret;
-    }
-
     symlink_ext2 = container_of(symlink, struct ext2_inode, i);
 
     if (target_len <= 59) {
@@ -517,16 +509,31 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
         symlink->blocks = 1;
         s = ext2_bmap_alloc(symlink, 0);
 
+        if (s == SECTOR_INVALID) {
+            inode_mark_bad(symlink);
+            return -ENOSPC;
+        }
+
         using_block_locked(symlink->sb->bdev, s, b) {
             strcpy(b->data, symlink_target);
             block_mark_dirty(b);
         }
     }
 
-    /* We wait to do this until we're sure the entry succeeded */
     symlink->ctime = symlink->mtime = protura_current_time_get();
     inode_inc_nlinks(symlink);
     inode_mark_valid(symlink);
+
+    /* This can fail if there's a race on the same name, in which case we just
+     * drop the inode we created */
+    using_inode_lock_write(dir)
+        ret = __ext2_dir_add(dir, name, len, symlink->ino, S_IFLNK);
+
+    if (ret) {
+        inode_dec_nlinks(symlink);
+        inode_put(symlink);
+        return ret;
+    }
 
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
