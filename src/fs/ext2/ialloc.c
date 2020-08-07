@@ -31,8 +31,12 @@ static ino_t __ext2_check_block_group(struct ext2_super_block *sb, int group_no)
     int loc;
     ino_t ino;
     int inode_start = 0;
+    ino_t highest_inode = sb->disksb.inodes_per_block_group;
 
     group = sb->groups + group_no;
+
+    if (group_no == sb->block_group_count - 1)
+        highest_inode = sb->disksb.inode_total - sb->disksb.inodes_per_block_group * group_no;
 
     if (group->inode_unused_total == 0)
         return 0;
@@ -44,13 +48,16 @@ static ino_t __ext2_check_block_group(struct ext2_super_block *sb, int group_no)
     using_block_locked(sb->sb.bdev, group->block_nr_inode_bitmap, b) {
         loc = bit_find_next_zero(b->data, sb->block_size, inode_start);
 
-        ino = loc + group_no * sb->block_size * CHAR_BIT + 1;
+        if (loc > highest_inode)
+            return 0;
 
         kp_ext2(sb, "inode bitmap: %d\n", group->block_nr_inode_bitmap);
         kp_ext2(sb, "Free inode: %d, loc: %d\n", ino, loc);
 
         bit_set(b->data, loc);
         group->inode_unused_total--;
+
+        ino = loc + group_no * sb->disksb.inodes_per_block_group + 1;
 
         block_mark_dirty(b);
     }
