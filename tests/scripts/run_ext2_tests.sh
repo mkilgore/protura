@@ -45,6 +45,8 @@ for test in $TESTS; do
 
     result_str="EXT2: $TEST_NAME: $test:"
 
+    start_time=$(date +%s.%2N)
+
     timeout --foreground 120 qemu-system-i386 \
         -serial file:$TEST_LOG \
         -d cpu_reset \
@@ -59,6 +61,11 @@ for test in $TESTS; do
 
     wait $!
     RET=$?
+
+    end_time=$(date +%s.%2N)
+    time_length=$(echo "scale=2; $end_time - $start_time" | bc)
+
+    result_str+=" ${time_length}s:"
 
     if [ "$RET" -ne "0" ]; then
         echo "QEMU TIMEOUT" >> "$TEST_LOG"
