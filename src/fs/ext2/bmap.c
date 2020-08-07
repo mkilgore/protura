@@ -108,10 +108,16 @@ static sector_t ext2_alloc_block_zero(struct ext2_super_block *sb, struct ext2_i
     if (iblock == SECTOR_INVALID)
         return SECTOR_INVALID;
 
-    using_block_locked(sb->sb.bdev, iblock, b) {
-        memset(b->data, 0, b->block_size);
-        block_mark_dirty(b);
-    }
+    /* Because we already know we're goign to zero this block out, there's no
+     * reason to actually read it from the disk */
+    b = block_get_nosync(sb->sb.bdev, iblock);
+
+    block_lock(b);
+
+    memset(b->data, 0, b->block_size);
+
+    block_mark_synced(b);
+    block_unlockput(b);
 
     inode->i.blocks += sb->block_size / EXT2_BLOCKS_SECTOR_SIZE;
 
