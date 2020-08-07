@@ -3,4 +3,4 @@ label-id: 0xaec1ed85
 device: ./disk_part.img
 unit: sectors
 
-./disk_part.img1 : start=        2048, size=      497952, type=83, bootable
+./disk_part.img1 : start=        2048, size=      997952, type=83, bootable
