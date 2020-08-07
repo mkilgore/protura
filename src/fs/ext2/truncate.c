@@ -226,21 +226,25 @@ int __ext2_inode_truncate(struct ext2_inode *inode, off_t size)
     starting_block = ALIGN_2(size, block_size) / block_size;
     ending_block = ALIGN_2_DOWN(inode->i.size, block_size) / block_size;
 
-    if (starting_block > ending_block)
-        goto set_size_and_ret;
+    if (starting_block <= ending_block)
+        __ext2_inode_truncate_remove(sb, inode, starting_block);
 
-    __ext2_inode_truncate_remove(sb, inode, starting_block);
+    /* If we expanded the size, we need to zero out the contents in the last
+     * block past the previous end*/
+    if (inode->i.size < size) {
+        sector_t last = vfs_bmap(&inode->i, inode->i.size);
 
-    /* If size does not end on a block boundary, then it is required to clear
-     * the last block till the end with zeros. */
-    if ((size % block_size) != 0) {
-        using_block_locked(sb->sb.bdev, vfs_bmap(&inode->i, ALIGN_2_DOWN(size, block_size)), b) {
-            memset(b->data + (size % block_size), 0, block_size - (size % block_size));
-            block_mark_dirty(b);
+        /* It's possible the last sector has not been allocated.
+         * That's fine - it will be zero'd when it is allocated */
+        if (last != SECTOR_INVALID) {
+            using_block_locked(sb->sb.bdev, last, b) {
+                /* We just clear all the way till the end of the block */
+                memset(b->data + (inode->i.size % block_size), 0, block_size - (inode->i.size % block_size));
+                block_mark_dirty(b);
+            }
         }
     }
 
-  set_size_and_ret:
     inode->i.size = size;
     inode->i.ctime = inode->i.mtime = protura_current_time_get();
     inode_set_dirty(&inode->i);
