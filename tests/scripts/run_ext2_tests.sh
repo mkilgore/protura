@@ -47,7 +47,7 @@ for test in $TESTS; do
 
     start_time=$(date +%s.%2N)
 
-    timeout --foreground 120 qemu-system-i386 \
+    timeout --foreground 180 qemu-system-i386 \
         -serial file:$TEST_LOG \
         -d cpu_reset \
         -m 512M \
