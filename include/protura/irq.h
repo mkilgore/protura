@@ -9,5 +9,6 @@
 #define INCLUDE_PROTURA_IRQ_H
 
 #include <arch/irq.h>
+#include <arch/idt.h>
 
 #endif
