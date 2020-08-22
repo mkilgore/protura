@@ -26,6 +26,7 @@
 #include <protura/net/arphrd.h>
 #include <protura/net.h>
 #include <protura/drivers/e1000.h>
+#include <protura/io.h>
 #include "e1000_internal.h"
 
 /* 
@@ -36,7 +37,7 @@
 static void e1000_command_write32(struct net_interface_e1000 *e1000, uint16_t addr, uint32_t value)
 {
     if (e1000->mem_base) {
-        *(uint32_t *)(e1000->mem_base + addr) = value;
+        write32(e1000->mem_base + addr, value);
     } else {
         outl(e1000->io_base, addr);
         outl(e1000->io_base + 4, value);
@@ -46,7 +47,7 @@ static void e1000_command_write32(struct net_interface_e1000 *e1000, uint16_t ad
 static uint32_t e1000_command_read32(struct net_interface_e1000 *e1000, uint16_t addr)
 {
     if (e1000->mem_base) {
-        return *(uint32_t *)(e1000->mem_base + addr);
+        return read32(e1000->mem_base + addr);
     } else {
         outl(e1000->io_base, addr);
         return inl(e1000->io_base + 4);
@@ -103,7 +104,7 @@ static void e1000_read_mac(struct net_interface_e1000 *e1000)
     } else {
         int i;
         for (i = 0; i < 6; i++) {
-            e1000->net.mac[i] = ((uint8_t *)e1000->mem_base)[0x5400 + i];
+            e1000->net.mac[i] = read8(e1000->mem_base + 0x5400 + i);
         }
     }
 
