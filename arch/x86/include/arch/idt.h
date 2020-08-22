@@ -14,9 +14,10 @@
 #include <protura/types.h>
 #include <protura/atomic.h>
 #include <protura/irq.h>
-#include <protura/fs/procfs.h>
 
 #include <arch/context.h>
+
+struct file_ops;
 
 #define STS_TG32 0xF
 #define STS_IG32 0xE
