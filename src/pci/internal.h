@@ -14,7 +14,7 @@
 
 struct pci_dev_info {
     struct pci_dev id;
-    uint8_t class, subclass, procif, revision, header_type;
+    uint8_t class, subclass, progif, revision, header_type;
     uint16_t vendor, device;
 };
 

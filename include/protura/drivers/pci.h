@@ -15,6 +15,7 @@ struct pci_driver {
     /* These are ignored if they are zero */
     uint16_t vendor, device;
     uint16_t class, subclass;
+    uint16_t progif;
 
     void (*device_init) (struct pci_dev *);
 };

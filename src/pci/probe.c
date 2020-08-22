@@ -223,7 +223,7 @@ static uint32_t pci_get_subclass(struct pci_dev *dev)
     return pci_config_read_uint8(dev, PCI_REG_SUBCLASS);
 }
 
-static uint32_t pci_get_procif(struct pci_dev *dev)
+static uint32_t pci_get_progif(struct pci_dev *dev)
 {
     return pci_config_read_uint8(dev, PCI_REG_PROG_IF);
 }
@@ -291,7 +291,7 @@ static void pci_dev_info_populate(struct pci_dev_info *info)
     info->header_type = pci_get_header_type(&info->id);
     info->class = pci_get_class(&info->id);
     info->subclass = pci_get_subclass(&info->id);
-    info->procif = pci_get_procif(&info->id);
+    info->progif = pci_get_progif(&info->id);
     info->revision = pci_get_revision(&info->id);
 }
 
@@ -303,7 +303,7 @@ static void pci_check_dev(struct pci_dev_info *dev)
     list_node_init(&entry->pci_dev_node);
     entry->info = *dev;
 
-    kp(KP_NORMAL, "PCI %d:%d:%d - 0x%04x:0x%04x\n", dev->id.bus, dev->id.slot, dev->id.func, entry->info.vendor, entry->info.device);
+    kp(KP_NORMAL, "PCI %d:%d:%d - 0x%04x:0x%04x - %d:%d:%d\n", dev->id.bus, dev->id.slot, dev->id.func, entry->info.vendor, entry->info.device, entry->info.class, entry->info.subclass, entry->info.progif);
 
     pci_get_class_name(entry->info.class, entry->info.subclass, &cla, &sub);
 
@@ -366,14 +366,15 @@ static int pci_eq(int target, int actual)
     return !target || (target == actual);
 }
 
-static void pci_load_device(struct pci_dev *dev, uint16_t vendor, uint16_t device, uint16_t class, uint16_t subclass)
+static void pci_load_device(struct pci_dev *dev, uint16_t vendor, uint16_t device, uint16_t class, uint16_t subclass, uint64_t progif)
 {
     const struct pci_driver *driver;
     for (driver = pci_drivers; driver->name; driver++) {
         if (pci_eq(driver->vendor, vendor)
                 && pci_eq(driver->device, device)
                 && pci_eq(driver->class, class)
-                && pci_eq(driver->subclass, subclass)) {
+                && pci_eq(driver->subclass, subclass)
+                && pci_eq(driver->progif, progif)) {
 
             kp(KP_NORMAL, "Initializing device: %s\n", driver->name);
             (driver->device_init) (dev);
@@ -387,7 +388,7 @@ static void load_pci_devices(void)
     struct pci_dev_entry *entry;
 
     list_foreach_entry(&pci_dev_list, entry, pci_dev_node)
-        pci_load_device(&entry->info.id, entry->info.vendor, entry->info.device, entry->info.class, entry->info.subclass);
+        pci_load_device(&entry->info.id, entry->info.vendor, entry->info.device, entry->info.class, entry->info.subclass, entry->info.progif);
 }
 
 static void pci_init(void)
