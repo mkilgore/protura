@@ -20,6 +20,7 @@
 #include <protura/drivers/pci.h>
 #include <protura/drivers/pci_ids.h>
 #include <protura/video/bga.h>
+#include <protura/drivers/ohci.h>
 
 #include "internal.h"
 
@@ -57,6 +58,13 @@ static const struct pci_driver pci_drivers[] = {
         .class = 1,
         .subclass = 1,
         .device_init = ata_pci_init,
+    },
+    {
+        .name = "OHCI USB Host Controller",
+        .class = 12,
+        .subclass = 3,
+        .progif = 0x10,
+        .device_init = ohci_pci_init,
     },
     {
         .name = NULL,

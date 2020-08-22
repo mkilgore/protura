@@ -24,8 +24,11 @@ qemu_line="qemu-system-i386 \
     -m 512M \
     -debugcon file:$LOGS_DIR/qemu_debug.log \
     -d cpu_reset \
+    -device pci-ohci,id=usb0,num-ports=10 \
     -drive format=raw,file=$DISK_ONE,cache=none,media=disk,index=0,if=ide \
-    -drive format=raw,file=$DISK_TWO,cache=none,media=disk,index=1,if=ide \
+    -drive format=raw,file=$DISK_TWO,cache=none,media=disk,id=disk2,if=none \
+    -device usb-storage,drive=disk2,id=usbsto \
+    -device usb-kbd,id=kbd \
     -net nic,model=rtl8139 \
     -net nic,model=e1000 \
     -kernel $KERNEL \

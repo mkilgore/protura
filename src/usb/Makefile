@@ -1,0 +1,3 @@
+
+objs-y += ohci.o
+
