@@ -24,7 +24,6 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/list.h>
-#include <protura/mutex.h>
 #include <protura/mm/kmalloc.h>
 
 #include <arch/spinlock.h>
@@ -49,7 +48,7 @@ ino_t procfs_next_ino(void)
  * table will be as evenly distributed as you could get */
 #define PROCFS_HASH_TABLE_SIZE 128
 
-static mutex_t procfs_hashtable_lock = MUTEX_INIT(procfs_hashtable_lock);
+static spinlock_t procfs_hashtable_lock = SPINLOCK_INIT();
 static hlist_head_t procfs_hashtable[PROCFS_HASH_TABLE_SIZE];
 
 /* Note: Already hold entry_lock on inode */
@@ -60,7 +59,7 @@ static int procfs_hash_node(ino_t ino)
 
 void procfs_hash_add_node(struct procfs_node *node)
 {
-    using_mutex(&procfs_hashtable_lock)
+    using_spinlock(&procfs_hashtable_lock)
         hlist_add(&procfs_hashtable[procfs_hash_node(node->ino)], &node->inode_hash_entry);
 }
 
@@ -68,7 +67,7 @@ struct procfs_node *procfs_hash_get_node(ino_t ino)
 {
     struct procfs_node *node = NULL;
 
-    using_mutex(&procfs_hashtable_lock) {
+    using_spinlock(&procfs_hashtable_lock) {
         hlist_foreach_entry(&procfs_hashtable[procfs_hash_node(ino)], node, inode_hash_entry) {
             if (node->ino == ino)
                 break;
