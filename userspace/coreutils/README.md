@@ -4,16 +4,25 @@ Coreutils
 A collection of Coreutil programs designed for Protura. A current list of programs:
 
 - `cat`: (Concatinate a file)
+- `chmod`: Change the access permissions of a file
+- `chown`: Change the ownership information of a file
+- `df`: Display disk usage information on the mounted filesystems
+- `env`: Prints the current environment
 - `false`: Returns the error code 1
 - `files`: Display the files currently in use by a process.
-- `getty`: Acquires a tty and sets up the session, and runs the login process (/bin/sh here).
+- `getty`: Acquires a tty and sets up the session, and runs the login process (/bin/login).
+- `grep`: Searches the given input for a RegEx string
 - `head`: Display the first `n` number of lines from the input.
 - `hexdhump`: Display a hex dump representation of the input.
+- `id`: Displays information about the currently logged-in user
 - `ifconfig`: Used for configuring the existing network devices
+- `init`: The actual PID 1 program for Protura
 - `kill`: Kill a paticular pid
+- `klogd`: Reads the kernel log and writes it to a file
 - `link`: Create a new link to a file
 - `ln`: Use for creating symbolic links.
 - `lnum`: Display line numbers before each input line
+- `login`: Reads username/password, and if correct sets up that user's environment and runs their shell
 - `ls`: Display information about files in the current directory.
 - `mem`: Display memory information about a process
 - `mkdir`: Make a directory on the file system
@@ -24,22 +33,27 @@ A collection of Coreutil programs designed for Protura. A current list of progra
 - `mv`: used to move files and directories.
 - `ping`: Send ICMP Echo packats
 - `ps`: Display information on the currently running user and kernel processes
+- `reboot`: Reboots the system
 - `rm`: Remove file and directories
 - `rmdir`: Remove directories
 - `route`: Setup the IP routing table
+- `run_test`: Use as a bootstrapper to run some kernel tests
 - `seq`: Print sequencial numbers based on the provided arguments
 - `sh`: A *very* basic shell. It is *not* `bin/sh` compatible.
 - `sort`: Sort lines in the input
 - `stty`: Display and configure tty information
+- `su`: Temporarally login as a different user
 - `sync`: Sync existing blocks/inodes
 - `tee`: A "T pipe" that displays the input to the console, while also sendign it to `stdout`.
 - `touch`: Creates a new file on the filesystem
 - `tree`: Display a tree view of the current directory.
 - `true`: Returns the error code 0
+- `truncate`: Resizes a given file
 - `tty`: Returns the location of the current controlling `tty`
 - `umount`: Unmount a currently mounted file system
+- `uname`: Displays information about the running system
 - `uniq`: Remove duplicate entries from the input
 - `unlink`: Unlink an existing file.
-- `wc`: Print the size of existng files in words/bytes.
 - `userdel`: Delete a system user
 - `usermod`: Modify a system user
+- `wc`: Print the size of existng files in words/bytes.
