@@ -15,6 +15,7 @@ SECTIONS
         *(.rodata)
         *(.rodata.*)
         KTEST_SECTION
+        KPARAM_SECTION
     }
 
     /* Read-write data (initialized) */

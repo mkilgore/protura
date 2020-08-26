@@ -16,4 +16,10 @@
     KEEP(*(.ktest)); \
     __ktest_end = .;
 
+#define KPARAM_SECTION \
+    . = ALIGN(32); \
+    __kparam_start = .; \
+    KEEP(*(.kparam)); \
+    __kparam_end = .;
+
 #endif

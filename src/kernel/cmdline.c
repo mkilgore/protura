@@ -12,6 +12,7 @@
 #include <protura/string.h>
 #include <protura/strtol.h>
 #include <arch/init.h>
+#include <protura/kparam.h>
 #include <protura/cmdline.h>
 
 struct cmd_arg {
@@ -108,6 +109,9 @@ void kernel_cmdline_init(void)
         /* Add the last argument - it's already NUL terminated */
         add_arg(tmp_name, tmp_value);
     }
+
+    /* Now that the cmdline is initialized, load up any kparams */
+    kparam_init();
 }
 
 static struct cmd_arg *find_arg(const char *name)
@@ -148,45 +152,71 @@ static int parse_int(const char *value, int *out)
     return 0;
 }
 
-int kernel_cmdline_get_bool(const char *name, int def)
+/* Note the wrappers with defaults rely on 'result' not being touched if the
+ * parsing fails */
+int kernel_cmdline_get_bool_nodef(const char *name, int *result)
 {
     struct cmd_arg *arg = find_arg(name);
 
     if (!arg)
-        return def;
+        return -1;
 
     int val = parse_bool(arg->value);
     if (val == -1)  {
-        kp(KP_WARNING, "Bool value for arg \"%s\" is invalid. Value: \"%s\". using default: %d\n", arg->name, arg->value, def);
-        return def;
+        kp(KP_WARNING, "Bool value for arg \"%s\" is invalid. Value: \"%s\".\n", arg->name, arg->value);
+        return -1;
     }
 
-    return val;
+    *result = val;
+
+    return 0;
+}
+
+int kernel_cmdline_get_string_nodef(const char *name, const char **result)
+{
+    struct cmd_arg *arg = find_arg(name);
+
+    if (arg) {
+        *result = arg->value;
+        return 0;
+    }
+
+    return 1;
+}
+
+int kernel_cmdline_get_int_nodef(const char *name, int *result)
+{
+    struct cmd_arg *arg = find_arg(name);
+
+    if (!arg)
+        return -1;
+
+    int val;
+    int err = parse_int(arg->value, &val);
+    if (err == -1) {
+        kp(KP_WARNING, "Integer value for arg \"%s\" is invalid. Value: \"%s\"\n", arg->name, arg->value);
+        return -1;
+    }
+
+    *result = val;
+
+    return 0;
+}
+
+int kernel_cmdline_get_bool(const char *name, int def)
+{
+    kernel_cmdline_get_bool_nodef(name, &def);
+    return def;
 }
 
 const char *kernel_cmdline_get_string(const char *name, const char *def)
 {
-    struct cmd_arg *arg = find_arg(name);
-
-    if (arg)
-        return arg->value;
-
+    kernel_cmdline_get_string_nodef(name, &def);
     return def;
 }
 
 int kernel_cmdline_get_int(const char *name, int def)
 {
-    struct cmd_arg *arg = find_arg(name);
-
-    if (!arg)
-        return def;
-
-    int val;
-    int err = parse_int(arg->value, &val);
-    if (err == -1) {
-        kp(KP_WARNING, "Integer value for arg \"%s\" is invalid. Value: \"%s\". using default: %d\n", arg->name, arg->value, def);
-        return def;
-    }
-
-    return val;
+    kernel_cmdline_get_int_nodef(name, &def);
+    return def;
 }
