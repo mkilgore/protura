@@ -12,6 +12,7 @@
 #include <protura/basic_printf.h>
 #include <protura/scheduler.h>
 #include <protura/wait.h>
+#include <protura/kparam.h>
 
 #include <arch/spinlock.h>
 #include <arch/drivers/keyboard.h>
@@ -119,6 +120,8 @@ static struct vt_kp_output vt_kp_output = {
     .output = KP_OUTPUT_INIT((vt_kp_output).output, KP_NORMAL, "console-vt", &vt_kp_output_ops),
     .vt = &console_vts[0],
 };
+
+KPARAM("console.loglevel", &vt_kp_output.output.max_level, KPARAM_INT);
 
 void vt_console_kp_register(void)
 {

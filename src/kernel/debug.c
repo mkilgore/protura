@@ -11,6 +11,7 @@
 #include <protura/snprintf.h>
 #include <protura/spinlock.h>
 #include <protura/drivers/console.h>
+#include <protura/kparam.h>
 
 #include <arch/backtrace.h>
 #include <arch/reset.h>
@@ -20,6 +21,7 @@ static spinlock_t kprintf_lock = SPINLOCK_INIT();
 static list_head_t kp_output_list = LIST_HEAD_INIT(kp_output_list);
 
 static int max_log_level = CONFIG_KERNEL_LOG_LEVEL;
+KPARAM("kernel.loglevel", &max_log_level, KPARAM_INT);
 
 void kp_output_register(struct kp_output *output)
 {

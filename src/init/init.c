@@ -21,12 +21,24 @@
 #include <protura/fs/vfs.h>
 #include <protura/block/bdev.h>
 #include <protura/drivers/console.h>
+#include <protura/kparam.h>
 #include <protura/ktest.h>
 
 /* Initial user task */
 struct task *task_pid1;
 
 int kernel_is_booting = 1;
+
+static int root_major = CONFIG_ROOT_MAJOR;
+static int root_minor = CONFIG_ROOT_MINOR;
+static const char *root_fstype = CONFIG_ROOT_FSTYPE;
+static const char *init_prog = "/bin/init";
+
+KPARAM("major", &root_major, KPARAM_INT);
+KPARAM("minor", &root_minor, KPARAM_INT);
+KPARAM("fstype", &root_fstype, KPARAM_STRING);
+KPARAM("init", &init_prog, KPARAM_STRING);
+KPARAM("reboot_on_panic", &reboot_on_panic, KPARAM_BOOL);
 
 static int start_user_init(void *unused)
 {
@@ -38,25 +50,18 @@ static int start_user_init(void *unused)
         (sys->init) ();
     }
 
-    int root_major = kernel_cmdline_get_int("major", CONFIG_ROOT_MAJOR);
-    int root_minor = kernel_cmdline_get_int("minor", CONFIG_ROOT_MINOR);
-    const char *fstype = kernel_cmdline_get_string("fstype", CONFIG_ROOT_FSTYPE);
-
-    kp(KP_NORMAL, "Mounting root device %d:%d, fs type \"%s\"\n", root_major, root_minor, fstype);
+    kp(KP_NORMAL, "Mounting root device %d:%d, fs type \"%s\"\n", root_major, root_minor, root_fstype);
 
     /* Mount the current IDE drive as an ext2 filesystem */
-    int ret = mount_root(DEV_MAKE(root_major, root_minor), fstype);
+    int ret = mount_root(DEV_MAKE(root_major, root_minor), root_fstype);
     if (ret)
-        panic("UNABLE TO MOUNT ROOT FILESYSTEM, (%d, %d): %s\n", root_major, root_minor, fstype);
+        panic("UNABLE TO MOUNT ROOT FILESYSTEM, (%d, %d): %s\n", root_major, root_minor, root_fstype);
 
 #ifdef CONFIG_KERNEL_TESTS
     ktest_init();
 #endif
 
     kp(KP_NORMAL, "Kernel is done booting!\n");
-
-    const char *init_prog = kernel_cmdline_get_string("init", "/bin/init");
-
     kp(KP_NORMAL, "Starting \"%s\"...\n", init_prog);
 
     task_pid1 = task_user_new_exec(init_prog);
@@ -76,8 +81,6 @@ static int start_user_init(void *unused)
  */
 void kmain(void)
 {
-    reboot_on_panic = kernel_cmdline_get_bool("reboot_on_panic", 0);
-
     cpu_setup_idle();
 
     struct task *t = kmalloc(sizeof(*t), PAL_KERNEL | PAL_ATOMIC);

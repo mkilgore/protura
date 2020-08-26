@@ -17,6 +17,7 @@
 #include <protura/basic_printf.h>
 #include <protura/work.h>
 #include <protura/dev.h>
+#include <protura/kparam.h>
 
 #include <arch/spinlock.h>
 #include <arch/drivers/keyboard.h>
@@ -221,7 +222,8 @@ static struct kp_output_ops com1_kp_output_ops = {
     .print = com1_print,
 };
 
-static struct kp_output com_kp_output = KP_OUTPUT_INIT(com_kp_output, KP_TRACE, "com1", &com1_kp_output_ops);
+static struct kp_output com_kp_output = KP_OUTPUT_INIT(com_kp_output, KP_NORMAL, "com1", &com1_kp_output_ops);
+KPARAM("com1.loglevel", &com_kp_output.max_level, KPARAM_INT);
 
 void com_kp_register(void)
 {

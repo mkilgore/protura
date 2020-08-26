@@ -17,8 +17,19 @@
 #include <protura/cmdline.h>
 #include <protura/ksetjmp.h>
 #include <protura/ktest.h>
+#include <protura/kparam.h>
 
 #include <arch/reset.h>
+
+static int ktest_run_tests = 0;
+static int ktest_reboot_after_tests = 0;
+static const char *ktest_module = NULL;
+static const char *ktest_single_test = NULL;
+
+KPARAM("ktest.run", &ktest_run_tests, KPARAM_BOOL);
+KPARAM("ktest.reboot_after_run", &ktest_reboot_after_tests, KPARAM_BOOL);
+KPARAM("ktest.module", &ktest_module, KPARAM_STRING);
+KPARAM("ktest.single_test", &ktest_single_test, KPARAM_STRING);
 
 struct ktest {
     int cur_unit_test;
@@ -330,21 +341,15 @@ void ktest_assert_fail(struct ktest *kt, const char *fmt, ...)
 
 void ktest_init(void)
 {
-    int run_tests = kernel_cmdline_get_bool("ktest.run", 0);
-
-    if (!run_tests)
+    if (!ktest_run_tests)
         return;
 
-    int reboot_after_tests = kernel_cmdline_get_bool("ktest.reboot_after_run", 0);
-    if (reboot_after_tests)
+    if (ktest_reboot_after_tests)
         reboot_on_panic = 1;
 
-    const char *module = kernel_cmdline_get_string("ktest.module", NULL);
-    const char *single_test = kernel_cmdline_get_string("ktest.single_test", NULL);
+    run_ktest_modules(ktest_module, ktest_single_test);
 
-    run_ktest_modules(module, single_test);
-
-    if (reboot_after_tests)
+    if (ktest_reboot_after_tests)
         system_reboot();
 }
 

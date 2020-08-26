@@ -9,23 +9,23 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/cmdline.h>
+#include <protura/kparam.h>
 
-static int __video_is_disabled = 0;
+static int __video_is_enabled = 1;
+KPARAM("video", &__video_is_enabled, KPARAM_BOOL);
 
 int video_is_disabled(void)
 {
-    return __video_is_disabled;
+    return !__video_is_enabled;
 }
 
 void video_mark_disabled(void)
 {
-    __video_is_disabled = 1;
+    __video_is_enabled = 0;
 }
 
 void video_init(void)
 {
-    __video_is_disabled = strcasecmp(kernel_cmdline_get_string("video", ""), "off") == 0;
-    if (__video_is_disabled)
+    if (!__video_is_enabled)
         kp(KP_NORMAL, "Video output is disabled, text only!\n");
 }
