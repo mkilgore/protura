@@ -17,6 +17,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/fs/inode.h>
 #include <protura/block/bcache.h>
+#include <protura/backtrace.h>
 
 #include <protura/mm/palloc.h>
 

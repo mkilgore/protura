@@ -14,6 +14,7 @@
 #include <protura/limits.h>
 #include <protura/mm/memlayout.h>
 #include <protura/mm/palloc.h>
+#include <protura/backtrace.h>
 
 #include <arch/spinlock.h>
 #include <arch/paging.h>

@@ -13,7 +13,6 @@
 #include <protura/stdarg.h>
 #include <protura/time.h>
 #include <protura/list.h>
-#include <arch/backtrace.h>
 
 /* KP_STR99 is a 'catch-all' for debugging outputs which are not going to be
  * logged. */

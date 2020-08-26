@@ -24,6 +24,7 @@
 #include <arch/gdt.h>
 #include <arch/cpu.h>
 #include <arch/task.h>
+#include <arch/backtrace.h>
 #include <arch/idt.h>
 
 static struct idt_ptr idt_ptr;
