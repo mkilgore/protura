@@ -49,9 +49,9 @@ $(TEST_DISKS_DIR)/%.img: $(TESTS_DIR)/testcases/test-disks/%.sh | $(TEST_DISKS_D
 EXT2_TESTS :=
 
 define check_test_disk_rule
-EXT2_TESTS += check-$(1)
+EXT2_TESTS += check-ext2-$(1)
 
-check-$(1): $$(TEST_DISKS_DIR)/$(1).img $$(IMGS_DIR)/disk.img $$(KERNEL) | $$(TEST_RESULTS_DIR)/ext2/$(1)
+check-ext2-$(1): $$(TEST_DISKS_DIR)/$(1).img $$(IMGS_DIR)/disk.img $$(KERNEL) | $$(TEST_RESULTS_DIR)/ext2/$(1)
 	@echo " EXT2TST $(1)"
 	$(Q)./tests/scripts/run_ext2_tests.sh $$(KERNEL) $$(IMGS_DIR)/disk.img $$(TEST_DISKS_DIR)/$(1).img "$$(TEST_RESULTS_DIR)/ext2/$(1)" "$(1)"
 endef
