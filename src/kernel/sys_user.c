@@ -269,22 +269,24 @@ int sys_setgroups(size_t size, struct user_buffer list)
 int sys_getgroups(size_t size, struct user_buffer list)
 {
     struct credentials *creds = &cpu_get_local()->current->creds;
+    gid_t new_sup_groups[NGROUPS];
 
-    using_creds(creds) {
-        size_t i;
+    using_creds(creds)
+        memcpy(new_sup_groups, creds->sup_groups, sizeof(new_sup_groups));
 
-        for (i = 0; i < NGROUPS && creds->sup_groups[i] != GID_INVALID; i++) {
-            if (!size)
-                continue;
+    size_t i;
 
-            if (i > size)
-                continue;
+    for (i = 0; i < NGROUPS && new_sup_groups[i] != GID_INVALID; i++) {
+        if (!size)
+            continue;
 
-            int ret = user_copy_from_kernel_indexed(list, creds->sup_groups[i], i);
-            if (ret)
-                return ret;
-        }
+        if (i > size)
+            continue;
 
-        return i;
+        int ret = user_copy_from_kernel_indexed(list, new_sup_groups[i], i);
+        if (ret)
+            return ret;
     }
+
+    return i;
 }

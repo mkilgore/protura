@@ -2,12 +2,12 @@
 #define INCLUDE_PROTURA_USERS_H
 
 #include <protura/types.h>
-#include <protura/mutex.h>
+#include <protura/spinlock.h>
 
 #define NGROUPS 32
 
 struct credentials {
-    mutex_t cred_lock;
+    spinlock_t cred_lock;
 
     uid_t uid, euid, suid;
     gid_t gid, egid, sgid;
@@ -17,7 +17,7 @@ struct credentials {
 
 #define CREDENTIALS_INIT(cred) \
     { \
-        .cred_lock = MUTEX_INIT((cred).cred_lock), \
+        .cred_lock = SPINLOCK_INIT(), \
         .sup_groups = { [0 ... (NGROUPS - 1)] = GID_INVALID }, \
     }
 
@@ -26,7 +26,7 @@ static inline void credentials_init(struct credentials *creds)
     *creds = (struct credentials)CREDENTIALS_INIT(*creds);
 }
 
-#define using_creds(cred) using_mutex(&(cred)->cred_lock)
+#define using_creds(cred) using_spinlock(&(cred)->cred_lock)
 
 int __credentials_belong_to_gid(struct credentials *, gid_t);
 
