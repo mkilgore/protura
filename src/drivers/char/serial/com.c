@@ -161,6 +161,7 @@ static int com_tty_write(struct tty *tty, const char *buf, size_t len)
     for (i = 0; i < len; i++) {
         while (!com_write_ready(com))
             ;
+
         outb(com->ioport + UART_TX, buf[i]);
     }
 
@@ -207,14 +208,17 @@ int com_init_early(void)
     return 0;
 }
 
+static spinlock_t com1_kp_sync = SPINLOCK_INIT();
+
 static void com1_print(struct kp_output *output, const char *str)
 {
-    /* FIXME: Locking??? */
-    for (; *str; str++) {
-        while (!com_write_ready(com_ports + COM1))
-            ;
+    using_spinlock(&com1_kp_sync) {
+        for (; *str; str++) {
+            while (!com_write_ready(com_ports + COM1))
+                ;
 
-        outb(com_ports[COM1].ioport + UART_TX, *str);
+            outb(com_ports[COM1].ioport + UART_TX, *str);
+        }
     }
 }
 
@@ -227,10 +231,12 @@ KPARAM("com1.loglevel", &com_kp_output.max_level, KPARAM_INT);
 
 void com_kp_register(void)
 {
-    kp_output_register(&com_kp_output);
+    if (com_ports[COM1].exists)
+        kp_output_register(&com_kp_output);
 }
 
 void com_kp_unregister(void)
 {
-    kp_output_unregister(&com_kp_output);
+    if (com_ports[COM1].exists)
+        kp_output_unregister(&com_kp_output);
 }
