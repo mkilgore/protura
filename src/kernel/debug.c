@@ -8,6 +8,7 @@
 
 #include <protura/stdarg.h>
 #include <protura/debug.h>
+#include <protura/snprintf.h>
 #include <protura/spinlock.h>
 #include <protura/drivers/console.h>
 
@@ -18,8 +19,12 @@
 static spinlock_t kprintf_lock = SPINLOCK_INIT();
 static list_head_t kp_output_list = LIST_HEAD_INIT(kp_output_list);
 
+static int max_log_level = CONFIG_KERNEL_LOG_LEVEL;
+
 void kp_output_register(struct kp_output *output)
 {
+    flag_clear(&output->flags, KP_OUTPUT_DEAD);
+
     using_spinlock(&kprintf_lock) {
         if (!list_node_is_in_list(&output->node))
             list_add_tail(&kp_output_list, &output->node);
@@ -28,32 +33,96 @@ void kp_output_register(struct kp_output *output)
 
 void kp_output_unregister(struct kp_output *rm_output)
 {
-    using_spinlock(&kprintf_lock) {
-        struct kp_output *output;
+    struct kp_output *drop = NULL;
 
-        list_foreach_entry(&kp_output_list, output, node) {
-            if (output == rm_output) {
-                list_del(&rm_output->node);
-                break;
+    using_spinlock(&kprintf_lock) {
+        flag_set(&rm_output->flags, KP_OUTPUT_DEAD);
+
+        if (rm_output->refs == 0) {
+            list_del(&rm_output->node);
+            drop = rm_output;
+        }
+    }
+
+    if (drop && drop->ops->put)
+        (drop->ops->put) (drop);
+}
+
+static void kp_output_logline(int level, const char *line)
+{
+    struct kp_output *output;
+    struct kp_output *tmp;
+    list_head_t drop_list = LIST_HEAD_INIT(drop_list);
+
+    using_spinlock(&kprintf_lock) {
+        /*
+         * This iteration is safe even though we drop the lock, because taking
+         * a ref ensures the output won't be removed while we're writing to it
+         */
+        list_foreach_entry_safe(&kp_output_list, output, tmp, node) {
+            if (flag_test(&output->flags, KP_OUTPUT_DEAD))
+                continue;
+
+            if (level != KP_ERROR && READ_ONCE(output->max_level) < level)
+                continue;
+
+            /* Ensure this output doesn't get dropped while we're using it */
+            output->refs++;
+
+            not_using_spinlock(&kprintf_lock)
+                (output->ops->print) (output, line);
+
+            output->refs--;
+
+            if (unlikely(flag_test(&output->flags, KP_OUTPUT_DEAD) && output->refs == 0)) {
+                list_del(&output->node);
+                list_add(&drop_list, &output->node);
             }
+        }
+    }
+
+    if (unlikely(!list_empty(&drop_list))) {
+        list_foreach_entry_safe(&drop_list, output, tmp, node) {
+            if (output->ops->put)
+                (output->ops->put) (output);
         }
     }
 }
 
-void kprintfv_internal(const char *fmt, va_list lst)
-{
-    struct kp_output *output;
+static const char *level_to_str[] = {
+    [KP_TRACE] = "[T]",
+    [KP_DEBUG] = "[D]",
+    [KP_NORMAL] = "[N]",
+    [KP_WARNING] = "[W]",
+    [KP_ERROR] = "[E]",
+};
 
-    using_spinlock(&kprintf_lock)
-        list_foreach_entry(&kp_output_list, output, node)
-            (output->print) (output, fmt, lst);
+void kpv(int level, const char *fmt, va_list lst)
+{
+    /* Max length of a kp line is 128 characters */
+    char kp_buf[128];
+
+    if (level > READ_ONCE(max_log_level))
+        return;
+
+    uint32_t kernel_time_ms = protura_uptime_get_ms();
+    const char *prefix = "[!]";
+
+    if (level >= 0 && level < 5)
+        prefix = level_to_str[level];
+
+    size_t prefix_len = snprintf(kp_buf, sizeof(kp_buf), "[%d.%03d]%s: ", kernel_time_ms / 1000, kernel_time_ms % 1000, prefix);
+
+    snprintfv(kp_buf + prefix_len, sizeof(kp_buf) - prefix_len, fmt, lst);
+
+    kp_output_logline(level, kp_buf);
 }
 
-void kprintf_internal(const char *fmt, ...)
+void kp(int level, const char *fmt, ...)
 {
     va_list lst;
     va_start(lst, fmt);
-    kprintfv_internal(fmt, lst);
+    kpv(level, fmt, lst);
     va_end(lst);
 }
 
@@ -65,7 +134,7 @@ static __noreturn void __panicv_internal(const char *s, va_list lst, int trace)
     console_switch_vt(0);
 
     cli();
-    kprintfv_internal(s, lst);
+    kpv(KP_ERROR, s, lst);
     if (trace)
         dump_stack(KP_ERROR);
 

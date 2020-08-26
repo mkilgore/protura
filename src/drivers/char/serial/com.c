@@ -206,46 +206,22 @@ int com_init_early(void)
     return 0;
 }
 
-struct printf_backbone_com {
-    struct printf_backbone backbone;
-    int com_id;
-};
-
-/* Note that com1_printf is only used for kernel log output - Thus, we don't
- * take the lock for this. */
-static void com_putchar(struct printf_backbone *b, char ch)
+static void com1_print(struct kp_output *output, const char *str)
 {
-    struct printf_backbone_com *com = container_of(b, struct printf_backbone_com, backbone);
-    outb(com_ports[com->com_id].ioport + UART_TX, ch);
-}
-
-static void com_putnstr(struct printf_backbone *b, const char *s, size_t len)
-{
-    size_t i;
-    struct printf_backbone_com *com = container_of(b, struct printf_backbone_com, backbone);
-
-    for (i = 0; i < len; i++) {
-        while (!com_write_ready(com_ports + com->com_id))
+    /* FIXME: Locking??? */
+    for (; *str; str++) {
+        while (!com_write_ready(com_ports + COM1))
             ;
-        outb(com_ports[com->com_id].ioport + UART_TX, s[i]);
+
+        outb(com_ports[COM1].ioport + UART_TX, *str);
     }
 }
 
-static void com1_printfv(struct kp_output *output, const char *fmt, va_list lst)
-{
-    struct printf_backbone_com com = {
-        .backbone = {
-            .putchar = com_putchar,
-            .putnstr = com_putnstr,
-        },
-        .com_id = COM1,
-    };
+static struct kp_output_ops com1_kp_output_ops = {
+    .print = com1_print,
+};
 
-    basic_printfv(&com.backbone, fmt, lst);
-}
-
-static struct kp_output com_kp_output =
-    KP_OUTPUT_INIT(com_kp_output, com1_printfv, "com1");
+static struct kp_output com_kp_output = KP_OUTPUT_INIT(com_kp_output, KP_TRACE, "com1", &com1_kp_output_ops);
 
 void com_kp_register(void)
 {

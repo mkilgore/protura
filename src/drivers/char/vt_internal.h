@@ -15,7 +15,7 @@ struct vt_kp_output {
 void vt_early_init(struct vt *vt);
 void vt_init(struct vt *vt);
 
-void vt_early_printf(struct kp_output *output, const char *fmt, va_list lst);
+void vt_early_print(struct kp_output *output, const char *str);
 int vt_write(struct vt *vt, const char *buf, size_t len);
 int vt_tty_write(struct tty *tty, const char *buf, size_t len);
 

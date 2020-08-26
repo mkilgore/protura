@@ -11,19 +11,7 @@
 #include <protura/config/autoconf.h>
 #include <protura/compiler.h>
 #include <protura/stdarg.h>
-#include <protura/time.h>
 #include <protura/list.h>
-
-/* KP_STR99 is a 'catch-all' for debugging outputs which are not going to be
- * logged. */
-/* Note: The KP_STR* macros need to be wrapped in Q() to get quoted */
-#define KP_STR99 [!]
-
-#define KP_STR4 [T]
-#define KP_STR3 [D]
-#define KP_STR2 [N]
-#define KP_STR1 [W]
-#define KP_STR0 [E]
 
 #define KP_TRACE 4
 #define KP_DEBUG 3
@@ -43,65 +31,40 @@
 # define KP_SPINLOCK 99
 #endif
 
-struct kp_output {
-    list_node_t node;
-    void (*print) (struct kp_output *, const char *fmt, va_list lst);
-    const char *name;
+enum {
+    KP_OUTPUT_DEAD,
 };
 
-#define KP_OUTPUT_INIT(k, callback, nam) \
+struct kp_output;
+
+struct kp_output_ops {
+    void (*print) (struct kp_output *, const char *str);
+    void (*put) (struct kp_output *);
+};
+
+struct kp_output {
+    list_node_t node;
+    int flags;
+    int refs;
+    int max_level;
+
+    const char *name;
+    const struct kp_output_ops *ops;
+};
+
+#define KP_OUTPUT_INIT(k, lvl, nam, op) \
     { \
         .node = LIST_NODE_INIT((k).node), \
-        .print = (callback), \
+        .max_level = (lvl), \
         .name = (nam), \
+        .ops = (op), \
     }
-
-void kprintf_internal(const char *s, ...) __printf(1, 2);
-void kprintfv_internal(const char *s, va_list);
 
 void kp_output_register(struct kp_output *);
 void kp_output_unregister(struct kp_output *);
 
-#ifdef CONFIG_KERNEL_LOG_SRC_LINE
-# define KP_CUR_LINE Q(__LINE__) ":" __FILE__ ": "
-#else
-# define KP_CUR_LINE " "
-#endif
-
-static inline const char *__kp_get_loglevel_string(int level)
-{
-    switch (level) {
-    case KP_TRACE:   return Q(TP(KP_STR, KP_TRACE));
-    case KP_DEBUG:   return Q(TP(KP_STR, KP_DEBUG));
-    case KP_NORMAL:  return Q(TP(KP_STR, KP_NORMAL));
-    case KP_WARNING: return Q(TP(KP_STR, KP_WARNING));
-    case KP_ERROR:   return Q(TP(KP_STR, KP_ERROR));
-    default:         return Q(KP_STR99);
-    }
-}
-
-#define kp(level, str, ...) \
-    do { \
-        if (level <= CONFIG_KERNEL_LOG_LEVEL) { \
-            const uint32_t ____kernel_time_ms = protura_uptime_get_ms(); \
-            if (__builtin_constant_p((level))) \
-                kprintf_internal("[%d.%03d]" Q(TP(KP_STR, level)) ":" KP_CUR_LINE str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, ## __VA_ARGS__); \
-            else \
-                kprintf_internal("[%d.%03d]%s:" KP_CUR_LINE str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, __kp_get_loglevel_string((level)), ## __VA_ARGS__); \
-        } \
-    } while (0)
-
-#define panic(str, ...) \
-    do { \
-        const uint32_t ____kernel_time_ms = protura_uptime_get_ms(); \
-        __panic("[%d.%03d][PANIC]: " str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, ## __VA_ARGS__); \
-    } while (0)
-
-#define panic_notrace(str, ...) \
-    do { \
-        const uint32_t ____kernel_time_ms = protura_uptime_get_ms(); \
-        __panic_notrace("[%d.%03d][PANIC]: " str, ____kernel_time_ms / 1000, ____kernel_time_ms % 1000, ## __VA_ARGS__); \
-    } while (0)
+void kp(int level, const char *str, ...) __printf(2, 3);
+void kpv(int level, const char *str, va_list lst);
 
 extern int reboot_on_panic;
 
@@ -109,6 +72,9 @@ void __panic(const char *s, ...) __printf(1, 2) __noreturn;
 void __panicv(const char *s, va_list) __noreturn;
 void __panic_notrace(const char *s, ...) __printf(1, 2) __noreturn;
 void __panicv_notrace(const char *s, va_list) __noreturn;
+
+#define panic(str, ...) __panic(str, ## __VA_ARGS__)
+#define panic_notrace(str, ...) __panic_notrace(str, ## __VA_ARGS__)
 
 #define BUG(str, ...) \
     do { \

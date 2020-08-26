@@ -111,8 +111,12 @@ static struct tty_ops vt_ops = {
     .write = vt_tty_write,
 };
 
+static struct kp_output_ops vt_kp_output_ops = {
+    .print = vt_early_print,
+};
+
 static struct vt_kp_output vt_kp_output = {
-    .output = KP_OUTPUT_INIT((vt_kp_output).output, vt_early_printf, "console-vt"),
+    .output = KP_OUTPUT_INIT((vt_kp_output).output, KP_NORMAL, "console-vt", &vt_kp_output_ops),
     .vt = &console_vts[0],
 };
 

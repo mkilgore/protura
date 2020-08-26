@@ -35,31 +35,19 @@ struct {
     },
 };
 
-static void __klog_putchar(struct printf_backbone *backbone, char ch)
-{
-    char_buf_write_char(&klog.buf, ch);
-}
-
-static void __klog_putnstr(struct printf_backbone *backbone, const char *str, size_t len)
-{
-    char_buf_write(&klog.buf, str, len);
-}
-
-static struct printf_backbone klog_backbone = {
-    .putchar = __klog_putchar,
-    .putnstr = __klog_putnstr,
-};
-
-static void klog_printf(struct kp_output *out, const char *fmt, va_list lst)
+static void klog_print(struct kp_output *out, const char *str)
 {
     using_spinlock(&klog.lock) {
-        basic_printfv(&klog_backbone, fmt, lst);
+        char_buf_write(&klog.buf, str, strlen(str));
         wait_queue_wake(&klog.has_pending);
     }
 }
 
-static struct kp_output klog_kp_output
-    = KP_OUTPUT_INIT(klog_kp_output, klog_printf, "klog");
+static struct kp_output_ops klog_kp_output_ops = {
+    .print = klog_print,
+};
+
+static struct kp_output klog_kp_output = KP_OUTPUT_INIT(klog_kp_output, KP_TRACE, "klog", &klog_kp_output_ops);
 
 void klog_init(void)
 {
