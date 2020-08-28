@@ -14,7 +14,6 @@
 #include <protura/string.h>
 #include <protura/errors.h>
 #include <protura/symbols.h>
-#include <protura/cmdline.h>
 #include <protura/ksetjmp.h>
 #include <protura/ktest.h>
 #include <protura/kparam.h>

@@ -24,7 +24,7 @@
 #include <protura/video/fbcon.h>
 #include <protura/net.h>
 #include <protura/work.h>
-#include <protura/cmdline.h>
+#include <protura/kparam.h>
 #include <protura/klog.h>
 #include <protura/block/bcache.h>
 

@@ -9,70 +9,191 @@
 #include <protura/types.h>
 #include <protura/debug.h>
 #include <protura/string.h>
-#include <protura/cmdline.h>
+#include <protura/strtol.h>
+#include <arch/init.h>
 #include <protura/kparam.h>
+
+struct cmd_arg {
+    const char *name;
+    const char *value;
+};
 
 extern struct kparam __kparam_start, __kparam_end;
 
-static void kparam_parse_bool(struct kparam *param)
+static int parse_bool(const char *value)
 {
-    int val;
+    if (strcasecmp(value, "true") == 0)
+        return 1;
+    else if (strcasecmp(value, "on") == 0)
+        return 1;
+    else if (strcasecmp(value, "false") == 0)
+        return 0;
+    else if (strcasecmp(value, "off") == 0)
+        return 0;
+    else if (strcmp(value, "1") == 0)
+        return 1;
+    else if (strcmp(value, "0") == 0)
+        return 0;
 
-    int err = kernel_cmdline_get_bool_nodef(param->name, &val);
-    if (err)
-        return;
+    return -1;
+}
+
+static int parse_int(const char *value, int *out)
+{
+    const char *endp = NULL;
+
+    long result = strtol(value, &endp, 10);
+
+    if (!endp || *endp)
+        return -1;
+
+    *out = (int)result;
+
+    return 0;
+}
+
+static int kparam_parse_bool(struct kparam *param, struct cmd_arg *arg)
+{
+    int val = parse_bool(arg->value);
+    if (val == -1) {
+        kp(KP_WARNING, "Bool value for arg \"%s\" is invalid. Value: \"%s\".\n", arg->name, arg->value);
+        return -1;
+    }
 
     *(int *)(param->param) = val;
 
-    if (param->setup)
-        (param->setup) (param);
+    return 0;
 }
 
-static void kparam_parse_string(struct kparam *param)
+static int kparam_parse_string(struct kparam *param, struct cmd_arg *arg)
 {
-    const char *val;
+    *(const char **)(param->param) = arg->value;
 
-    int err = kernel_cmdline_get_string_nodef(param->name, &val);
-    if (err)
-        return;
-
-    *(const char **)(param->param) = val;
-
-    if (param->setup)
-        (param->setup) (param);
+    return 0;
 }
 
-static void kparam_parse_int(struct kparam *param)
+static int kparam_parse_int(struct kparam *param, struct cmd_arg *arg)
 {
     int val;
 
-    int err = kernel_cmdline_get_int_nodef(param->name, &val);
-    if (err)
-        return;
+    int err = parse_int(arg->value, &val);
+    if (err == -1) {
+        kp(KP_WARNING, "Integer value for arg \"%s\" is invalid. Value: \"%s\"\n", arg->name, arg->value);
+        return -1;
+    }
 
     *(int *)(param->param) = val;
 
-    if (param->setup)
-        (param->setup) (param);
+    return 0;
 }
 
-void kparam_init(void)
+static void process_argument(struct cmd_arg *arg)
 {
     struct kparam *param = &__kparam_start;
 
     for (; param < &__kparam_end; param++) {
+        if (strcasecmp(param->name, arg->name) != 0)
+            continue;
+
+        int err;
+
         switch (param->type) {
         case KPARAM_BOOL:
-            kparam_parse_bool(param);
+            err = kparam_parse_bool(param, arg);
             break;
 
         case KPARAM_INT:
-            kparam_parse_int(param);
+            err = kparam_parse_int(param, arg);
             break;
 
         case KPARAM_STRING:
-            kparam_parse_string(param);
+            err = kparam_parse_string(param, arg);
+            break;
+
+        default:
+            err = -1;
             break;
         }
+
+        if (!err)
+            if (param->setup)
+                (param->setup) (param);
+
+        return;
+    }
+
+    kp(KP_WARNING, "Unknown Kernel Argument: \"%s\"=\"%s\"!\n", arg->name, arg->value);
+}
+
+static int is_whitespace(char c)
+{
+    return c == ' ' || c == '\t';
+}
+
+enum parse_state {
+    STATE_ARG_BEGIN,
+    STATE_ARG_EQUALS,
+    STATE_VALUE_BEGIN,
+    STATE_ARG_END,
+};
+
+void kernel_cmdline_init(void)
+{
+    char *l = kernel_cmdline;
+    struct cmd_arg arg = { .name = NULL, .value = NULL };
+    enum parse_state state = STATE_ARG_BEGIN;
+
+    for (; *l; l++) {
+        switch (state) {
+        case STATE_ARG_BEGIN:
+            if (!is_whitespace(*l)) {
+                arg.name = l;
+                state = STATE_ARG_EQUALS;
+            }
+            break;
+
+        case STATE_ARG_EQUALS:
+            if (*l == '=') {
+                /* This marks the end of `tmp_name` and turns it into a NUL
+                 * terminated string */
+                *l = '\0';
+                state = STATE_VALUE_BEGIN;
+            }
+
+            if (is_whitespace(*l)) {
+                /* This arg has no value, ignore it for now */
+                arg.name = NULL;
+                state = STATE_ARG_BEGIN;
+            }
+            break;
+
+        case STATE_VALUE_BEGIN:
+            if (is_whitespace(*l)) {
+                /* value is empty */
+                arg.value = "";
+                process_argument(&arg);
+                state = STATE_ARG_BEGIN;
+            } else {
+                arg.value = l;
+                state = STATE_ARG_END;
+            }
+            break;
+
+        case STATE_ARG_END:
+            if (is_whitespace(*l)) {
+                *l = '\0';
+                process_argument(&arg);
+
+                arg.name = NULL;
+                arg.value = NULL;
+                state = STATE_ARG_BEGIN;
+            }
+            break;
+        }
+    }
+
+    if (state == STATE_ARG_END) {
+        /* Add the last argument - it's already NUL terminated */
+        process_argument(&arg);
     }
 }

@@ -52,8 +52,6 @@ struct kparam {
             .setup = (set), \
         }
 
-/* Called after the cmdline is parsed, loads all the kparam values and calls
- * setup() if necessary */
-void kparam_init(void);
+void kernel_cmdline_init(void);
 
 #endif

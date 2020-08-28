@@ -12,7 +12,6 @@
 #include <protura/string.h>
 #include <protura/scheduler.h>
 #include <protura/task.h>
-#include <protura/cmdline.h>
 #include <protura/mm/kmalloc.h>
 #include <arch/init.h>
 #include <arch/asm.h>
