@@ -87,6 +87,37 @@ static int kparam_parse_int(struct kparam *param, struct cmd_arg *arg)
     return 0;
 }
 
+static int kparam_parse_loglevel(struct kparam *param, struct cmd_arg *arg)
+{
+    int val;
+
+    if (strcasecmp(arg->value, "error") == 0)
+        val = KP_ERROR;
+    else if (strcasecmp(arg->value, "warning") == 0)
+        val = KP_WARNING;
+    else if (strcasecmp(arg->value, "normal") == 0)
+        val = KP_NORMAL;
+    else if (strcasecmp(arg->value, "debug") == 0)
+        val = KP_DEBUG;
+    else if (strcasecmp(arg->value, "trace") == 0)
+        val = KP_TRACE;
+    else {
+        const char *endp = NULL;
+        long result = strtol(arg->value, &endp, 10);
+
+        if (!endp || *endp) {
+            kp(KP_WARNING, "arg \"%s\": Log level \"%s\" is invalid!\n", arg->name, arg->value);
+            return -1;
+        }
+
+        val = (int)result;
+    }
+
+    *(int *)(param->param) = val;
+
+    return 0;
+}
+
 static void process_argument(struct cmd_arg *arg)
 {
     struct kparam *param = &__kparam_start;
@@ -108,6 +139,10 @@ static void process_argument(struct cmd_arg *arg)
 
         case KPARAM_STRING:
             err = kparam_parse_string(param, arg);
+            break;
+
+        case KPARAM_LOGLEVEL:
+            err = kparam_parse_loglevel(param, arg);
             break;
 
         default:

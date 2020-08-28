@@ -15,6 +15,7 @@ enum {
     KPARAM_BOOL,
     KPARAM_INT,
     KPARAM_STRING,
+    KPARAM_LOGLEVEL,
 };
 
 struct kparam {
@@ -27,7 +28,9 @@ struct kparam {
 
 #define __KPARAM_CHECK(lval, typ) \
     _Generic((lval), \
-        int *: (typ) == KPARAM_INT || (typ) == KPARAM_BOOL, \
+        int *: (typ) == KPARAM_INT \
+            || (typ) == KPARAM_BOOL \
+            || (typ) == KPARAM_LOGLEVEL, \
         const char **: (typ) == KPARAM_STRING, \
         default: 0)
 
