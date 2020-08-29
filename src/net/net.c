@@ -13,6 +13,7 @@
 #include <protura/snprintf.h>
 #include <protura/list.h>
 #include <arch/asm.h>
+#include <protura/kparam.h>
 
 #include <protura/fs/procfs.h>
 #include <protura/drivers/lo.h>
@@ -26,6 +27,16 @@
 #include <protura/net.h>
 #include "ipv4/ipv4.h"
 #include "internal.h"
+
+int ip_max_log_level = CONFIG_IP_LOG_LEVEL;
+int icmp_max_log_level = CONFIG_ICMP_LOG_LEVEL;
+int udp_max_log_level = CONFIG_UDP_LOG_LEVEL;
+int tcp_max_log_level = CONFIG_TCP_LOG_LEVEL;
+
+KPARAM("ip.loglevel", &ip_max_log_level, KPARAM_LOGLEVEL);
+KPARAM("icmp.loglevel", &icmp_max_log_level, KPARAM_LOGLEVEL);
+KPARAM("udp.loglevel", &udp_max_log_level, KPARAM_LOGLEVEL);
+KPARAM("tcp.loglevel", &tcp_max_log_level, KPARAM_LOGLEVEL);
 
 struct procfs_dir *net_dir_procfs;
 

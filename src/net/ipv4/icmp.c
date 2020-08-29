@@ -41,12 +41,12 @@ static void icmp_handle_packet(struct packet *packet)
     struct ip_header *ip_head = packet->af_head;
     size_t icmp_len = ntohs(ip_head->total_length) - ip_head->ihl * 4;
 
-    kp_icmp("af_head: %p, start: %p\n", packet->af_head, packet->start);
-    kp_icmp("ip total length: %d, HL: %d\n", ntohs(ip_head->total_length), ip_head->ihl);
-    kp_icmp("tail length: %ld\n", packet->tail - packet->head);
-    kp_icmp("  Packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(ip_head->source_ip), Pin_addr(ip_head->dest_ip));
-    kp_icmp("  Version: %d, HL: %d, %d bytes\n", ip_head->version, ip_head->ihl, ip_head->ihl * 4);
-    kp_icmp("  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", ip_head->protocol, ntohs(ip_head->id), ntohs(ip_head->total_length) - ip_head->ihl * 4);
+    kp_icmp_trace("af_head: %p, start: %p\n", packet->af_head, packet->start);
+    kp_icmp_trace("ip total length: %d, HL: %d\n", ntohs(ip_head->total_length), ip_head->ihl);
+    kp_icmp_trace("tail length: %ld\n", packet->tail - packet->head);
+    kp_icmp_trace("  Packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(ip_head->source_ip), Pin_addr(ip_head->dest_ip));
+    kp_icmp_trace("  Version: %d, HL: %d, %d bytes\n", ip_head->version, ip_head->ihl, ip_head->ihl * 4);
+    kp_icmp_trace("  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", ip_head->protocol, ntohs(ip_head->id), ntohs(ip_head->total_length) - ip_head->ihl * 4);
 
     switch (header->type) {
     case ICMP_TYPE_ECHO_REQUEST:
@@ -55,10 +55,10 @@ static void icmp_handle_packet(struct packet *packet)
         header->chksum = htons(0);
         header->chksum = ip_chksum((uint16_t *)header, icmp_len);
 
-        kp_icmp("Checksum: 0x%04X, Len: %d\n", ntohs(header->chksum), icmp_len);
+        kp_icmp_trace("Checksum: 0x%04X, Len: %d\n", ntohs(header->chksum), icmp_len);
 
         int ret = socket_sendto(icmp_socket, make_kernel_buffer(packet->head), packet_len(packet), 0, &packet->src_addr, packet->src_len, 0);
-        kp_icmp("Reply to "PRin_addr": %d\n", Pin_addr(src_in->sin_addr.s_addr), ret);
+        kp_icmp_trace("Reply to "PRin_addr": %d\n", Pin_addr(src_in->sin_addr.s_addr), ret);
         break;
 
     default:

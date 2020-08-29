@@ -110,7 +110,7 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
 
     const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
 
-    kp_tcp("TCP connect...\n");
+    kp_tcp_trace("TCP connect...\n");
 
     if (len < sizeof(*in))
         return -EFAULT;
@@ -152,7 +152,7 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
                 break;
             }
 
-            kp_udp("Adding tcp socket, src_port: %d, src_addr: "PRin_addr", dest_port: %d, dest_addr: "PRin_addr"\n", ntohs(test_lookup.src_port), Pin_addr(test_lookup.src_addr), ntohs(test_lookup.dest_port), Pin_addr(test_lookup.dest_addr));
+            kp_tcp_trace("Adding tcp socket, src_port: %d, src_addr: "PRin_addr", dest_port: %d, dest_addr: "PRin_addr"\n", ntohs(test_lookup.src_port), Pin_addr(test_lookup.src_addr), ntohs(test_lookup.dest_port), Pin_addr(test_lookup.dest_addr));
 
             __ipaf_add_socket(af, sock);
         }
@@ -173,7 +173,7 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
         priv->snd_wl1 = 0;
         priv->rcv_nxt = 0;
 
-        kp_tcp("TCP connect sending SYN packet...\n");
+        kp_tcp_trace("TCP connect sending SYN packet...\n");
         tcp_send_syn(proto, sock);
         priv->snd_nxt++;
     }
@@ -189,7 +189,7 @@ static int tcp_connect(struct protocol *proto, struct socket *sock, const struct
     if (ret)
         return ret;
 
-    kp(KP_NORMAL, "Socket: got state_changed signal current state: %d, last_err: %d\n", cur_state, last_err);
+    kp_tcp_trace("Socket: got state_changed signal current state: %d, last_err: %d\n", cur_state, last_err);
 
     if (last_err || cur_state != SOCKET_CONNECTED)
         return last_err;
@@ -228,7 +228,7 @@ static void tcp_release(struct protocol *proto, struct socket *sock)
     tcp_timers_reset(sock);
 
     using_mutex(&sock->recv_lock) {
-        kp(KP_NORMAL, "Recv queue is empty: %d\n", list_empty(&sock->recv_queue));
+        kp_tcp_trace("Recv queue is empty: %d\n", list_empty(&sock->recv_queue));
 
         struct packet *packet;
 

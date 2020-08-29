@@ -36,13 +36,13 @@ static int tcp_checksum_valid(struct packet *packet)
 
     n16 checksum = tcp_checksum(&pseudo_header, packet->head, packet_len(packet));
 
-    kp_tcp("Checksum result: %04x, plen: %d\n", ntohs(checksum), packet_len(packet));
+    kp_tcp_trace("Checksum result: %04x, plen: %d\n", ntohs(checksum), packet_len(packet));
     return ntohs(checksum) == 0;
 }
 
 void tcp_closed(struct protocol *proto, struct packet *packet)
 {
-    kp_tcp("tcp_closed()\n");
+    kp_tcp_trace("tcp_closed()\n");
     tcp_send_reset(proto, packet);
 }
 
@@ -53,7 +53,7 @@ void tcp_fin(struct socket *sock, struct packet *packet)
     switch (priv->tcp_state) {
     case TCP_SYN_RECV:
     case TCP_ESTABLISHED:
-        kp_tcp("Entering CLOSE-WAIT state\n");
+        kp_tcp_trace("Entering CLOSE-WAIT state\n");
         priv->tcp_state = TCP_CLOSE_WAIT;
         break;
 
@@ -77,15 +77,15 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
     struct tcp_socket_private *priv = &sock->proto_private.tcp;
     struct tcp_packet_cb *seg = &packet->cb.tcp;
 
-    kp_tcp("tcp_syn_sent()\n");
+    kp_tcp_trace("tcp_syn_sent()\n");
 
     /* first: check ACK bit */
     if (seg->flags.ack) {
-        kp_tcp("seq: %u, ack_seq: %u, snd_nxt: %u, snd_una: %u\n", seg->seq, seg->ack_seq, priv->snd_nxt, priv->snd_una);
+        kp_tcp_trace("seq: %u, ack_seq: %u, snd_nxt: %u, snd_una: %u\n", seg->seq, seg->ack_seq, priv->snd_nxt, priv->snd_una);
         if (seg->ack_seq <= priv->iss
             || seg->ack_seq > priv->snd_nxt
             || seg->ack_seq < priv->snd_una) {
-            kp_tcp("tcp_syn_sent() - bad ACK, RST\n");
+            kp_tcp_trace("tcp_syn_sent() - bad ACK, RST\n");
             tcp_send_reset(proto, packet);
             return;
         }
@@ -93,7 +93,7 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
 
     /* second: check RST bit */
     if (seg->flags.rst) {
-        kp_tcp("tcp_syn_sent() - RST\n");
+        kp_tcp_trace("tcp_syn_sent() - RST\n");
         priv->tcp_state = TCP_CLOSE;
         socket_set_last_error(sock, -ECONNREFUSED);
         socket_state_change(sock, SOCKET_UNCONNECTED);
@@ -104,7 +104,7 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
 
     if (!seg->flags.syn) {
         /* fifth: if SYN not set, drop packet */
-        kp_tcp("tcp_syn_sent() - not SYN\n");
+        kp_tcp_trace("tcp_syn_sent() - not SYN\n");
         goto release_packet;
     }
 
@@ -118,7 +118,7 @@ void tcp_syn_sent(struct protocol *proto, struct socket *sock, struct packet *pa
     if (priv->snd_una > priv->iss) {
         priv->snd_una = priv->snd_nxt;
 
-        kp_tcp("tcp_syn_sent() - SYN ACK, established! isr: %u, rcv_nxt: %u\n", priv->irs, priv->rcv_nxt);
+        kp_tcp_trace("tcp_syn_sent() - SYN ACK, established! isr: %u, rcv_nxt: %u\n", priv->irs, priv->rcv_nxt);
         tcp_send_ack(proto, sock);
         priv->tcp_state = TCP_ESTABLISHED;
 
@@ -186,7 +186,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
     /* If checksum is invalid, ignore */
     if (!tcp_checksum_valid(packet)) {
-        kp_tcp("packet: %d -> %d, %d bytes, invalid checksum!\n", ntohs(header->source), ntohs(header->dest), packet_len(packet));
+        kp_tcp_trace("packet: %d -> %d, %d bytes, invalid checksum!\n", ntohs(header->source), ntohs(header->dest), packet_len(packet));
         packet_free(packet);
         return;
     }
@@ -197,8 +197,8 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
     tcp_packet_fill_cb(packet);
     struct tcp_packet_cb *seg = &packet->cb.tcp;
 
-    kp_tcp("%d -> %d, %d bytes, valid checksum!\n", ntohs(header->source), ntohs(header->dest), packet_len(packet));
-    kp_tcp("seq: %u, ack_seq: %u, flags: %d\n", seg->seq, seg->ack_seq, seg->flags.flags);
+    kp_tcp_trace("%d -> %d, %d bytes, valid checksum!\n", ntohs(header->source), ntohs(header->dest), packet_len(packet));
+    kp_tcp_trace("seq: %u, ack_seq: %u, flags: %d\n", seg->seq, seg->ack_seq, seg->flags.flags);
 
     if (!sock)
         return tcp_closed(proto, packet);
@@ -219,7 +219,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
         /* first: check sequence number */
         if (!tcp_sequence_valid(sock, packet)) {
-            kp_tcp("packet sequence not valid, seq: %u, ack: %u, rcv_wnd: %u, rcv_nxt: %u\n", seg->seq, seg->ack_seq, priv->rcv_wnd, priv->rcv_nxt);
+            kp_tcp_trace("packet sequence not valid, seq: %u, ack: %u, rcv_wnd: %u, rcv_nxt: %u\n", seg->seq, seg->ack_seq, priv->rcv_wnd, priv->rcv_nxt);
 
             /* If we get here, then the packet is not valid. We should send an ACK
              * unless we've been sent a RST, and then ignore the packet */
@@ -231,7 +231,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
         /* second: check RST bit */
         if (seg->flags.rst) {
-            kp_tcp("RST packet\n");
+            kp_tcp_trace("RST packet\n");
             /* In some cases, we set an error.
              * In all cases, we close the socket and drop the current packet */
             switch (priv->tcp_state) {
@@ -254,7 +254,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
         /* forth: check SYN bit */
         if (seg->flags.syn) {
-            kp_tcp("SYN packet\n");
+            kp_tcp_trace("SYN packet\n");
             socket_set_last_error(sock, -ECONNRESET);
             priv->tcp_state = TCP_CLOSE;
             socket_state_change(sock, SOCKET_UNCONNECTED);
@@ -265,7 +265,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
         if (!seg->flags.ack)
             goto drop_packet;
 
-        kp_tcp("ACK packet\n");
+        kp_tcp_trace("ACK packet\n");
 
         switch (priv->tcp_state) {
         case TCP_SYN_RECV:
@@ -291,7 +291,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
 
             if (tcp_seq_before(seg->ack_seq, priv->snd_una)) {
                 /* already acked, ignore */
-                kp_tcp("Packet already acked, ignoring ack information, ack_seq: %u, snd_una: %u\n", seg->ack_seq, priv->snd_una);
+                kp_tcp_trace("Packet already acked, ignoring ack information, ack_seq: %u, snd_una: %u\n", seg->ack_seq, priv->snd_una);
             }
 
             if (tcp_seq_after(seg->ack_seq, priv->snd_nxt)) {
@@ -343,7 +343,7 @@ void tcp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
             /* FIN implies PSH. We also need to ensure the FIN is correctly
              * processed in the event of out-of-order packets. */
             if (seg->flags.psh || seg->flags.fin || packet_len(packet)) {
-                kp_tcp("recv data!\n");
+                kp_tcp_trace("recv data!\n");
                 tcp_recv_data(proto, sock, packet);
                 packet = NULL;
             }

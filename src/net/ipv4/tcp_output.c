@@ -45,7 +45,7 @@ static void tcp_send_inner(struct protocol *proto, struct packet *packet)
     head->window = htons(cb->window);
     head->urg_ptr = htons(0);
 
-    kp_tcp("TCP send packet, flags: 0x%02x, seq: %u, ack_seq: %u, len: %d\n", cb->flags.flags, cb->seq, cb->ack_seq, packet_len(packet));
+    kp_tcp_trace("TCP send packet, flags: 0x%02x, seq: %u, ack_seq: %u, len: %d\n", cb->flags.flags, cb->seq, cb->ack_seq, packet_len(packet));
 
     packet->protocol_type = IPPROTO_TCP;
 
@@ -58,7 +58,7 @@ static void tcp_send_inner(struct protocol *proto, struct packet *packet)
 void tcp_send_raw(struct protocol *proto, struct packet *packet, n16 src_port, n32 dest_addr, n16 dest_port)
 {
     int ret = ip_packet_fill_raw(packet, dest_addr);
-    kp_tcp("TCP send packet, ip route ret: %d\n", ret);
+    kp_tcp_trace("TCP send packet, ip route ret: %d\n", ret);
     if (ret) {
         packet_free(packet);
         return;
@@ -75,7 +75,7 @@ void tcp_send(struct protocol *proto, struct socket *sock, struct packet *packet
     struct ipv4_socket_private *ip_priv = &sock->af_private.ipv4;
 
     int ret = ip_packet_fill_route(sock, packet);
-    kp_tcp("TCP send packet, ip route ret: %d\n", ret);
+    kp_tcp_trace("TCP send packet, ip route ret: %d\n", ret);
     if (ret) {
         packet_free(packet);
         return;
@@ -148,7 +148,7 @@ void tcp_send_reset(struct protocol *proto, struct packet *old_packet)
         cb->flags.rst = 1;
     }
 
-    kp(KP_NORMAL, "RESET, SrcIP: "PRin_addr", DestIP: "PRin_addr"\n", Pin_addr(ip_head->source_ip), Pin_addr(ip_head->dest_ip));
+    kp_tcp_trace("RESET, SrcIP: "PRin_addr", DestIP: "PRin_addr"\n", Pin_addr(ip_head->source_ip), Pin_addr(ip_head->dest_ip));
     tcp_send_raw(proto, packet, tcp_head->dest, ip_head->source_ip, tcp_head->source);
 
   release_old_packet:

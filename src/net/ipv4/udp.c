@@ -63,7 +63,7 @@ static n16 udp_find_port(struct udp_protocol *proto)
         } while (!found);
     }
 
-    kp_udp("Autobind port: %d\n", ntohs(port));
+    kp_udp_trace("Autobind port: %d\n", ntohs(port));
     return port;
 }
 
@@ -104,10 +104,10 @@ void udp_rx(struct protocol *proto, struct socket *sock, struct packet *packet)
     in = (struct sockaddr_in *)&packet->src_addr;
     in->sin_port = header->source_port;
 
-    kp_udp(" %d -> %d, %d bytes\n", ntohs(header->source_port), ntohs(header->dest_port), ntohs(header->length));
+    kp_udp_trace(" %d -> %d, %d bytes\n", ntohs(header->source_port), ntohs(header->dest_port), ntohs(header->length));
 
     if (!sock) {
-        kp_udp("  Packet Dropped! %p\n", packet);
+        kp_udp_trace("  Packet Dropped! %p\n", packet);
         return;
     }
 
@@ -194,7 +194,7 @@ static int udp_autobind(struct protocol *protocol, struct socket *sock)
 
 static int udp_sendto_packet(struct protocol *protocol, struct socket *sock, struct packet *packet, const struct sockaddr *addr, socklen_t len)
 {
-    kp_udp("Processing sockaddr: %p\n", addr);
+    kp_udp_trace("Processing sockaddr: %p\n", addr);
     int ret = udp_process_sockaddr(sock, packet, addr, len);
     if (ret)
         return ret;
@@ -205,17 +205,17 @@ static int udp_sendto_packet(struct protocol *protocol, struct socket *sock, str
             return ret;
     }
 
-    kp_udp("Assigning packet src_port\n");
+    kp_udp_trace("Assigning packet src_port\n");
     sockaddr_in_assign(&packet->src_addr, INADDR_ANY, sock->af_private.ipv4.src_port);
 
-    kp_udp("Processing packet IP sockaddr: %p\n", addr);
+    kp_udp_trace("Processing packet IP sockaddr: %p\n", addr);
     ret = ip_packet_fill_route_addr(sock, packet, addr, len);
     if (ret)
         return ret;
 
     packet->sock = socket_dup(sock);
 
-    kp_udp("Packet Tx\n");
+    kp_udp_trace("Packet Tx\n");
     udp_tx(packet);
     return 0;
 }

@@ -2,6 +2,7 @@
 #define SRC_NET_AF_IPV4_IPV4_H
 
 #include <protura/compiler.h>
+#include <protura/kparam.h>
 #include <protura/fs/procfs.h>
 #include <protura/net/packet.h>
 #include <protura/net/sockaddr.h>
@@ -101,28 +102,45 @@ extern struct file_ops udp_proc_file_ops;
 extern struct file_ops ip_raw_proc_file_ops;
 extern struct file_ops tcp_proc_file_ops;
 
-#ifdef CONFIG_KERNEL_LOG_IP
-# define kp_ip(str, ...) kp(KP_NORMAL, "IP: " str, ## __VA_ARGS__)
-#else
-# define kp_ip(str, ...) do { ; } while (0)
-#endif
+extern int ip_max_log_level;
+extern int icmp_max_log_level;
+extern int udp_max_log_level;
+extern int tcp_max_log_level;
 
-#ifdef CONFIG_KERNEL_LOG_ICMP
-# define kp_icmp(str, ...) kp(KP_NORMAL, "ICMP: " str, ## __VA_ARGS__)
-#else
-# define kp_icmp(str, ...) do { ; } while (0)
-#endif
+#define kp_ip_check_level(lvl, str, ...) \
+    kp_check_level((lvl), ip_max_log_level, "ip: " str, ## __VA_ARGS__)
 
-#ifdef CONFIG_KERNEL_LOG_UDP
-# define kp_udp(str, ...) kp(KP_NORMAL, "UDP: " str, ## __VA_ARGS__)
-#else
-# define kp_udp(str, ...) do { ; } while (0)
-#endif
+#define kp_icmp_check_level(lvl, str, ...) \
+    kp_check_level((lvl), icmp_max_log_level, "icmp: " str, ## __VA_ARGS__)
 
-#ifdef CONFIG_KERNEL_LOG_TCP
-# define kp_tcp(str, ...) kp(KP_NORMAL, "TCP: " str, ## __VA_ARGS__)
-#else
-# define kp_tcp(str, ...) do { ; } while (0)
-#endif
+#define kp_udp_check_level(lvl, str, ...) \
+    kp_check_level((lvl), udp_max_log_level, "udp: " str, ## __VA_ARGS__)
+
+#define kp_tcp_check_level(lvl, str, ...) \
+    kp_check_level((lvl), tcp_max_log_level, "tcp: " str, ## __VA_ARGS__)
+
+#define kp_ip_trace(str, ...)   kp_ip_check_level(KP_TRACE, str, ## __VA_ARGS__)
+#define kp_ip_debug(str, ...)   kp_ip_check_level(KP_DEBUG, str, ## __VA_ARGS__)
+#define kp_ip(str, ...)         kp_ip_check_level(KP_NORMAL, str, ## __VA_ARGS__)
+#define kp_ip_warning(str, ...) kp_ip_check_level(KP_WARNING, str, ## __VA_ARGS__)
+#define kp_ip_error(str, ...)   kp_ip_check_level(KP_ERROR, str, ## __VA_ARGS__)
+
+#define kp_icmp_trace(str, ...)   kp_icmp_check_level(KP_TRACE, str, ## __VA_ARGS__)
+#define kp_icmp_debug(str, ...)   kp_icmp_check_level(KP_DEBUG, str, ## __VA_ARGS__)
+#define kp_icmp(str, ...)         kp_icmp_check_level(KP_NORMAL, str, ## __VA_ARGS__)
+#define kp_icmp_warning(str, ...) kp_icmp_check_level(KP_WARNING, str, ## __VA_ARGS__)
+#define kp_icmp_error(str, ...)   kp_icmp_check_level(KP_ERROR, str, ## __VA_ARGS__)
+
+#define kp_udp_trace(str, ...)   kp_udp_check_level(KP_TRACE, str, ## __VA_ARGS__)
+#define kp_udp_debug(str, ...)   kp_udp_check_level(KP_DEBUG, str, ## __VA_ARGS__)
+#define kp_udp(str, ...)         kp_udp_check_level(KP_NORMAL, str, ## __VA_ARGS__)
+#define kp_udp_warning(str, ...) kp_udp_check_level(KP_WARNING, str, ## __VA_ARGS__)
+#define kp_udp_error(str, ...)   kp_udp_check_level(KP_ERROR, str, ## __VA_ARGS__)
+
+#define kp_tcp_trace(str, ...)   kp_tcp_check_level(KP_TRACE, str, ## __VA_ARGS__)
+#define kp_tcp_debug(str, ...)   kp_tcp_check_level(KP_DEBUG, str, ## __VA_ARGS__)
+#define kp_tcp(str, ...)         kp_tcp_check_level(KP_NORMAL, str, ## __VA_ARGS__)
+#define kp_tcp_warning(str, ...) kp_tcp_check_level(KP_WARNING, str, ## __VA_ARGS__)
+#define kp_tcp_error(str, ...)   kp_tcp_check_level(KP_ERROR, str, ## __VA_ARGS__)
 
 #endif

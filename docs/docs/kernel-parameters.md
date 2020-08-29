@@ -57,6 +57,10 @@ subsystems/drivers.
 | `vfs.loglevel` | CONFIG_VFS_LOG_LEVEL | The max level of log messages from the VFS layer |
 | `slab.loglevel` | CONFIG_SLAB_LOG_LEVEL | The max level of log messages from the SLAB layer |
 | `ata.loglevel` | CONFIG_ATA_LOG_LEVEL | The max level of log messages from the ATA layer |
+| `ip.loglevel` | CONFIG_IP_LOG_LEVEL | The max level of log messages from the IP layer |
+| `icmp.loglevel` | CONFIG_ICMP_LOG_LEVEL | The max level of log messages from the ICMP layer |
+| `udp.loglevel` | CONFIG_UDP_LOG_LEVEL | The max level of log messages from the UDP layer |
+| `tcp.loglevel` | CONFIG_TCP_LOG_LEVEL | The max level of log messages from the TCP layer |
 
 Kernel Testing Parameters
 -------------------------

@@ -83,13 +83,13 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
     packet->head += header->ihl * 4;
     packet->tail = packet->head + ntohs(header->total_length) - header->ihl * 4;
 
-    kp_ip("  Packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(header->source_ip), Pin_addr(header->dest_ip));
-    kp_ip("  af_head: %p, start: %p, offset: %ld\n", packet->af_head, packet->start, packet->af_head - packet->start);
-    kp_ip("  Version: %d, HL: %d, %d bytes\n", header->version, header->ihl, header->ihl * 4);
-    kp_ip("  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", header->protocol, ntohs(header->id), ntohs(header->total_length) - header->ihl * 4);
-    kp_ip("  Checksum:   0x%04x\n", ntohs(header->csum));
+    kp_ip_trace("  Packet: "PRin_addr" -> "PRin_addr"\n", Pin_addr(header->source_ip), Pin_addr(header->dest_ip));
+    kp_ip_trace("  af_head: %p, start: %p, offset: %ld\n", packet->af_head, packet->start, packet->af_head - packet->start);
+    kp_ip_trace("  Version: %d, HL: %d, %d bytes\n", header->version, header->ihl, header->ihl * 4);
+    kp_ip_trace("  Protocol: 0x%02x, ID: 0x%04x, Len: 0x%04x\n", header->protocol, ntohs(header->id), ntohs(header->total_length) - header->ihl * 4);
+    kp_ip_trace("  Checksum:   0x%04x\n", ntohs(header->csum));
     header->csum = htons(0);
-    kp_ip("  Calculated: 0x%04x\n", ntohs(ip_chksum((uint16_t *)header, header->ihl * 4)));
+    kp_ip_trace("  Calculated: 0x%04x\n", ntohs(ip_chksum((uint16_t *)header, header->ihl * 4)));
 
     in = (struct sockaddr_in *)&packet->src_addr;
 
@@ -145,7 +145,7 @@ void ip_rx(struct address_family *afamily, struct packet *packet)
         (proto->ops->packet_rx) (proto, sock, packet);
     else {
         if (!packet_handled)
-            kp_ip("  Packet Dropped! %p\n", packet);
+            kp_ip_trace("  Packet Dropped! %p\n", packet);
         packet_free(packet);
     }
 }
@@ -179,7 +179,7 @@ void ip_tx(struct packet *packet)
     header->csum = htons(0);
     header->csum = ip_chksum((uint16_t *)header, header->ihl * 4);
 
-    kp_ip("Ip route: "PRin_addr", len: %d, csum: 0x%04x, DestIP: "PRin_addr"\n", Pin_addr(packet->route_addr), data_len, ntohs(header->csum), Pin_addr(header->dest_ip));
+    kp_ip_trace("Ip route: "PRin_addr", len: %d, csum: 0x%04x, DestIP: "PRin_addr"\n", Pin_addr(packet->route_addr), data_len, ntohs(header->csum), Pin_addr(header->dest_ip));
 
     return (packet->iface_tx->linklayer_tx) (packet);
 }
@@ -257,13 +257,13 @@ static int ip_create(struct address_family *family, struct socket *socket)
 {
     if (socket->sock_type == SOCK_DGRAM
         && (socket->protocol == 0 || socket->protocol == IPPROTO_UDP)) {
-        kp_ip("Looking up UDP protocol\n");
+        kp_ip_trace("Looking up UDP protocol\n");
 
         socket->proto = udp_get_proto();
         socket->af_private.ipv4.proto = IPPROTO_UDP;
     } else if (socket->sock_type == SOCK_STREAM
         && (socket->protocol == 0 || socket->protocol == IPPROTO_TCP)) {
-        kp_ip("Looking up TCP protocol\n");
+        kp_ip_trace("Looking up TCP protocol\n");
 
         socket->proto = tcp_get_proto();
         socket->af_private.ipv4.proto = IPPROTO_TCP;

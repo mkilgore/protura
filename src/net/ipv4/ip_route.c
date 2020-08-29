@@ -91,7 +91,7 @@ void ip_route_add(n32 dest_ip, n32 gateway_ip, n32 netmask, struct net_interface
     route->iface = netdev_dup(iface);
     route->flags = flags;
 
-    kp_ip("Adding route for netmask: "PRin_addr"\n", Pin_addr(netmask));
+    kp_ip_trace("Adding route for netmask: "PRin_addr"\n", Pin_addr(netmask));
 
     using_mutex(&forward_table_lock)
         list_add_tail(&forward_table.zones[count].route_list, &route->route_entry);
@@ -104,14 +104,14 @@ int ip_route_del(n32 dest_ip, n32 netmask)
 
     using_mutex(&forward_table_lock) {
         struct ip_forward_route *entry;
-        kp_ip("Netmask count: %d\n", count);
+        kp_ip_trace("Netmask count: %d\n", count);
 
         list_foreach_entry(&forward_table.zones[count].route_list, entry, route_entry) {
-            kp_ip("Entry entry & netmask: "PRin_addr", dest & netmask: "PRin_addr"\n",
+            kp_ip_trace("Entry entry & netmask: "PRin_addr", dest & netmask: "PRin_addr"\n",
                     Pin_addr(in_addr_mask(entry->dest_ip, netmask)), Pin_addr(in_addr_mask(dest_ip, netmask)));
 
             if (n32_equal(in_addr_mask(entry->dest_ip, netmask), in_addr_mask(dest_ip, netmask))) {
-                kp_ip("Found route\n");
+                kp_ip_trace("Found route\n");
                 route = entry;
                 list_del(&route->route_entry);
                 break;
