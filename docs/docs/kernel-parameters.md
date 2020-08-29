@@ -52,8 +52,9 @@ subsystems/drivers.
 | --- | --- | --- |
 | `com1.loglevel` | `normal` | The max level of log message to write to the COM1 port |
 | `console.loglevel` | `normal` | The max level of log message to write to the console |
-| `ext2.loglevel` | `warning` | The max level of log messages from the ext2 driver |
-| `elf.loglevel` | `warning` | The max level of log messages from the ELF binfmt |
+| `ext2.loglevel` | CONFIG_EXT2_LOG_LEVEL | The max level of log messages from the ext2 driver |
+| `elf.loglevel` | CONFIG_ELF_LOG_LEVEL | The max level of log messages from the ELF binfmt |
+| `vfs.loglevel` | CONFIG_VFS_LOG_LEVEL | The max level of log messages from the VFS layer |
 
 Kernel Testing Parameters
 -------------------------

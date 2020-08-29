@@ -14,6 +14,7 @@
 #include <arch/spinlock.h>
 #include <protura/atomic.h>
 #include <protura/mm/kmalloc.h>
+#include <protura/kparam.h>
 #include <arch/task.h>
 
 #include <protura/block/bdev.h>
@@ -28,12 +29,17 @@
 #include <protura/fs/access.h>
 #include <protura/fs/vfs.h>
 
-#ifdef CONFIG_KERNEL_LOG_VFS
-# define kp_vfs(str, ...) kp(KP_DEBUG, "vfs: " str, ## __VA_ARGS__)
-#else
-# define kp_vfs(str, ...) do { ; } while (0)
-#endif
+static int vfs_max_log_level = CONFIG_VFS_LOG_LEVEL;
+KPARAM("vfs.loglevel", &vfs_max_log_level, KPARAM_LOGLEVEL);
 
+#define kp_vfs_check_level(lvl, str, ...) \
+    kp_check_level((lvl), vfs_max_log_level, "vfs: " str, ## __VA_ARGS__)
+
+#define kp_vfs_trace(str, ...)   kp_vfs_check_level(KP_TRACE, str, ## __VA_ARGS__)
+#define kp_vfs_debug(str, ...)   kp_vfs_check_level(KP_DEBUG, str, ## __VA_ARGS__)
+#define kp_vfs(str, ...)         kp_vfs_check_level(KP_NORMAL, str, ## __VA_ARGS__)
+#define kp_vfs_warning(str, ...) kp_vfs_check_level(KP_WARNING, str, ## __VA_ARGS__)
+#define kp_vfs_error(str, ...)   kp_vfs_check_level(KP_ERROR, str, ## __VA_ARGS__)
 
 int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *filp)
 {
@@ -51,7 +57,7 @@ int vfs_open_noalloc(struct inode *inode, unsigned int file_flags, struct file *
     if (ret)
         return ret;
 
-    kp_vfs("Allocated filp: %p\n", filp);
+    kp_vfs_debug("Allocated filp: %p\n", filp);
 
     filp->inode = inode_dup(inode);
     filp->offset = 0;
@@ -79,7 +85,7 @@ int vfs_open(struct inode *inode, unsigned int file_flags, struct file **filp_re
     int ret = 0;
     struct file *filp;
 
-    kp_vfs("Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
+    kp_vfs_debug("Opening file: %p, %d, %p\n", inode, file_flags, filp_ret);
 
     *filp_ret = NULL;
 
@@ -99,19 +105,19 @@ int vfs_close(struct file *filp)
 {
     int ret = 0;
 
-    kp_vfs("closing file, inode:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
+    kp_vfs_debug("closing file, inode:"PRinode", %d\n", Pinode(filp->inode), atomic_get(&filp->ref));
 
     if (!atomic_dec_and_test(&filp->ref))
         return 0;
 
-    kp_vfs("Releasing file with inode:"PRinode"!\n", Pinode(filp->inode));
+    kp_vfs_debug("Releasing file with inode:"PRinode"!\n", Pinode(filp->inode));
 
     if (file_has_release(filp))
         ret = filp->ops->release(filp);
 
     inode_put(filp->inode);
 
-    kp_vfs("Freeing file %p\n", filp);
+    kp_vfs_debug("Freeing file %p\n", filp);
     kfree(filp);
 
     return ret;
@@ -283,7 +289,7 @@ int vfs_chdir(const char *path)
     struct nameidata name;
     int ret;
 
-    kp_vfs("chdir: %s\n", path);
+    kp_vfs_debug("chdir: %s\n", path);
 
     memset(&name, 0, sizeof(name));
 
