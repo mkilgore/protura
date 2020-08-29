@@ -59,7 +59,7 @@ static int ext2_dir_link(struct inode *dir, struct inode *old, const char *name,
 {
     int ret;
 
-    kp_ext2(dir->sb, "Link: "PRinode" adding %s\n", Pinode(dir), name);
+    kp_ext2_trace(dir->sb, "Link: "PRinode" adding %s\n", Pinode(dir), name);
 
     if (S_ISDIR(old->mode))
         return -EPERM;
@@ -93,7 +93,7 @@ static int ext2_dir_unlink(struct inode *dir, struct inode *link, const char *na
 {
     int ret;
 
-    kp_ext2(dir->sb, "Unlink: "PRinode" adding %s\n", Pinode(dir), name);
+    kp_ext2_trace(dir->sb, "Unlink: "PRinode" adding %s\n", Pinode(dir), name);
 
     using_inode_lock_write(dir)
         ret = __ext2_dir_remove(dir, name, len);
@@ -116,7 +116,7 @@ static int ext2_dir_rmdir(struct inode *dir, struct inode *deldir, const char *n
     int ret = 0;
     struct ext2_super_block *sb = container_of(dir->sb, struct ext2_super_block, sb);
 
-    kp_ext2(dir->sb, "Unlink: "PRinode" adding %s\n", Pinode(dir), name);
+    kp_ext2_trace(dir->sb, "Unlink: "PRinode" adding %s\n", Pinode(dir), name);
 
     if (!S_ISDIR(deldir->mode))
         return -ENOTDIR;
@@ -237,7 +237,7 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     if (ret)
         return ret;
 
-    kp_ext2(sb, "Creating %s, new inode: %d, %p\n", name, ino->ino, ino);
+    kp_ext2_trace(sb, "Creating %s, new inode: %d, %p\n", name, ino->ino, ino);
 
     ino->mode = mode;
     ino->ops = &ext2_inode_ops_file;
@@ -270,7 +270,7 @@ static int ext2_dir_create(struct inode *dir, const char *name, size_t len, mode
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
 
-    kp_ext2(sb, "Inode links: %d\n", atomic32_get(&ino->ref));
+    kp_ext2_trace(sb, "Inode links: %d\n", atomic32_get(&ino->ref));
 
     inode_write_to_disk(ino, 0);
 
@@ -290,7 +290,7 @@ static int ext2_dir_mknod(struct inode *dir, const char *name, size_t len, mode_
     if (ret)
         return ret;
 
-    kp_ext2(dir->sb, "Creating %s, new node:", name);
+    kp_ext2_trace(dir->sb, "Creating %s, new node:", name);
 
     inode->mode = mode;
     inode->dev_no = dev;
@@ -407,7 +407,7 @@ static int ext2_dir_rename(struct inode *old_dir, const char *name, size_t len, 
     struct inode *entry;
     struct inode *lock1, *lock2, *lock3;
 
-    kp_ext2(old_dir->sb, "Renaming %s in "PRinode" to %s in "PRinode"\n", name, Pinode(old_dir), new_name, Pinode(new_dir));
+    kp_ext2_debug(old_dir->sb, "Renaming %s in "PRinode" to %s in "PRinode"\n", name, Pinode(old_dir), new_name, Pinode(new_dir));
 
     ret = ext2_dir_lookup(old_dir, name, len, &entry);
 
@@ -485,7 +485,7 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
     if (ret)
         return ret;
 
-    kp_ext2(dir->sb, "Creating %s, new symlink: %d, %p\n", name, symlink->ino, symlink);
+    kp_ext2_trace(dir->sb, "Creating %s, new symlink: %d, %p\n", name, symlink->ino, symlink);
 
     symlink->mode = S_IFLNK;
     symlink->ops = &ext2_inode_ops_symlink;
@@ -538,7 +538,7 @@ static int ext2_dir_symlink(struct inode *dir, const char *name, size_t len, con
     dir->ctime = dir->mtime = protura_current_time_get();
     inode_set_dirty(dir);
 
-    kp_ext2(dir->sb, "Inode links: %d\n", atomic32_get(&symlink->ref));
+    kp_ext2_trace(dir->sb, "Inode links: %d\n", atomic32_get(&symlink->ref));
 
     inode_write_to_disk(symlink, 0);
 

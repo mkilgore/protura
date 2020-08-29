@@ -51,13 +51,13 @@ static ino_t __ext2_check_block_group(struct ext2_super_block *sb, int group_no)
         if (loc > highest_inode)
             return 0;
 
-        kp_ext2(sb, "inode bitmap: %d\n", group->block_nr_inode_bitmap);
-        kp_ext2(sb, "Free inode: %d, loc: %d\n", ino, loc);
-
         bit_set(b->data, loc);
         group->inode_unused_total--;
 
         ino = loc + group_no * sb->disksb.inodes_per_block_group + 1;
+
+        kp_ext2_trace(sb, "inode bitmap: %d\n", group->block_nr_inode_bitmap);
+        kp_ext2_trace(sb, "Free inode: %d, loc: %d\n", ino, loc);
 
         block_mark_dirty(b);
     }
@@ -73,7 +73,7 @@ static void __ext2_unset_inode_number(struct ext2_super_block *sb, ino_t ino)
 
     using_block_locked(sb->sb.bdev, sb->groups[inode_group].block_nr_inode_bitmap, b) {
         if (bit_test(b->data, inode_entry) == 0)
-            kp_ext2(sb, "EXT2 (%p): Error, attempted to unset inode with ino(%d) not currently used!\n", sb, ino);
+            kp_ext2_warning(sb, "Attempted to unset inode with ino(%d) not currently used!\n", ino);
 
         bit_clear(b->data, inode_entry);
         block_mark_dirty(b);
@@ -102,20 +102,20 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
             int entry;
 
             entry = (ino - 1) % ext2sb->disksb.inodes_per_block_group;
-            kp_ext2(sb, "ialloc: entry: %d\n", entry);
+            kp_ext2_trace(sb, "ialloc: entry: %d\n", entry);
 
             inode_group_blk = ext2sb->groups[i].block_nr_inode_table;
-            kp_ext2(sb, "ialloc: group start: %d\n", inode_group_blk);
+            kp_ext2_trace(sb, "ialloc: group start: %d\n", inode_group_blk);
 
             inode_group_blk += (entry * ext2sb->disksb.inode_entry_size) / ext2sb->block_size;
-            kp_ext2(sb, "ialloc: inode group block: %d\n", inode_group_blk);
+            kp_ext2_trace(sb, "ialloc: inode group block: %d\n", inode_group_blk);
 
             inode_group_blk_offset = entry % (ext2sb->block_size / ext2sb->disksb.inode_entry_size);
-            kp_ext2(sb, "ialloc: inode group block offset: %d\n", inode_group_blk_offset);
+            kp_ext2_trace(sb, "ialloc: inode group block offset: %d\n", inode_group_blk_offset);
         }
 
-        kp_ext2(sb, "ialloc: Found new inode: %d\n", ino);
-        kp_ext2(sb, "ialloc: group: %d\n", i);
+        kp_ext2_trace(sb, "ialloc: Found new inode: %d\n", ino);
+        kp_ext2_trace(sb, "ialloc: group: %d\n", i);
 
         if (ino)
             ext2sb->disksb.inode_unused_total--;
@@ -127,7 +127,7 @@ int ext2_inode_new(struct super_block *sb, struct inode **result)
         return ret;
 
     inode = inode_get_invalid(sb, ino);
-    kp_ext2(sb, "ialloc: inode_alloc: %p\n", inode);
+    kp_ext2_trace(sb, "ialloc: inode_alloc: %p\n", inode);
 
     if (!inode) {
         using_ext2_super_block(ext2sb)

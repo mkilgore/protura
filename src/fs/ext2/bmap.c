@@ -40,13 +40,13 @@ static sector_t __ext2_mark_block(struct ext2_super_block *sb)
         if (i == sb->block_group_count - 1)
             max_block_location = sb->disksb.block_total - i * sb->disksb.blocks_per_block_group;
 
-        kp_ext2(sb, "Group: %d, block bitmap: %d\n", i, sb->groups[i].block_nr_block_bitmap);
+        kp_ext2_trace(sb, "Group: %d, block bitmap: %d\n", i, sb->groups[i].block_nr_block_bitmap);
 
         using_block_locked(sb->sb.bdev, sb->groups[i].block_nr_block_bitmap, b) {
             int location = bit_find_first_zero(b->data, sb->block_size);
 
             if (location != -1 && location < max_block_location) {
-                kp_ext2(sb, "First zero: %d\n", location);
+                kp_ext2_trace(sb, "First zero: %d\n", location);
 
                 ret = i * blocks_per_group + location + sb->disksb.sb_block_number;
                 bit_set(b->data, location);
@@ -58,7 +58,7 @@ static sector_t __ext2_mark_block(struct ext2_super_block *sb)
     }
 
     if (ret == SECTOR_INVALID)
-        kp(KP_WARNING, "EXT2: __ext2_mark_block() could not allocate a block! Disk out of space!\n");
+        kp_ext2(sb, "__ext2_mark_block() could not allocate a block! Disk out of space!\n");
 
     return ret;
 }
@@ -162,7 +162,7 @@ static int ext2_map_dindirect(struct ext2_super_block *sb, struct ext2_inode *in
             return -ENOSPC;
 
         inode->blk_ptrs_double[double_blk] = new;
-        kp_ext2(sb, "Mapping double-indirect ptr: %d\n", new);
+        kp_ext2_trace(sb, "Mapping double-indirect ptr: %d\n", new);
     }
 
     using_block_locked(sb->sb.bdev, inode->blk_ptrs_double[double_blk], b)
@@ -174,7 +174,7 @@ static int ext2_map_dindirect(struct ext2_super_block *sb, struct ext2_inode *in
             return -ENOSPC;
 
         indirect_block = new;
-        kp_ext2(sb, "Mapping d-indirect ptr: %d\n", indirect_block);
+        kp_ext2_trace(sb, "Mapping d-indirect ptr: %d\n", indirect_block);
 
         using_block_locked(sb->sb.bdev, inode->blk_ptrs_double[double_blk], b) {
             ((uint32_t *)b->data)[single_blk] = indirect_block;
@@ -182,7 +182,7 @@ static int ext2_map_dindirect(struct ext2_super_block *sb, struct ext2_inode *in
         }
     }
 
-    kp_ext2(sb, "Mapping to dindirect idx %d -> indirect idx %d -> direct idx %d\n", double_blk, single_blk, direct_blk);
+    kp_ext2_trace(sb, "Mapping to dindirect idx %d -> indirect idx %d -> direct idx %d\n", double_blk, single_blk, direct_blk);
     using_block_locked(sb->sb.bdev, indirect_block, b) {
         ((uint32_t *)b->data)[direct_blk] = alloc_sector;
         block_mark_dirty(b);
@@ -354,10 +354,10 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
     if (ret == SECTOR_INVALID)
         return SECTOR_INVALID;
 
-    kp_ext2(sb, "Alloced block: %d -> %d\n", inode_sector, ret);
+    kp_ext2_trace(sb, "Alloced block: %d -> %d\n", inode_sector, ret);
 
     if (inode_sector < ARRAY_SIZE(i->blk_ptrs_direct)) {
-        kp_ext2(sb, "Mapping allocated block to direct ptrs\n");
+        kp_ext2_trace(sb, "Mapping allocated block to direct ptrs\n");
         i->blk_ptrs_direct[inode_sector] = ret;
     } else {
         const int ptrs_per_blk = sb->block_size / sizeof(uint32_t);
@@ -385,7 +385,7 @@ sector_t ext2_bmap_alloc(struct inode *inode, sector_t inode_sector)
 
         if (err < 0) {
             ext2_block_release(sb, i, ret);
-            kp(KP_WARNING, "EXT2: Unable to add sector to file, error: %s(%d)!\n", strerror(err), err);
+            kp_ext2_warning(sb, "Unable to add sector to file, error: %s(%d)!\n", strerror(err), err);
 
             return SECTOR_INVALID;
         }

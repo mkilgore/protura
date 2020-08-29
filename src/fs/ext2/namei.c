@@ -78,7 +78,7 @@ __must_check struct block *__ext2_lookup_entry(struct inode *dir, const char *na
         struct ext2_disk_directory_entry *entry;
         sector_t sec = vfs_bmap(dir, cur_off / block_size);
 
-        kp_ext2(dir->sb, "Lookup block size: %d, cur_off: %ld, Sec: %d\n", block_size, cur_off, sec);
+        kp_ext2_trace(dir->sb, "Lookup block size: %d, cur_off: %ld, Sec: %d\n", block_size, cur_off, sec);
 
         if (sec == SECTOR_INVALID)
             break;
@@ -111,7 +111,7 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
     sector_t sec;
     struct ext2_disk_directory_entry *entry;
 
-    kp_ext2(dir->sb, "add entry: %s\n", name);
+    kp_ext2_trace(dir->sb, "add entry: %s\n", name);
 
     for (cur_off = 0; cur_off < dir->size; cur_off += block_size) {
         int offset = 0;
@@ -150,15 +150,15 @@ __must_check struct block *__ext2_add_entry(struct inode *dir, const char *name,
         block_unlockput(b);
     }
 
-    kp_ext2(dir->sb, "Truncating directory: %ld\n", dir->size + block_size);
+    kp_ext2_trace(dir->sb, "Truncating directory: %ld\n", dir->size + block_size);
 
     __ext2_inode_truncate(container_of(dir, struct ext2_inode, i), dir->size + block_size);
 
-    kp_ext2(dir->sb, "bmap_alloc\n");
+    kp_ext2_trace(dir->sb, "bmap_alloc\n");
     sec = ext2_bmap_alloc(dir, (dir->size - 1) / block_size);
 
-    kp_ext2(dir->sb, "dir->size=%ld\n", dir->size);
-    kp_ext2(dir->sb, "sec=%d\n", sec);
+    kp_ext2_trace(dir->sb, "dir->size=%ld\n", dir->size);
+    kp_ext2_trace(dir->sb, "sec=%d\n", sec);
     if (sec == SECTOR_INVALID) {
         *err = -ENOSPC;
         return NULL;
@@ -191,7 +191,7 @@ int __ext2_dir_lookup_ino(struct inode *dir, const char *name, size_t len, ino_t
 
     *ino = entry->ino;
 
-    kp_ext2(dir->sb, "DIR Ent, ino: %d, name: %s\n", entry->ino, entry->name);
+    kp_ext2_trace(dir->sb, "DIR Ent, ino: %d, name: %s\n", entry->ino, entry->name);
 
     block_unlockput(b);
 
@@ -203,7 +203,7 @@ int ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inod
     ino_t entry = 0;
     int ret;
 
-    kp_ext2(dir->sb, "Lookup: "PRinode" name: %s, len: %d\n", Pinode(dir), name, len);
+    kp_ext2_trace(dir->sb, "Lookup: "PRinode" name: %s, len: %d\n", Pinode(dir), name, len);
 
     using_inode_lock_read(dir) {
         ret = __ext2_dir_lookup_ino(dir, name, len, &entry);
@@ -211,7 +211,7 @@ int ext2_dir_lookup(struct inode *dir, const char *name, size_t len, struct inod
             return ret;
     }
 
-    kp_ext2(dir->sb, "Lookup inode: %d\n", entry);
+    kp_ext2_trace(dir->sb, "Lookup inode: %d\n", entry);
     *result = inode_get(dir->sb, entry);
 
     if (!*result)
@@ -431,7 +431,7 @@ int __ext2_dir_read_dent(struct file *filp, struct user_buffer dent, size_t size
     int ret = 0;
     int skip;
 
-    kp_ext2(dir->sb, "Dir size: %ld\n", dir->size);
+    kp_ext2_trace(dir->sb, "Dir size: %ld\n", dir->size);
 
   again:
     skip = 0;
@@ -443,7 +443,7 @@ int __ext2_dir_read_dent(struct file *filp, struct user_buffer dent, size_t size
     int block_off = filp->offset % block_size;
 
     if (sec == SECTOR_INVALID) {
-        kp_ext2(dir->sb, "invalid sector\n");
+        kp_ext2_trace(dir->sb, "invalid sector\n");
         return -EINVAL;
     }
 

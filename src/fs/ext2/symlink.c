@@ -33,7 +33,7 @@ static int ext2_follow_link(struct inode *dir, struct inode *symlink, struct ino
     char *link;
     int ret = 0;
 
-    kp_ext2(sb, "In follow_link\n");
+    kp_ext2_trace(sb, "In follow_link\n");
 
     if (!S_ISLNK(symlink->mode)) {
         *result = inode_dup(symlink);

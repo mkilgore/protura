@@ -35,10 +35,24 @@ Misc Kernel Parameters
 Kernel Log Level Parameters
 ---------------------------
 
+These kernel parameters modify both which log messages are passed to debug
+outputs (console, COM1, etc...), and what log levels those debug outputs
+accept. This allows for a fairly flexable configuration. Ex. `klog` recieves
+everything (`trace`), `console` only recieves warnings and errors, `COM1` gets
+debug, etc... And you can also individual enabling logging for drivers or
+subsystems like `ext2` or `net` so you get more verbose logging for those
+systems without getting verbose logging for the rest of the kernel (Which can
+get out of hand pretty quick).
+
+As a general rule, the config keys in `./protura.conf` are generally set to
+`KP_WARNING` in regards to restricting the log messaging from most of the
+subsystems/drivers.
+
 | Parameter | Default | Description |
 | --- | --- | --- |
 | `com1.loglevel` | `normal` | The max level of log message to write to the COM1 port |
 | `console.loglevel` | `normal` | The max level of log message to write to the console |
+| `ext2.loglevel` | `warning` | The max level of log messages from the ext2 driver |
 
 Kernel Testing Parameters
 -------------------------

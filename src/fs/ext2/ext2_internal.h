@@ -13,11 +13,16 @@
 #include <protura/fs/file.h>
 #include <protura/fs/ext2.h>
 
-#ifdef CONFIG_KERNEL_LOG_EXT2
-# define kp_ext2(sb, str, ...) kp(KP_NORMAL, "EXT2 (%p): " str, sb, ## __VA_ARGS__)
-#else
-# define kp_ext2(sb, str, ...) do { (void)(sb); } while (0)
-#endif
+extern int ext2_max_log_level;
+
+#define kp_ext2_check_level(lvl, sb, str, ...) \
+    kp_check_level((lvl), ext2_max_log_level, "ext2: (%p): " str, (sb), ## __VA_ARGS__)
+
+#define kp_ext2_trace(sb, str, ...)   kp_ext2_check_level(KP_TRACE, sb, str, ## __VA_ARGS__)
+#define kp_ext2_debug(sb, str, ...)   kp_ext2_check_level(KP_DEBUG, sb, str, ## __VA_ARGS__)
+#define kp_ext2(sb, str, ...)         kp_ext2_check_level(KP_NORMAL, sb, str, ## __VA_ARGS__)
+#define kp_ext2_warning(sb, str, ...) kp_ext2_check_level(KP_WARNING, sb, str, ## __VA_ARGS__)
+#define kp_ext2_error(sb, str, ...)   kp_ext2_check_level(KP_ERROR, sb, str, ## __VA_ARGS__)
 
 extern struct inode_ops ext2_inode_ops_dir;
 extern struct inode_ops ext2_inode_ops_file;
