@@ -19,18 +19,6 @@
 #define KP_WARNING 1
 #define KP_ERROR 0
 
-#ifdef CONFIG_KERNEL_LOG_LOCKING
-# define KP_LOCK KP_DEBUG
-#else
-# define KP_LOCK 99
-#endif
-
-#ifdef CONFIG_KERNEL_LOG_SPINLOCK
-# define KP_SPINLOCK KP_DEBUG
-#else
-# define KP_SPINLOCK 99
-#endif
-
 enum {
     KP_OUTPUT_DEAD,
 };

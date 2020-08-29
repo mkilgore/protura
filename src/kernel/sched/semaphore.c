@@ -25,7 +25,6 @@ static void __sem_wake_if_waiting(struct semaphore *sem)
 static void __sem_down(struct semaphore *sem)
 {
     struct semaphore_wait_entry ent;
-    kp(KP_LOCK, "semaphore %p: down: %d\n", sem, sem->count);
 
     sem_wait_entry_init(&ent);
     ent.task = cpu_get_local()->current;
@@ -54,13 +53,10 @@ static void __sem_down(struct semaphore *sem)
 
     if (sem->count > 0)
         __sem_wake_if_waiting(sem);
-
-    kp(KP_LOCK, "semaphore %p down result: %d\n", sem, sem->count);
 }
 
 static int __sem_try_down(struct semaphore *sem)
 {
-    kp(KP_LOCK, "semaphore %p: Trying down: %d\n", sem, sem->count);
     /* We have the lock on the semaphore, so it's guarenteed sem->count won't
      * change in this context. */
     if (sem->count <= 0)
@@ -69,8 +65,6 @@ static int __sem_try_down(struct semaphore *sem)
     /* Since we hold the lock, nobody can change sem->count, so we're fine to
      * decrement it and not check it. */
     sem->count--;
-
-    kp(KP_LOCK, "semaphore %p: down result: %d\n", sem, sem->count);
 
     return 1;
 }
