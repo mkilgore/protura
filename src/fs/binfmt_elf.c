@@ -17,6 +17,7 @@
 #include <protura/dump_mem.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/vm.h>
+#include <protura/kparam.h>
 #include <arch/task.h>
 #include <arch/paging.h>
 #include <arch/idt.h>
@@ -33,11 +34,17 @@
 #include <protura/fs/binfmt.h>
 #include <protura/fs/elf.h>
 
-#ifdef CONFIG_KERNEL_LOG_ELF
-# define kp_elf(params, str, ...) kp(KP_DEBUG, "%p elf: " str, params, ## __VA_ARGS__)
-#else
-# define kp_elf(params, str, ...) do { ; } while (0)
-#endif
+static int elf_max_log_level = CONFIG_ELF_LOG_LEVEL;
+KPARAM("elf.loglevel", &elf_max_log_level, KPARAM_LOGLEVEL);
+
+#define kp_elf_check_level(lvl, params, str, ...) \
+    kp_check_level((lvl), elf_max_log_level, "elf: (%p): " str, (params), ## __VA_ARGS__)
+
+#define kp_elf_trace(params, str, ...)   kp_elf_check_level(KP_TRACE, params, str, ## __VA_ARGS__)
+#define kp_elf_debug(params, str, ...)   kp_elf_check_level(KP_DEBUG, params, str, ## __VA_ARGS__)
+#define kp_elf(params, str, ...)         kp_elf_check_level(KP_NORMAL, params, str, ## __VA_ARGS__)
+#define kp_elf_warning(params, str, ...) kp_elf_check_level(KP_WARNING, params, str, ## __VA_ARGS__)
+#define kp_elf_error(params, str, ...)   kp_elf_check_level(KP_ERROR, params, str, ## __VA_ARGS__)
 
 static int vm_map_pad_last_page(struct exe_params *params, struct vm_map *map, off_t file_size)
 {
@@ -51,14 +58,14 @@ static int vm_map_pad_last_page(struct exe_params *params, struct vm_map *map, o
     int off = file_size - PG_ALIGN_DOWN(file_size);
 
     int err = vfs_pread(map->filp, make_kernel_buffer(p->virt), off, file_offset);
-    kp_elf(params, "read: %d\n", err);
+    kp_elf_debug(params, "read: %d\n", err);
     if (err < 0) {
         pfree(p, 0);
         return err;
     }
 
-    kp_elf(params, "file_size: %ld, align_file_size: %ld, off: 0x%04x\n", file_size, PG_ALIGN_DOWN(file_size), off);
-    kp_elf(params, "Mapping last page of map %p-%p: %p\n", map->addr.start, map->addr.end, address);
+    kp_elf_debug(params, "file_size: %ld, align_file_size: %ld, off: 0x%04x\n", file_size, PG_ALIGN_DOWN(file_size), off);
+    kp_elf_debug(params, "Mapping last page of map %p-%p: %p\n", map->addr.start, map->addr.end, address);
 
     page_table_map_entry(map->owner->page_dir, address, page_to_pa(p), map->flags, PCM_CACHED);
     return 0;
@@ -66,13 +73,13 @@ static int vm_map_pad_last_page(struct exe_params *params, struct vm_map *map, o
 
 static int add_data_vm_map(struct exe_params *params, struct address_space *addrspc, struct elf_prog_section *sect)
 {
-    kp_elf(params, "Creating new data vm_map...\n");
+    kp_elf_debug(params, "Creating new data vm_map...\n");
     struct vm_map *data_sect = kmalloc(sizeof(struct vm_map), PAL_KERNEL);
     vm_map_init(data_sect);
 
     data_sect->owner = addrspc;
 
-    kp_elf(params, "Sect: %p\n", sect);
+    kp_elf_debug(params, "Sect: %p\n", sect);
 
     /* FIXME: On error this needs to properly free things */
 
@@ -88,7 +95,7 @@ static int add_data_vm_map(struct exe_params *params, struct address_space *addr
     if (sect->flags & ELF_PROG_FLAG_WRITE)
         flag_set(&data_sect->flags, VM_MAP_WRITE);
 
-    kp_elf(params, "Map from %p to %p\n", data_sect->addr.start, data_sect->addr.end);
+    kp_elf_debug(params, "Map from %p to %p\n", data_sect->addr.start, data_sect->addr.end);
 
     if (!addrspc->code)
         addrspc->code = data_sect;
@@ -103,13 +110,13 @@ static int add_data_vm_map(struct exe_params *params, struct address_space *addr
     data_sect->filp = file_dup(params->exe);
     data_sect->file_page_offset = PG_ALIGN_DOWN(sect->f_off);
     data_sect->ops = &mmap_file_ops;
-    kp_elf(params, "file_page_offset: %ld\n", data_sect->file_page_offset);
+    kp_elf_debug(params, "file_page_offset: %ld\n", data_sect->file_page_offset);
 
     /* We have to adjust the file size since we aligned the file offset to the previous page */
     off_t adjusted_file_size = sect->f_size + (sect->f_off - data_sect->file_page_offset);
 
     if (adjusted_file_size != PG_ALIGN(adjusted_file_size)) {
-        kp_elf(params, "Padding last page of new_sect, %ld vs %ld\n", adjusted_file_size, PG_ALIGN(adjusted_file_size));
+        kp_elf_debug(params, "Padding last page of new_sect, %ld vs %ld\n", adjusted_file_size, PG_ALIGN(adjusted_file_size));
         vm_map_pad_last_page(params, data_sect, adjusted_file_size);
     }
 
@@ -122,11 +129,11 @@ static int add_bss_vm_map(struct exe_params *params, struct address_space *addrs
     va_t start = va_make(PG_ALIGN(sect->vaddr + sect->f_size));
     va_t end = va_make(PG_ALIGN(sect->vaddr + sect->mem_size));
     if (start == end) {
-        kp_elf(params, "No bss segment required\n");
+        kp_elf_debug(params, "No bss segment required\n");
         return 0;
     }
 
-    kp_elf(params, "Creating new bss vm_map...\n");
+    kp_elf_debug(params, "Creating new bss vm_map...\n");
     struct vm_map *bss_sect = kmalloc(sizeof(struct vm_map), PAL_KERNEL);
     vm_map_init(bss_sect);
 
@@ -143,7 +150,7 @@ static int add_bss_vm_map(struct exe_params *params, struct address_space *addrs
     if (sect->flags & ELF_PROG_FLAG_WRITE)
         flag_set(&bss_sect->flags, VM_MAP_WRITE);
 
-    kp_elf(params, "BSS: Map from %p to %p\n", bss_sect->addr.start, bss_sect->addr.end);
+    kp_elf_debug(params, "BSS: Map from %p to %p\n", bss_sect->addr.start, bss_sect->addr.end);
 
     addrspc->bss = bss_sect;
     addrspc->brk = bss_sect->addr.end;
@@ -170,15 +177,15 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     new_addrspc = kmalloc(sizeof(*new_addrspc), PAL_KERNEL);
     address_space_init(new_addrspc);
 
-    kp_elf(params, "Parsing ELF binary... frame: %p, state: %d\n", frame, cpu_get_local()->current->state);
+    kp_elf_debug(params, "Parsing ELF binary... frame: %p, state: %d\n", frame, cpu_get_local()->current->state);
 
     /* The idea is that you loop over every header, and if a header's type is
      * 'LOAD' then we make a vm_map for it and load it into memory. */
     for (i = 0, current_off = head.prog_head_pos; i < head.prog_head_count; i++, current_off += sizeof(struct elf_prog_section)) {
 
-        kp_elf(params, "Reading ELF section...\n");
+        kp_elf_debug(params, "Reading ELF section...\n");
         ret = vfs_pread(params->exe, make_kernel_buffer(&sect), sizeof(sect), current_off);
-        kp_elf(params, "Reading ret: %d\n", ret);
+        kp_elf_debug(params, "Reading ret: %d\n", ret);
         if (ret != sizeof(sect))
             return -ENOEXEC;
 
@@ -217,17 +224,17 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     new_addrspc->stack = stack;
 
     if (new_addrspc->code)
-        kp_elf(params, "New code segment: %p-%p\n", new_addrspc->code->addr.start, new_addrspc->code->addr.end);
+        kp_elf_debug(params, "New code segment: %p-%p\n", new_addrspc->code->addr.start, new_addrspc->code->addr.end);
     else
-        kp_elf(params, "No code segment!\n");
+        kp_elf_debug(params, "No code segment!\n");
 
     if (new_addrspc->data)
-        kp_elf(params, "New data segment: %p-%p\n", new_addrspc->data->addr.start, new_addrspc->data->addr.end);
+        kp_elf_debug(params, "New data segment: %p-%p\n", new_addrspc->data->addr.start, new_addrspc->data->addr.end);
 
     if (new_addrspc->bss)
-        kp_elf(params, "New bss segment: %p-%p\n", new_addrspc->bss->addr.start, new_addrspc->bss->addr.end);
+        kp_elf_debug(params, "New bss segment: %p-%p\n", new_addrspc->bss->addr.start, new_addrspc->bss->addr.end);
 
-    kp_elf(params, "New stack segment: %p-%p\n", new_addrspc->stack->addr.start, new_addrspc->stack->addr.end);
+    kp_elf_debug(params, "New stack segment: %p-%p\n", new_addrspc->stack->addr.start, new_addrspc->stack->addr.end);
 
     current = cpu_get_local()->current;
 
@@ -238,7 +245,7 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
     irq_frame_set_stack(current->context.frame, new_addrspc->stack->addr.end);
     irq_frame_set_ip(current->context.frame, va_make(head.entry_vaddr));
 
-    kp_elf(params, "ELF load complete\n");
+    kp_elf_debug(params, "ELF load complete\n");
 
     return 0;
 }
