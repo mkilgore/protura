@@ -55,6 +55,7 @@ subsystems/drivers.
 | `ext2.loglevel` | CONFIG_EXT2_LOG_LEVEL | The max level of log messages from the ext2 driver |
 | `elf.loglevel` | CONFIG_ELF_LOG_LEVEL | The max level of log messages from the ELF binfmt |
 | `vfs.loglevel` | CONFIG_VFS_LOG_LEVEL | The max level of log messages from the VFS layer |
+| `slab.loglevel` | CONFIG_SLAB_LOG_LEVEL | The max level of log messages from the SLAB layer |
 
 Kernel Testing Parameters
 -------------------------

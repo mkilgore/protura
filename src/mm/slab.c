@@ -15,16 +15,23 @@
 #include <protura/mm/memlayout.h>
 #include <protura/mm/palloc.h>
 #include <protura/backtrace.h>
+#include <protura/kparam.h>
 
 #include <arch/spinlock.h>
 #include <arch/paging.h>
 #include <protura/mm/slab.h>
 
-#ifdef CONFIG_KERNEL_LOG_SLAB
-# define kp_slab(s, str, ...) kp(KP_NORMAL, "SLAB %s: " str, (s)->slab_name, ## __VA_ARGS__)
-#else
-# define kp_slab(s, str, ...) do { ; } while (0)
-#endif
+static int slab_max_log_level = CONFIG_SLAB_LOG_LEVEL;
+KPARAM("slab.loglevel", &slab_max_log_level, KPARAM_LOGLEVEL);
+
+#define kp_slab_check_level(lvl, slab, str, ...) \
+    kp_check_level((lvl), slab_max_log_level, "slab %s: " str, ((slab)->slab_name), ## __VA_ARGS__)
+
+#define kp_slab_trace(slab, str, ...)   kp_slab_check_level(KP_TRACE, slab, str, ## __VA_ARGS__)
+#define kp_slab_debug(slab, str, ...)   kp_slab_check_level(KP_DEBUG, slab, str, ## __VA_ARGS__)
+#define kp_slab(slab, str, ...)         kp_slab_check_level(KP_NORMAL, slab, str, ## __VA_ARGS__)
+#define kp_slab_warning(slab, str, ...) kp_slab_check_level(KP_WARNING, slab, str, ## __VA_ARGS__)
+#define kp_slab_error(slab, str, ...)   kp_slab_check_level(KP_ERROR, slab, str, ## __VA_ARGS__)
 
 #define SLAB_POISON (0xDEADBEAF)
 
@@ -59,9 +66,9 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
     int i, page_index = CONFIG_KERNEL_SLAB_ORDER;
 
-    kp_slab(slab, "Calling palloc with %d, %d\n", flags, page_index);
+    kp_slab_debug(slab, "Calling palloc with %d, %d\n", flags, page_index);
     newframe = palloc_va(page_index, flags);
-    kp_slab(slab, "New frame for slab: %p\n", newframe);
+    kp_slab_debug(slab, "New frame for slab: %p\n", newframe);
 
     if (!newframe)
         return NULL;
@@ -91,7 +98,7 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
         count++;
 
-        kp_slab(slab, "__slab_frame_new: %p\n", obj);
+        kp_slab_debug(slab, "__slab_frame_new: %p\n", obj);
     }
 
     *current = NULL;
@@ -101,7 +108,7 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
 static void __slab_frame_free(struct slab_alloc *slab, struct slab_page_frame *frame)
 {
-    kp_slab(slab, "Calling pfree with %p, %d\n", frame, frame->page_index_size);
+    kp_slab_debug(slab, "Calling pfree with %p, %d\n", frame, frame->page_index_size);
     pfree_va(frame, frame->page_index_size);
 }
 
@@ -136,7 +143,7 @@ static void *__slab_frame_object_alloc(struct slab_alloc *slab, struct slab_page
     int k = 0;
     for (; k < poison_count; k++) {
         if (poison[k] != SLAB_POISON) {
-            kp(KP_ERROR, "SLAB %s: %p: POISON IS INVALID, offset: %zd!!!!\n", slab->slab_name, obj, k * 4 + sizeof(*obj));
+            kp_slab_error(slab, "%p: POISON IS INVALID, offset: %zd!!!!\n", obj, k * 4 + sizeof(*obj));
             dump_stack(KP_ERROR);
 
             /* Skip the invalid entry (It is effectively lost forever. Though
@@ -146,7 +153,7 @@ static void *__slab_frame_object_alloc(struct slab_alloc *slab, struct slab_page
              * FIXME: Perhaps we should mark these bad forever, even if freed again? */
 
             frame->freelist = frame->freelist->next;
-            kp(KP_ERROR, "SLAB %s: skipping invalid to next: %p\n", slab->slab_name, frame->freelist);
+            kp_slab_error(slab, "Skipping invalid to next: %p\n", frame->freelist);
             goto try_again;
         }
     }
@@ -156,7 +163,7 @@ static void *__slab_frame_object_alloc(struct slab_alloc *slab, struct slab_page
     frame->freelist = next;
     frame->free_object_count--;
 
-    kp_slab(slab, "__slab_frame_object_alloc: %p\n", obj);
+    kp_slab_debug(slab, "__slab_frame_object_alloc: %p\n", obj);
     return obj;
 }
 
@@ -254,7 +261,7 @@ void *slab_malloc(struct slab_alloc *slab, unsigned int flags)
     using_spinlock(&slab->lock)
         ret = __slab_malloc(slab, flags);
 
-    kp_slab(slab, "malloc new: %p\n", ret);
+    kp_slab_debug(slab, "malloc new: %p\n", ret);
     return ret;
 }
 
