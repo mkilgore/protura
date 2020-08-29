@@ -227,7 +227,7 @@ static struct kp_output_ops com1_kp_output_ops = {
 };
 
 static struct kp_output com_kp_output = KP_OUTPUT_INIT(com_kp_output, KP_NORMAL, "com1", &com1_kp_output_ops);
-KPARAM("com1.loglevel", &com_kp_output.max_level, KPARAM_INT);
+KPARAM("com1.loglevel", &com_kp_output.max_level, KPARAM_LOGLEVEL);
 
 void com_kp_register(void)
 {

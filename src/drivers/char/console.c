@@ -121,7 +121,7 @@ static struct vt_kp_output vt_kp_output = {
     .vt = &console_vts[0],
 };
 
-KPARAM("console.loglevel", &vt_kp_output.output.max_level, KPARAM_INT);
+KPARAM("console.loglevel", &vt_kp_output.output.max_level, KPARAM_LOGLEVEL);
 
 void vt_console_kp_register(void)
 {

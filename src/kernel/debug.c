@@ -21,7 +21,7 @@ static spinlock_t kprintf_lock = SPINLOCK_INIT();
 static list_head_t kp_output_list = LIST_HEAD_INIT(kp_output_list);
 
 static int max_log_level = CONFIG_KERNEL_LOG_LEVEL;
-KPARAM("kernel.loglevel", &max_log_level, KPARAM_INT);
+KPARAM("kernel.loglevel", &max_log_level, KPARAM_LOGLEVEL);
 
 void kp_output_register(struct kp_output *output)
 {
