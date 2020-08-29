@@ -99,13 +99,10 @@ static const char *level_to_str[] = {
     [KP_ERROR] = "[E]",
 };
 
-void kpv(int level, const char *fmt, va_list lst)
+void kpv_force(int level, const char *fmt, va_list lst)
 {
     /* Max length of a kp line is 128 characters */
     char kp_buf[128];
-
-    if (level > READ_ONCE(max_log_level))
-        return;
 
     uint32_t kernel_time_ms = protura_uptime_get_ms();
     const char *prefix = "[!]";
@@ -115,9 +112,24 @@ void kpv(int level, const char *fmt, va_list lst)
 
     size_t prefix_len = snprintf(kp_buf, sizeof(kp_buf), "[%d.%03d]%s: ", kernel_time_ms / 1000, kernel_time_ms % 1000, prefix);
 
-    snprintfv(kp_buf + prefix_len, sizeof(kp_buf) - prefix_len, fmt, lst);
+    size_t end = snprintfv(kp_buf + prefix_len, sizeof(kp_buf) - prefix_len, fmt, lst);
+
+    /* The line got cut-off - make sure a newline is still included, and add ~'s to let the user know */
+    if (prefix_len + end == sizeof(kp_buf) - 1) {
+        kp_buf[sizeof(kp_buf) - 2] = '\n';
+        kp_buf[sizeof(kp_buf) - 3] = '~';
+        kp_buf[sizeof(kp_buf) - 4] = '~';
+    }
 
     kp_output_logline(level, kp_buf);
+}
+
+void kpv(int level, const char *fmt, va_list lst)
+{
+    if (level > READ_ONCE(max_log_level))
+        return;
+
+    kpv_force(level, fmt, lst);
 }
 
 void kp(int level, const char *fmt, ...)
@@ -125,6 +137,14 @@ void kp(int level, const char *fmt, ...)
     va_list lst;
     va_start(lst, fmt);
     kpv(level, fmt, lst);
+    va_end(lst);
+}
+
+void kp_force(int level, const char *fmt, ...)
+{
+    va_list lst;
+    va_start(lst, fmt);
+    kpv_force(level, fmt, lst);
     va_end(lst);
 }
 

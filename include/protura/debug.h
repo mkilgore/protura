@@ -66,6 +66,19 @@ void kp_output_unregister(struct kp_output *);
 void kp(int level, const char *str, ...) __printf(2, 3);
 void kpv(int level, const char *str, va_list lst);
 
+/* These 'force' functions ignore the global log level and force the line to be
+ * logged regardless. Individual kp_output max's still apply. */
+void kp_force(int level, const char *str, ...) __printf(2, 3);
+void kpv_force(int level, const char *str, va_list lst);
+
+/* This is a convience macro for creating more specific loggers that use their
+ * own max loglevel */
+#define kp_check_level(lvl, var, str, ...) \
+    do { \
+        if (READ_ONCE((var)) >= (lvl)) \
+            kp_force((lvl), str, ## __VA_ARGS__); \
+    } while (0)
+
 extern int reboot_on_panic;
 
 void __panic(const char *s, ...) __printf(1, 2) __noreturn;
