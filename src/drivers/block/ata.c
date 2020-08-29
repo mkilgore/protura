@@ -16,6 +16,7 @@
 #include <protura/mm/palloc.h>
 #include <protura/wait.h>
 #include <protura/ida.h>
+#include <protura/kparam.h>
 
 #include <arch/spinlock.h>
 #include <arch/idt.h>
@@ -28,6 +29,18 @@
 #include <protura/drivers/pci_ids.h>
 #include <protura/drivers/ata.h>
 #include "ata.h"
+
+static int ata_max_log_level = CONFIG_ATA_LOG_LEVEL;
+KPARAM("ata.loglevel", &ata_max_log_level, KPARAM_LOGLEVEL);
+
+#define kp_ata_check_level(lvl, str, ...) \
+    kp_check_level((lvl), ata_max_log_level, "ATA: " str, ## __VA_ARGS__)
+
+#define kp_ata_trace(str, ...)   kp_ata_check_level(KP_TRACE, str, ## __VA_ARGS__)
+#define kp_ata_debug(str, ...)   kp_ata_check_level(KP_DEBUG, str, ## __VA_ARGS__)
+#define kp_ata(str, ...)         kp_ata_check_level(KP_NORMAL, str, ## __VA_ARGS__)
+#define kp_ata_warning(str, ...) kp_ata_check_level(KP_WARNING, str, ## __VA_ARGS__)
+#define kp_ata_error(str, ...)   kp_ata_check_level(KP_ERROR, str, ## __VA_ARGS__)
 
 static io_t ata_reg(struct ata_drive *drive, int reg)
 {
@@ -101,10 +114,10 @@ static void ata_pio_read_next_sector(struct ata_drive *drive)
 static void start_pio_request(struct ata_drive *drive, struct block *b)
 {
     if (!flag_test(&b->flags, BLOCK_DIRTY)) {
-        kp_ata("Start read: %d\n", b->sector);
+        kp_ata_trace("Start PIO read: %d\n", b->sector);
         outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_PIO_LBA28_READ);
     } else {
-        kp_ata("Start write: %d\n", b->sector);
+        kp_ata_trace("Start PIO write: %d\n", b->sector);
         outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_PIO_LBA28_WRITE);
 
         int status = ata_wait_for_drq(drive);
@@ -124,14 +137,14 @@ static void start_dma_request(struct ata_drive *drive, struct block *b)
     outl(drive->dma_base + ATA_DMA_IO_PRDT, V2P(drive->prdt));
 
     if (!flag_test(&b->flags, BLOCK_DIRTY)) {
-        kp_ata("Start read: %d\n", b->sector);
+        kp_ata_trace("Start DMA read: %d\n", b->sector);
 
         outb(drive->dma_base + ATA_DMA_IO_CMD, ATA_DMA_CMD_RWCON);
         outb(drive->dma_base + ATA_DMA_IO_STAT, inb(drive->dma_base + ATA_DMA_IO_STAT)); /* Per Linux, clear the status register */
         outb(drive->dma_base + ATA_DMA_IO_CMD, ATA_DMA_CMD_RWCON | ATA_DMA_CMD_SSBM);
         outb(ata_reg(drive, ATA_PORT_COMMAND_STATUS), ATA_COMMAND_DMA_LBA28_READ);
     } else {
-        kp_ata("Start write: %d\n", b->sector);
+        kp_ata_trace("Start DMA write: %d\n", b->sector);
 
         outb(drive->dma_base + ATA_DMA_IO_CMD, 0);
         outb(drive->dma_base + ATA_DMA_IO_STAT, inb(drive->dma_base + ATA_DMA_IO_STAT)); /* Per Linux, clear the status register */
@@ -161,7 +174,7 @@ static void __ata_start_request(struct ata_drive *drive)
     struct block *b = drive->current;
     int sector_count = b->block_size / ATA_SECTOR_SIZE;
 
-    kp_ata("Request B: %d, sector: %d, count: %d, slave: %d\n", b->sector, b->real_sector, sector_count, is_slave);
+    kp_ata_trace("Request B: %d, sector: %d, count: %d, slave: %d\n", b->sector, b->real_sector, sector_count, is_slave);
 
     drive->current_sector_offset = 0;
     drive->sectors_left = sector_count;
@@ -205,7 +218,7 @@ static void __ata_handle_intr(struct ata_drive *drive)
     struct block *b = drive->current;
     int status = ata_read_status(drive);
 
-    kp_ata("INTR, Status: 0x%02x\n", status);
+    kp_ata_trace("INTR, Status: 0x%02x\n", status);
 
     /* If the interrupt is shared, the request may not be finished yet */
     if (status & ATA_STATUS_BUSY)

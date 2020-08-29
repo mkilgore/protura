@@ -56,6 +56,7 @@ subsystems/drivers.
 | `elf.loglevel` | CONFIG_ELF_LOG_LEVEL | The max level of log messages from the ELF binfmt |
 | `vfs.loglevel` | CONFIG_VFS_LOG_LEVEL | The max level of log messages from the VFS layer |
 | `slab.loglevel` | CONFIG_SLAB_LOG_LEVEL | The max level of log messages from the SLAB layer |
+| `ata.loglevel` | CONFIG_ATA_LOG_LEVEL | The max level of log messages from the ATA layer |
 
 Kernel Testing Parameters
 -------------------------

@@ -66,12 +66,6 @@ struct ata_dma_prd {
     uint32_t bcnt;
 } __packed __align(0x08);
 
-#ifdef CONFIG_KERNEL_LOG_ATA
-# define kp_ata(str, ...) kp(KP_NORMAL, "ATA: " str, ## __VA_ARGS__)
-#else
-# define kp_ata(str, ...) do { ; } while (0)
-#endif
-
 enum {
     ATA_PORT_DATA = 0,
     ATA_PORT_FEAT_ERR = 1,
