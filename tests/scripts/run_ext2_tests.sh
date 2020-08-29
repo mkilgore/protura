@@ -56,7 +56,7 @@ for test in $TESTS; do
         -display none \
         -no-reboot \
         -kernel $KERNEL \
-        -append "init=/tests/ext2/$test reboot_on_panic=1" \
+        -append "init=/tests/ext2/$test com1.loglevel=debug reboot_on_panic=1 ext2.loglevel=debug" \
         2> $TEST_ERR_LOG &
 
     wait $!
