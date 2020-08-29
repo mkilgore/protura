@@ -25,12 +25,6 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/vfs.h>
 
-#ifdef CONFIG_KERNEL_LOG_INODE
-# define kp_inode(str, ...) kp(KP_NORMAL, "Inode: " str, ## __VA_ARGS__)
-#else
-# define kp_inode(str, ...) do { } while (0)
-#endif
-
 #define INODE_HASH_SIZE 512
 
 /* Protects inode_hashes, inode->hash_entry, inode_freeing_queue
