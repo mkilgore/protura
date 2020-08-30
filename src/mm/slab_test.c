@@ -30,7 +30,13 @@ static void slab_test_frame_new(struct ktest *kt)
     struct slab_page_frame *new_frame;
     int obj_count = (1 << CONFIG_KERNEL_SLAB_ORDER) * PG_SIZE / obj_size - 1;
 
-    new_frame = __slab_frame_new(&test_slab, PAL_KERNEL);
+    spinlock_acquire(&test_slab.lock);
+    int err = __slab_frame_add_new(&test_slab, PAL_KERNEL);
+    spinlock_release(&test_slab.lock);
+
+    ktest_assert_equal(kt, 0, err);
+
+    new_frame = test_slab.first_frame;
 
     ktest_assert_notequal(kt, NULL, new_frame);
     ktest_assert_equal(kt, obj_count, new_frame->object_count);

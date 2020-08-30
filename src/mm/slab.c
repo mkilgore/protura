@@ -58,7 +58,7 @@ void __slab_info(struct slab_alloc *slab, char *buf, size_t buf_size)
         snprintf(buf, buf_size, "  frame (%p): %d objects\n", frame, frame->object_count);
 }
 
-static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigned int flags)
+static int __slab_frame_add_new(struct slab_alloc *slab, unsigned int flags)
 {
     char *obj;
     struct page_frame_obj_empty **current;
@@ -66,12 +66,23 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
 
     int i, page_index = CONFIG_KERNEL_SLAB_ORDER;
 
+    /* We drop the lock before calling palloc_va(). It creates a potential (but
+     * mostly harmless) race where we could end-up creating an extra slab frame.
+     *
+     * The alloc logic will retry instead of using this frame directly, so any
+     * extra frames should be left unused unless all the previous frames are
+     * filled, which leaves the extra frames in a position to get cleared on an OOM.
+     */
+    spinlock_release(&slab->lock);
+
     kp_slab_debug(slab, "Calling palloc with %d, %d\n", flags, page_index);
     newframe = palloc_va(page_index, flags);
     kp_slab_debug(slab, "New frame for slab: %p\n", newframe);
 
+    spinlock_acquire(&slab->lock);
+
     if (!newframe)
-        return NULL;
+        return -ENOMEM;
 
     newframe->page_index_size = page_index;
 
@@ -97,13 +108,19 @@ static struct slab_page_frame *__slab_frame_new(struct slab_alloc *slab, unsigne
         *current = (struct page_frame_obj_empty *)obj;
 
         count++;
-
-        kp_slab_debug(slab, "__slab_frame_new: %p\n", obj);
     }
 
     *current = NULL;
 
-    return newframe;
+
+    /* Loop until we hit the last entry. The double pointer just removes the special case for slab->first_frame. */
+    struct slab_page_frame **current_frame = &slab->first_frame;
+    for (; *current_frame; current_frame = &((*current_frame)->next))
+        ;
+
+    *current_frame = newframe;
+
+    return 0;
 }
 
 static void __slab_frame_free(struct slab_alloc *slab, struct slab_page_frame *frame)
@@ -207,6 +224,7 @@ void *__slab_malloc(struct slab_alloc *slab, unsigned int flags)
 {
     struct slab_page_frame **frame = &slab->first_frame;
 
+  try_again:
     for (frame = &slab->first_frame; *frame; frame = &((*frame)->next)) {
         if ((*frame)->free_object_count && !(*frame)->freelist) {
             kp(KP_ERROR, "free_object_count and freelist do not agree! %s, %d, %p\n", slab->slab_name, (*frame)->free_object_count, (*frame)->freelist);
@@ -217,12 +235,11 @@ void *__slab_malloc(struct slab_alloc *slab, unsigned int flags)
             return __slab_frame_object_alloc(slab, *frame);
     }
 
-    *frame = __slab_frame_new(slab, flags);
-
-    if (*frame)
-        return __slab_frame_object_alloc(slab, *frame);
-    else
+    int err = __slab_frame_add_new(slab, flags);
+    if (err)
         return NULL;
+
+    goto try_again;
 }
 
 int __slab_has_addr(struct slab_alloc *slab, void *addr)
