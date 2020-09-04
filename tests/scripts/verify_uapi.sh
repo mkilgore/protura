@@ -16,11 +16,11 @@
 # passing the correct flags forces it to check if all the dependency header
 # files exist.
 
-. ./tests/scripts/colors.sh
-
 GCC=$1
 TEST_PREFIX=$2
 TOTAL_RESULT=0
+
+PREFIX="uapi"
 
 shift
 shift
@@ -42,28 +42,13 @@ done
 # Run each header through gcc, and verify it reports success
 for f in "${header_files[@]}"
 do
+    TESTCASE=$f
+
     name=${f#./}
     name=$(echo "$name" | sed "s/\//_/g")
     GCC_LOG=$TEST_PREFIX/$name.log
     GCC_ERR_LOG=$TEST_PREFIX/$name.err.log
 
-    printf "Checking $f ..."
-
-    if ! gcc $gcc_args $f > $GCC_LOG 2> $GCC_ERR_LOG; then
-        echo "$RED FAILURE!$RESET Review gcc error below:"
-
-        cat $GCC_ERR_LOG
-
-        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
-    else
-        echo "$GREEN PASS!$RESET"
-    fi
+    gcc $gcc_args $f > $GCC_LOG 2> $GCC_ERR_LOG
+    assert_success "Review gcc error below:" cat $GCC_ERR_LOG
 done
-
-if [ "$TOTAL_RESULT" == "0" ]; then
-    echo "${GREEN}ALL TESTS PASSED!$RESET"
-else
-    echo "${RED}TESTS FAILURE!$RESET"
-fi
-
-exit $TOTAL_RESULT

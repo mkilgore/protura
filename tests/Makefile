@@ -21,6 +21,9 @@ ifdef SINGLE_TEST
 EXTRA_TEST_ARGS += ktest.single_test=$(SINGLE_TEST)
 endif
 
+# Wraps the test scripts and provides some extra functionality
+ASSERT_WRAPPER=./tests/scripts/assert.sh
+
 # For the ext2 tests, we have scripts the generate test ext2 disks with various
 # parameters.
 #
@@ -53,7 +56,7 @@ EXT2_TESTS += check-ext2-$(1)
 
 check-ext2-$(1): $$(TEST_DISKS_DIR)/$(1).img $$(IMGS_DIR)/disk.img $$(KERNEL) | $$(TEST_RESULTS_DIR)/ext2/$(1)
 	@echo " EXT2TST $(1)"
-	$(Q)./tests/scripts/run_ext2_tests.sh $$(KERNEL) $$(IMGS_DIR)/disk.img $$(TEST_DISKS_DIR)/$(1).img "$$(TEST_RESULTS_DIR)/ext2/$(1)" "$(1)"
+	$(Q)$(ASSERT_WRAPPER) ./tests/scripts/run_ext2_tests.sh $$(KERNEL) $$(IMGS_DIR)/disk.img $$(TEST_DISKS_DIR)/$(1).img "$$(TEST_RESULTS_DIR)/ext2/$(1)" "$(1)"
 endef
 
 $(foreach disk,$(TEST_DISK_CASES),$(eval $(call check_test_disk_rule,$(disk))))
@@ -63,22 +66,22 @@ check: check-uapi check-kernel check-ext2 check-pci check-symbol-table
 
 PHONY += check-kernel
 check-kernel: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(TEST_RESULTS_DIR)/ktest
-	$(Q)./tests/scripts/run_ktest_tests.sh $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)/ktest "$(EXTRA_TEST_ARGS)"
+	$(Q)$(ASSERT_WRAPPER) ./tests/scripts/run_ktest_tests.sh $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)/ktest "$(EXTRA_TEST_ARGS)"
 
 PHONY += check-ext2
 check-ext2: $(EXT2_TESTS)
 
 PHONY += check-uapi
 check-uapi: | $(TEST_RESULTS_DIR)/uapi
-	$(Q)./tests/scripts/verify_uapi.sh "$(CC)" "$(TEST_RESULTS_DIR)/uapi" "./include/uapi" "./arch/$(ARCH)/include/uapi"
+	$(Q)$(ASSERT_WRAPPER) ./tests/scripts/verify_uapi.sh "$(CC)" "$(TEST_RESULTS_DIR)/uapi" "./include/uapi" "./arch/$(ARCH)/include/uapi"
 
 PHONY += check-symbol-table
 check-symbol-table: $(KERNEL).full $(OBJ_DIR)/vmprotura_symbols2.c | $(TEST_RESULTS_DIR)/symbol-table
-	$(Q)./tests/scripts/verify_symbol_table.sh $(KERNEL).full $(OBJ_DIR)/vmprotura_symbols2.c "$(TEST_RESULTS_DIR)/symbol-table"
+	$(Q)$(ASSERT_WRAPPER) ./tests/scripts/verify_symbol_table.sh $(KERNEL).full $(OBJ_DIR)/vmprotura_symbols2.c "$(TEST_RESULTS_DIR)/symbol-table"
 
 PHONY += check-pci
 check-pci: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(TEST_RESULTS_DIR)/pci
-	$(Q)./tests/scripts/run_pci_tests.sh $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)/pci
+	$(Q)$(ASSERT_WRAPPER) ./tests/scripts/run_pci_tests.sh $(KERNEL) $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(TEST_RESULTS_DIR)/pci
 
 PHONY += debug
 debug: $(IMGS_DIR)/disk.img $(IMGS_DIR)/disk2.img $(KERNEL) | $(LOGS_DIR)

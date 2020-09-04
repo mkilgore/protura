@@ -7,6 +7,8 @@
 # Argument 3: Second disk image
 # Argument 4: test results directory
 
+PREFIX="ext2"
+
 KERNEL=$1
 DISK_ONE=$2
 DISK_TWO=$3
@@ -14,7 +16,6 @@ TEST_PREFIX=$4
 TEST_NAME=$5
 
 QEMU_PID=
-RET=
 
 mkdir -p ./obj/$TEST_NAME
 
@@ -23,13 +24,10 @@ MAIN_DISK_CPY=./obj/$TEST_NAME/main_disk_cpy.img
 
 cp $DISK_ONE $MAIN_DISK_CPY
 
-. ./tests/scripts/colors.sh
-
-TOTAL_RESULT=0
-
 TESTS=$(find ./userspace/root/tests/ext2/ -name "test_*.sh" | xargs basename -a)
 
 for test in $TESTS; do
+    TESTCASE="$TEST_NAME: $test"
     TEST_LOG=${TEST_PREFIX}/$(basename -s .sh $test).qemu.log
     TEST_ERR_LOG=${TEST_PREFIX}/$(basename -s .sh $test).qemu.err.log
     TEST_E2FSCK_LOG=${TEST_PREFIX}/$(basename -s .sh $test).e2fsck.log
@@ -42,8 +40,6 @@ for test in $TESTS; do
 
     rm -fr $TEST_E2FSCK_LOG
     touch $TEST_E2FSCK_LOG
-
-    result_str="EXT2: $TEST_NAME: $test:"
 
     start_time=$(date +%s.%2N)
 
@@ -65,50 +61,18 @@ for test in $TESTS; do
     end_time=$(date +%s.%2N)
     time_length=$(echo "scale=2; $end_time - $start_time" | bc)
 
-    result_str+=" ${time_length}s:"
+    [ "$RET" -eq "0" ]
+    assert_success_named "Timeout (${time_length}s)" "Disk likely not synced!"
 
-    if [ "$RET" -ne "0" ]; then
-        echo "QEMU TIMEOUT" >> "$TEST_LOG"
+    [ -s "$TEST_LOG" ]
+    assert_success_named "Kernel Log Not Empty"
 
-        result_str+="$RED QEMU TIMEOUT, DISK LIKELY NOT SYNCED, FAILURE!!$RESET ..."
-
-        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
-    fi
-
-    if [ ! -s "$TEST_LOG" ]; then
-        result_str+="$RED KERNEL LOG EMPTY, AUTOMATIC FAILURE!!$RESET ..."
-
-        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
-    fi
-
-    if grep -q "PANIC" $TEST_LOG; then
-        result_str+="$RED KERNEL PANIC, AUTOMATIC FAILURE!!$RESET ..."
-
-        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
-    fi
+    ! grep -q "PANIC" $TEST_LOG
+    assert_success_named "Kernel Didn't Panic" "Kernel Log:" cat $TEST_LOG
 
     e2fsck -nfv $DISK_CPY > $TEST_E2FSCK_LOG 2>&1
-
-    if [ "${PIPESTATUS[0]}" -ne "0" ]; then
-        echo "EXT2 FAILURE" >> "$TEST_E2FSCK_LOG"
-
-        result_str+="$RED EXT2 FILE SYSTEM ERRORS!$RESET"
-
-        echo "$result_str"
-
-        echo "e2fsck results:"
-        cat $TEST_E2FSCK_LOG
-
-        TOTAL_RESULT=$(($TOTAL_RESULT + 1))
-    else
-        echo "EXT2 PASS" >> "$TEST_E2FSCK_LOG"
-        result_str+="$GREEN PASS!$RESET"
-
-        echo "$result_str"
-    fi
+    assert_success_named "e2fsck" "File System errors:" cat $TEST_E2FSCK_LOG
 done
 
 rm $DISK_CPY
 rm $MAIN_DISK_CPY
-
-exit $TOTAL_RESULT
