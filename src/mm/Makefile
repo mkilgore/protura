@@ -8,4 +8,5 @@ objs-y += mmap.o
 objs-y += sbrk.o
 objs-y += user_check.o
 objs-y += ptable.o
+objs-y += bootmem.o
 

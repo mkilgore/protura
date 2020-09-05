@@ -155,7 +155,7 @@ static inline void pfree_va_cleanup(void *p)
 int palloc_unordered(list_head_t *head, int count, unsigned int flags);
 void pfree_unordered(list_head_t *head);
 
-void palloc_init(void **kbrk, int pages);
+void palloc_init(int pages);
 
 int palloc_free_page_count(void);
 

@@ -18,6 +18,7 @@
 #include <protura/fs/inode.h>
 #include <protura/block/bcache.h>
 #include <protura/backtrace.h>
+#include <protura/mm/bootmem.h>
 
 #include <protura/mm/palloc.h>
 
@@ -278,21 +279,17 @@ int palloc_free_page_count(void)
     return buddy_allocator.free_pages;
 }
 
-void palloc_init(void **kbrk, int pages)
+void palloc_init(int pages)
 {
     struct page *p;
     int i;
 
     kp(KP_DEBUG, "Initalizing buddy allocator\n");
 
-    *kbrk = ALIGN_2(*kbrk, alignof(struct page));
-
     buddy_allocator.page_count = pages;
-    buddy_allocator.pages = *kbrk;
+    buddy_allocator.pages = bootmem_alloc(pages * sizeof(struct page), PG_SIZE);
 
-    kp(KP_DEBUG, "Pages: %d, array: %p\n", pages, *kbrk);
-
-    *kbrk += pages * sizeof(struct page);
+    kp(KP_DEBUG, "Pages: %d, array: %p\n", pages, buddy_allocator.pages);
 
     memset(buddy_allocator.pages, 0, pages * sizeof(struct page));
 
