@@ -109,7 +109,7 @@ static inline pa_t __PN_TO_PA(pn_t pn)
     return pn << PG_SHIFT;
 }
 
-void paging_setup_kernelspace(void **kbrk);
+void paging_setup_kernelspace(void);
 
 uintptr_t paging_get_phys(va_t virtaddr);
 void paging_dump_directory(pa_t dir);

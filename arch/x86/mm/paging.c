@@ -20,6 +20,7 @@
 #include <protura/fs/sys.h>
 #include <protura/drivers/tty.h>
 #include <protura/symbols.h>
+#include <protura/mm/bootmem.h>
 
 #include <arch/asm.h>
 #include <arch/cpu.h>
@@ -234,8 +235,7 @@ static void setup_pat(void)
 /* All of kernel-space virtual memory directly maps onto the lowest part of
  * physical memory (Or all of physical memory, if there is less physical memory
  * then the kernel's virtual memory space). This code sets up the kernel's page
- * directory to map all of the addresses in kernel space in this way. The kbrk
- * pointer is used to get pages to use as page-tables.
+ * directory to map all of the addresses in kernel space in this way.
  *
  * Note that if we have PSE, we just use that and map all of kernel-space using
  * 4MB pages, and thus avoid ever having to allocate page-tables.
@@ -243,7 +243,7 @@ static void setup_pat(void)
  * Since every processes's page directory will have the kernel's memory mapped,
  * we can make all of these pages as global, if the processor supports it.
  */
-static void setup_kernel_pagedir(void **kbrk)
+static void setup_kernel_pagedir(void)
 {
     int cur_table, cur_page;
     pa_t new_page;
@@ -263,12 +263,9 @@ static void setup_kernel_pagedir(void **kbrk)
     /* We use 4MB pages if we're able to, since they're nicer and we're never
      * going to be editing this map again. */
     if (!cpuid_has_pse()) {
-        *kbrk = PG_ALIGN(*kbrk);
         for (cur_table = table_start; cur_table < kmap_dir_start; cur_table++) {
-            new_page = V2P(*kbrk);
-            page_tbl = *kbrk;
-
-            *kbrk += PG_SIZE;
+            page_tbl = bootmem_alloc(PG_SIZE, PG_SIZE);
+            new_page = V2P(page_tbl);
 
             for (cur_page = 0; cur_page < 1024; cur_page++)
                 page_tbl->entries[cur_page].entry = (PAGING_MAKE_DIR_INDEX(cur_table - table_start)
@@ -285,10 +282,8 @@ static void setup_kernel_pagedir(void **kbrk)
 
     /* Setup directories for kmap */
     for (cur_table = kmap_dir_start; cur_table < 0x400; cur_table++) {
-        new_page = V2P(*kbrk);
-        page_tbl = *kbrk;
-
-        *kbrk += PG_SIZE;
+        page_tbl = bootmem_alloc(PG_SIZE, PG_SIZE);
+        new_page = V2P(page_tbl);
 
         memset(page_tbl, 0, sizeof(PG_SIZE));
 
@@ -299,7 +294,7 @@ static void setup_kernel_pagedir(void **kbrk)
 static struct irq_handler page_fault_irq_handler
     = IRQ_HANDLER_INIT(page_fault_irq_handler, "Page fault handler", page_fault_handler, NULL, IRQ_SYSCALL, 0);
 
-void paging_setup_kernelspace(void **kbrk)
+void paging_setup_kernelspace(void)
 {
     uint32_t pse, pge;
 
@@ -314,7 +309,7 @@ void paging_setup_kernelspace(void **kbrk)
     }
 
     kp(KP_NORMAL, "Setting-up initial kernel page-directory, PSE: %s, PGE: %s\n", pse? "yes": "no", pge? "yes": "no");
-    setup_kernel_pagedir(kbrk);
+    setup_kernel_pagedir();
 
     set_current_page_directory(v_to_p(&kernel_dir));
 

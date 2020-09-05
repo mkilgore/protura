@@ -147,9 +147,6 @@ higher_half:
     # with the code being run at KMEM_KBASE
     addl $KMEM_KBASE, %esp
 
-    push $kern_end
-    push $multiboot
-
     # Clear %ebp before the call - backtrace follows the frame-pointers, so a
     # frame-pointer with an %ebp of zero will mark the end of the backtrace.
     movl $0, %ebp

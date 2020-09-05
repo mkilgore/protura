@@ -27,6 +27,7 @@
 #include <protura/kparam.h>
 #include <protura/klog.h>
 #include <protura/block/bcache.h>
+#include <protura/mm/bootmem.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/console.h>
@@ -84,7 +85,22 @@ struct sys_init arch_init_systems[] = {
     { NULL, NULL }
 };
 
-static void handle_multiboot_info(struct multiboot_info *info, pa_t *high_addr)
+/* The multiboot memory regions are 64-bit ints (to support PAE) and can extend
+ * past the 32-bit memory space. We handle that here */
+static void add_multiboot_memory_region(uint64_t start, uint64_t length)
+{
+    /* Skip any regions that go past the end of the 32-bit memory space */
+    if (start  >= 0xFFFFFFFFLL)
+        return;
+
+    /* Clip any regions inside of the 32-bit memory space if they stretch outside it */
+    if (start + length >= 0xFFFFFFFFLL)
+        length  = 0xFFFFFFFFLL - start;
+
+    bootmem_add(start, start + length);
+}
+
+static void handle_multiboot_info(struct multiboot_info *info)
 {
     struct multiboot_memmap *mmap = (struct multiboot_memmap *)P2V(((struct multiboot_info*)P2V(info))->mmap_addr);
 
@@ -112,25 +128,21 @@ static void handle_multiboot_info(struct multiboot_info *info, pa_t *high_addr)
         if (mmap->type != 1)
             continue;
 
-        /* A small hack - We skip the map for the first MB since we map it separate.
-         * The first MB isn't usable conventional memory anyway because of the
-         * stuff mapped inside it. */
-        if (mmap->base_addr == 0)
-            continue;
-
-        *high_addr = mmap->base_addr + mmap->length;
-        *high_addr = PG_ALIGN(*high_addr) - 0x1000;
-        break;
+        add_multiboot_memory_region(mmap->base_addr, mmap->length);
     }
 }
 
-static void handle_multiboot2_info(void *info, pa_t *high_addr)
+static void handle_multiboot2_info(void *info)
 {
     uint32_t size = *(uint32_t *)info;
     struct multiboot2_tag *tag;
     struct multiboot2_tag_basic_meminfo *meminfo;
     struct multiboot2_tag_string *str;
     struct multiboot2_tag_framebuffer_common *framebuffer;
+    struct multiboot2_tag_mmap *mmap;
+    struct multiboot2_mmap_entry *mmap_ent;
+    int had_mmap = 0;
+    pa_t basic_mem_high_mem = 0;
 
     kp(KP_NORMAL, "Using Multiboot2 information...\n");
     kp(KP_NORMAL, "multiboot2: info size: %d\n", size);
@@ -142,9 +154,7 @@ static void handle_multiboot2_info(void *info, pa_t *high_addr)
             meminfo = container_of(tag, struct multiboot2_tag_basic_meminfo, tag);
 
             /* mem_upper starts at 1MB and is given to us in KB's */
-            *high_addr = PG_ALIGN_DOWN((uint32_t)meminfo->mem_upper * 1024 + (1024 * 1024));
-
-            kp(KP_NORMAL, "mmap: High Addr: 0x%08x\n", *high_addr);
+            basic_mem_high_mem  = PG_ALIGN_DOWN((uint32_t)meminfo->mem_upper * 1024 + (1024 * 1024));
             break;
 
         case MULTIBOOT2_TAG_TYPE_CMDLINE:
@@ -177,18 +187,41 @@ static void handle_multiboot2_info(void *info, pa_t *high_addr)
             framebuffer_info.framebuffer_size = framebuffer_info.width * framebuffer_info.height * (framebuffer_info.bpp / 8);
 
             break;
+
+        case MULTIBOOT2_TAG_TYPE_MMAP:
+            mmap = container_of(tag, struct multiboot2_tag_mmap, tag);
+            had_mmap = 1;
+
+            for (mmap_ent = mmap->entries;
+                    (uint8_t *)mmap_ent < (uint8_t *)tag + tag->size;
+                    mmap_ent = (struct multiboot2_mmap_entry *)((uint8_t *)mmap_ent + mmap->entry_size)) {
+
+                kp(KP_NORMAL, "mmap: 0x%016llx to 0x%016llx, type: %d\n", mmap_ent->addr,
+                        mmap_ent->addr + mmap_ent->len, mmap_ent->type);
+
+                if (mmap_ent->type != MULTIBOOT_MEMORY_AVAILABLE)
+                    continue;
+
+                add_multiboot_memory_region(mmap_ent->addr, mmap_ent->len);
+            }
+
+            break;
         }
+    }
+
+    if (!had_mmap) {
+        kp(KP_NORMAL, "mmap: High Addr: 0x%08x\n", basic_mem_high_mem);
+
+        bootmem_add(1024 * 1024 * 1024, basic_mem_high_mem);
     }
 }
 
-/* Note: kern_start and kern_end are virtual addresses
- *
- * info is the physical address of the multiboot info structure
- */
-void cmain(void *kern_start, void *kern_end, uint32_t magic, void *info)
-{
-    pa_t high_addr = 0;
+extern char kern_start, kern_end;
 
+/* info is the physical address of the multiboot info structure. An identity
+ * mapping is currently setup that makes it valid though. */
+void cmain(uint32_t magic, void *info)
+{
     cpuid_init();
 
     cpu_init_early();
@@ -204,6 +237,7 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, void *info)
         com_kp_register();
 
     kp(KP_NORMAL, "Protura booting...\n");
+    kp(KP_NORMAL, "Kernel Physical Memory Location: 0x%08x-0x%08x\n", V2P(&kern_start), V2P(&kern_end));
 
     /* We setup the IDT fairly early - This is because the actual 'setup' is
      * extremely simple, and things shouldn't register interrupt handlers until
@@ -212,34 +246,24 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, void *info)
      * This does *not* enable interrupts. */
     idt_init();
 
-    /* Now we parse the multiboot information. This also feeds us the
-     * "high_addr" which represents the end of physical memory. This should
-     * probably be fixed for something better... */
     if (magic == MULTIBOOT_BOOTLOADER_MAGIC)
-        handle_multiboot_info(info, &high_addr);
+        handle_multiboot_info(info);
     else if (magic == MULTIBOOT2_BOOTLOADER_MAGIC)
-        handle_multiboot2_info(info, &high_addr);
+        handle_multiboot2_info(info);
     else
         panic("MAGIC VALUE DOES NOT MATCH MULTIBOOT OR MULTIBOOT2, CANNOT BOOT!!!!\n");
 
-    kp(KP_NORMAL, "Memory size: %dMB\n", high_addr / 1024 / 1024);
-    kp(KP_NORMAL, "Memory pages: %d\n", __PA_TO_PN(high_addr) + 1);
-
     /* Initalize paging as early as we can, so that we can make use of kernel
      * memory - Then start the memory manager. */
-    paging_setup_kernelspace(&kern_end);
+    paging_setup_kernelspace();
 
-    palloc_init(&kern_end, __PA_TO_PN(high_addr) + 1);
-    arch_pages_init(V2P(kern_end), high_addr);
+    bootmem_setup_palloc();
 
     kmalloc_init();
 
     /* Setup the per-CPU stuff - Has to be done after kmalloc and friends are
      * setup. */
     cpu_info_init();
-
-    kp(KP_NORMAL, "Kernel Start: %p\n", kern_start);
-    kp(KP_NORMAL, "Kernel End: %p\n", kern_end);
 
     /* Initalize the 8259 PIC - This has to be initalized before we can enable
      * interrupts on the CPU */
@@ -252,4 +276,3 @@ void cmain(void *kern_start, void *kern_end, uint32_t magic, void *info)
 
     kmain();
 }
-
