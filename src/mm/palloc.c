@@ -21,7 +21,7 @@
 
 #include <protura/mm/palloc.h>
 
-extern char kern_end;
+extern char kern_end, kern_start;
 
 struct page_buddy_map {
     list_head_t free_pages;
@@ -118,8 +118,10 @@ void __pfree_add_pages(struct page_buddy_alloc *alloc, pn_t cur_page, int order)
 
 void __mark_page_free(pa_t pa)
 {
-    if (pa < V2P(&kern_end))
-        kp(KP_ERROR, "Marking a page free that's before kern_end!\n");
+    if (pa >= V2P(&kern_start) && pa < V2P(&kern_end)) {
+        kp(KP_ERROR, "Marking a page free that's part of kernel memory!\n");
+        return;
+    }
 
     __pfree_add_pages(&buddy_allocator, __PA_TO_PN(pa), 0);
 }
@@ -133,8 +135,9 @@ void pfree(struct page *p, int order)
         return;
     }
 
-    if (page_to_pa(p) < V2P(&kern_end)) {
-        kp(KP_ERROR, "pfree() called on page that's before kern_end! Page was: %p!\n", p->virt);
+    pa_t pa = page_to_pa(p);
+    if (pa >= V2P(&kern_start) && pa < V2P(&kern_end)) {
+        kp(KP_ERROR, "pfree() called on page that's part of the kernel! Page was: %p!\n", p->virt);
         dump_stack(KP_ERROR);
         return;
     }
@@ -241,8 +244,9 @@ struct page *palloc(int order, unsigned int flags)
     using_spinlock(&buddy_allocator.lock)
         p = __palloc_phys_multiple(&buddy_allocator, order, flags);
 
-    if (page_to_pa(p) < V2P(&kern_end)) {
-        kp(KP_ERROR, "palloc() is returning a page before kern_end!!!\n");
+    pa_t pa = page_to_pa(p);
+    if (pa >= V2P(&kern_start) && pa < V2P(&kern_end)) {
+        kp(KP_ERROR, "palloc() is returning a page that's part of the kernel!!!\n");
         dump_stack(KP_ERROR);
     }
 
