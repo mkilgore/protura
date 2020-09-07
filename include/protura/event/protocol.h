@@ -3,6 +3,11 @@
 
 #include <uapi/protura/event/protocol.h>
 
+enum {
+    /* If set, events will be buffered even when there are no readers */
+    EQUEUE_FLAG_BUFFER_EVENTS,
+};
+
 /* Currently, event-queues effectively only support one reader - if multiple
  * people open and try to read input, they'll each only get parts. */
 struct event_queue {
@@ -14,6 +19,8 @@ struct event_queue {
     /* Circular buffer of events */
     size_t head, tail, size;
     struct kern_event *buffer;
+
+    flags_t flags;
 };
 
 #define EVENT_QUEUE_INIT(equeue, buf) \
@@ -22,6 +29,15 @@ struct event_queue {
         .event_wait = WAIT_QUEUE_INIT((equeue).event_wait), \
         .size = ARRAY_SIZE((buf)), \
         .buffer = (buf), \
+    }
+
+#define EVENT_QUEUE_INIT_FLAGS(equeue, buf, flgs) \
+    { \
+        .lock = SPINLOCK_INIT(), \
+        .event_wait = WAIT_QUEUE_INIT((equeue).event_wait), \
+        .size = ARRAY_SIZE((buf)), \
+        .buffer = (buf), \
+        .flags = (flgs), \
     }
 
 void event_queue_submit_event(struct event_queue *, uint16_t type, uint16_t code, uint16_t value);

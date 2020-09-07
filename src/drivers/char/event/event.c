@@ -39,7 +39,7 @@ static void event_queue_drop_reader(struct event_queue *queue)
     using_spinlock(&queue->lock) {
         queue->open_readers--;
 
-        if (queue->open_readers == 0)
+        if (queue->open_readers == 0 && !flag_test(&queue->flags, EQUEUE_FLAG_BUFFER_EVENTS))
             queue->tail = queue->head;
     }
 }
@@ -47,7 +47,7 @@ static void event_queue_drop_reader(struct event_queue *queue)
 void event_queue_submit_event(struct event_queue *queue, uint16_t type, uint16_t code, uint16_t value)
 {
     using_spinlock(&queue->lock) {
-        if (queue->open_readers && !queue_full(queue)) {
+        if ((queue->open_readers || flag_test(&queue->flags, EQUEUE_FLAG_BUFFER_EVENTS)) && !queue_full(queue)) {
             queue->buffer[queue->tail].type = type;
             queue->buffer[queue->tail].code = code;
             queue->buffer[queue->tail].value = value;
