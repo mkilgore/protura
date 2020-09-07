@@ -44,7 +44,7 @@ void ext2_inode_setup_ops(struct inode *inode)
         inode->ops = &inode_ops_null;
     } else if (S_ISCHR(inode->mode)) {
         inode->cdev = char_dev_get(inode->dev_no);
-        inode->default_fops = inode->cdev->fops;
+        inode->default_fops = &char_dev_fops;
         inode->ops = &inode_ops_null;
     } else if (S_ISDIR(inode->mode)) {
         inode->default_fops = &ext2_file_ops_dir;

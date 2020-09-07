@@ -32,4 +32,6 @@ void char_dev_init(void);
 
 struct char_device *char_dev_get(dev_t device);
 
+extern struct file_ops char_dev_fops;
+
 #endif

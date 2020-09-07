@@ -80,6 +80,20 @@ struct char_device *char_dev_get(dev_t device)
         return NULL;
 }
 
+static int char_dev_open(struct inode *inode, struct file *filp)
+{
+    if (!inode->cdev || !inode->cdev->fops)
+        return -ENODEV;
+
+    filp->ops = inode->cdev->fops;
+
+    return (filp->ops->open) (inode, filp);
+}
+
+struct file_ops char_dev_fops = {
+    .open = char_dev_open,
+};
+
 void char_dev_init(void)
 {
     com_init();
