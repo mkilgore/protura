@@ -11,6 +11,7 @@
 #include <protura/string.h>
 #include <protura/dev.h>
 
+#include <protura/event/device.h>
 #include <protura/fs/char.h>
 #include <protura/drivers/mem.h>
 
@@ -49,3 +50,9 @@ struct file_ops mem_file_ops = {
     .readdir = NULL,
 };
 
+void mem_init(void)
+{
+    device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_MEM, MEM_MINOR_ZERO));
+    device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_MEM, MEM_MINOR_NULL));
+    device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_MEM, MEM_MINOR_FULL));
+}

@@ -19,6 +19,7 @@
 #include <protura/dev.h>
 #include <protura/kparam.h>
 
+#include <protura/event/device.h>
 #include <arch/spinlock.h>
 #include <arch/drivers/keyboard.h>
 #include <arch/asm.h>

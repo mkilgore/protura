@@ -10,6 +10,7 @@
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/scheduler.h>
+#include <protura/dev.h>
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/vm.h>
 #include <protura/mm/kmmap.h>
@@ -17,6 +18,7 @@
 #include <protura/fs/file.h>
 #include <protura/list.h>
 
+#include <protura/event/device.h>
 #include <protura/drivers/pci.h>
 #include <protura/drivers/screen.h>
 #include <protura/drivers/console.h>
@@ -277,6 +279,8 @@ int fbcon_set_framebuffer(struct fb_info *info)
     fbcon_screen.info = info;
 
     console_swap_active_screen(&fbcon_screen.screen);
+
+    device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_FB, 0));
     return 0;
 }
 

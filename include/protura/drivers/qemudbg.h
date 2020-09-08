@@ -16,4 +16,6 @@
 
 extern struct file_ops qemu_dbg_file_ops;
 
+void qemu_dbg_init(void);
+
 #endif

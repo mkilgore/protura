@@ -21,6 +21,7 @@
 #include <arch/asm.h>
 #include <protura/fs/char.h>
 #include <protura/fs/fcntl.h>
+#include <protura/event/device.h>
 #include <protura/drivers/screen.h>
 #include <protura/drivers/keyboard.h>
 #include <protura/drivers/console.h>
@@ -123,6 +124,8 @@ static void tty_create(struct tty_driver *driver, dev_t devno)
         list_add_tail(&tty_list, &tty->tty_node);
 
     (driver->ops->init) (tty);
+
+    device_submit_char(KERN_EVENT_DEVICE_ADD, devno);
 }
 
 void tty_driver_register(struct tty_driver *driver)
@@ -438,6 +441,8 @@ struct file_ops tty_file_ops = {
 
 void tty_subsystem_init(void)
 {
+    device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_TTY, 0));
+
 #ifdef CONFIG_CONSOLE_DRIVER
     vt_console_init();
 #endif
