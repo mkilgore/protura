@@ -5,6 +5,7 @@
 
 enum {
     KERN_EVENT_KEYBOARD,
+    KERN_EVENT_DEVICE,
 };
 
 struct kern_event {
