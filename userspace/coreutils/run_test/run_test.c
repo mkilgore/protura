@@ -9,10 +9,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
 #include <sys/reboot.h>
+#include <sys/sysmacros.h>
 #include <fcntl.h>
 
 static pid_t start_test(char *test)
@@ -49,6 +51,10 @@ int main(int argc, char **argv)
     __unused int sin = open("/dev/null", O_RDONLY);
     __unused int sout = open("/dev/null", O_RDWR);
     __unused int serr = open("/dev/null", O_RDWR);
+
+    /* We're not running devd, so manually create the few dev nodes we need */
+    mknod("/dev/hdb", S_IFBLK | 0660, makedev(8, 256));
+    mknod("/dev/qemudbg", S_IFCHR | 0666, makedev(8, 0));
 
     setenv("PATH", "/bin:/usr/bin", 1);
     mount(NULL, "/proc", "proc", 0, NULL);
