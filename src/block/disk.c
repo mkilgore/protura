@@ -15,6 +15,7 @@
 #include <protura/fs/inode.h>
 #include <protura/fs/file.h>
 #include <protura/fs/seq_file.h>
+#include <protura/event/device.h>
 #include <protura/block/bcache.h>
 #include <protura/block/bdev.h>
 #include <protura/block/disk.h>
@@ -43,8 +44,6 @@ struct disk *disk_alloc(void)
     disk_init(disk);
     disk->refs++;
 
-    disk_part_add(disk, &disk->whole);
-
     return disk;
 }
 
@@ -70,9 +69,20 @@ static void disk_free(struct disk *disk)
     kfree(disk);
 }
 
+static void disk_part_report_add(struct disk *disk, int partno)
+{
+    device_submit_block(KERN_EVENT_DEVICE_ADD, DEV_MAKE(disk->major, disk->first_minor + partno));
+}
+
+static void disk_part_report_remove(struct disk *disk, int partno)
+{
+    device_submit_block(KERN_EVENT_DEVICE_REMOVE, DEV_MAKE(disk->major, disk->first_minor + partno));
+}
+
 void disk_part_add(struct disk *disk, struct disk_part *part)
 {
     int part_count;
+    int added_part;
 
     /* Not exactly ideal, but not a huge deal. We need to allocate the new array
      * while not under the spinlock, so we first read the current partition
@@ -115,7 +125,11 @@ void disk_part_add(struct disk *disk, struct disk_part *part)
     disk->parts = parts;
     disk->part_count++;
 
+    added_part = part->part_number;
+
     spinlock_release(&disk_hash_lock);
+
+    disk_part_report_add(disk, added_part);
 }
 
 struct disk_part *disk_part_get(struct disk *disk, int partno)
@@ -132,15 +146,22 @@ struct disk_part *disk_part_get(struct disk *disk, int partno)
     }
 }
 
+/* Removes the partitions from the disks and reports that removal to userspace */
+static void disk_part_remove_all(struct disk *disk)
+{
+    /* We don't have to do anything else because disk->parts is already has
+     * the disk->whole entry in disk->parts[0] */
+    for (; disk->part_count > 1; disk->part_count--)
+        disk_part_report_remove(disk, disk->part_count - 1);
+}
+
 int disk_part_clear(struct disk *disk)
 {
     using_spinlock(&disk_hash_lock) {
         if (disk->open_refs > 0)
             return -EBUSY;
 
-        /* We don't have to do anything else because disk->parts is already has
-         * the disk->whole entry in disk->parts[0] */
-        disk->part_count = 1;
+        disk_part_remove_all(disk);
     }
 
     return 0;
@@ -155,6 +176,8 @@ int disk_register(struct disk *disk)
         list_add_tail(&disk_list, &disk->disk_entry);
         flag_set(&disk->flags, DISK_UP);
     }
+
+    disk_part_add(disk, &disk->whole);
 
     /* We quickly open and close the new disk to trigger read the partition information
      *
@@ -225,6 +248,9 @@ void disk_put(struct disk *disk)
     }
 
     if (drop) {
+        disk_part_remove_all(disk);
+        disk_part_report_remove(disk, 0);
+
         if (drop->ops->put)
             drop->ops->put(drop);
 
