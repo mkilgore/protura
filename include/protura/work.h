@@ -194,7 +194,6 @@ static inline void delay_work_init_kwork(struct delay_work *work, void (*callbac
 
 void workqueue_start(struct workqueue *, const char *thread_name);
 void workqueue_start_multiple(struct workqueue *, const char *thread_name, int thread_count);
-void workqueue_stop(struct workqueue *);
 
 void workqueue_add_work(struct workqueue *, struct work *);
 

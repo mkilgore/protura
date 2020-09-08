@@ -90,26 +90,6 @@ void workqueue_start(struct workqueue *queue, const char *thread_name)
     workqueue_start_multiple(queue, thread_name, 1);
 }
 
-void workqueue_stop(struct workqueue *queue)
-{
-    int i;
-
-    /* FIXME: This is obviously bugged, the threads may currently running
-     * something. We need a different technique for shutting a workqueue down
-     * (Though at the moment, we never destroy any workqueues). */
-
-    using_spinlock(&queue->lock) {
-        for (i = 0; i < queue->thread_count; i++) {
-            scheduler_task_remove(queue->work_threads[i]);
-            task_free(queue->work_threads[i]);
-            queue->work_threads[i] = NULL;
-        }
-
-        queue->thread_count = 0;
-        queue->wake_next_thread = 0;
-    }
-}
-
 void workqueue_add_work(struct workqueue *queue, struct work *work)
 {
     using_spinlock(&queue->lock) {
