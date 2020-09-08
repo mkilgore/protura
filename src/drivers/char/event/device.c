@@ -11,6 +11,7 @@
 #include <protura/dev.h>
 #include <protura/string.h>
 #include <protura/fs/char.h>
+#include <protura/fs/file.h>
 #include <protura/event/device.h>
 #include <protura/event/protocol.h>
 
@@ -40,3 +41,14 @@ void device_event_submit(int device_event, int is_block, dev_t dev)
                              device_event | (is_block? KERN_EVENT_DEVICE_IS_BLOCK: 0),
                              dev);
 }
+
+static int device_event_open(struct inode *inode, struct file *filp)
+{
+    return event_queue_open(filp, &device_event_queue);
+}
+
+struct file_ops device_event_file_ops = {
+    .open = device_event_open,
+    .read = event_queue_read,
+    .release = event_queue_release,
+};

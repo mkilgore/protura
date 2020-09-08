@@ -23,6 +23,7 @@
 #include <protura/klog.h>
 #include <protura/drivers/pci.h>
 #include <protura/block/disk.h>
+#include <protura/event/device.h>
 
 #include <arch/spinlock.h>
 #include <protura/block/bcache.h>
@@ -134,6 +135,7 @@ void procfs_init(void)
     procfs_register_entry(&procfs_root, "klog", &klog_file_ops);
     procfs_register_entry(&procfs_root, "pci_devices", &pci_file_ops);
     procfs_register_entry(&procfs_root, "disks", &disk_file_ops);
+    procfs_register_entry(&procfs_root, "devices", &device_event_file_ops);
 
     procfs_register_entry_ops(&procfs_root, "uptime", &uptime_ops);
     procfs_register_entry_ops(&procfs_root, "boottime", &boot_time_ops);
