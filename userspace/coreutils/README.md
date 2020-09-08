@@ -6,6 +6,7 @@ A collection of Coreutil programs designed for Protura. A current list of progra
 - `cat`: (Concatinate a file)
 - `chmod`: Change the access permissions of a file
 - `chown`: Change the ownership information of a file
+- `devd`: Daemon for managing the device nodes in /dev
 - `df`: Display disk usage information on the mounted filesystems
 - `env`: Prints the current environment
 - `false`: Returns the error code 1

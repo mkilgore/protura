@@ -60,6 +60,7 @@ COREUTILS_PROG_LIST = \
 	chown \
 	su \
 	df \
+	devd \
 
 COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROG_LIST))
 
