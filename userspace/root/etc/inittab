@@ -1,4 +1,5 @@
 
+rc1:1:wait:/bin/devd
 rc1:1:wait:/bin/klogd
 rcl:1:wait:/etc/rc.local
 

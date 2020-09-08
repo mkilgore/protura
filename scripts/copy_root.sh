@@ -19,7 +19,6 @@ NEW_ROOT=$4
 
 MKILGORE_ID=1000
 EXUSER_ID=1001
-DISK_GROUP=900
 
 cp -R $OLD_ROOT/* $NEW_ROOT/
 
@@ -70,38 +69,9 @@ cp -R $DIR/grub.cfg $NEW_ROOT/boot/grub
 chmod 1777 $NEW_ROOT/tmp
 
 # Create /dev nodes
-mknod --mode=666 $NEW_ROOT/dev/tty  c 5 0
-mknod --mode=666 $NEW_ROOT/dev/tty0 c 5 1
-mknod --mode=666 $NEW_ROOT/dev/tty1 c 5 2
-mknod --mode=666 $NEW_ROOT/dev/tty2 c 5 3
-mknod --mode=666 $NEW_ROOT/dev/tty3 c 5 4
-mknod --mode=666 $NEW_ROOT/dev/tty4 c 5 5
-mknod --mode=666 $NEW_ROOT/dev/tty5 c 5 6
-
-mknod --mode=666 $NEW_ROOT/dev/ttyS0 c 7 0
-mknod --mode=666 $NEW_ROOT/dev/ttyS1 c 7 1
-
-mknod --mode=666 $NEW_ROOT/dev/qemudbg c 8 0
-
-mknod --mode=660 $NEW_ROOT/dev/hda b 4 0
-chown 0:$DISK_GROUP $NEW_ROOT/dev/hda
-
-mknod --mode=660 $NEW_ROOT/dev/hda1 b 4 1
-chown 0:$DISK_GROUP $NEW_ROOT/dev/hda1
-
-mknod --mode=660 $NEW_ROOT/dev/hdb b 4 256
-chown 0:$DISK_GROUP $NEW_ROOT/dev/hdb
-
-mknod --mode=660 $NEW_ROOT/dev/hdc b 4 512
-chown 0:$DISK_GROUP $NEW_ROOT/dev/hdc
-
-mknod --mode=660 $NEW_ROOT/dev/hdd b 4 768
-chown 0:$DISK_GROUP $NEW_ROOT/dev/hdd
+# devd creates most of these dynamically, but some special ones need to be
+# present before devd starts.
 
 mknod --mode=666 $NEW_ROOT/dev/zero c 6 0
 mknod --mode=666 $NEW_ROOT/dev/full c 6 1
 mknod --mode=666 $NEW_ROOT/dev/null c 6 2
-
-mknod --mode=666 $NEW_ROOT/dev/fb0 c 9 0
-
-mknod --mode=666 $NEW_ROOT/dev/keyboard c 10 0
