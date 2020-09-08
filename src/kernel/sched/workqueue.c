@@ -72,14 +72,12 @@ void workqueue_start_multiple(struct workqueue *queue, const char *thread_name, 
     int i;
     struct page *tmp_page = palloc(0, PAL_KERNEL);
 
-    using_spinlock(&queue->lock) {
-        queue->thread_count = thread_count;
+    queue->thread_count = thread_count;
 
-        for (i = 0; i < thread_count; i++) {
-            snprintf(tmp_page->virt, PG_SIZE, "%s/%d", thread_name, i + 1);
-            queue->work_threads[i] = task_kernel_new(tmp_page->virt, workqueue_thread, queue);
-            scheduler_task_add(queue->work_threads[i]);
-        }
+    for (i = 0; i < thread_count; i++) {
+        snprintf(tmp_page->virt, PG_SIZE, "%s/%d", thread_name, i + 1);
+        queue->work_threads[i] = task_kernel_new(tmp_page->virt, workqueue_thread, queue);
+        scheduler_task_add(queue->work_threads[i]);
     }
 
     pfree(tmp_page, 0);
