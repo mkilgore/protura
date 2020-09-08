@@ -65,7 +65,7 @@ void bga_device_init(struct pci_dev *dev)
     kp(KP_NORMAL, "Found BGA Display: "PRpci_dev"\n", Ppci_dev(dev));
 
     if (video_is_disabled()) {
-        kp(KP_NORMAL, "  Video=off, Bochs display not being initialied...\n");
+        kp(KP_NORMAL, "  Video=off, Bochs display not being initialized...\n");
         return;
     }
 
