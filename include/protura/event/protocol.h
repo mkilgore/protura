@@ -40,7 +40,7 @@ struct event_queue {
         .flags = (flgs), \
     }
 
-void event_queue_submit_event(struct event_queue *, uint16_t type, uint16_t code, uint16_t value);
+void event_queue_submit_event(struct event_queue *, uint16_t type, uint16_t code, uint32_t value);
 
 /* Wrap this function with your open call, and pass it the intended event queue */
 int event_queue_open(struct file *, struct event_queue *);

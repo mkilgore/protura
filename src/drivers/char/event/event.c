@@ -44,7 +44,7 @@ static void event_queue_drop_reader(struct event_queue *queue)
     }
 }
 
-void event_queue_submit_event(struct event_queue *queue, uint16_t type, uint16_t code, uint16_t value)
+void event_queue_submit_event(struct event_queue *queue, uint16_t type, uint16_t code, uint32_t value)
 {
     using_spinlock(&queue->lock) {
         if ((queue->open_readers || flag_test(&queue->flags, EQUEUE_FLAG_BUFFER_EVENTS)) && !queue_full(queue)) {
