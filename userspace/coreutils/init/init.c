@@ -15,6 +15,8 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 
+#include "list.h"
+
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(*(arr)))
 
 #define LOGFILE "/tmp/init.log"
@@ -44,10 +46,10 @@ struct tab_ent {
 
     enum tab_action action;
 
-    struct tab_ent *next;
+    list_node_t entry;
 };
 
-struct tab_ent *tab_list;
+list_head_t tab_list = LIST_HEAD_INIT(tab_list);
 
 pid_t shell[2];
 
@@ -131,6 +133,7 @@ static void load_tab(const char *tab)
 
         ent = malloc(sizeof(*ent));
         memset(ent, 0, sizeof(*ent));
+        list_node_init(&ent->entry);
 
         ent->pid = -1;
         ent->start = 1;
@@ -150,8 +153,7 @@ static void load_tab(const char *tab)
         ilogf("inittab: next_ptr: %s\n", next_ptr);
         ent->args = parse_args(next_ptr);
 
-        ent->next = tab_list;
-        tab_list = ent;
+        list_add_tail(&tab_list, &ent->entry);
     }
 
     fclose(file);
@@ -166,7 +168,7 @@ static void handle_children(int sig)
     while ((child = waitpid(-1, NULL, WNOHANG)) > 0) {
         ilogf("Init: Reaped %d\n", child);
 
-        for (ent = tab_list; ent; ent = ent->next) {
+        list_foreach_entry(&tab_list, ent, entry) {
             if (ent->pid == child) {
                 ent->pid = -1;
                 switch (ent->action) {
@@ -263,7 +265,7 @@ int main(int argc, char **argv)
 
     sigemptyset(&sigset);
 
-    for (ent = tab_list; ent; ent = ent->next) {
+    list_foreach_entry(&tab_list, ent, entry) {
         if (ent->action != TAB_WAIT)
             continue;
 
@@ -286,7 +288,7 @@ int main(int argc, char **argv)
 
     while (1) {
         ilogf("Init: Checking for processes to restart\n");
-        for (ent = tab_list; ent; ent = ent->next) {
+        list_foreach_entry(&tab_list, ent, entry) {
             if (ent->start) {
                 ent->start = 0;
                 ilogf("Init: Starting %s\n", ent->args[0]);
