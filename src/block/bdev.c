@@ -66,7 +66,6 @@ struct block_device *block_dev_get(dev_t device)
 
         if (bdev) {
             bdev->refs++;
-            kp(KP_NORMAL, "bdev get: %d:%d, refs=%d\n", DEV_MAJOR(device), DEV_MINOR(device), bdev->refs);
             return bdev;
         }
     }
@@ -80,24 +79,20 @@ struct block_device *block_dev_get(dev_t device)
         if (!bdev) {
             hlist_add(bdev_cache + hash, &new->hash_entry);
             new->refs++;
-            kp(KP_NORMAL, "bdev get: %d:%d, refs=%d\n", DEV_MAJOR(device), DEV_MINOR(device), new->refs);
             return new;
         }
 
         bdev_free(new);
 
         bdev->refs++;
-        kp(KP_NORMAL, "bdev get: %d:%d, refs=%d\n", DEV_MAJOR(device), DEV_MINOR(device), bdev->refs);
         return bdev;
     }
 }
 
 void block_dev_put(struct block_device *bdev)
 {
-    using_spinlock(&bdev_cache_lock) {
+    using_spinlock(&bdev_cache_lock)
         bdev->refs--;
-        kp(KP_NORMAL, "bdev put: %d:%d, refs=%d\n", DEV_MAJOR(bdev->dev), DEV_MINOR(bdev->dev), bdev->refs);
-    }
 }
 
 static void block_dev_create_name(struct block_device *bdev, int partno)
