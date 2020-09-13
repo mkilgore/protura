@@ -23,6 +23,9 @@ DISK_MOUNT := $(OBJ_DIR)/disk_mount
 SHELL := /bin/bash
 export PATH := $(PATH):$(TOOLCHAIN_DIR)/bin
 
+# Ensure that any partially-created files get deleted.
+.DELETE_ON_ERROR:
+
 # Compiler settings
 CC      := $(TARGET)-gcc
 CPP     := $(TARGET)-cpp
