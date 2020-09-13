@@ -22,6 +22,7 @@
 #include <protura/drivers/console.h>
 #include <protura/kparam.h>
 #include <protura/ktest.h>
+#include <protura/initcall.h>
 
 /* Initial user task */
 struct task *task_pid1;
@@ -42,6 +43,11 @@ KPARAM("reboot_on_panic", &reboot_on_panic, KPARAM_BOOL);
 static int start_user_init(void *unused)
 {
     struct sys_init *sys;
+
+    void (**ic) (void);
+
+    for (ic = initcalls; *ic; ic++)
+        (*ic) ();
 
     /* Loop through set of initialiations that run after the scheduler has started (most of them) */
     for (sys = arch_init_systems; sys->name; sys++) {

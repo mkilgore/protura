@@ -76,8 +76,11 @@ else
 endif
 
 PROTURA_OBJ := $(OBJ_DIR)/protura.o
+PROTURA_NOINITCALLS_OBJ := $(OBJ_DIR)/protura_noinitcalls.o
 KERNEL := $(KERNEL_DIR)/vmprotura
 
+INITCALLS_OBJ := $(OBJ_DIR)/initcalls.o
+INITCALLS_SRC := $(OBJ_DIR)/initcalls.c
 SYMBOL_OBJ := $(OBJ_DIR)/vmprotura_symbols2.o
 
 # This is our default target - The default is the first target in the file so
@@ -333,9 +336,28 @@ clean:
 	@echo " Please use one of 'clean-configure', 'clean-toolchain',"
 	@echo " 'clean-kernel', 'clean-disk', or 'clean-full'"
 
-$(PROTURA_OBJ): $(REAL_OBJS_y)
+$(PROTURA_NOINITCALLS_OBJ): $(REAL_OBJS_y)
 	@echo " LD      $@"
 	$(Q)$(LD) -r $(REAL_OBJS_y) -o $@
+
+$(INITCALLS_SRC): $(PROTURA_NOINITCALLS_OBJ) ./scripts/sort_initcalls.sh
+	@echo " INITCLL $@"
+	$(Q)./scripts/sort_initcalls.sh $(PROTURA_NOINITCALLS_OBJ) > $@
+
+./bin/initcalls.dot: $(PROTURA_NOINITCALLS_OBJ) ./scripts/generate_initcalls_graph.sh
+	@echo " INITCLL $@"
+	$(Q)./scripts/generate_initcalls_graph.sh $(PROTURA_NOINITCALLS_OBJ) > $@
+
+./bin/initcalls.png: ./bin/initcalls.dot
+	@echo " DOT     $@"
+	$(Q)dot -Tpng $< > $@
+
+PHONY += generate-initcalls-graph
+generate-initcalls-graph: ./bin/initcalls.png
+
+$(PROTURA_OBJ): $(PROTURA_NOINITCALLS_OBJ) $(INITCALLS_OBJ)
+	@echo " LD      $@"
+	$(Q)$(LD) -r $^ -o $@
 
 $(tree)/%.o: $(tree)/%.c
 	@echo " CC      $@"
