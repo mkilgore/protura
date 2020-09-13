@@ -149,7 +149,7 @@ static void handle_int(int sig)
 
 static int timeval_to_ms(struct timeval tm)
 {
-    return (tm.tv_sec * 1000 + tm.tv_usec);
+    return (tm.tv_sec * 1000 + tm.tv_usec / 1000);
 }
 
 static int timeval_elapsed_ms(struct timeval t1, struct timeval t2)
