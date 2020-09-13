@@ -13,6 +13,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
+#include <protura/initcall.h>
 
 #include <protura/net/ipv4/ipv4.h>
 #include <protura/net.h>
@@ -83,9 +84,12 @@ int packet_linklayer_tx(struct packet *packet)
     return 0;
 }
 
-void linklayer_setup(void)
+static void linklayer_setup(void)
 {
     ether.ip = address_family_lookup(AF_INET);
     ether.arp = address_family_lookup(AF_ARP);
 }
+initcall_device(linklayer, linklayer_setup);
+initcall_dependency(linklayer, arp);
+initcall_dependency(linklayer, ip);
 

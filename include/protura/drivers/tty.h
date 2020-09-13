@@ -17,7 +17,6 @@
 #include <protura/wait.h>
 
 extern struct file_ops tty_file_ops;
-void tty_subsystem_init(void);
 
 struct tty_driver;
 struct tty;

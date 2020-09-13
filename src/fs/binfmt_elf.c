@@ -21,6 +21,7 @@
 #include <arch/task.h>
 #include <arch/paging.h>
 #include <arch/idt.h>
+#include <protura/initcall.h>
 
 #include <protura/block/bcache.h>
 #include <protura/block/bdev.h>
@@ -252,13 +253,8 @@ static int load_bin_elf(struct exe_params *params, struct irq_frame *frame)
 
 static struct binfmt binfmt_elf = BINFMT_INIT(binfmt_elf, "elf",  "\177ELF", load_bin_elf);
 
-void elf_register(void)
+static void elf_register(void)
 {
     binfmt_register(&binfmt_elf);
 }
-
-void elf_unregister(void)
-{
-    binfmt_unregister(&binfmt_elf);
-}
-
+initcall_device(binfmt_elf, elf_register);

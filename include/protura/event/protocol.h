@@ -55,6 +55,4 @@ enum {
 
 extern struct file_ops event_file_ops;
 
-void event_init(void);
-
 #endif

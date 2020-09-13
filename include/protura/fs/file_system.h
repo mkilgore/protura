@@ -30,8 +30,6 @@ struct file_system {
     list_node_t fs_list_entry;
 };
 
-void file_systems_init(void);
-
 void file_system_register(struct file_system *);
 void file_system_unregister(const char *name);
 

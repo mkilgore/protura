@@ -29,8 +29,9 @@ static __noreturn int bdflushd_loop(void *ptr)
     }
 }
 
-void bdflush_init(void)
+static void bdflush_init(void)
 {
     bdflushd_thread = task_kernel_new("bdflushd", bdflushd_loop, NULL);
     scheduler_task_add(bdflushd_thread);
 }
+initcall_device(bdflush, bdflush_init);

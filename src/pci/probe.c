@@ -390,11 +390,12 @@ static void load_pci_devices(void)
         pci_load_device(&entry->info.id, entry->info.vendor, entry->info.device, entry->info.class, entry->info.subclass);
 }
 
-void pci_init(void)
+static void pci_init(void)
 {
     enum_pci();
     load_pci_devices();
 }
+initcall_device(pci_devices, pci_init);
 
 size_t pci_bar_size(struct pci_dev *dev, uint8_t bar_reg)
 {

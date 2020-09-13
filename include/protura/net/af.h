@@ -28,8 +28,6 @@ static inline void address_family_init(struct address_family *af, int af_type, s
 }
 
 struct address_family_ops {
-    void (*setup_af) (struct address_family *);
-
     int (*create) (struct address_family *, struct socket *);
 
     void (*packet_rx) (struct address_family *, struct packet *);
@@ -37,7 +35,5 @@ struct address_family_ops {
 
 void address_family_register(struct address_family *);
 struct address_family *address_family_lookup(int af);
-
-void address_family_setup(void);
 
 #endif

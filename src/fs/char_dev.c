@@ -93,12 +93,3 @@ static int char_dev_open(struct inode *inode, struct file *filp)
 struct file_ops char_dev_fops = {
     .open = char_dev_open,
 };
-
-void char_dev_init(void)
-{
-    com_init();
-    tty_subsystem_init();
-    mem_init();
-    qemu_dbg_init();
-    event_init();
-}

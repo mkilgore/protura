@@ -9,6 +9,7 @@
 #define INCLUDE_PROTURA_MM_VM_AREA_H
 
 #include <protura/types.h>
+#include <protura/initcall.h>
 #include <protura/bits.h>
 #include <protura/list.h>
 
@@ -40,6 +41,6 @@ void vm_area_free(struct vm_area *);
 void vm_area_map(va_t va, pa_t address, flags_t vm_flags, int pcm);
 void vm_area_unmap(va_t va);
 
-void vm_area_allocator_init(void);
+extern_initcall(vm_area);
 
 #endif

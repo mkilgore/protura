@@ -23,9 +23,3 @@ void video_mark_disabled(void)
 {
     __video_is_enabled = 0;
 }
-
-void video_init(void)
-{
-    if (!__video_is_enabled)
-        kp(KP_NORMAL, "Video output is disabled, text only!\n");
-}

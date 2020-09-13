@@ -6,6 +6,4 @@ struct packet;
 void packet_linklayer_rx(struct packet *packet);
 int packet_linklayer_tx(struct packet *packet);
 
-void linklayer_setup(void);
-
 #endif

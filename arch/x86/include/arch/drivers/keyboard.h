@@ -17,7 +17,6 @@
 #include <protura/scheduler.h>
 #include <protura/work.h>
 
-void arch_keyboard_init(void);
 void arch_keyboard_set_leds(int led_flags);
 
 #endif

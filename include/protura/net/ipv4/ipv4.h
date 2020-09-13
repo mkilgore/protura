@@ -1,6 +1,8 @@
 #ifndef INCLUDE_PROTURA_NET_AF_IPV4_H
 #define INCLUDE_PROTURA_NET_AF_IPV4_H
 
+#include <protura/types.h>
+#include <protura/initcall.h>
 #include <uapi/protura/net/ipv4/ipv4.h>
 #include <protura/net/ipv4/ip_route.h>
 
@@ -13,7 +15,7 @@ struct address_family;
 
 #define in_addr_mask(addr, mask) n32_make(n32_to_uint32(addr) & n32_to_uint32(mask))
 
-void ip_init(void);
+extern_initcall(ip);
 
 void ip_rx(struct address_family *afamily, struct packet *packet);
 

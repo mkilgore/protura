@@ -13,13 +13,9 @@
 
 #ifdef CONFIG_PC_COM_SERIAL_DRIVER
 int com_init_early(void);
-void com_init(void);
 void com_kp_register(void);
 void com_kp_unregister(void);
-void com_tty_init(void);
 #else
-static inline void com_init(void) { }
-
 static inline int com_init_early(void)
 {
     return -ENOTSUP;
@@ -27,7 +23,6 @@ static inline int com_init_early(void)
 
 static inline void com_kp_register(void) { }
 static inline void com_kp_unregister(void) { }
-static inline void com_tty_init(void) { }
 #endif
 
 /*

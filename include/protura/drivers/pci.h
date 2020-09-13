@@ -2,6 +2,7 @@
 #define INCLUDE_PROTURA_DRIVERS_PCI_PCI_H
 
 #include <protura/types.h>
+#include <protura/initcall.h>
 #include <protura/fs/file.h>
 
 struct pci_dev {
@@ -21,7 +22,7 @@ struct pci_driver {
 #define PRpci_dev "%d:%d:%d"
 #define Ppci_dev(dev) (dev)->bus, (dev)->slot, (dev)->func
 
-void pci_init(void);
+extern_initcall(pci_devices);
 
 uint32_t pci_config_read_uint32(struct pci_dev *dev, uint8_t regno);
 uint16_t pci_config_read_uint16(struct pci_dev *dev, uint8_t regno);

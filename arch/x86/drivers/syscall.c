@@ -623,3 +623,4 @@ void syscall_init(void)
     if (err)
         panic("Syscall: syscall interrupt already taken, unable to register timer!\n");
 }
+initcall_device(syscall, syscall_init);

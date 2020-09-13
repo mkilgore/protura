@@ -13,6 +13,7 @@
 #include <protura/scheduler.h>
 #include <protura/wait.h>
 #include <protura/kparam.h>
+#include <protura/initcall.h>
 
 #include <arch/spinlock.h>
 #include <arch/drivers/keyboard.h>
@@ -165,13 +166,12 @@ void vt_console_early_init(void)
     console_swap_active_screen(&arch_screen);
 }
 
-void vt_console_init(void)
+static void vt_console_init(void)
 {
     int i;
-    keyboard_init();
-
     for (i = 0; i < CONSOLE_MAX; i++)
         vt_init(console_vts + i);
 
     console_switch_vt(0);
 }
+initcall_subsys(vt_console, vt_console_init);

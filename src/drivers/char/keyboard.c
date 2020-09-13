@@ -256,8 +256,3 @@ void keyboard_set_state(int state)
      */
     atomic_set(&keyboard.state, state);
 }
-
-void keyboard_init(void)
-{
-    arch_keyboard_init();
-}

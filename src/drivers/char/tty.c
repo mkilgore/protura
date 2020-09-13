@@ -439,13 +439,8 @@ struct file_ops tty_file_ops = {
     .ioctl = tty_ioctl,
 };
 
-void tty_subsystem_init(void)
+static void tty_subsystem_init(void)
 {
     device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_TTY, 0));
-
-#ifdef CONFIG_CONSOLE_DRIVER
-    vt_console_init();
-#endif
-    com_tty_init();
 }
-
+initcall_subsys(tty_subsystem, tty_subsystem_init);

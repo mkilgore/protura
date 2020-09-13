@@ -7,6 +7,7 @@
  */
 
 #include <protura/types.h>
+#include <protura/initcall.h>
 #include <protura/debug.h>
 #include <protura/string.h>
 #include <protura/dump_mem.h>
@@ -71,7 +72,7 @@ static n32 netmask_create(int count)
     return htonl(mask);
 }
 
-void ip_route_init(void)
+static void ip_route_init(void)
 {
     int i;
     for (i = 0; i < 33; i++) {
@@ -79,6 +80,7 @@ void ip_route_init(void)
         forward_table.zones[i].mask = netmask_create(i);
     }
 }
+initcall_subsys(ip_route, ip_route_init);
 
 void ip_route_add(n32 dest_ip, n32 gateway_ip, n32 netmask, struct net_interface *iface, flags_t flags)
 {

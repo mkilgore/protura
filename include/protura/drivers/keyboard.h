@@ -14,7 +14,6 @@
 
 struct tty;
 
-void keyboard_init(void);
 int keyboard_file_read(struct file *filp, void *vbuf, size_t len);
 
 void keyboard_submit_keysym(uint8_t keysym, int release_flag);

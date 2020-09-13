@@ -9,12 +9,6 @@ static void core_init(void)
 }
 initcall(core, core_init);
 
-static void arch_init(void)
-{
-    kp(KP_NORMAL, "init: Arch\n");
-}
-initcall(arch, arch_init);
-
 static void subsys_init(void)
 {
     kp(KP_NORMAL, "init: Subsys\n");
@@ -27,7 +21,6 @@ static void device_init(void)
 }
 initcall(device, device_init);
 
-initcall_dependency(arch, core);
-initcall_dependency(subsys, arch);
+initcall_dependency(subsys, core);
 initcall_dependency(device, subsys);
 

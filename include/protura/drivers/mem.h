@@ -13,6 +13,4 @@ extern struct file_ops mem_zero_file_ops;
 extern struct file_ops mem_full_file_ops;
 extern struct file_ops mem_null_file_ops;
 
-void mem_init(void);
-
 #endif

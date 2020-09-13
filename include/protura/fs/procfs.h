@@ -9,6 +9,7 @@
 #define INCLUDE_FS_PROCFS_H
 
 #include <protura/types.h>
+#include <protura/initcall.h>
 #include <protura/time.h>
 #include <protura/mutex.h>
 #include <protura/list.h>
@@ -99,6 +100,6 @@ struct procfs_dir *procfs_register_dir(struct procfs_dir *parent, const char *na
 
 struct procfs_dir procfs_root;
 
-void procfs_init(void);
+extern_initcall(procfs);
 
 #endif

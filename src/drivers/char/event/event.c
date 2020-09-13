@@ -15,6 +15,7 @@
 #include <protura/scheduler.h>
 #include <protura/wait.h>
 #include <protura/dev.h>
+#include <protura/initcall.h>
 #include <protura/mm/user_check.h>
 #include <protura/event/device.h>
 #include <protura/event/keyboard.h>
@@ -146,7 +147,8 @@ struct file_ops event_file_ops = {
     .open = event_open,
 };
 
-void event_init(void)
+static void event_device_init(void)
 {
     device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_EVENT, EVENT_MINOR_KEYBOARD));
 }
+initcall_device(event_device, event_device_init);

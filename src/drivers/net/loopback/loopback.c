@@ -32,7 +32,7 @@ static void loopback_process_tx_queue(struct net_interface *iface)
     }
 }
 
-void net_loopback_init(void)
+static void net_loopback_init(void)
 {
     loopback_iface.process_tx_queue = loopback_process_tx_queue;
     loopback_iface.linklayer_tx = arp_tx;
@@ -44,4 +44,4 @@ void net_loopback_init(void)
 
     net_interface_register(&loopback_iface);
 }
-
+initcall_device(net_loopback, net_loopback_init);

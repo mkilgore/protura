@@ -107,13 +107,3 @@ const struct file_ops file_system_file_ops = {
     .read = seq_read,
     .release = seq_release,
 };
-
-void file_systems_init(void)
-{
-    ext2_init();
-    procfs_init();
-
-    elf_register();
-    script_register();
-}
-

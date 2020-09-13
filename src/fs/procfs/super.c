@@ -123,7 +123,7 @@ static struct file_system procfs_fs = {
     .flags = F(FILE_SYSTEM_NODEV),
 };
 
-void procfs_init(void)
+static void procfs_init(void)
 {
     procfs_hash_add_node(&procfs_root.node);
 
@@ -146,4 +146,5 @@ void procfs_init(void)
 
     file_system_register(&procfs_fs);
 }
+initcall_subsys(procfs, procfs_init);
 

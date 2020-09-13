@@ -390,11 +390,12 @@ int sys_socket(int afamily, int type, int protocol)
     return ret;
 }
 
-void socket_subsystem_init(void)
+static void socket_subsystem_init(void)
 {
     dev_t dev = block_dev_anon_get();
 
     socket_fake_super_block.bdev = block_dev_get(dev);
     socket_fake_super_block.ops = &socket_fake_super_block_ops;
 }
+initcall_subsys(socket_subsystem, socket_subsystem_init);
 

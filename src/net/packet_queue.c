@@ -73,7 +73,8 @@ void net_packet_transmit(struct packet *packet)
     }
 }
 
-void net_packet_queue_init(void)
+static void net_packet_queue_init(void)
 {
     workqueue_start(&packet_queue, "packet-queue");
 }
+initcall_subsys(net_packet_queue, net_packet_queue_init);

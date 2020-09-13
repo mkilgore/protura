@@ -126,8 +126,6 @@ static inline enum socket_state socket_state_get(struct socket *socket)
 #define using_socket_priv(socket) \
     using_mutex(&(socket)->private_lock)
 
-void socket_subsystem_init(void);
-
 extern struct file_ops socket_procfs_file_ops;
 
 int socket_open(int domain, int type, int protocol, struct socket **sock_ret);

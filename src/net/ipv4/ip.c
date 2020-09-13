@@ -14,6 +14,7 @@
 #include <protura/snprintf.h>
 #include <protura/list.h>
 #include <arch/asm.h>
+#include <protura/initcall.h>
 
 #include <protura/net/socket.h>
 #include <protura/net/proto.h>
@@ -286,23 +287,21 @@ void ip_release(struct address_family *family, struct socket *sock)
     ip_route_clear(&priv->route);
 }
 
-static void ip_setup(struct address_family *fam)
-{
-
-}
-
 static struct address_family_ops ip_address_family_ops = {
-    .setup_af = ip_setup,
     .create = ip_create,
     .packet_rx = ip_rx,
 };
 
 struct procfs_dir *ipv4_dir_procfs;
 
-void ip_init(void)
+static void ip_init(void)
 {
     address_family_register(&ip_address_family.af);
+}
+initcall_device(ip, ip_init);
 
+static void ip_procfs_init(void)
+{
     ipv4_dir_procfs = procfs_register_dir(net_dir_procfs, "ipv4");
 
     procfs_register_entry_ops(ipv4_dir_procfs, "route", &ipv4_route_ops);
@@ -310,3 +309,6 @@ void ip_init(void)
     procfs_register_entry(ipv4_dir_procfs, "ip-raw", &ip_raw_proc_file_ops);
     procfs_register_entry(ipv4_dir_procfs, "tcp", &tcp_proc_file_ops);
 }
+initcall_device(ip_procfs, ip_procfs_init);
+initcall_dependency(ip_procfs, ip);
+initcall_dependency(ip_procfs, net_procfs);

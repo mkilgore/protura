@@ -16,6 +16,7 @@
 #include <protura/work.h>
 #include <protura/drivers/tty.h>
 #include <protura/drivers/keyboard.h>
+#include <protura/initcall.h>
 
 #include <arch/spinlock.h>
 #include <arch/asm.h>
@@ -161,12 +162,13 @@ static void arch_keyboard_interrupt_handler(struct irq_frame *frame, void *param
 static struct irq_handler keyboard_handler
     = IRQ_HANDLER_INIT(keyboard_handler, "Keyboard", arch_keyboard_interrupt_handler, NULL, IRQ_INTERRUPT, 0);
 
-void arch_keyboard_init(void)
+static void arch_keyboard_init(void)
 {
     int err = irq_register_handler(1, &keyboard_handler);
     if (err)
         kp(KP_ERROR, "keyboard: Unable to register keyboard interrupt, already registered!\n");
 }
+initcall_device(arch_keyboard, arch_keyboard_init);
 
 static void clear_keyboard(void)
 {

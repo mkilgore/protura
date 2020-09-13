@@ -64,7 +64,6 @@ static inline void pipe_info_init(struct pipe_info *pipe)
     *pipe = (struct pipe_info)PIPE_INFO_INIT(*pipe);
 }
 
-void pipe_init(void);
 int inode_is_pipe(struct inode *inode);
 
 struct file_ops;

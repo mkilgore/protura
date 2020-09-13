@@ -84,8 +84,6 @@ int binary_load(struct exe_params *, struct irq_frame *);
 
 extern const struct file_ops binfmt_file_ops;
 
-void script_register(void);
-
 void params_remove_args(struct exe_params *params, int count);
 int params_add_arg(struct exe_params *params, const char *arg);
 int params_fill(struct exe_params *params, const char *const argv[], const char *const envp[]);

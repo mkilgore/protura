@@ -9,6 +9,7 @@
 #define INCLUDE_PROTURA_WORK_H
 
 #include <protura/types.h>
+#include <protura/initcall.h>
 #include <protura/list.h>
 #include <protura/bits.h>
 #include <protura/ktimer.h>
@@ -222,6 +223,6 @@ static inline void kwork_delay_schedule_callback(struct delay_work *work, int de
     kwork_delay_schedule(work, delay_ms);
 }
 
-void kwork_init(void);
+extern_initcall(kwork);
 
 #endif

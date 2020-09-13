@@ -16,7 +16,6 @@
 #include <arch/asm.h>
 
 #include <protura/net/socket.h>
-#include <protura/net/ipv4/icmp.h>
 #include <protura/net.h>
 #include "ipv4.h"
 
@@ -85,7 +84,7 @@ static int icmp_handler(void *ptr)
     return 0;
 }
 
-void icmp_init(void)
+static void icmp_init(void)
 {
     int ret;
     ret = socket_open(AF_INET, SOCK_RAW, IPPROTO_ICMP, &icmp_socket);
@@ -95,3 +94,5 @@ void icmp_init(void)
     icmp_sock_thread = task_kernel_new("icmp-thread", icmp_handler, icmp_socket);
     scheduler_task_add(icmp_sock_thread);
 }
+initcall_device(icmp, icmp_init);
+initcall_dependency(icmp, ip);

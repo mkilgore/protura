@@ -13,6 +13,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/snprintf.h>
 #include <protura/list.h>
+#include <protura/initcall.h>
 
 #include <protura/ktimer.h>
 #include <protura/net.h>
@@ -302,26 +303,21 @@ void arp_tx(struct packet *packet)
     packet_linklayer_tx(packet);
 }
 
-static void arp_setup_af(struct address_family *af)
-{
-    return ;
-}
-
 struct address_family_arp {
     struct address_family af;
 };
 
 static struct address_family_ops arp_ops = {
     .packet_rx = arp_handle_packet,
-    .setup_af = arp_setup_af,
 };
 
 static struct address_family_arp address_family_arp = {
     .af = ADDRESS_FAMILY_INIT(address_family_arp.af, AF_ARP, &arp_ops),
 };
 
-void arp_init(void)
+static void arp_init(void)
 {
     address_family_register(&address_family_arp.af);
 }
+initcall_device(arp, arp_init);
 

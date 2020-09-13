@@ -145,8 +145,9 @@ int kwork_delay_unschedule(struct delay_work *work)
     return timer_del(&work->timer);
 }
 
-void kwork_init(void)
+static void kwork_init(void)
 {
     workqueue_start_multiple(&kwork, "kwork", 4);
 }
+initcall_core(kwork, kwork_init);
 

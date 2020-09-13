@@ -16,6 +16,7 @@
 #include <protura/mm/kmalloc.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/user_check.h>
+#include <protura/initcall.h>
 #include <arch/task.h>
 
 #include <protura/block/bcache.h>
@@ -534,7 +535,7 @@ int sys_pipe(struct user_buffer fds)
     return ret;
 }
 
-void pipe_init(void)
+static void pipe_init(void)
 {
     dev_t dev = block_dev_anon_get();
 
@@ -543,4 +544,5 @@ void pipe_init(void)
 
     kp(KP_NORMAL, "Pipe dev: %d\n", pipe_fake_super_block.bdev->dev);
 }
+initcall_device(pipe, pipe_init);
 

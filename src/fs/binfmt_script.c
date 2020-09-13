@@ -19,6 +19,7 @@
 #include <arch/task.h>
 #include <arch/paging.h>
 #include <arch/idt.h>
+#include <protura/initcall.h>
 
 #include <protura/block/bcache.h>
 #include <protura/fs/super.h>
@@ -93,13 +94,8 @@ static int load_script(struct exe_params *params, struct irq_frame *frame)
 
 static struct binfmt binfmt_script = BINFMT_INIT(binfmt_script, "script", "#!", load_script);
 
-void script_register(void)
+static void script_register(void)
 {
     binfmt_register(&binfmt_script);
 }
-
-void script_unregister(void)
-{
-    binfmt_unregister(&binfmt_script);
-}
-
+initcall_device(binfmt_script, script_register);

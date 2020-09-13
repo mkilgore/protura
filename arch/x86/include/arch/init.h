@@ -16,6 +16,4 @@ extern char kernel_cmdline[];
 
 void cmain(uint32_t magic, void *info);
 
-extern struct sys_init arch_init_systems[];
-
 #endif

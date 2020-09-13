@@ -198,8 +198,6 @@ struct ext2_inode {
     };
 };
 
-void ext2_init(void);
-
 static inline int ext2_ino_group(struct ext2_super_block *sb, ino_t ino)
 {
     return (ino - 1) / sb->disksb.inodes_per_block_group;

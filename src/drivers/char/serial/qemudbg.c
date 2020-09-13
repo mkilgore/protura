@@ -11,6 +11,7 @@
 #include <protura/string.h>
 #include <protura/dev.h>
 #include <protura/mm/user_check.h>
+#include <protura/initcall.h>
 #include <arch/asm.h>
 
 #include <protura/event/device.h>
@@ -56,7 +57,8 @@ struct file_ops qemu_dbg_file_ops = {
     .write = qemu_dbg_write,
 };
 
-void qemu_dbg_init(void)
+static void qemu_dbg_init(void)
 {
     device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_QEMU_DBG, 0));
 }
+initcall_device(qemu_dbg, qemu_dbg_init);

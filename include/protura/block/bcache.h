@@ -165,7 +165,6 @@ static inline void block_unlockput(struct block *b)
 #define using_block_locked(bdev, sector, block) \
     using_nocheck(((block) = block_getlock(bdev, sector)), (block_unlockput(block)))
 
-void bdflush_init(void);
 void bcache_oom(void);
 
 #endif

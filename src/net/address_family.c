@@ -45,13 +45,3 @@ struct address_family *address_family_lookup(int af)
 
     return ret;
 }
-
-void address_family_setup(void)
-{
-    struct address_family *afamily;
-    using_mutex(&af_list_lock) {
-        list_foreach_entry(&af_list, afamily, af_entry)
-                (afamily->ops->setup_af) (afamily);
-    }
-}
-

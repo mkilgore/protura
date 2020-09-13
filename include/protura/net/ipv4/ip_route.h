@@ -36,7 +36,6 @@ static inline void ip_route_entry_init(struct ip_route_entry *ent)
     *ent = (struct ip_route_entry)IP_ROUTE_ENTRY_INIT(*ent);
 }
 
-void ip_route_init(void);
 void ip_route_add(n32 dest_ip, n32 gateway_ip, n32 netmask, struct net_interface *iface, flags_t flags);
 int ip_route_del(n32 dest_ip, n32 netmask);
 

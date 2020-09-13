@@ -42,18 +42,10 @@ KPARAM("reboot_on_panic", &reboot_on_panic, KPARAM_BOOL);
 
 static int start_user_init(void *unused)
 {
-    struct sys_init *sys;
-
     void (**ic) (void);
 
     for (ic = initcalls; *ic; ic++)
         (*ic) ();
-
-    /* Loop through set of initialiations that run after the scheduler has started (most of them) */
-    for (sys = arch_init_systems; sys->name; sys++) {
-        kp(KP_NORMAL, "Starting: %s\n", sys->name);
-        (sys->init) ();
-    }
 
     kp(KP_NORMAL, "Mounting root device %d:%d, fs type \"%s\"\n", root_major, root_minor, root_fstype);
 

@@ -18,6 +18,7 @@
 #include <protura/work.h>
 #include <protura/dev.h>
 #include <protura/kparam.h>
+#include <protura/initcall.h>
 
 #include <protura/event/device.h>
 #include <arch/spinlock.h>
@@ -187,19 +188,21 @@ static struct tty_driver driver = {
     .ops = &ops,
 };
 
-void com_tty_init(void)
-{
-    kp(KP_TRACE, "COM TTY INIT\n");
-    tty_driver_register(&driver);
-}
-
-void com_init(void)
+static void com_init(void)
 {
     if (!com_init_was_early)
         com_init_ports_tx();
 
     com_init_ports_rx();
 }
+initcall_device(com, com_init);
+
+static void com_tty_init(void)
+{
+    kp(KP_TRACE, "COM TTY INIT\n");
+    tty_driver_register(&driver);
+}
+initcall_device(com_tty, com_tty_init);
 
 int com_init_early(void)
 {

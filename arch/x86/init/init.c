@@ -15,23 +15,16 @@
 #include <protura/mm/memlayout.h>
 #include <protura/mm/palloc.h>
 #include <protura/mm/kmalloc.h>
-#include <protura/mm/vm_area.h>
 #include <protura/mm/kmmap.h>
-#include <protura/fs/char.h>
-#include <protura/fs/file_system.h>
-#include <protura/fs/pipe.h>
 #include <protura/drivers/pci.h>
 #include <protura/video/fbcon.h>
-#include <protura/net.h>
 #include <protura/work.h>
 #include <protura/kparam.h>
 #include <protura/klog.h>
-#include <protura/block/bcache.h>
 #include <protura/mm/bootmem.h>
 
 #include <arch/asm.h>
 #include <protura/drivers/console.h>
-#include <protura/drivers/ata.h>
 #include <protura/drivers/com.h>
 #include <protura/video/video.h>
 #include <arch/gdt.h>
@@ -40,19 +33,17 @@
 #include <arch/cpuid.h>
 #include <arch/drivers/pic8259.h>
 #include <arch/drivers/pic8259_timer.h>
-#include <arch/drivers/keyboard.h>
 #include <arch/drivers/rtc.h>
 #include <arch/paging.h>
 #include <arch/pages.h>
 #include <arch/task.h>
 #include <arch/cpu.h>
-#include <arch/syscall.h>
 
 char kernel_cmdline[2048];
 
 static struct fb_info framebuffer_info;
 
-void setup_bootloader_framebuffer(void)
+static void setup_bootloader_framebuffer(void)
 {
     if (!framebuffer_info.framebuffer_addr)
         return;
@@ -65,25 +56,12 @@ void setup_bootloader_framebuffer(void)
 
     video_mark_disabled();
 }
+initcall_device(boot_fbcon, setup_bootloader_framebuffer);
 
-struct sys_init arch_init_systems[] = {
-    { "vm_area", vm_area_allocator_init },
-    { "kwork", kwork_init },
-    { "syscall", syscall_init },
-    { "video", video_init },
-    { "boot-fbcon", setup_bootloader_framebuffer },
-    { "char-device", char_dev_init },
-    { "file-systems", file_systems_init },
-    { "pipe", pipe_init },
-    { "bdflush", bdflush_init },
-#ifdef CONFIG_NET_SUPPORT
-    { "net", net_init },
-#endif
-#ifdef CONFIG_PCI_SUPPORT
-    { "pci", pci_init },
-#endif
-    { NULL, NULL }
-};
+/* This dependency exists because we do not know what device the GRUB
+ * framebuffer is from, we we may already have a driver for it. If we load that
+ * driver we will likely mess up the framebuffer. */
+initcall_dependency(pci_devices, boot_fbcon);
 
 /* The multiboot memory regions are 64-bit ints (to support PAE) and can extend
  * past the 32-bit memory space. We handle that here */

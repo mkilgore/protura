@@ -72,6 +72,5 @@ void vt_console_kp_register(void);
 void vt_console_kp_unregister(void);
 
 void vt_console_early_init(void);
-void vt_console_init(void);
 
 #endif

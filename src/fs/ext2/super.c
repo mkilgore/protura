@@ -555,8 +555,8 @@ static struct file_system ext2_fs = {
     .fs_list_entry = LIST_NODE_INIT(ext2_fs.fs_list_entry),
 };
 
-void ext2_init(void)
+static void ext2_init(void)
 {
     file_system_register(&ext2_fs);
 }
-
+initcall_device(ext2, ext2_init);

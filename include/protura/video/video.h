@@ -9,6 +9,4 @@ int video_is_disabled(void);
  * second time. */
 void video_mark_disabled(void);
 
-void video_init(void);
-
 #endif

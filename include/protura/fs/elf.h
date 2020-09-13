@@ -59,7 +59,4 @@ struct elf_prog_section {
 #define ELF_PROG_FLAG_WRITE 2
 #define ELF_PROG_FLAG_READ 4
 
-void elf_register(void);
-void elf_unregister(void);
-
 #endif

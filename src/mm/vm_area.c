@@ -224,7 +224,7 @@ void vm_area_free(struct vm_area *area)
     }
 }
 
-void vm_area_allocator_init(void)
+static void vm_area_allocator_init(void)
 {
     int i;
 
@@ -240,6 +240,7 @@ void vm_area_allocator_init(void)
     for (i = 0; i < KMAP_PAGES; i++)
         vm_area_mappings[i] = area;
 }
+initcall_core(vm_area, vm_area_allocator_init);
 
 void *kmmap_pcm(pa_t address, size_t len, flags_t vm_flags, int pcm)
 {
