@@ -75,6 +75,7 @@ SECTIONS
     /DISCARD/ :
     {
         *(.note*)
+        *(.discard.*)
     }
 
 }
