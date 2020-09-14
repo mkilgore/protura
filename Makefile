@@ -320,7 +320,7 @@ dist: clean-kernel clean-toolchain clean-configure clean-disk
 
 PHONY += clean-kernel
 clean-kernel:
-	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(PROTURA_OBJ) $(IMGS_DIR); do \
+	$(Q)for file in $(REAL_OBJS_y) $(CLEAN_LIST) $(PROTURA_OBJ) $(IMGS_DIR) $(KERNEL_DIR); do \
 		if [ -e $$file ]; then \
 		    echo " RM      $$file"; \
 			rm -rf $$file; \
