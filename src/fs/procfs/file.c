@@ -31,7 +31,7 @@ static int procfs_file_read(struct file *filp, struct user_buffer buf, size_t si
     struct procfs_node *node = pinode->node;
     struct procfs_entry *entry = container_of(node, struct procfs_entry, node);
     void *p;
-    size_t data_len, cpysize;
+    size_t data_len, cpysize = 0;
     int ret;
 
     pinode->i.atime = protura_current_time_get();
@@ -59,7 +59,6 @@ static int procfs_file_read(struct file *filp, struct user_buffer buf, size_t si
     }
 
     pfree_va(p, 0);
-
 
     if (ret) {
         return ret;
