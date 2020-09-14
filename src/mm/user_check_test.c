@@ -15,10 +15,14 @@
 
 static void user_check_copy_from_kernel_test(struct ktest *kt)
 {
+    const int max_len = 256;
     size_t len = KT_ARG(kt, 0, int);
 
-    char kbuf[len];
-    char ubuf[len];
+    /* We hard-code 256 to ensure the stack does not overflow */
+    ktest_assert_notequal(kt, 0, len <= max_len);
+
+    char kbuf[max_len];
+    char ubuf[max_len];
 
     size_t i;
     for (i = 0; i < sizeof(kbuf); i++)
@@ -34,10 +38,14 @@ static void user_check_copy_from_kernel_test(struct ktest *kt)
 
 static void user_check_copy_to_kernel_test(struct ktest *kt)
 {
+    const int max_len = 256;
     size_t len = KT_ARG(kt, 0, int);
 
-    char kbuf[len];
-    char ubuf[len];
+    /* We hard-code 256 to ensure the stack does not overflow */
+    ktest_assert_notequal(kt, 0, len <= max_len);
+
+    char kbuf[max_len];
+    char ubuf[max_len];
 
     size_t i;
     for (i = 0; i < sizeof(ubuf); i++)
