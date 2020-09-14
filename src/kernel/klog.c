@@ -56,7 +56,7 @@ void klog_init(void)
 
 static int klog_read(struct file *filp, struct user_buffer buf, size_t size)
 {
-    int ret;
+    int ret = 0;
     size_t have_read = 0;
 
     struct page *page = palloc(0, PAL_KERNEL);
