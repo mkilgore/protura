@@ -97,7 +97,7 @@ static int user_read_sockaddr(struct sockaddr *addr, struct user_buffer user, so
 
 static int user_write_sockaddr(struct sockaddr *addr, socklen_t len, struct user_buffer user, struct user_buffer user_socklen)
 {
-    socklen_t user_len;
+    socklen_t user_len = 0;
 
     int ret = user_copy_to_kernel(&user_len, user_socklen);
     if (ret)
