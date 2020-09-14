@@ -25,7 +25,7 @@ int sys_sigprocmask(int how, struct user_buffer set, struct user_buffer oldset)
     }
 
     if (!user_buffer_is_null(set)) {
-        sigset_t tmp;
+        sigset_t tmp = 0;
 
         ret = user_copy_to_kernel(&tmp, set);
         if (ret)
@@ -131,7 +131,7 @@ int sys_sigwait(struct user_buffer set, struct user_buffer sig)
 {
     int ret, test;
     struct task *current = cpu_get_local()->current;
-    sigset_t check, signals;
+    sigset_t check = 0, signals;
 
     ret = user_copy_to_kernel(&check, set);
     if (ret)
@@ -179,7 +179,7 @@ int sys_sigsuspend(struct user_buffer umask)
     int ret;
     struct task *current = cpu_get_local()->current;
     sigset_t tempmask;
-    sigset_t mask;
+    sigset_t mask = 0;
 
     ret = user_copy_to_kernel(&mask, umask);
     if (ret)
