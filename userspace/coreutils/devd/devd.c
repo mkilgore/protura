@@ -266,10 +266,13 @@ int main(int argc, char **argv)
     prog_name = argv[0];
     int ret;
 
-    int logfd = open(LOGFILE, O_WRONLY | O_APPEND);
+    int logfd = open(LOGFILE, O_WRONLY | O_APPEND | O_CREAT, 0644);
     dup2(logfd, STDOUT_FILENO);
     dup2(logfd, STDERR_FILENO);
     close(logfd);
+
+    setbuf(stdin, NULL);
+    setbuf(stdout, NULL);
 
     ret = group_db_load(&groupdb);
     if (ret) {
