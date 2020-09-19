@@ -24,6 +24,7 @@ A collection of Coreutil programs designed for Protura. A current list of progra
 - `ln`: Use for creating symbolic links.
 - `lnum`: Display line numbers before each input line
 - `login`: Reads username/password, and if correct sets up that user's environment and runs their shell
+- `losetup`: Manage the loop block devices
 - `ls`: Display information about files in the current directory.
 - `mem`: Display memory information about a process
 - `mkdir`: Make a directory on the file system

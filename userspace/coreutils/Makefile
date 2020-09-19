@@ -61,6 +61,7 @@ COREUTILS_PROG_LIST = \
 	su \
 	df \
 	devd \
+	losetup \
 
 COREUTILS_PROGS := $(patsubst %,$(DISK_BINDIR)/%,$(COREUTILS_PROG_LIST))
 
