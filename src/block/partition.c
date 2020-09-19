@@ -43,6 +43,7 @@ static int mbr_add_partitions(struct block_device *device)
     struct page *block_dup;
     size_t i;
     struct disk *disk = device->disk;
+    int part_count = 0;
 
     const int mbr_part_offsets[] = {
         0x1BE,
@@ -56,6 +57,12 @@ static int mbr_add_partitions(struct block_device *device)
     using_block_locked(device, 0, b)
         memcpy(block_dup->virt, b->data, b->block_size);
 
+    uint8_t *blk = block_dup->virt;
+
+    /* Check for the marker indicating an MBR is present */
+    if (blk[510] != 0x55 || blk[511] != 0xAA)
+        goto release_copy;
+
     for (i = 0; i < ARRAY_SIZE(mbr_part_offsets); i++) {
         struct mbr_part *p = (struct mbr_part *)(block_dup->virt + mbr_part_offsets[i]);
 
@@ -67,11 +74,13 @@ static int mbr_add_partitions(struct block_device *device)
 
             kp(KP_NORMAL, "Partition for device %d:%d: start: %d, len: %d\n", DEV_MAJOR(device->dev), DEV_MINOR(device->dev), part->first_sector, part->sector_count);
             disk_part_add(disk, part);
+            part_count++;
         }
     }
 
+  release_copy:
     pfree(block_dup, 0);
-    return 0;
+    return part_count;
 }
 
 int block_dev_repartition(struct block_device *bdev)
