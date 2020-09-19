@@ -229,7 +229,18 @@ static int ext2_inode_write(struct super_block *super, struct inode *i)
         dinode->gid = inode->i.gid;
 
         if (S_ISCHR(inode->i.mode) || S_ISBLK(inode->i.mode)) {
-            dinode->blk_ptrs[0] = (uint32_t)inode->i.dev_no;
+            /* Two possible dev formats: (Found in Linux Kernel source code)
+             * Major=M, Minor=I
+             *
+             * First format: 0xMMII
+             * Second foramt: 0xIIIMMMII
+             *
+             * If blk_ptrs[0] is empty, then use second format, stored in blk_ptrs[1].
+             */
+            int minor = DEV_MINOR(inode->i.dev_no);
+            int major = DEV_MAJOR(inode->i.dev_no);
+
+            dinode->blk_ptrs[1] = ((minor & 0xFFF00) << 12) | (minor & 0xFF) | ((major & 0xFFF) << 8);
         } else {
             unsigned int i;
             for (i = 0; i < ARRAY_SIZE(inode->blk_ptrs); i++)
