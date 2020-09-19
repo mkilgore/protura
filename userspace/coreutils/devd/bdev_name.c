@@ -42,11 +42,31 @@ static void ata_name(struct device *device)
     device->mode |= 0660;
 }
 
+static void loop_name(struct device *device)
+{
+    int disk_id = minor(device->dev) / 256;
+    int partition = minor(device->dev) % 256;
+
+    if (partition)
+        a_sprintf(&device->name, "loop%dp%d", disk_id, partition);
+    else
+        a_sprintf(&device->name, "loop%d", disk_id);
+
+    struct group *ent = group_db_get_group(&groupdb, "disk");
+    if (ent)
+        device->gid = ent->gid;
+
+    device->mode |= 0660;
+}
+
 void bdev_create(struct device *device)
 {
     switch (major(device->dev)) {
     case 4:
         return ata_name(device);
+
+    case 5:
+        return loop_name(device);
 
     default: /* Junk */
         a_sprintf(&device->name, "blk:%d:%d", major(device->dev), minor(device->dev));

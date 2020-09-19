@@ -49,6 +49,8 @@ static void tty_serial_name(struct device *device)
 
 static void mem_name(struct device *device)
 {
+    struct group *ent;
+
     switch (minor(device->dev)) {
     case 0:
         device->name = strdup("zero");
@@ -63,6 +65,16 @@ static void mem_name(struct device *device)
     case 2:
         device->name = strdup("null");
         device->mode |= 0666;
+        break;
+
+    case 3:
+        device->name = strdup("loop-control");
+
+        ent = group_db_get_group(&groupdb, "disk");
+        if (ent)
+            device->gid = ent->gid;
+
+        device->mode |= 0660;
         break;
 
     default:
