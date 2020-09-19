@@ -116,7 +116,7 @@ static int add_device_name(struct util_line *line, const char *fs)
         if (err == -1)
             continue;
 
-        if (dev == st.st_rdev) {
+        if (dev == st.st_rdev && S_ISBLK(st.st_mode)) {
             util_line_strdup(line, path);
             closedir(directory);
             return 0;
