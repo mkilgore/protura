@@ -83,6 +83,9 @@ static void device_create_node(struct device *device)
         printf("(re)creating node %s!\n", path);
         unlink(path);
         mknod(path, device->mode, device->dev);
+
+        /* Ensure we do the chown, because the mknod() redid the ownership information */
+        err = -1;
     }
 
     if (err || statbuf.st_uid != device->uid || statbuf.st_gid != device->gid) {
