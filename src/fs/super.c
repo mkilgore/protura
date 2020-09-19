@@ -82,6 +82,8 @@ static void super_unused_dealloc(struct super_block *sb)
     if (!sb->bdev)
         block_dev_anon_put(sb->bdev->dev);
 
+    list_del(&sb->list_entry);
+
     if (sb->fs->super_dealloc)
         (sb->fs->super_dealloc) (sb);
     else
