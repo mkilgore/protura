@@ -7,6 +7,7 @@ enum {
     MEM_MINOR_ZERO,
     MEM_MINOR_FULL,
     MEM_MINOR_NULL,
+    MEM_MINOR_LOOP_CONTROL,
 };
 
 extern struct file_ops mem_zero_file_ops;

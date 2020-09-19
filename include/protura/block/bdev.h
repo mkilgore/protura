@@ -81,6 +81,7 @@ enum {
     BLOCK_DEV_IDE_SLAVE = 2,
     BLOCK_DEV_ANON = 3,
     BLOCK_DEV_ATA = 4,
+    BLOCK_DEV_LOOP = 5,
 };
 
 struct block_device *block_dev_get(dev_t device);

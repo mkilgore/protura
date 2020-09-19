@@ -14,6 +14,7 @@
 
 #include <protura/event/device.h>
 #include <protura/fs/char.h>
+#include <protura/drivers/loop.h>
 #include <protura/drivers/mem.h>
 
 static int mem_open(struct inode *inode, struct file *filp)
@@ -32,6 +33,10 @@ static int mem_open(struct inode *inode, struct file *filp)
 
     case MEM_MINOR_NULL:
         filp->ops = &mem_null_file_ops;
+        break;
+
+    case MEM_MINOR_LOOP_CONTROL:
+        filp->ops = &loop_control_ops;
         break;
 
     default:
@@ -56,5 +61,6 @@ static void mem_init(void)
     device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_MEM, MEM_MINOR_ZERO));
     device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_MEM, MEM_MINOR_NULL));
     device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_MEM, MEM_MINOR_FULL));
+    device_submit_char(KERN_EVENT_DEVICE_ADD, DEV_MAKE(CHAR_DEV_MEM, MEM_MINOR_LOOP_CONTROL));
 }
 initcall_device(mem, mem_init);
