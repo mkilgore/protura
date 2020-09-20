@@ -461,8 +461,10 @@ static int mount_seq_render(struct seq_file *seq)
 
     if (mount->devname)
         return seq_printf(seq, "%s\t%s\t%s\n", mount->devname, mount->filesystem, mount->mountname);
-    else
+    else if (mount->dev != 0)
         return seq_printf(seq, "(%d,%d)\t%s\t%s\n", DEV_MAJOR(mount->dev), DEV_MINOR(mount->dev), mount->filesystem, mount->mountname);
+    else
+        return seq_printf(seq, "none\t%s\t%s\n", mount->filesystem, mount->mountname);
 }
 
 static int mount_seq_next(struct seq_file *seq)
