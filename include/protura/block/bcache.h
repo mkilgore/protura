@@ -159,11 +159,23 @@ static inline void block_unlockput(struct block *b)
     block_put(b);
 }
 
+static inline void block_put_cleanup(struct block **b)
+{
+    if (*b)
+        block_put(*b);
+}
+
+static inline void block_unlockput_cleanup(struct block **b)
+{
+    if (*b)
+        block_unlockput(*b);
+}
+
 #define using_block(bdev, sector, block) \
-    using_nocheck(((block) = block_get(bdev, sector)), (block_put(block)))
+    scoped_using_assign(block_get(bdev, sector), block_put_cleanup, block, NULL)
 
 #define using_block_locked(bdev, sector, block) \
-    using_nocheck(((block) = block_getlock(bdev, sector)), (block_unlockput(block)))
+    scoped_using_assign(block_getlock(bdev, sector), block_unlockput_cleanup, block, NULL)
 
 void bcache_oom(void);
 
