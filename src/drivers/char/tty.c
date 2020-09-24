@@ -308,6 +308,21 @@ static int tty_open(struct inode *inode, struct file *filp)
     return 0;
 }
 
+int tty_resize(struct tty *tty, const struct winsize *new_size)
+{
+    pid_t pgrp;
+
+    using_mutex(&tty->lock) {
+        tty->winsize = *new_size;
+        pgrp = tty->fg_pgrp;
+    }
+
+    if (pgrp)
+        scheduler_task_send_signal(-tty->fg_pgrp, SIGWINCH, 0);
+
+    return 0;
+}
+
 static int tty_ioctl(struct file *filp, int cmd, struct user_buffer arg)
 {
     int ret;
@@ -387,10 +402,7 @@ static int tty_ioctl(struct file *filp, int cmd, struct user_buffer arg)
         if (ret)
             return ret;
 
-        using_mutex(&tty->lock)
-            tty->winsize = tmp_wins;
-
-        return 0;
+        return tty_resize(tty, &tmp_wins);
 
     case TCFLSH:
         switch ((uintptr_t)arg.ptr) {

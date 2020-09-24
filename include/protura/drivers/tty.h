@@ -89,6 +89,8 @@ void tty_driver_register(struct tty_driver *driver);
 int tty_write_buf(struct tty *tty, const char *buf, size_t len);
 int tty_write_buf_user(struct tty *tty, struct user_buffer buf, size_t len);
 
+int tty_resize(struct tty *tty, const struct winsize *new_size);
+
 /* This allows add data to the *input* side of the tty, as though it was typed
  * on the keyboard.
  *
