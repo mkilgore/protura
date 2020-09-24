@@ -27,7 +27,7 @@ void dump_mem(const void *buf, size_t len, uint32_t base_addr)
 
         cur_b += sprintf(cur_b, " |");
         for (j = i; j < i + 16 && j < len; j++)
-            if (b[j] > 31 && b[j] <= 127)
+            if (b[j] > 31 && b[j] < 127)
                 cur_b += sprintf(cur_b, "%c", b[j]);
             else
                 *(cur_b++) = '.';
