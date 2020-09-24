@@ -64,6 +64,9 @@ struct page *page_from_pn(pn_t);
 
 #define page_to_pa(page) __PN_TO_PA((page)->page_number)
 
+/* Calculates the required order from the number of pages you want */
+#define pages_to_order(page_count) \
+    (((page_count) > 1)? log2((page_count) - 1) + 1: 0)
 
 /* Used to allocate physically-contiguous pages in physical memory. Since not
  * all physical memory is mapped at a virual address, the standard way to

@@ -16,8 +16,8 @@
 
 /* An important note to readers:
  *
- * kmalloc doesn't actually do any locking. This is because slab are locked
- * individually, inside of slab_malloc/slab_free/etc. , and the relevant
+ * kmalloc doesn't actually do any global locking. This is because slab are
+ * locked individually, inside of slab_malloc/slab_free/etc. , and the relevant
  * 'kmalloc_slabs' array information is never changed so kmalloc/kfree can all
  * read it at the same time.
  *
@@ -36,6 +36,19 @@ static struct slab_alloc kmalloc_slabs[] = {
     SLAB_ALLOC_INIT("kmalloc_4096", 4096),
     { .slab_name = NULL }
 };
+
+/* For sizes larger than the slab allocators can supply, kmalloc() simply
+ * allocates from palloc() directly. We store those allocations in a big list.
+ * Very unoptimal, but there very few users of this functionality in the
+ * kernel, most just call palloc() directly. */
+struct large_alloc_desc {
+    list_node_t node;
+    struct page *pages;
+    int order;
+};
+
+static spinlock_t large_alloc_lock = SPINLOCK_INIT();
+static list_head_t large_alloc_list = LIST_HEAD_INIT(large_alloc_list);
 
 void kmalloc_init(void)
 {
@@ -56,7 +69,27 @@ void *kmalloc(size_t size, int flags)
         if (size <= slab->object_size)
             return slab_malloc(slab, flags);
 
-    panic("kmalloc: Size %d is to big for kmalloc! Use palloc to get whole-pages instead\n", size);
+    int pages = PG_ALIGN(size) / PG_SIZE;
+    int order = pages_to_order(pages);
+
+    /* This is only one level of recursion because the descriptor is very small */
+    struct large_alloc_desc *desc = kmalloc(sizeof(*desc), flags);
+    if (!desc)
+        return NULL;
+
+    list_node_init(&desc->node);
+    desc->order = order;
+    desc->pages = palloc(order, flags);
+
+    if (!desc->pages) {
+        kfree(desc);
+        return NULL;
+    }
+
+    using_spinlock(&large_alloc_lock)
+        list_add_tail(&large_alloc_list, &desc->node);
+
+    return desc->pages->virt;
 }
 
 size_t ksize(void *p)
@@ -65,6 +98,18 @@ size_t ksize(void *p)
     for (slab = kmalloc_slabs; slab->slab_name; slab++)
         if (slab_has_addr(slab, p) == 0)
             return slab->object_size;
+
+    using_spinlock(&large_alloc_lock) {
+        struct large_alloc_desc *desc;
+
+        list_foreach_entry(&large_alloc_list, desc, node) {
+            va_t start = desc->pages->virt;
+            va_t end = desc->pages->virt + (1 << desc->order) * PG_SIZE;
+
+            if (start <= p && p <= end)
+                return (1 << desc->order) * PG_SIZE;
+        }
+    }
 
     return 0;
 }
@@ -77,6 +122,29 @@ void kfree(void *p)
             slab_free(slab, p);
             return ;
         }
+    }
+
+    struct large_alloc_desc *desc;
+
+    using_spinlock(&large_alloc_lock) {
+        list_foreach_entry(&large_alloc_list, desc, node) {
+            va_t start = desc->pages->virt;
+            va_t end = desc->pages->virt + (1 << desc->order) * PG_SIZE;
+
+            if (start <= p && p <= end) {
+                list_del(&desc->node);
+                break;
+            }
+        }
+
+        if (list_ptr_is_head(&desc->node, &large_alloc_list))
+            desc = NULL;
+    }
+
+    if (desc) {
+        pfree(desc->pages, desc->order);
+        kfree(desc);
+        return;
     }
 
     panic("kmalloc: Error! Addr %p was not found in kmalloc's memory space!\n", p);
