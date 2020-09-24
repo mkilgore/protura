@@ -55,8 +55,6 @@ struct block_device {
     /* Only valid when the block_device has been opened */
     struct disk *disk;
     struct disk_part *part;
-
-    const struct file_ops *fops;
 };
 
 #define BLOCK_DEVICE_INIT(bdev) \
@@ -70,7 +68,7 @@ static inline void block_device_init(struct block_device *bdev)
     *bdev = (struct block_device)BLOCK_DEVICE_INIT(*bdev);
 }
 
-extern struct file_ops block_dev_file_ops_generic;
+extern struct file_ops block_dev_file_ops;
 
 int block_dev_file_open_generic(struct inode *dev, struct file *filp);
 int block_dev_file_close_generic(struct file *);

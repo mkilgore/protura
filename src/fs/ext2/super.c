@@ -40,7 +40,7 @@ void ext2_inode_setup_ops(struct inode *inode)
 
     if (S_ISBLK(inode->mode)) {
         inode->bdev = block_dev_get(inode->dev_no);
-        inode->default_fops = inode->bdev->fops;
+        inode->default_fops = &block_dev_file_ops;
         inode->ops = &inode_ops_null;
     } else if (S_ISCHR(inode->mode)) {
         inode->cdev = char_dev_get(inode->dev_no);

@@ -257,7 +257,7 @@ uint64_t block_dev_capacity_get(struct block_device *bdev)
 {
     using_mutex(&bdev->lock) {
         if (bdev->disk) {
-            return disk_capacity_get(bdev->disk);
+            return disk_capacity_get(bdev->disk) << bdev->disk->min_block_size_shift;
         }
 
         return 0;
