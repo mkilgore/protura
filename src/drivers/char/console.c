@@ -13,6 +13,7 @@
 #include <protura/scheduler.h>
 #include <protura/wait.h>
 #include <protura/kparam.h>
+#include <protura/mm/kmalloc.h>
 #include <protura/initcall.h>
 
 #include <arch/spinlock.h>
@@ -32,7 +33,8 @@
  * console_vts */
 static int current_vt = 0;
 
-static struct screen_char console_scr_bufs[CONSOLE_MAX][SCR_ROWS][SCR_COLS];
+static struct screen_char *console_scr_bufs[CONSOLE_MAX];
+
 static struct screen console_screens[CONSOLE_MAX];
 static struct vt console_vts[CONSOLE_MAX];
 
@@ -49,12 +51,10 @@ void console_switch_vt(int new_vt)
      * screen */
 
     struct screen *real_screen = console_vts[current_vt].screen;
-    if (!real_screen)
-        real_screen = &arch_screen;
 
     memcpy(console_scr_bufs[current_vt],
            real_screen->buf,
-           sizeof(**real_screen->buf) * SCR_COLS * SCR_ROWS);
+           sizeof(*real_screen->buf) * real_screen->rows * real_screen->cols);
 
     console_vts[current_vt].screen = console_screens + current_vt;
 
@@ -62,7 +62,7 @@ void console_switch_vt(int new_vt)
 
     memcpy(real_screen->buf,
            console_scr_bufs[current_vt],
-           sizeof(**real_screen->buf) * SCR_COLS * SCR_ROWS);
+           sizeof(*real_screen->buf) * real_screen->rows * real_screen->cols);
 
     console_vts[current_vt].screen = real_screen;
     real_screen->move_cursor(real_screen, console_vts[current_vt].cur_row, console_vts[current_vt].cur_col);
@@ -81,11 +81,33 @@ void console_switch_vt(int new_vt)
         spinlock_release(&console_vts[i].lock);
 }
 
-void console_swap_active_screen(struct screen *new)
+static void console_swap_active_screen_with_bufs(struct screen *new, struct screen_char **new_bufs)
 {
     int i;
     for (i = 0; i < CONSOLE_MAX; i++)
         spinlock_acquire(&console_vts[i].lock);
+
+    for (i = 0; i < CONSOLE_MAX; i++) {
+        struct screen_char *tmp = console_scr_bufs[i];
+
+        /* FIXME: We should be duplicating the old data from the console onto
+         * the new screen buffers, but unfortunately the "real" screen may be
+         * gone at this point so we can't actually read data from it.
+         *
+         * Fixing this involves largely redoing the vt driver layer not
+         * manipulate the screen buffer directly, but offer `putc()`,
+         * `scroll()`, etc. functions to hook into, as well as keeping a copy
+         * of the screen on a backing buffer. */
+
+        console_scr_bufs[i] = new_bufs[i];
+        console_screens[i].buf = new_bufs[i];
+        console_screens[i].rows = new->rows;
+        console_screens[i].cols = new->cols;
+        new_bufs[i] = tmp;
+
+        /* A bit of a hack, but we reset the scroll region to take advantage of the larger size */
+        console_vts[i].scroll_bottom = new->rows;
+    }
 
     console_vts[current_vt].screen = new;
     new->move_cursor(new, console_vts[current_vt].cur_row, console_vts[current_vt].cur_col);
@@ -100,6 +122,37 @@ void console_swap_active_screen(struct screen *new)
 
     for (i = CONSOLE_MAX - 1; i >= 0; i--)
         spinlock_release(&console_vts[i].lock);
+}
+
+void console_swap_active_screen(struct screen *new)
+{
+    struct screen_char *new_bufs[CONSOLE_MAX];
+
+    struct winsize new_size = {
+        .ws_row = new->rows,
+        .ws_col = new->cols,
+    };
+
+    /* We preemptively allocate new screen buffers as we can't allocate them
+     * while holding all the spinlocks.
+     *
+     * Then, after swapping the screen, if necessary we free the unused or
+     * existing bufs.*/
+
+    int i;
+    size_t size = sizeof(*new_bufs) * new->rows * new->cols;
+
+    for (i = 0; i < CONSOLE_MAX; i++)
+        new_bufs[i] = kzalloc(size, PAL_KERNEL);
+
+    console_swap_active_screen_with_bufs(new, new_bufs);
+
+    for (i = 0; i < CONSOLE_MAX; i++)
+        tty_resize(console_vts[i].tty, &new_size);
+
+    for (i = 0; i < CONSOLE_MAX; i++)
+        if (new_bufs[i] != arch_static_console_scr_bufs[i])
+            kfree(new_bufs[i]);
 }
 
 static void vt_tty_init(struct tty *tty)
@@ -162,8 +215,12 @@ void vt_console_early_init(void)
     /* We only do the early init for the first VT */
     vt_early_init(console_vts);
 
+    struct screen_char *bufs[CONSOLE_MAX];
+    for (i = 0; i < CONSOLE_MAX; i++)
+        bufs[i] = arch_static_console_scr_bufs[i];
+
     /* "Switch" to 0 to assign the arch_screen to it */
-    console_swap_active_screen(&arch_screen);
+    console_swap_active_screen_with_bufs(&arch_screen, bufs);
 }
 
 static void vt_console_init(void)

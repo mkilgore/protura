@@ -58,7 +58,8 @@ struct vt {
     unsigned int origin_mode :1;
     unsigned int insert_mode :1;
 
-    uint8_t tab_stops[SCR_COLS / 8];
+    /* 256 column maximum */
+    uint8_t tab_stops[256 / 8];
 
     int early_init;
 

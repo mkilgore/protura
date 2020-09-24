@@ -12,7 +12,9 @@
 #include <arch/drivers/screen.h>
 
 struct screen {
-    struct screen_char (*buf)[SCR_COLS];
+    struct screen_char *buf;
+    int rows;
+    int cols;
 
     void (*move_cursor) (struct screen *, int row, int col);
     void (*cursor_on) (struct screen *);

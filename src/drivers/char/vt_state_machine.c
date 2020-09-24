@@ -60,7 +60,7 @@ static void __vt_putchar_nocursor(struct vt *vt, char ch)
         if (next_tab != -1)
             c = next_tab;
         else
-            c = SCR_COLS - 1;
+            c = vt->screen->cols - 1;
 
         vt->wrap_next = 0;
         break;
@@ -73,7 +73,7 @@ static void __vt_putchar_nocursor(struct vt *vt, char ch)
         break;
 
     default:
-        if (vt->wrap_next && c == SCR_COLS - 1 && vt->wrap_on) {
+        if (vt->wrap_next && c == vt->screen->cols - 1 && vt->wrap_on) {
             vt->wrap_next = 0;
             c = 0;
             r++;
@@ -84,18 +84,18 @@ static void __vt_putchar_nocursor(struct vt *vt, char ch)
             }
 
             /* if the row is outside the scrolling region, we have to make sure
-             * we don't go past SCR_ROWS, but we don't scroll in this case */
-            if (r == SCR_ROWS)
+             * we don't go past vt->screen->rows, but we don't scroll in this case */
+            if (r == vt->screen->rows)
                 r--;
         }
 
         if (vt->insert_mode)
             __vt_shift_right_from_cursor(vt, 1);
 
-        vt->screen->buf[r][c].color = vt_create_cur_color(vt);
-        vt->screen->buf[r][c].chr = ch;
+        vt_char(vt, r, c)->color = vt_create_cur_color(vt);
+        vt_char(vt, r, c)->chr = ch;
 
-        if (c == SCR_COLS - 1)
+        if (c == vt->screen->cols - 1)
             vt->wrap_next = 1;
         else
             c++;
@@ -113,7 +113,7 @@ static void __vt_putchar_nocursor(struct vt *vt, char ch)
  */
 static void __vt_set_cursor(struct vt *vt, int new_row, int new_col)
 {
-    int max_row = vt->origin_mode? vt->scroll_bottom: SCR_ROWS;
+    int max_row = vt->origin_mode? vt->scroll_bottom: vt->screen->rows;
     int min_row = vt->origin_mode? vt->scroll_top: 0;
 
     if (new_row < min_row)
@@ -125,8 +125,8 @@ static void __vt_set_cursor(struct vt *vt, int new_row, int new_col)
 
     if (new_col < 0)
         vt->cur_col = 0;
-    else if (new_col > SCR_COLS - 1)
-        vt->cur_col = SCR_COLS - 1;
+    else if (new_col > vt->screen->cols - 1)
+        vt->cur_col = vt->screen->cols - 1;
     else
         vt->cur_col = new_col;
 
@@ -394,9 +394,9 @@ static void vt_set_scrolling_region(struct vt *vt, char cmd)
     if (new_bottom)
         new_bottom--;
     else
-        new_bottom = SCR_ROWS - 1;
+        new_bottom = vt->screen->rows - 1;
 
-    if (new_bottom >= SCR_ROWS)
+    if (new_bottom >= vt->screen->rows)
         return;
 
     /* The selected region must be at least 2 lines */
@@ -405,7 +405,7 @@ static void vt_set_scrolling_region(struct vt *vt, char cmd)
 
     /* The actual stored region is till one past the top.
      *
-     * This makes logic a little simpler. Normally we deal with SCR_ROWS, which
+     * This makes logic a little simpler. Normally we deal with vt->screen->rows, which
      * is also one past the top */
     vt->scroll_top = new_top;
     vt->scroll_bottom = new_bottom + 1;
@@ -493,7 +493,7 @@ static void vt_reset(struct vt *vt)
 
     vt->origin_mode = 0;
     vt->scroll_top = 0;
-    vt->scroll_bottom = SCR_ROWS;
+    vt->scroll_bottom = vt->screen->rows;
 
     vt->saved_cur_col = 0;
     vt->saved_cur_row = 0;
@@ -601,9 +601,9 @@ static void vt_state_numbersign(struct vt *vt, char ch)
     switch (ch) {
     case '8':
         /* Console test feature, entire console is cleared with "E" characters */
-        for (r = 0; r < SCR_ROWS; r++)
-            for (c = 0; c < SCR_COLS; c++)
-                vt->screen->buf[r][c] = tmp_e;
+        for (r = 0; r < vt->screen->rows; r++)
+            for (c = 0; c < vt->screen->cols; c++)
+                *vt_char(vt, r, c) = tmp_e;
         break;
 
     default:

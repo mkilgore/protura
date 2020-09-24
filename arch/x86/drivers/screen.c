@@ -16,10 +16,14 @@
 #include <arch/string.h>
 #include <arch/drivers/screen.h>
 #include <protura/drivers/screen.h>
+#include <protura/drivers/console.h>
 
 #include <arch/asm.h>
 
 #define SCR_MEMLOC ((void *)(0xB8000 + KMEM_KBASE))
+
+/* Statically allocated buffers used for the console VTs */
+struct screen_char arch_static_console_scr_bufs[CONSOLE_MAX][ARCH_SCR_ROWS * ARCH_SCR_COLS];
 
 static void scr_enable_cursor(struct screen *screen)
 {
@@ -39,7 +43,7 @@ static void scr_disable_cursor(struct screen *screen)
 
 static void scr_updatecur(struct screen *screen, int row, int col)
 {
-    uint16_t curloc = row * SCR_COLS + col;
+    uint16_t curloc = row * ARCH_SCR_COLS + col;
     outb(0x3D4, 14);
     outb(0x3D5, curloc >> 8);
     outb(0x3D4, 15);
@@ -48,6 +52,8 @@ static void scr_updatecur(struct screen *screen, int row, int col)
 
 struct screen arch_screen = {
     .buf = SCR_MEMLOC,
+    .rows = ARCH_SCR_ROWS,
+    .cols = ARCH_SCR_COLS,
     .move_cursor = scr_updatecur,
     .cursor_on = scr_enable_cursor,
     .cursor_off = scr_disable_cursor,

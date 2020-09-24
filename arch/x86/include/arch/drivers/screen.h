@@ -16,10 +16,8 @@ struct screen_char {
     uint8_t color;
 } __packed;
 
-#define SCR_ROWS 25
-#define SCR_COLS 80
-
-#define SCR_SIZE (SCR_ROWS * SCR_COLS * sizeof(struct screen_char))
+#define ARCH_SCR_ROWS 25
+#define ARCH_SCR_COLS 80
 
 #define SCR_BLACK   0
 #define SCR_BLUE    1
@@ -40,5 +38,6 @@ struct screen_char {
 void arch_screen_init(void);
 
 extern struct screen arch_screen;
+extern struct screen_char arch_static_console_scr_bufs[][ARCH_SCR_ROWS * ARCH_SCR_COLS];
 
 #endif

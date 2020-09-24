@@ -27,11 +27,13 @@
 #include <protura/video/fbcon.h>
 #include "internal.h"
 
+#define fb_char(fb, r, c) ((fb)->screen.buf + (r) * ((fb)->screen.cols) + (c))
+
 /* The number of MS before we turn the cursor on or off */
 #define CURSOR_FLASH 250
 
 /* The number of MS minimum between each screen refrehs */
-#define SCREEN_REFRESH_TIMEOUT 17
+#define SCREEN_REFRESH_TIMEOUT 50
 
 enum {
     FBCON_CURSOR_IS_ON,
@@ -118,18 +120,18 @@ static void __refresh_fbcon(struct fbcon_screen *fb)
         return;
     }
 
-    for (x = 0; x < SCR_COLS; x++) {
-        for (y = 0; y < SCR_ROWS; y++) {
+    for (x = 0; x < fb->screen.cols; x++) {
+        for (y = 0; y < fb->screen.rows; y++) {
             uint32_t *fb_start = fb_data + y * FONT_HEIGHT * info->width + x * FONT_WIDTH;
             int i, j;
-            uint32_t fg_color = get_screen_color(screen_fg(fb->screen.buf[y][x].color));
-            uint32_t bg_color = get_screen_color(screen_bg(fb->screen.buf[y][x].color));
+            uint32_t fg_color = get_screen_color(screen_fg(fb_char(fb, y, x)->color));
+            uint32_t bg_color = get_screen_color(screen_bg(fb_char(fb, y, x)->color));
 
             for (i = 0; i < FONT_HEIGHT; i++) {
                 char c = 0;
 
-                if (fb->screen.buf[y][x].chr < 128)
-                    c = protura_fb_font[(int)fb->screen.buf[y][x].chr][i];
+                if (fb_char(fb, y, x)->chr < 128)
+                    c = protura_fb_font[(int)fb_char(fb, y, x)->chr][i];
 
                 for (j = 0; j < FONT_WIDTH; j++, c <<= 1) {
                     uint32_t *f = fb_start + i * info->width + j;
@@ -256,11 +258,8 @@ static void cursor_callback(struct ktimer *ktimer)
     }
 }
 
-static struct screen_char screen_buf[SCR_ROWS][SCR_COLS];
-
 static struct fbcon_screen fbcon_screen = {
     .screen = {
-        .buf = screen_buf,
         .move_cursor = move_cursor,
         .cursor_on = cursor_on,
         .cursor_off = cursor_off,
@@ -277,6 +276,10 @@ int fbcon_set_framebuffer(struct fb_info *info)
         return -EINVAL;
 
     fbcon_screen.info = info;
+
+    fbcon_screen.screen.rows = info->height / FONT_HEIGHT;
+    fbcon_screen.screen.cols = info->width / FONT_WIDTH;
+    fbcon_screen.screen.buf = kzalloc(sizeof(*fbcon_screen.screen.buf) * fbcon_screen.screen.rows * fbcon_screen.screen.cols, PAL_KERNEL);
 
     console_swap_active_screen(&fbcon_screen.screen);
 

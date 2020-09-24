@@ -19,7 +19,9 @@
 struct screen *alloc_fake_screen(void)
 {
     struct screen *screen = kzalloc(sizeof(*screen), PAL_KERNEL);
-    screen->buf = kzalloc(SCR_ROWS * SCR_COLS * sizeof(struct screen_char), PAL_KERNEL);
+    screen->rows = 25;
+    screen->cols = 80;
+    screen->buf = kzalloc(screen->rows * screen->cols * sizeof(struct screen_char), PAL_KERNEL);
 
     return screen;
 }
@@ -30,7 +32,7 @@ struct vt *alloc_fake_vt(void)
     spinlock_init(&vt->lock);
     vt->screen = alloc_fake_screen();
     vt->scroll_top = 0;
-    vt->scroll_bottom = SCR_ROWS;
+    vt->scroll_bottom = vt->screen->rows;
 
     return vt;
 }
@@ -45,10 +47,10 @@ void free_fake_vt(struct vt *vt)
 void vt_fill_repeat_lines(struct vt *vt)
 {
     int r, c;
-    for (r = 0; r < SCR_ROWS; r++) {
-        for (c = 0; c < SCR_COLS; c++) {
-            vt->screen->buf[r][c].chr = 'A' + r;
-            vt->screen->buf[r][c].color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
+    for (r = 0; r < vt->screen->rows; r++) {
+        for (c = 0; c < vt->screen->cols; c++) {
+            vt_char(vt, r, c)->chr = 'A' + r;
+            vt_char(vt, r, c)->color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
         }
     }
 }
@@ -58,12 +60,12 @@ void vt_fill_repeat_lines(struct vt *vt)
         char __scr_char_disp[64]; \
         snprintf(__scr_char_disp, sizeof(__scr_char_disp), #scr "[%d][%d].chr", (r), (c)); \
         struct ktest_value v1 = __ktest_make_value(#ch, (ch)); \
-        struct ktest_value v2 = __ktest_make_value(__scr_char_disp, (scr)[(r)][(c)].chr); \
+        struct ktest_value v2 = __ktest_make_value(__scr_char_disp, vt_char((scr), (r), (c))->chr); \
         ktest_assert_equal_value_func((kt), &v1, &v2, __func__, __LINE__); \
         \
         snprintf(__scr_char_disp, sizeof(__scr_char_disp), #scr "[%d][%d].color", (r), (c)); \
         v1 = __ktest_make_value(#col, (col)); \
-        v2 = __ktest_make_value(__scr_char_disp, (scr)[(r)][(c)].color); \
+        v2 = __ktest_make_value(__scr_char_disp, vt_char((scr), (r), (c))->color); \
         ktest_assert_equal_value_func((kt), &v1, &v2, __func__, __LINE__); \
     } while (0)
 
@@ -76,24 +78,24 @@ static void vt_shift_left_from_cursor_test(struct ktest *kt)
     int chars = KT_ARG(kt, 1, int);
 
     int c;
-    for (c = 0; c < SCR_COLS; c++) {
-        vt->screen->buf[0][c].chr = 'A' + (c % 26);
-        vt->screen->buf[0][c].color = def_color;
+    for (c = 0; c < vt->screen->cols; c++) {
+        vt_char(vt, 0, c)->chr = 'A' + (c % 26);
+        vt_char(vt, 0, c)->color = def_color;
     }
 
     __vt_shift_left_from_cursor(vt, chars);
 
-    for (c = 0; c < SCR_COLS; c++) {
+    for (c = 0; c < vt->screen->cols; c++) {
         int ch;
 
         if (c < vt->cur_col)
             ch = 'A' + (c % 26);
-        else if (c >= SCR_COLS - chars)
+        else if (c >= vt->screen->cols - chars)
             ch = ' ';
         else
             ch = 'A' + ((c + chars) % 26);
 
-        ktest_assert_screen_char(kt, ch, def_color, vt->screen->buf, 0, c);
+        ktest_assert_screen_char(kt, ch, def_color, vt, 0, c);
     }
 
     free_fake_vt(vt);
@@ -108,14 +110,14 @@ static void vt_shift_right_from_cursor_test(struct ktest *kt)
     int chars = KT_ARG(kt, 1, int);
 
     int c;
-    for (c = 0; c < SCR_COLS; c++) {
-        vt->screen->buf[0][c].chr = 'A' + (c % 26);
-        vt->screen->buf[0][c].color = def_color;
+    for (c = 0; c < vt->screen->cols; c++) {
+        vt_char(vt, 0, c)->chr = 'A' + (c % 26);
+        vt_char(vt, 0, c)->color = def_color;
     }
 
     __vt_shift_right_from_cursor(vt, chars);
 
-    for (c = 0; c < SCR_COLS; c++) {
+    for (c = 0; c < vt->screen->cols; c++) {
         int ch;
 
         if (c < vt->cur_col)
@@ -125,7 +127,7 @@ static void vt_shift_right_from_cursor_test(struct ktest *kt)
         else
             ch = 'A' + ((c - chars) % 26);
 
-        ktest_assert_screen_char(kt, ch, def_color, vt->screen->buf, 0, c);
+        ktest_assert_screen_char(kt, ch, def_color, vt, 0, c);
     }
 
     free_fake_vt(vt);
@@ -133,7 +135,7 @@ static void vt_shift_right_from_cursor_test(struct ktest *kt)
 
 static void vt_scroll_up_from_cursor_test(struct ktest *kt)
 {
-    struct screen_char line_buf[SCR_COLS];
+    struct screen_char line_buf[80];
     memset(line_buf, 0, sizeof(line_buf));
 
     struct vt *vt = alloc_fake_vt();
@@ -147,7 +149,7 @@ static void vt_scroll_up_from_cursor_test(struct ktest *kt)
     __vt_scroll_up_from_cursor(vt, lines);
 
     int r;
-    for (r = 0; r < SCR_ROWS; r++) {
+    for (r = 0; r < vt->screen->rows; r++) {
         if (r < vt->cur_row)
             current = 'A' + r;
         else if (r < vt->cur_row + lines)
@@ -159,12 +161,12 @@ static void vt_scroll_up_from_cursor_test(struct ktest *kt)
             current = ' ';
 
         int c;
-        for (c = 0; c < SCR_COLS; c++) {
+        for (c = 0; c < vt->screen->cols; c++) {
             line_buf[c].chr = current;
             line_buf[c].color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
         }
 
-        ktest_assert_equal_mem(kt, line_buf, vt->screen->buf[r], sizeof(line_buf));
+        ktest_assert_equal_mem(kt, line_buf, vt_char(vt, r, 0), sizeof(line_buf));
     }
 
     free_fake_vt(vt);
@@ -172,7 +174,7 @@ static void vt_scroll_up_from_cursor_test(struct ktest *kt)
 
 static void vt_scroll_from_cursor_test(struct ktest *kt)
 {
-    struct screen_char line_buf[SCR_COLS];
+    struct screen_char line_buf[80];
     memset(line_buf, 0, sizeof(line_buf));
 
     struct vt *vt = alloc_fake_vt();
@@ -186,7 +188,7 @@ static void vt_scroll_from_cursor_test(struct ktest *kt)
     __vt_scroll_from_cursor(vt, lines);
 
     int r;
-    for (r = 0; r < SCR_ROWS; r++) {
+    for (r = 0; r < vt->screen->rows; r++) {
         if (r == vt->cur_row)
             current = 'A' + vt->cur_row + lines;
 
@@ -194,7 +196,7 @@ static void vt_scroll_from_cursor_test(struct ktest *kt)
             current = ' ';
 
         int c;
-        for (c = 0; c < SCR_COLS; c++) {
+        for (c = 0; c < vt->screen->cols; c++) {
             line_buf[c].chr = current;
             line_buf[c].color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
         }
@@ -202,7 +204,7 @@ static void vt_scroll_from_cursor_test(struct ktest *kt)
         if (current != ' ')
             current++;
 
-        ktest_assert_equal_mem(kt, line_buf, vt->screen->buf[r], sizeof(line_buf));
+        ktest_assert_equal_mem(kt, line_buf, vt_char(vt, r, 0), sizeof(line_buf));
     }
 
     free_fake_vt(vt);
@@ -210,13 +212,13 @@ static void vt_scroll_from_cursor_test(struct ktest *kt)
 
 static void vt_scroll_test(struct ktest *kt)
 {
-    struct screen_char line_buf[SCR_COLS];
+    struct screen_char line_buf[80];
     memset(line_buf, 0, sizeof(line_buf));
 
     int lines = KT_ARG(kt, 0, int);
     char current = 'A' + lines;
 
-    if (lines >= SCR_ROWS)
+    if (lines >= 25)
         current = ' ';
 
     struct vt *vt = alloc_fake_vt();
@@ -225,9 +227,9 @@ static void vt_scroll_test(struct ktest *kt)
     __vt_scroll(vt, lines);
 
     int r;
-    for (r = 0; r < SCR_ROWS; r++) {
+    for (r = 0; r < vt->screen->rows; r++) {
         int c;
-        for (c = 0; c < SCR_COLS; c++) {
+        for (c = 0; c < vt->screen->cols; c++) {
             line_buf[c].chr = current;
             line_buf[c].color = screen_make_color(SCR_DEF_FORGROUND, SCR_DEF_BACKGROUND);
         }
@@ -239,7 +241,7 @@ static void vt_scroll_test(struct ktest *kt)
                 current = ' ';
         }
 
-        ktest_assert_equal_mem(kt, line_buf, vt->screen->buf[r], sizeof(line_buf));
+        ktest_assert_equal_mem(kt, line_buf, vt_char(vt, r, 0), sizeof(line_buf));
     }
 
     free_fake_vt(vt);
@@ -258,11 +260,11 @@ static void vt_scroll_clear_to_cursor_test(struct ktest *kt)
     int r = 0, c = 0;
     for (r = 0; r <= vt->cur_row; r++)
         for (c = 0; c <= vt->cur_col; c++)
-            ktest_assert_screen_char(kt, ' ', def_color, vt->screen->buf, r, c);
+            ktest_assert_screen_char(kt, ' ', def_color, vt, r, c);
 
-    for (; r < SCR_ROWS; r++)
-        for (; c < SCR_COLS; c++)
-            ktest_assert_screen_char(kt, 0, 0, vt->screen->buf, r, c);
+    for (; r < vt->screen->rows; r++)
+        for (; c < vt->screen->cols; c++)
+            ktest_assert_screen_char(kt, 0, 0, vt, r, c);
 
     free_fake_vt(vt);
 }
@@ -280,11 +282,11 @@ static void vt_scroll_clear_to_end_test(struct ktest *kt)
     int r = 0, c = 0;
     for (r = 0; r <= vt->cur_row; r++)
         for (c = 0; c < vt->cur_col; c++)
-            ktest_assert_screen_char(kt, 0, 0, vt->screen->buf, r, c);
+            ktest_assert_screen_char(kt, 0, 0, vt, r, c);
 
-    for (; r < SCR_ROWS; r++)
-        for (; c < SCR_COLS; c++)
-            ktest_assert_screen_char(kt, ' ', def_color, vt->screen->buf, r, c);
+    for (; r < vt->screen->rows; r++)
+        for (; c < vt->screen->cols; c++)
+            ktest_assert_screen_char(kt, ' ', def_color, vt, r, c);
 
     free_fake_vt(vt);
 }
@@ -297,9 +299,9 @@ static void vt_scroll_clear_test(struct ktest *kt)
     __vt_clear_color(vt, color);
 
     int r, c;
-    for (r = 0; r < SCR_ROWS; r++)
-        for (c = 0; c < SCR_COLS; c++)
-            ktest_assert_screen_char(kt, ' ', color, vt->screen->buf, r, c);
+    for (r = 0; r < vt->screen->rows; r++)
+        for (c = 0; c < vt->screen->cols; c++)
+            ktest_assert_screen_char(kt, ' ', color, vt, r, c);
 
     free_fake_vt(vt);
 }

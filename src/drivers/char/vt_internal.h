@@ -12,6 +12,9 @@ struct vt_kp_output {
     struct vt *vt;
 };
 
+/* Convience macro for indexing a single character from the vt's screen */
+#define vt_char(vt, r, c) ((vt)->screen->buf + (r) * ((vt)->screen->cols) + (c))
+
 void vt_early_init(struct vt *vt);
 void vt_init(struct vt *vt);
 
