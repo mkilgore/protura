@@ -164,8 +164,28 @@
                             } else \
                                 TP(__using_body, ctr):
 
+#define scoped_using_assign_ctr(cmd1, cmd2, arg, init, ctr) \
+    if (0) { \
+        TP(__using_finished, ctr):; \
+    } else \
+        for (typeof(arg) __using_temp __cleanup(cmd2) = init;;) \
+            if (1) { \
+                __using_temp = (cmd1); \
+                (arg) = __using_temp; \
+                goto TP(__using_body, ctr); \
+            } else \
+                while (1) \
+                    while (1) \
+                        if (1) { \
+                            goto TP(__using_finished, ctr); \
+                        } else \
+                            TP(__using_body, ctr):
+
 #define scoped_using_cond(cond, cmd1, cmd2, arg) \
     scoped_using_cond_ctr(cond, cmd1, cmd2, arg, __COUNTER__)
+
+#define scoped_using_assign(cmd1, cmd2, arg, init) \
+    scoped_using_assign_ctr(cmd1, cmd2, arg, init, __COUNTER__)
 
 /* The 'nocheck' version doesn't take a condition, just two commands to run.
  *
