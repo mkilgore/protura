@@ -118,7 +118,7 @@ void *bootmem_alloc(size_t length, size_t alignment)
 
 void bootmem_setup_palloc(void)
 {
-    palloc_init(highest_page);
+    palloc_init(highest_page + 1);
 
     int i = 0;
     for (; i < ARRAY_SIZE(memregions); i++) {
