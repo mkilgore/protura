@@ -23,6 +23,8 @@
 #include <arch/spinlock.h>
 #include <arch/idt.h>
 #include <arch/asm.h>
+#include <protura/fs/inode.h>
+#include <protura/fs/super.h>
 #include <protura/block/disk.h>
 #include <protura/block/bcache.h>
 #include <protura/block/bdev.h>

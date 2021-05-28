@@ -34,8 +34,6 @@ void dump_mem(const void *buf, size_t len, uint32_t base_addr)
                 *(cur_b++) = ' ';
         }
 
-        cur_b += snprintf(cur_b, bufend - cur_b, " |");
-
         to_print = start;
 
         if (start == strbuf)
