@@ -11,6 +11,7 @@ approximately found in the Linux kernel, largely as a learning exercise. See
 the [Design Overview](https://mkilgore.github.io/protura/docs/design-overview.html) for more information on what the
 kernel supports.
 
+
 ![Small gif showing the Protura OS functioning](docs/screenshots/ping_and_gcc.gif?raw=true)
 
 Documentation Quick Links
